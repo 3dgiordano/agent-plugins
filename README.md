@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/social-preview.svg" width="90%" alt="agent-plugins mascot: a thinking bot whose face is ringed by three colored checkpoints">
+  <img src="assets/social-preview.svg" width="90%" alt="agent-plugins — cognitive scaffolding for coding agents: three self-monitoring plugins for Claude Code, Cursor and Agent Plugins hosts">
 </p>
 
 # agent-plugins
