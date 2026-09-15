@@ -114,7 +114,8 @@ release number that only says "which changelog is this". Cutting one:
    the repo version and date; list each plugin's version in it.
 3. Commit, tag (`git tag -a vX.Y.Z -m "agent-plugins X.Y.Z"`), push with tags.
 4. Create the GitHub Release from the tag; paste the changelog section as the
-   notes. Mark it a pre-release if any plugin in it is still 0.x and untuned.
+   notes. The release is the only tag: plugins are not tagged individually -
+   the release lists which plugin versions it ships.
 
 Repo versioning: *minor* when a plugin gains capability or a new one lands,
 *patch* for fixes; 1.0 when the default thresholds and gates have been tuned
