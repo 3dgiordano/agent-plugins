@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" font-family="Segoe UI, system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif">
   <rect width="1280" height="640" fill="#0F172A"/>
   <!-- mascot -->
-  <g transform="translate(130,100) scale(3.4)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="translate(-64,-108) scale(6)" fill="none" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="64" cy="68" r="34" fill="#E2E8F0"/>
     <g stroke-width="7">
       <path d="M76.31 34.17 A36 36 0 0 1 99.45 74.25" stroke="#E8A33D"/>
@@ -16,30 +16,30 @@
     <path d="M52 88 Q58 90.5 64 87" stroke="#1F2933" stroke-width="3.5"/>
   </g>
   <!-- title -->
-  <text x="600" y="190" fill="#F8FAFC" font-size="64" font-weight="700">agent-plugins</text>
-  <text x="600" y="246" fill="#94A3B8" font-size="30">Cognitive scaffolding for coding agents</text>
+  <text x="620" y="118" fill="#F8FAFC" font-size="64" font-weight="700">agent-plugins</text>
+  <text x="620" y="172" fill="#94A3B8" font-size="30">Cognitive scaffolding for coding agents</text>
   <!-- the five questions with their marks -->
-  <g transform="translate(600,286)" font-size="23" fill="#CBD5E1">
+  <g transform="translate(620,222)" font-size="24" fill="#CBD5E1">
     <g>
       <g transform="scale(.7)" fill="none" stroke-linecap="round" stroke-width="6"><path d="M51.05 43 A22 22 0 1 1 51.05 21" stroke="#F1F5F9"/><circle cx="32" cy="32" r="6" fill="#E8A33D" stroke="none"/></g>
       <text x="58" y="29">Am I doing what the plan asks?</text>
     </g>
-    <g transform="translate(0,56)">
+    <g transform="translate(0,64)">
       <g transform="scale(.7)" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"><path d="M51.05 43 A22 22 0 1 1 51.05 21" stroke="#F1F5F9"/><path d="M23 33 L29.5 39.5 L41 26" stroke="#3B82F6"/></g>
       <text x="58" y="29">Is what I concluded actually true?</text>
     </g>
-    <g transform="translate(0,112)">
+    <g transform="translate(0,128)">
       <g transform="scale(.7)" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"><path d="M51.05 43 A22 22 0 1 1 51.05 21" stroke="#F1F5F9"/><path d="M35.5 25.94 A7 7 0 1 1 25.42 29.61" stroke="#E4573D"/><polygon points="26.4,26.0 28.3,31.1 22.9,29.2" fill="#E4573D" stroke="none"/></g>
       <text x="58" y="29">Is it still worth insisting on this?</text>
     </g>
-    <g transform="translate(0,168)">
+    <g transform="translate(0,192)">
       <g transform="scale(.7)" fill="none" stroke-linecap="round" stroke-width="6"><path d="M51.05 43 A22 22 0 1 1 51.05 21" stroke="#F1F5F9"/><rect x="25" y="25" width="14" height="14" rx="2" fill="#7C3AED" stroke="none"/></g>
       <text x="58" y="29">Is this stop justified by something checkable?</text>
     </g>
-    <g transform="translate(0,224)">
+    <g transform="translate(0,256)">
       <g transform="scale(.7)" fill="none" stroke-linecap="round" stroke-width="6"><path d="M51.05 43 A22 22 0 1 1 51.05 21" stroke="#F1F5F9"/><path d="M23 23 H39" stroke="#F1F5F9"/><path d="M23 32 H35" stroke="#F1F5F9"/><path d="M23 41 H44" stroke="#16A34A"/></g>
       <text x="58" y="29">Did I deliver every part, including the hard one?</text>
     </g>
   </g>
-  <text x="130" y="596" fill="#64748B" font-size="22">Claude Code · Cursor · Agent Plugins &#160;&#160;·&#160;&#160; never blocks · no dependencies · no network</text>
+  <text x="64" y="598" fill="#64748B" font-size="22">Claude Code · Cursor · Agent Plugins &#160;&#160;·&#160;&#160; never blocks · no dependencies · no network</text>
 </svg>
