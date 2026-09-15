@@ -1,5 +1,9 @@
 # agent-plugins
 
+[![CI](https://github.com/3dgiordano/agent-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/3dgiordano/agent-plugins/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+![Works with](https://img.shields.io/badge/works%20with-Claude%20Code%20%C2%B7%20Cursor%20%C2%B7%20Agent%20Plugins-informational)
+
 Cognitive scaffolding for coding agents, by [3dgiordano](https://github.com/3dgiordano).
 
 Coding agents are missing most of the **executive functions** a human engineer
@@ -118,6 +122,23 @@ plugins/<name>/
    node scripts/version.js <name> 1.4.0   # writes plugin.json + .claude-plugin + .cursor-plugin
    node scripts/version.js --check        # fails if any plugin has drifting versions
    ```
+ 5. Run `node scripts/test.js` — the structural checks pick the new plugin up
+   automatically (manifests, skill frontmatter, marketplace entries, hook
+   scripts); add behaviour tests for its adapters alongside the existing ones.
+
+## Development
+
+No dependencies; Node 18+ is all you need.
+
+```
+node scripts/test.js            # structure checks + every hook adapter driven as its host would
+node scripts/version.js --check # each plugin's three manifests agree on the version
+```
+
+CI runs both on Ubuntu and Windows across Node 18/20/22 for every push and pull
+request. The tests drive each hook script with the JSON its host sends and
+inspect stdout, stderr and exit codes, so a change that breaks a Claude Code
+or Cursor contract fails before it ships.
 
 ## License
 
