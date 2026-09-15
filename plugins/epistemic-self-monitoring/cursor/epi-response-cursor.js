@@ -14,13 +14,9 @@
 const { logEvent, strict } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const { scan } = require('../lib/scan.js');
+const { cwdOf } = require('../lib/host.js');
 
 const HOST = 'cursor';
-
-function workspaceOf(data) {
-  if (Array.isArray(data.workspace_roots) && data.workspace_roots[0]) return data.workspace_roots[0];
-  return process.env.CURSOR_PROJECT_DIR || process.cwd();
-}
 
 function main(raw) {
   let data = {};
@@ -28,7 +24,7 @@ function main(raw) {
   const cid = data.conversation_id || 'noconversation';
 
   const res = scan(data.text || '');
-  logEvent(workspaceOf(data), {
+  logEvent(cwdOf(data), {
     event: 'close', host: 'cursor', conversation: cid, blocks: res.blocks, tags: res.tags,
     violations: res.violations, strict: strict()
   });

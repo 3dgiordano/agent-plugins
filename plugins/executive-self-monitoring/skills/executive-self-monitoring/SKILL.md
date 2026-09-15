@@ -53,6 +53,10 @@ Patterns that reliably pull work away from the plan, regardless of domain:
   dead-ends ledger, or ADRs, check it before reopening a settled question.
 - **"While I'm here" scope creep** — refactors, cleanups, or improvements the
   plan didn't ask for, however cheap they look.
+- **Scope shrink** — the mirror image: delivering the tractable subset of what
+  the plan asks and reporting it as done. The coverage-self-monitoring skill
+  tracks the parts; here the check is that the gate you quote is the plan's,
+  not a smaller one you substituted.
 - **Investigation without an exit condition** — digging into a curiosity with no
   stated question the plan needs answered.
 

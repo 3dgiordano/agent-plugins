@@ -23,6 +23,7 @@ const { logEvent, strict } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const { scan } = require('../lib/scan.js');
 const msg = require('../lib/messages.js');
+const { cwdOf } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -34,7 +35,7 @@ function main(raw) {
   const res = scan(data.last_assistant_message || '');
   const blocking = strict() && res.violations.length > 0 && !data.stop_hook_active;
 
-  logEvent(data.cwd, {
+  logEvent(cwdOf(data), {
     event: 'close', session: sid, blocks: res.blocks, tags: res.tags,
     violations: res.violations, strict: strict(), blocked: blocking
   });

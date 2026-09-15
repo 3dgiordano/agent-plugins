@@ -69,11 +69,21 @@ before you test it.
    - A general verdict needs general evidence; otherwise state the narrow
      claim you actually have.
 
-6. **Stop rule.** If you cannot name the goal, the authority that defines
+6. **Register is not evidence.** A claim's status comes from what was run,
+   not from how the turn went. "I'm not sure", "I think", "probably", "it
+   seems" are not statuses — a claim is `observed`, `conjecture` or
+   `verified`, and hedging words neither downgrade a verified claim nor
+   upgrade a conjecture. If you want to soften a claim, name the check that
+   would settle it (that is its falsifier) and leave it a conjecture; if you
+   want to harden one, run the check. State a green result and a red one in
+   the same voice. (Using "not confident" as a reason to *stop* rather than to
+   *soften* is the termination-self-monitoring skill's concern.)
+
+7. **Stop rule.** If you cannot name the goal, the authority that defines
    success, the falsifier, or what you would see if you were wrong — *that is
    the finding.* Stop and find it before continuing.
 
-7. **Closure checks** — before building or declaring, ask:
+8. **Closure checks** — before building or declaring, ask:
    - **Fires ≠ helps.** A mechanism that runs is not one that improves things.
      Know the noise floor of your measurement first, and close only when the
      target moved above it.

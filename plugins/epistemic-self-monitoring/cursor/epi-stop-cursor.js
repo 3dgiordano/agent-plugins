@@ -20,13 +20,9 @@
 const { logEvent, strict } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const msg = require('../lib/messages.js');
+const { cwdOf } = require('../lib/host.js');
 
 const HOST = 'cursor';
-
-function workspaceOf(data) {
-  if (Array.isArray(data.workspace_roots) && data.workspace_roots[0]) return data.workspace_roots[0];
-  return process.env.CURSOR_PROJECT_DIR || process.cwd();
-}
 
 function main(raw) {
   let data = {};
@@ -41,7 +37,7 @@ function main(raw) {
   const firstStop = !data.loop_count;
   const blocking = strict() && pending.length > 0 && firstStop && data.status !== 'aborted';
 
-  logEvent(workspaceOf(data), { event: 'stop', host: 'cursor', conversation: cid, status: data.status, violations: pending, blocked: blocking });
+  logEvent(cwdOf(data), { event: 'stop', host: 'cursor', conversation: cid, status: data.status, violations: pending, blocked: blocking });
 
   if (blocking) process.stdout.write(JSON.stringify({ followup_message: msg.blockReason(pending) }));
 }

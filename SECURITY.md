@@ -21,9 +21,11 @@ Every hook in this repository, on every host:
   dependencies** (only Node built-ins: `fs`, `os`, `path`), and reads no files
   other than its own state.
 
-The one hook that can block (`epistemic-self-monitoring`'s closure gate) does
-so only when `EPIMON_STRICT` is set, at most once per turn, and only by exit
-code / a documented host response — never by altering the agent's output.
+Two hooks can block: `epistemic-self-monitoring`'s closure gate (only when
+`EPIMON_STRICT` is set) and `termination-self-monitoring`'s termination gate
+(only when `TERMMON_STRICT` is set). Each does so at most once per turn, and
+only by exit code / a documented host response — never by altering the
+agent's output. The other three plugins have no blocking mode.
 
 If you find any behaviour outside this list, treat it as a vulnerability and
 report it.
@@ -61,8 +63,12 @@ plugin (see each `plugin.json`); the repository release lists them.
   session-derived values interpolated into a message are: the counts; a file
   path or shell command the agent itself issued; one error line (≤160 chars,
   numbers and paths blanked) from a tool output the agent has already seen;
-  and the `Claim` text of a closure block the agent itself wrote. No user
-  prompt text and no file contents are ever echoed back.
+  and, from the agent's own final message, the `Claim` text of a closure
+  block, the trigger phrase (≤80 chars) and the `Reason` / `Decision` values
+  of a termination block, the deferral phrase (≤80 chars) and the part names
+  of a coverage block. From the user's prompt only a number is derived (how
+  many enumerated items it has); no user prompt text and no file contents are
+  ever echoed back.
 - **Third-party hosts.** How Claude Code, Cursor or another client executes
   hooks, sandboxes them, or prompts for permission is that host's
   responsibility; this policy covers only what these scripts do once run.

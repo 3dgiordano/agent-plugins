@@ -1,0 +1,130 @@
+'use strict';
+/*
+ * Scans an assistant message for state-shaped reasons to stop, defer, narrow
+ * or soften -- the persona artifacts a model inherits from its training data
+ * (fatigue, a clock, a context budget it does not manage, confidence as a
+ * feeling, difficulty as a mood, a run of apologies) -- and for the
+ * [TERMINATION CHECK] block the skill asks for when one of them is used.
+ *
+ * The scan is deliberately narrow and first-person anchored: "I'm running out
+ * of context" is a hit, "the user asked to continue tomorrow" is not. Fenced
+ * code, inline code and quoted lines are stripped first, so a message that
+ * documents or quotes these phrases is not judged for using them.
+ *
+ * A hit is a signal, not a verdict: the hook only asks the agent to replace
+ * the phrase with a checkable reason, or to continue.
+ */
+
+const CATEGORIES = [
+  {
+    kind: 'budget', // fatigue, clock, context budget - limits the agent does not manage
+    re: [
+      /\b(?:I(?:'m| am)|we(?:'re| are))\s+(?:running|about to run|going to run)\s+(?:out of|low on)\s+(?:context|tokens?|time|budget|space|room)\b/i,
+      /\b(?:my|the)\s+context\s+(?:window|budget|limit)\s+(?:is|was|will be)\s+(?:nearly |almost |getting |quite |very )?(?:full|exhausted|limited|tight|running out|used up)\b/i,
+      // duration of the *exchange* (session, conversation, day), not the size of the *work* -
+      // "this is a large task" is scoping, and a legitimate thing to say before starting
+      /\b(?:this|it)\s+(?:has been|is)\s+(?:a\s+)?(?:long|lengthy|extended)\s+(?:session|conversation|day)\b/i,
+      /\b(?:end of|late in|deep into)\s+(?:a\s+)?(?:long\s+)?(?:session|day|conversation)\b/i,
+      /\bI(?:'ve| have)\s+been\s+(?:at|on|working on)\s+this\s+(?:for\s+)?(?:a while|a long time|too long|hours)\b/i,
+      /\b(?:let(?:'s| us)|we can|we could|I(?:'ll| will|'d| would)(?: suggest)?)\s+(?:pick|take)\s+(?:this|it|that)\s+up\s+(?:later|tomorrow|next time|in (?:a|another|the next) (?:new |fresh )?(?:session|conversation|turn))\b/i,
+      /\b(?:let(?:'s| us)|we\s+(?:can|could|should)|I(?:'ll| will|'d| would| can| could)(?:\s+(?:suggest|recommend|propose))?)\s+(?:we\s+|you\s+)?(?:continue|resume|revisit|finish|do|handle)\s+(?:this|it|that|the rest)?\s*(?:later|tomorrow|in (?:a|another) (?:new|fresh|separate|future) (?:session|conversation|context))\b/i,
+      /\b(?:let(?:'s| us)|we\s+(?:can|could|should)|I(?:'ll| will|'d| would| can| could)(?:\s+(?:suggest|recommend|propose))?)\s+(?:we\s+|you\s+)?(?:start|continue|resume)\s+(?:this\s+|it\s+)?(?:in|with|from)\s+a\s+(?:new|fresh|clean)\s+(?:session|context|conversation)\b/i,
+      /\b(?:due to|given|because of|under)\s+(?:the\s+)?(?:time|context|length|token)\s+(?:constraints?|limits?|pressure|budget)\b/i,
+    ],
+  },
+  {
+    kind: 'confidence', // confidence as a feeling, not as a measured status
+    re: [
+      /\bI(?:'m| am)\s+not\s+(?:entirely|fully|completely|quite|totally|100%|really|very)?\s*(?:confident|sure|certain)\s+enough\b/i,
+      /\bI\s+(?:don't|do not|didn't|did not)\s+feel\s+(?:confident|comfortable|sure|certain|safe)\b/i,
+      /\bI(?:'m| am)\s+(?:hesitant|reluctant|uncomfortable|uneasy|nervous|worried|afraid)\s+(?:to|about)\b/i,
+      // about the *code* ("rather not touch the scheduler"), not about an *attempt* -
+      // "I'd rather not try the same flag again" is the switch decision persistence asks for
+      /\bI(?:'d| would)\s+(?:rather|prefer)\s+not\s+(?:to\s+)?(?:risk|touch|change|modify)\b/i,
+      /\b(?:without|lacking)\s+(?:more|enough|sufficient)\s+confidence\b/i,
+    ],
+  },
+  {
+    kind: 'complexity', // difficulty offered as the reason, with no checkable content
+    re: [
+      /\b(?:given|due to|because of|considering)\s+(?:the|its|their|this)\s+(?:sheer\s+)?(?:complexity|scale|size|scope|difficulty)\b/i,
+      /\b(?:this|that|it)\s+(?:is|would be|seems|looks|feels)\s+(?:too|quite|very|rather|pretty)\s+(?:complex|complicated|large|big|involved|risky|ambitious|hard|difficult)\s+(?:to|for)\s+(?:do|tackle|handle|address|attempt|take on|cover|finish)\s+(?:now|here|in this|in one|right now|at this point|in a single)\b/i,
+      /\b(?:beyond|outside|out of)\s+(?:the\s+)?scope\s+(?:of|for)\s+(?:this|the current|a single|one)\s+(?:turn|response|session|pass|message|conversation)\b/i,
+    ],
+  },
+];
+
+// Apologies and self-criticism: one is a sentence, a run is a mood.
+const APOLOGY_RE = /\b(?:I\s+apologi[sz]e|my\s+apologies|(?:I(?:'m| am)\s+)?(?:so\s+|very\s+|really\s+|terribly\s+)?sorry|my\s+(?:mistake|bad|error)|I\s+should\s+have|I\s+was\s+wrong|I\s+messed\s+up|I\s+failed\s+to)\b/gi;
+const APOLOGY_RUN = 3;
+
+// The block the skill asks for. Same conventions as the epistemic closure
+// block: marker alone on its line, one field per line, template placeholders
+// count as empty.
+const BLOCK_RE = /^[ \t]*\[TERMINATION CHECK\][ \t]*$([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*\[TERMINATION CHECK\][ \t]*$|(?![\s\S]))/gm;
+const REASONS = ['gate-not-run', 'owner-choice', 'budget-spent', 'limit-observed', 'none'];
+
+function field(block, name) {
+  const re = new RegExp('^[ \t]*[-*]?[ \t]*' + name + '[ \t]*:[ \t]*(.*)$', 'im');
+  const m = block.match(re);
+  if (!m) return null;
+  const v = m[1].trim();
+  if (!v || /^<.*>$/.test(v) || /^(n\/a|tbd|-|\?)$/i.test(v)) return '';
+  return v;
+}
+
+// Remove what must not be judged: fenced code, inline code, quoted lines.
+function prose(text) {
+  return text
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`[^`\n]*`/g, ' ')
+    .split(/\r?\n/).filter((l) => !/^\s*>/.test(l)).join('\n');
+}
+
+/*
+ * scan(text) -> {
+ *   hits:       [{kind, phrase}]   state-shaped reasons found in the prose
+ *   apologies:  n                  apology / self-criticism phrases counted
+ *   blocks:     n                  [TERMINATION CHECK] blocks found
+ *   violations: [string]           what the skill asks for and did not get
+ * }
+ */
+function scan(text) {
+  const out = { hits: [], apologies: 0, blocks: 0, violations: [] };
+  if (typeof text !== 'string' || !text) return out;
+  const body = prose(text);
+
+  for (const cat of CATEGORIES) {
+    for (const re of cat.re) {
+      const m = body.match(re);
+      if (m) { out.hits.push({ kind: cat.kind, phrase: m[0].replace(/\s+/g, ' ').slice(0, 80) }); break; }
+    }
+  }
+  out.apologies = (body.match(APOLOGY_RE) || []).length;
+
+  let m;
+  while ((m = BLOCK_RE.exec(text)) !== null) {
+    out.blocks += 1;
+    const b = m[1];
+    const reason = (field(b, 'Reason') || '').toLowerCase().replace(/\s+/g, '-').slice(0, 80);
+    // exact, or the reason followed by a qualifier ("gate-not-run (npm test)", "limit-observed: ENOSPC"); `none` takes none
+    const known = REASONS.find((r) => reason === r || (r !== 'none' && reason.startsWith(r) && /^[-:(]/.test(reason.slice(r.length))));
+    const evidence = field(b, 'Evidence');
+    const decision = (field(b, 'Decision') || '').toLowerCase().slice(0, 80);
+    if (!known) out.violations.push(`Reason must be one of ${REASONS.join(' | ')}, got "${reason || '(empty)'}"`);
+    else if (known !== 'none' && !evidence) out.violations.push(`Reason is ${known} but Evidence is empty - what was observed, and by which tool/command?`);
+    else if (known === 'none' && decision && !/^continue/.test(decision)) out.violations.push(`Reason is none but Decision is "${decision}" - with no checkable reason, the decision is continue`);
+    if (!decision) out.violations.push('no Decision (continue | stop | ask owner)');
+  }
+
+  if (out.hits.length && !out.blocks) {
+    out.violations.unshift('a state-shaped reason (' + out.hits.map((h) => `${h.kind}: "${h.phrase}"`).join('; ') +
+      ') with no [TERMINATION CHECK] block - name the checkable reason or continue');
+  }
+  if (out.apologies >= APOLOGY_RUN) {
+    out.violations.push(`${out.apologies} apology / self-criticism phrases in one message - one sentence each: what was wrong, the correct reading, the check that would have caught it; then continue`);
+  }
+  return out;
+}
+
+module.exports = { scan, REASONS, APOLOGY_RUN };

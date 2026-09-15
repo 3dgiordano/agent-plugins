@@ -6,8 +6,9 @@ collection, how to add or change a plugin, and how releases work.
 ## What belongs here
 
 Every plugin in this repository is a prosthesis for **one executive function**
-a coding agent lacks. Before proposing one, check it against the four rules the
-existing three follow:
+a coding agent lacks — or, as with termination-self-monitoring, the removal of
+one artifact it has too much of. Before proposing one, check it against the
+five rules the existing plugins follow:
 
 1. **One function per plugin.** It answers one question (*am I on the plan?*,
    *is this verified?*, *is it worth another try?*). If it answers two, it is
@@ -23,6 +24,15 @@ existing three follow:
    *when*; they never carry the protocol. Anything project-specific (drift
    patterns of a particular codebase, metrics of a particular domain) belongs
    in the user's `CLAUDE.md` or rules, not in the skill.
+5. **Name the monitored decision or variable, never an internal state.**
+   `executive`, `epistemic`, `persistence`, `termination`, `coverage` name
+   what is checked — alignment to the plan, the status of a claim, the
+   persist-or-quit decision, the reason for a stop, the parts delivered. A
+   name like *affective* or *avoidance* would assert a state the agent does
+   not have; what looks like one from outside is a training-data artifact,
+   and the plugin's job is to name the artifact, not to adopt it. The same
+   rule applies to the text of the skills: an agent has counts, gates and
+   observations, not moods.
 
 Open a **plugin proposal** issue first — the template asks exactly these
 questions — so the design is agreed before code is written.
@@ -108,4 +118,7 @@ release number that only says "which changelog is this". Cutting one:
 
 Repo versioning: *minor* when a plugin gains capability or a new one lands,
 *patch* for fixes; 1.0 when the default thresholds and gates have been tuned
-against real session logs rather than reasoned.
+against real session logs rather than reasoned — `node scripts/calibrate.js`
+is the tool for that: it reads the opt-in logs and prints what-if nudge rates
+per threshold, and the tuning decision (with the numbers) goes in the
+changelog.

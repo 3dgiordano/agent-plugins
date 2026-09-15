@@ -46,7 +46,7 @@ choosing your own.
 | Layer | Claude Code | Cursor |
 |-------|-------------|--------|
 | **Load** the discipline | `UserPromptSubmit`: first turn, then every 10th | `sessionStart` → `additional_context` |
-| **Observe** — expectation vs. observation nudge right after a shell result | `PostToolUse` (matcher `Bash`) → `additionalContext`; every 6th command, or on failure-looking output (rate-limited) | `postToolUse` (self-filtered to shell tools) → `additional_context` |
+| **Observe** — expectation vs. observation nudge right after a shell result | `PostToolUse` (matcher `Bash`) → `additionalContext`; every 6th command, or on output that `lib/fail.js` classes as a failure — the same line rules as persistence, never a bare "error" or "failed" (rate-limited) | `postToolUse` (self-filtered to shell tools) → `additional_context` |
 | **Close** — scan the final message for `[EPISTEMIC CLOSE]` blocks | `Stop` reads `last_assistant_message` | `afterAgentResponse` scans `text`, `stop` acts on it |
 
 Cadence constants sit at the top of each adapter (`EVERY_N_TURNS`,
@@ -132,7 +132,9 @@ cursor/epi-response-cursor.js
 cursor/epi-stop-cursor.js
 lib/scan.js                        # [EPISTEMIC CLOSE] block parser + rules
 lib/messages.js                    # reminder texts shared by both adapters
-lib/state.js                       # per-session counters + pending findings (OS temp dir)
+lib/state.js                       # per-session state (OS temp dir); lockfile-guarded update() for concurrent hooks
+lib/host.js                        # cwdOf(): the project dir from the event, else the host env var, else null
+lib/fail.js                        # did a shell output look like a failure? line rules, no bare "error"/"failed" (per-plugin copy)
 lib/log.js                         # opt-in logger (per-plugin copy; plugins are self-contained)
 ```
 

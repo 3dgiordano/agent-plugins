@@ -12,13 +12,9 @@
 const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
+const { cwdOf } = require('../lib/host.js');
 
 const HOST = 'cursor';
-
-function workspaceOf(data) {
-  if (Array.isArray(data.workspace_roots) && data.workspace_roots[0]) return data.workspace_roots[0];
-  return process.env.CURSOR_PROJECT_DIR || process.cwd();
-}
 
 function main(raw) {
   let data = {};
@@ -27,7 +23,7 @@ function main(raw) {
 
   const st = state.load(HOST, cid);
   st.turns = (st.turns || 0) + 1;
-  logEvent(workspaceOf(data), Object.assign({ event: 'turn', host: 'cursor', conversation: cid, turn: st.turns }, signals.summary(st.turn || signals.freshTurn())));
+  logEvent(cwdOf(data), Object.assign({ event: 'turn', host: 'cursor', conversation: cid, turn: st.turns }, signals.summary(st.turn || signals.freshTurn())));
   st.turn = signals.freshTurn();
   state.save(HOST, cid, st);
 }

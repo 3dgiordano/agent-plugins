@@ -15,6 +15,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const msg = require('../lib/messages.js');
+const { cwdOf } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -23,15 +24,16 @@ function main(raw) {
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
   const sid = data.session_id || 'nosession';
 
-  const st = state.load(HOST, sid);
-  if (!st.turn) st.turn = signals.freshTurn();
-
   const out = data.tool_output !== undefined ? data.tool_output : data.tool_response;
-  const fired = signals.observe(st.turn, data.tool_name, data.tool_input, out);
-  state.save(HOST, sid, st);
+  let st;
+  const fired = state.update(HOST, sid, (s) => {
+    st = s;
+    if (!st.turn) st.turn = signals.freshTurn();
+    return signals.observe(st.turn, data.tool_name, data.tool_input, out);
+  });
 
   if (!fired.length) return;
-  logEvent(data.cwd, { event: 'signal', session: sid, tools: st.turn.tools, signals: fired });
+  logEvent(cwdOf(data), { event: 'signal', session: sid, tools: st.turn.tools, signals: fired });
   process.stdout.write(JSON.stringify({
     hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: msg.nudge(fired) }
   }));

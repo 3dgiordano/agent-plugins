@@ -15,6 +15,7 @@
 const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const msg = require('../lib/messages.js');
+const { cwdOf } = require('../lib/host.js');
 
 const EVERY_N_TURNS = 10; // after the first turn, re-state the discipline every N turns
 const HOST = 'claude';
@@ -35,7 +36,7 @@ function main(raw) {
   if (load) parts.push(msg.LOAD);
   if (pending.length) parts.push(msg.retrospective(pending));
 
-  logEvent(data.cwd, { event: 'prompt', session: sid, turn: st.turns, load: load, retrospective: pending.length });
+  logEvent(cwdOf(data), { event: 'prompt', session: sid, turn: st.turns, load: load, retrospective: pending.length });
   if (parts.length) process.stdout.write(parts.join('\n'));
 }
 

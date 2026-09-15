@@ -13,8 +13,9 @@
 
 const { logEvent } = require('../lib/log.js');
 const msg = require('../lib/messages.js');
+const { cwdOf } = require('../lib/host.js');
 
-const workspace = process.env.CURSOR_PROJECT_DIR || process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const workspace = cwdOf({});
 
 try { logEvent(workspace, { event: 'session_start', host: 'cursor' }); } catch (_) {}
 try { process.stdout.write(JSON.stringify({ additional_context: msg.LOAD })); } catch (_) {}

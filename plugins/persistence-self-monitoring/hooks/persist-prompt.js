@@ -17,6 +17,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const msg = require('../lib/messages.js');
+const { cwdOf } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -30,7 +31,7 @@ function main(raw) {
   st.turn = signals.freshTurn();
   state.save(HOST, sid, st);
 
-  logEvent(data.cwd, { event: 'prompt', session: sid, turn: st.turns });
+  logEvent(cwdOf(data), { event: 'prompt', session: sid, turn: st.turns });
   if (st.turns === 1) process.stdout.write(msg.LOAD);
 }
 

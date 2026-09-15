@@ -67,6 +67,17 @@ threshold is crossed (and again at each multiple), never on every call:
 Thresholds are constants at the top of `lib/signals.js` (`EDITS_SAME_FILE`,
 `REPEAT_FAILURES`, `TOOL_CALLS_STEP`).
 
+"Looks like a failure" is decided by `lib/fail.js`, line by line, and never by
+the bare words *error* or *failed* — a green Jest run prints `0 failed`, a
+grep for "error handling" prints the word. What counts: a non-zero exit code
+line, a Python traceback, `fatal:` / `panic:`, a non-zero `N failed` /
+`N errors` count, `npm ERR!`, `make: ***`, a line starting with `FAIL` /
+`FAILED`, an `Error:` / `SomethingError:` / `error[E…]:` / `error TS…:` line,
+an assertion failure, "command not found" and friends. The host's structured
+`{stdout, stderr}` result is read as text, not stringified, so the
+line-anchored rules see real lines. The same file, byte for byte, drives the
+epistemic plugin's observe nudge.
+
 The nudge carries the count — *"you have edited `src/a.js` 4 times this turn"*,
 *"`npm test` has failed 3 times this turn"* — and asks for the hypothesis held,
 what changed between attempts, and what the agent would do if the hypothesis
@@ -124,7 +135,9 @@ cursor/persist-observe-cursor.js
 cursor/persist-response-cursor.js
 lib/signals.js                      # the counters + thresholds (host-neutral)
 lib/messages.js                     # reminder texts shared by both adapters
-lib/state.js                        # per-session turn state (OS temp dir)
+lib/fail.js                         # did a shell output look like a failure? line rules, no bare "error"/"failed" (per-plugin copy)
+lib/state.js                        # per-session turn state (OS temp dir); lockfile-guarded update() for concurrent hooks
+lib/host.js                         # cwdOf(): the project dir from the event, else the host env var, else null
 lib/log.js                          # opt-in logger (per-plugin copy; plugins are self-contained)
 ```
 

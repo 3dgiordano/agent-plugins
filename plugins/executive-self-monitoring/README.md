@@ -123,6 +123,7 @@ hooks/exec-log-skill.js
 cursor/hooks.json                 # Cursor: sessionStart
 cursor/exec-monitor-cursor.js
 lib/execlog.js                    # shared opt-in logger
+lib/host.js                       # cwdOf(): the project dir from the event, else the host env var, else null
 ```
 
 Install instructions are in the [repository README](../../README.md).

@@ -37,8 +37,9 @@ function hostBaseDir() {
 
 function logEvent(cwd, obj) {
   if (!enabled()) return;
+  if (!cwd) return; // no project dir known: never log into the plugin's own install dir
   try {
-    const dir = path.join(cwd || process.cwd(), hostBaseDir(), 'logs');
+    const dir = path.join(cwd, hostBaseDir(), 'logs');
     fs.mkdirSync(dir, { recursive: true });
     const file = path.join(dir, FILE_NAME);
     try {

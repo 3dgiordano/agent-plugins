@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "persistence-self-monitoring",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Persist-or-quit self-check for coding agents. Bundles the persistence-self-monitoring skill (the 'what': name the hypothesis held, count the variants, name a rival, decide) with per-host hooks (the 'when') that count what an agent cannot feel - the same file edited N times, the same command or error failing N times, tool calls piling up since the user's last message - and speak only when a threshold is crossed. Never blocks. Portable core: the skill only; hooks are host-specific (hooks/ for Claude Code, cursor/ for Cursor).",
   "author": {
     "name": "David Giordano",

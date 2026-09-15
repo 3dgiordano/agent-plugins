@@ -16,6 +16,7 @@
 'use strict';
 
 const { logEvent, enabled } = require('../lib/execlog.js');
+const { cwdOf } = require('../lib/host.js');
 
 function main(raw) {
   if (!enabled()) return; // debug-only; skip parse work entirely when off
@@ -25,7 +26,7 @@ function main(raw) {
   const ti = data.tool_input || {};
   const skill = (typeof ti.skill === 'string' && ti.skill) ? ti.skill : '(unknown)';
 
-  logEvent(data.cwd, {
+  logEvent(cwdOf(data), {
     event: 'skill',
     session: data.session_id || 'nosession',
     tool: data.tool_name || 'Skill',

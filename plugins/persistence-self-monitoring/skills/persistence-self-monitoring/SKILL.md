@@ -55,6 +55,11 @@ Treat it as one.
      you would try next and why you stopped. Stopping with an honest account is
      a good outcome, not a failure.
 
+   A **count** is what licenses this decision. Stopping with no count, on
+   "this has been a long session" or "I'm not confident enough", is the
+   opposite failure — the termination-self-monitoring skill covers it: a
+   phrase never justifies stopping; a count can.
+
 ## Persistence failure signatures
 
 - **Variant cycling** — attempts that differ in surface, not in idea.

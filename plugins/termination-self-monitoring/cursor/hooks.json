@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "node ./cursor/term-session-start.js"
+      }
+    ],
+    "afterAgentResponse": [
+      {
+        "command": "node ./cursor/term-response-cursor.js"
+      }
+    ],
+    "stop": [
+      {
+        "command": "node ./cursor/term-stop-cursor.js",
+        "loop_limit": 1
+      }
+    ]
+  }
+}

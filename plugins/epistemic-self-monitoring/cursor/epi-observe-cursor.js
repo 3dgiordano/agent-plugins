@@ -22,12 +22,8 @@ const MIN_GAP_ON_ERROR = 3;
 const HOST = 'cursor';
 
 const SHELL_TOOL_RE = /shell|terminal|bash|command|exec/i;
-const ERROR_RE = /exit code [1-9]|\berror\b|\bfailed\b|\bexception\b|traceback/i;
-
-function workspaceOf(data) {
-  if (Array.isArray(data.workspace_roots) && data.workspace_roots[0]) return data.workspace_roots[0];
-  return process.env.CURSOR_PROJECT_DIR || process.cwd();
-}
+const { outputText, looksFailed } = require('../lib/fail.js');
+const { cwdOf } = require('../lib/host.js');
 
 function main(raw) {
   let data = {};
@@ -35,17 +31,18 @@ function main(raw) {
   if (!SHELL_TOOL_RE.test(String(data.tool_name || ''))) return;
   const cid = data.conversation_id || 'noconversation';
 
-  const st = state.load(HOST, cid);
-  st.shell = (st.shell || 0) + 1;
-  st.sinceNudge = (st.sinceNudge === undefined ? MIN_GAP_ON_ERROR : st.sinceNudge) + 1; // first error of a session fires
+  const failed = looksFailed(outputText(data.tool_output).slice(0, 4000));
+  let st;
+  const fire = state.update(HOST, cid, (s) => {
+    st = s;
+    st.shell = (st.shell || 0) + 1;
+    st.sinceNudge = (st.sinceNudge === undefined ? MIN_GAP_ON_ERROR : st.sinceNudge) + 1; // first error of a session fires
+    const f = st.shell % EVERY_N_COMMANDS === 0 || (failed && st.sinceNudge >= MIN_GAP_ON_ERROR);
+    if (f) st.sinceNudge = 0;
+    return f;
+  });
 
-  const out = typeof data.tool_output === 'string' ? data.tool_output : JSON.stringify(data.tool_output || '');
-  const looksFailed = ERROR_RE.test(out.slice(0, 4000));
-  const fire = st.shell % EVERY_N_COMMANDS === 0 || (looksFailed && st.sinceNudge >= MIN_GAP_ON_ERROR);
-  if (fire) st.sinceNudge = 0;
-  state.save(HOST, cid, st);
-
-  logEvent(workspaceOf(data), { event: 'observe', host: 'cursor', conversation: cid, shell: st.shell, failed: looksFailed, emitted: fire });
+  logEvent(cwdOf(data), { event: 'observe', host: 'cursor', conversation: cid, shell: st.shell, failed: failed, emitted: fire });
   if (fire) process.stdout.write(JSON.stringify({ additional_context: msg.OBSERVE }));
 }
 

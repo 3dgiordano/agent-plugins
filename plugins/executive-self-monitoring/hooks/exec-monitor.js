@@ -22,6 +22,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { logEvent } = require('../lib/execlog.js');
+const { cwdOf } = require('../lib/host.js');
 
 const EVERY_N_TURNS = 5; // after the session-start fire, remind every N turns
 
@@ -42,7 +43,7 @@ function main(raw) {
 
   const fire = count === 1 || count % EVERY_N_TURNS === 0;
 
-  logEvent(data.cwd, { event: 'prompt', session: sid, count: count, emitted: fire });
+  logEvent(cwdOf(data), { event: 'prompt', session: sid, count: count, emitted: fire });
 
   if (!fire) return;
 

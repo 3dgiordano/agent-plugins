@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/social-preview.svg" width="90%" alt="agent-plugins — cognitive scaffolding for coding agents: three self-monitoring plugins for Claude Code, Cursor and Agent Plugins hosts">
+  <img src="assets/social-preview.svg" width="90%" alt="agent-plugins — cognitive scaffolding for coding agents: self-monitoring plugins for Claude Code, Cursor and Agent Plugins hosts">
 </p>
 
 # agent-plugins
@@ -10,10 +10,10 @@
 
 Cognitive scaffolding for coding agents, by [3dgiordano](https://github.com/3dgiordano).
 
-Three small plugins that give a coding agent the self-checks a human engineer
+Five small plugins that give a coding agent the self-checks a human engineer
 runs in the background — *am I still on the plan?*, *is this actually verified?*,
-*is it worth another try?* — delivered as a nudge at the moment it is needed.
-They never block. They have no dependencies, make no network calls, and send
+*is it worth another try?*, *is that a reason or a phrase?*, *did I do the hard
+part?* — delivered as a nudge at the moment it is needed. They never block. They have no dependencies, make no network calls, and send
 nothing anywhere.
 
 ## What your agent sees
@@ -42,6 +42,27 @@ And when it is about to declare "the cause is X", the epistemic skill asks it to
 write the claim with its evidence, its falsifier and its scope — so you can tell
 *observed* from *guessed* without asking.
 
+When a turn ends on "I'm running out of context, let's pick this up in a fresh
+session" — a reason the agent has read a thousand times and cannot actually
+have — the next prompt opens with:
+
+```
+[termination self-monitoring] Your previous turn ended on a state-shaped reason:
+a state-shaped reason (budget: "I'm running out of context") with no
+[TERMINATION CHECK] block - name the checkable reason or continue. If the work
+is unfinished, either write the [TERMINATION CHECK] block with the checkable
+reason and its evidence, or pick the work back up now.
+```
+
+And three `TODO`s into a turn:
+
+```
+[coverage self-monitoring] you have written 3 stub / placeholder / TODO markers
+this turn (src/stream.js, src/retry.js). Each one is a part of the request that
+is not done: implement it now, or list it in the [COVERAGE CHECK] as blocked
+with the observed reason or returned to the owner. (coverage-self-monitoring skill)
+```
+
 ## Quick start
 
 ```
@@ -49,8 +70,8 @@ claude plugin marketplace add 3dgiordano/agent-plugins
 claude plugin install persistence-self-monitoring@3dgiordano-agent-plugins
 ```
 
-Swap in `executive-self-monitoring` or `epistemic-self-monitoring`, or install
-all three. Cursor and other hosts: see [Install](#install).
+Swap in any of the other four, or install all five. Cursor and other hosts: see
+[Install](#install).
 
 ## What the hooks do — and don't
 
@@ -64,8 +85,10 @@ here is exactly what they are:
   dir and are the only state. Debug logs exist but are **off** unless you set
   an env var, and then they are written inside your project, size-bounded.
 - **Never blocking by default.** Every hook fails silent: an error in a hook
-  lets the prompt, tool call or stop proceed. The one opt-in gate
-  (`EPIMON_STRICT`) blocks once, never in a loop.
+  lets the prompt, tool call or stop proceed. Two opt-in gates exist —
+  `EPIMON_STRICT` (an incomplete closure block) and `TERMMON_STRICT` (a
+  state-shaped reason to stop with no checkable one) — and each blocks once,
+  never in a loop. The other three plugins have no blocking mode at all.
 - **Tested as the host runs them.** CI drives every adapter with the JSON its
   host sends, on Ubuntu and Windows, Node 18/20/22.
 
@@ -76,20 +99,31 @@ Security policy: [SECURITY.md](SECURITY.md).
 Coding agents are missing most of the **executive functions** a human engineer
 runs in the background: holding the goal in mind while deep in a task, noticing
 the difference between what was observed and what was inferred, feeling that an
-approach has stopped working. Each plugin here is a prosthesis for one of those
-functions — a small, honest self-check, anchored to an external artifact or an
-objective count rather than to "reflect harder", delivered at the moment it is
-actually needed.
+approach has stopped working. And they carry something a human engineer does
+not: reasons to stop that come from the training data rather than from the
+task — fatigue, a clock, a context budget, confidence as a mood — produced with
+the same fluency as everything else. Each plugin here is a prosthesis for one
+missing function, or a filter for one such artifact — a small, honest
+self-check, anchored to an external artifact or an objective count rather than
+to "reflect harder", delivered at the moment it is actually needed.
 
-The collection is organized around three questions:
+The collection is organized around five questions:
 
-| Question | Executive function | Plugin |
-|----------|--------------------|--------|
+| Question | What it monitors | Plugin |
+|----------|------------------|--------|
 | *Am I doing what the plan asks?* | goal maintenance | [executive-self-monitoring](plugins/executive-self-monitoring/) |
 | *Is what I concluded actually true?* | source monitoring / verification | [epistemic-self-monitoring](plugins/epistemic-self-monitoring/) |
 | *Is it still worth insisting on this?* | persistence / effort regulation | [persistence-self-monitoring](plugins/persistence-self-monitoring/) |
+| *Is this stop justified by something checkable?* | the stated reason for a stop — vs. a persona artifact | [termination-self-monitoring](plugins/termination-self-monitoring/) |
+| *Did I deliver every part, including the hard one?* | task coverage / effort allocation | [coverage-self-monitoring](plugins/coverage-self-monitoring/) |
 
-They install independently and cross-reference each other where it helps.
+Persistence and termination are the two directions of one axis — stopping too
+late on no signal, and stopping too early on a signal the agent does not have.
+Executive and coverage are likewise a pair: work *outside* the plan, and work
+*below* it. They install independently and cross-reference each other where it
+helps. Names say what is monitored, never an internal state: what looks like
+fatigue or avoidance from outside is a training-data artifact, and the plugin's
+job is to name it, not to adopt it.
 
 Each plugin is built around a shared, host-neutral core — an
 [Agent Skill](https://agentskills.io) (`skills/<name>/SKILL.md`) — plus thin
@@ -109,6 +143,29 @@ one install, on every host it supports:
 | [executive-self-monitoring](plugins/executive-self-monitoring/) | available | Plan-anchored drift self-check: periodically nudges the agent to re-read the active plan/gate instead of drifting. Not a blocker. |
 | [epistemic-self-monitoring](plugins/epistemic-self-monitoring/) | available | Observation vs. conjecture discipline: claims carry their evidence and a named falsifier; only verified claims become facts or closures. Non-blocking by default, opt-in strict gate. |
 | [persistence-self-monitoring](plugins/persistence-self-monitoring/) | available | Persist-or-quit signal: counts repeated attempts on the same file, command or error and effort since the user last spoke; nudges only when a threshold is crossed. Never blocks. |
+| [termination-self-monitoring](plugins/termination-self-monitoring/) | available | Checkable-reason discipline: a state-shaped reason to stop, defer or narrow ("running out of context", "long session", "not confident enough", "given the complexity", a run of apologies) is replaced by a checkable one or dropped, and the work continues. Non-blocking by default, opt-in strict gate. |
+| [coverage-self-monitoring](plugins/coverage-self-monitoring/) | available | Parts-ledger discipline: the parts of a request, hardest first, each closed as done, blocked with an observed reason, or returned to the owner. Counts stubs and TODOs written per turn; flags deferred work with no closing ledger. Never blocks. |
+
+### What each host actually gets
+
+The skill is identical everywhere; the *when* depends on which events a host
+exposes. Cursor has no non-blocking per-prompt event and no way to inject
+context after the agent's final message, so two layers degrade there:
+
+| Layer | Claude Code | Cursor |
+|-------|-------------|--------|
+| Load the skill | first prompt (+ periodic re-load) | session start |
+| Executive checkpoint cadence | every 5th prompt | once per session |
+| Persistence counters + nudges | ✓ | ✓ |
+| Epistemic observe nudge | ✓ | ✓ |
+| Epistemic / termination close scan | ✓ + retrospective on the next prompt, strict gate | scan + strict gate (`followup_message`); **no retrospective** |
+| Coverage stub counter | ✓ | ✓ |
+| Coverage ledger prompt (3+ enumerated parts) | ✓ | **—** |
+| Coverage close scan (deferred work vs. `[COVERAGE CHECK]`) | ✓ + retrospective | **log only** — the agent is not told |
+
+So on Cursor, coverage is the skill plus the stub counter; the closing
+discipline it describes reaches the agent only through the skill text. An A/B
+of coverage on Cursor measures stubs, not the whole design.
 
 Each plugin folder has its own README with design notes, host differences and
 debugging tips.
@@ -125,6 +182,8 @@ claude plugin marketplace add 3dgiordano/agent-plugins
 claude plugin install executive-self-monitoring@3dgiordano-agent-plugins
 claude plugin install epistemic-self-monitoring@3dgiordano-agent-plugins
 claude plugin install persistence-self-monitoring@3dgiordano-agent-plugins
+claude plugin install termination-self-monitoring@3dgiordano-agent-plugins
+claude plugin install coverage-self-monitoring@3dgiordano-agent-plugins
 ```
 
 ```
@@ -132,6 +191,8 @@ claude plugin install persistence-self-monitoring@3dgiordano-agent-plugins
 /plugin install executive-self-monitoring@3dgiordano-agent-plugins
 /plugin install epistemic-self-monitoring@3dgiordano-agent-plugins
 /plugin install persistence-self-monitoring@3dgiordano-agent-plugins
+/plugin install termination-self-monitoring@3dgiordano-agent-plugins
+/plugin install coverage-self-monitoring@3dgiordano-agent-plugins
 ```
 
 Enabling the plugin makes the skill available **and** auto-registers its hooks —
@@ -180,8 +241,8 @@ plugins/<name>/
 ## Contributing
 
 Proposals, bug reports and pull requests are welcome. What fits the collection
-(one executive function per plugin, anchored to an artifact or an objective
-count, never blocking by default, host-neutral skill), how to add or change a
+(one function per plugin, anchored to an artifact or an objective count, never
+blocking by default, host-neutral skill, named for what it monitors), how to add or change a
 plugin, and how releases are cut are all in [CONTRIBUTING.md](CONTRIBUTING.md).
 Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
@@ -192,7 +253,15 @@ No dependencies; Node 18+ is all you need.
 ```
 node scripts/test.js            # structure checks + every hook adapter driven as its host would
 node scripts/version.js --check # each plugin's three manifests agree on the version
+node scripts/calibrate.js <dir> # what-if nudge rates from the opt-in logs of real sessions
 ```
+
+The thresholds (4 edits, 3 failures, 30 tool calls, 3 stubs, 3 parts, 3
+apologies) are reasoned, not measured. To tune them: set the `*_LOG` env vars
+in a project you actually work in, work for a while, then run
+`calibrate.js` on that project. It prints, per signal, the distribution of the
+per-turn measurement and the share of turns that would have been nudged at
+each candidate threshold — the number is the signal only if it stays rare.
 
 CI runs both on Ubuntu and Windows across Node 18/20/22 for every push and pull
 request. The tests drive each hook script with the JSON its host sends and

@@ -19,10 +19,10 @@ const REPEAT_FAILURES = 3;
 const TOOL_CALLS_STEP = 30;
 const MAX_KEYS = 64; // bound the per-turn maps so state can never grow unboundedly
 
+const { outputText, looksFailed, errorSignature } = require('./fail.js');
+
 const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff/i;
 const SHELL_TOOL_RE = /bash|shell|terminal|command|exec|powershell/i;
-const ERR_LINE_RE = /\berror\b|\bfailed\b|\bexception\b|traceback|fatal:/i;
-const FAIL_RE = /exit code [1-9]|\berror\b|\bfailed\b|\bexception\b|traceback|fatal:/i;
 
 function freshTurn() {
   return { tools: 0, edits: {}, cmds: {}, errs: {}, fired: { effort: 0, edits: {}, cmds: {}, errs: {} } };
@@ -56,22 +56,6 @@ function commandOf(input) {
   return typeof c === 'string' && c ? c.trim().replace(/\s+/g, ' ').slice(0, 200) : null;
 }
 
-function outputText(o) {
-  if (typeof o === 'string') return o;
-  try { return JSON.stringify(o || ''); } catch (_) { return ''; }
-}
-
-// A stable-ish signature for an error: the first line that names the error
-// (falling back to a bare "exit code N" line), with numbers, hex ids and
-// absolute paths blanked out, so retries that differ only in a line number or
-// a temp path still count as "the same error".
-function errorSignature(text) {
-  const lines = text.split(/\r?\n/);
-  const line = lines.find((l) => ERR_LINE_RE.test(l)) || lines.find((l) => FAIL_RE.test(l));
-  if (!line) return null;
-  return line.replace(/0x[0-9a-f]+/gi, '#').replace(/\d+/g, '#').replace(/([A-Za-z]:)?[\\/][^\s:'"]+/g, '<path>').trim().slice(0, 160);
-}
-
 /*
  * Record one tool call into the turn state and return the list of signals
  * that fired: [{kind:'edits', key, count}, {kind:'cmds'|'errs', key, count}, {kind:'effort', count}]
@@ -93,7 +77,7 @@ function observe(turn, toolName, toolInput, toolOutput) {
 
   if (SHELL_TOOL_RE.test(name)) {
     const out = outputText(toolOutput).slice(0, 6000);
-    if (FAIL_RE.test(out)) {
+    if (looksFailed(out)) {
       const c = commandOf(toolInput);
       if (c) {
         const n = bump(turn.cmds, c);

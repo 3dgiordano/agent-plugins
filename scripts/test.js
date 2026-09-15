@@ -265,6 +265,30 @@ test('persistence signals: thresholds fire once per crossing, error signatures n
   assert.equal(S.summary(t).maxEditsSameFile, 5);
 });
 
+test('failure detection (persistence + epistemic copies): green suites and code dumps are not failures; real failures are', () => {
+  const green = ['Tests: 5 passed, 0 failed', '===== 5 passed, 0 warnings, 0 failed in 0.3s =====', '0 error(s), 0 warning(s)',
+    'src/a.js:10: // error handling here', 'warning: unused variable', 'ok  \tgithub.com/x/y\t0.012s', { stdout: 'Tests: 12 passed, 0 failed', stderr: '' }];
+  const red = ['Tests: 1 failed, 4 passed', 'FAILED tests/test_x.py::test_y', 'FAIL src/parser.test.js', 'Exit code 1\nerror: boom',
+    'Error: boom\n    at x', 'TypeError: x is not a function', 'Traceback (most recent call last):', 'fatal: not a git repository',
+    'npm ERR! code ELIFECYCLE', 'make: *** [all] Error 2', "main.c:5:3: error: expected ';'", 'error[E0308]: mismatched types',
+    'src/a.ts(3,5): error TS2345: x', 'panic: runtime error', 'bash: foo: command not found', { stdout: '', stderr: 'Exit code 2' }];
+  for (const p of [PER, EPI]) {
+    const F = require(path.join(plugin(p), 'lib/fail.js'));
+    for (const g of green) assert.equal(F.looksFailed(F.outputText(g)), false, `${p}: green counted as failure: ${JSON.stringify(g)}`);
+    for (const r of red) assert.equal(F.looksFailed(F.outputText(r)), true, `${p}: failure missed: ${JSON.stringify(r)}`);
+    assert.equal(F.errorSignature('Tests: 5 passed, 0 failed'), null, `${p}: green summary is not an error signature`);
+    assert.equal(F.errorSignature('Error: got 3 at C:\\tmp\\3\\x.js:30'), 'Error: got # at <path>:#');
+  }
+  assert.equal(fs.readFileSync(path.join(plugin(PER), 'lib/fail.js'), 'utf8'), fs.readFileSync(path.join(plugin(EPI), 'lib/fail.js'), 'utf8'), 'the two copies must not diverge');
+  // the end-to-end shape of the bug: three green runs of the same command must not become "has failed 3 times"
+  const S = require(path.join(plugin(PER), 'lib/signals.js'));
+  const t = S.freshTurn();
+  for (let i = 0; i < 3; i++) assert.deepEqual(S.observe(t, 'Bash', { command: 'npm test' }, 'Tests: 5 passed, 0 failed'), []);
+  assert.deepEqual(t.cmds, {}, 'green runs are not counted at all');
+  for (let i = 0; i < 2; i++) S.observe(t, 'Bash', { command: 'npm test' }, { stdout: 'Tests: 1 failed, 4 passed', stderr: '' });
+  assert.deepEqual(S.observe(t, 'Bash', { command: 'npm test' }, { stdout: 'Tests: 1 failed, 4 passed', stderr: '' }).map((s) => s.kind).sort(), ['cmds', 'errs'], 'structured {stdout} output is read');
+});
+
 test('persistence (claude): turn boundary resets counters; nudges carry counts; stop never blocks', (t) => {
   const sid = uid('per');
   t.after(() => cleanupTemp(`persistmon_claude_${sid}`));
@@ -292,21 +316,207 @@ test('persistence (cursor): sessionStart, postToolUse with Cursor tool names, af
 });
 
 // ---------------------------------------------------------------------------
+// termination-self-monitoring
+// ---------------------------------------------------------------------------
+
+const TER = 'termination-self-monitoring';
+const budgetMsg = "I've done the parser. I'm running out of context, so let's pick this up in a fresh session.";
+const goodTerm = budgetMsg + '\n\n[TERMINATION CHECK]\n- Trigger: running out of context\n- Reason: none\n- Decision: continue\n';
+const blockedTerm = budgetMsg + '\n\n[TERMINATION CHECK]\n- Trigger: running out of context\n- Reason: limit-observed\n- Evidence: Write failed ENOSPC; df shows 0 bytes free\n- Decision: stop\n';
+
+test('termination scanner: first-person triggers, stripped code/quotes, apology runs, block rules', () => {
+  const { scan } = require(path.join(plugin(TER), 'lib/lexicon.js'));
+  const kinds = (s) => scan(s).hits.map((h) => h.kind);
+  assert.deepEqual(kinds(budgetMsg), ['budget']);
+  assert.deepEqual(kinds("I'm not confident enough to touch the scheduler."), ['confidence']);
+  assert.deepEqual(kinds('Given the complexity of the migration I would suggest a separate session.'), ['complexity']);
+  assert.deepEqual(kinds('The user asked to continue tomorrow; proceeding with the change now.'), [], 'third-person deferral is not a hit');
+  assert.deepEqual(kinds('Docs say agents write `I am running out of context`; not judged.'), [], 'inline code stripped');
+  assert.deepEqual(kinds('```\nI am running out of context\n```\nfenced'), [], 'fenced code stripped');
+  assert.deepEqual(kinds('> I am running out of context\nquoted'), [], 'quoted lines stripped');
+  assert.equal(scan('All green. Done.').violations.length, 0);
+  assert.equal(scan(budgetMsg).violations.length, 1, 'trigger with no block is the finding');
+  assert.match(scan(budgetMsg).violations[0], /no \[TERMINATION CHECK\]/);
+  assert.equal(scan(goodTerm).violations.length, 0, 'Reason none + continue passes');
+  assert.equal(scan(blockedTerm).violations.length, 0, 'limit-observed with evidence passes');
+  assert.match(scan(blockedTerm.replace(/- Evidence:.*\n/, '')).violations[0], /Evidence is empty/);
+  assert.match(scan(blockedTerm.replace(/Evidence: .*/, 'Evidence: <what was observed>')).violations[0], /Evidence is empty/, 'placeholder counts as empty');
+  assert.match(scan(goodTerm.replace('Decision: continue', 'Decision: stop')).violations[0], /decision is continue/);
+  assert.match(scan(goodTerm.replace('Reason: none', 'Reason: tired')).violations[0], /Reason must be one of/);
+  const apology = 'Sorry, my mistake. I apologize - I should have checked. Sorry again.';
+  assert.equal(scan(apology).apologies, 5);
+  assert.match(scan(apology).violations[0], /apology/);
+  assert.equal(scan('Sorry, fixed.').violations.length, 0, 'one apology is a sentence, not a run');
+  // scoping the work is not reporting fatigue; a switch decision is not confidence-as-feeling
+  assert.deepEqual(kinds('This is a large task; I will start with the parser.'), []);
+  assert.deepEqual(kinds('It is a big task with three subsystems.'), []);
+  assert.deepEqual(kinds('This has been a long session.'), ['budget']);
+  assert.deepEqual(kinds("I'd rather not try the same flag again; switching to the config path."), []);
+  assert.deepEqual(kinds("I'd rather not touch the scheduler."), ['confidence']);
+  // Reason is an enum: a qualifier may follow, but "none" takes none
+  const withReason = (r) => scan(budgetMsg + `\n\n[TERMINATION CHECK]\n- Trigger: x\n- Reason: ${r}\n- Evidence: y\n- Decision: stop\n`).violations;
+  assert.equal(withReason('gate-not-run (npm test)').length, 0);
+  assert.equal(withReason('limit-observed: ENOSPC').length, 0);
+  assert.match(withReason('none-of-the-above')[0], /Reason must be one of/);
+  assert.match(withReason('none yet')[0], /Reason must be one of/);
+  assert.match(withReason('nonexistent')[0], /Reason must be one of/);
+});
+
+test('termination (claude): load on turn 1, retrospective after a state-shaped stop, silent otherwise', (t) => {
+  const sid = uid('ter');
+  t.after(() => cleanupTemp(`termmon_claude_${sid}`));
+  const cc = (x) => Object.assign({ session_id: sid, cwd: os.tmpdir() }, x);
+  assert.match(hook(TER, 'hooks/term-prompt.js', cc({})).out, /termination self-monitoring/);
+  assert.equal(hook(TER, 'hooks/term-prompt.js', cc({})).out, '');
+  assert.equal(hook(TER, 'hooks/term-stop.js', cc({ last_assistant_message: 'done' })).code, 0);
+  assert.equal(hook(TER, 'hooks/term-prompt.js', cc({})).out, '', 'clean stop leaves nothing');
+  const stop = hook(TER, 'hooks/term-stop.js', cc({ last_assistant_message: budgetMsg }));
+  assert.equal(stop.code, 0, 'non-strict never blocks');
+  assert.match(hook(TER, 'hooks/term-prompt.js', cc({})).out, /ended on a state-shaped reason/);
+  assert.equal(hook(TER, 'hooks/term-prompt.js', cc({})).out, '', 'retrospective is consumed once');
+});
+
+test('termination (claude): strict mode blocks once with exit 2, never re-blocks, passes a good block', (t) => {
+  const sid = uid('ter');
+  t.after(() => cleanupTemp(`termmon_claude_${sid}`));
+  const strict = { TERMMON_STRICT: '1' };
+  const cc = (x) => Object.assign({ session_id: sid, cwd: os.tmpdir() }, x);
+  const blocked = hook(TER, 'hooks/term-stop.js', cc({ last_assistant_message: budgetMsg }), strict);
+  assert.equal(blocked.code, 2);
+  assert.match(blocked.err, /Termination gate/);
+  assert.equal(hook(TER, 'hooks/term-stop.js', cc({ last_assistant_message: budgetMsg, stop_hook_active: true }), strict).code, 0);
+  assert.equal(hook(TER, 'hooks/term-stop.js', cc({ last_assistant_message: goodTerm }), strict).code, 0);
+  assert.equal(hook(TER, 'hooks/term-stop.js', cc({ last_assistant_message: 'done' }), strict).code, 0);
+});
+
+test('termination (cursor): sessionStart, afterAgentResponse parks findings, stop gate strict-only and once', (t) => {
+  const cid = uid('terc');
+  t.after(() => cleanupTemp(`termmon_cursor_${cid}`));
+  const noCC = { CLAUDECODE: '' };
+  assert.match(JSON.parse(hook(TER, 'cursor/term-session-start.js', {}, noCC).out).additional_context, /termination/);
+  const cu = (x) => Object.assign({ conversation_id: cid, workspace_roots: [os.tmpdir()] }, x);
+  assert.equal(hook(TER, 'cursor/term-response-cursor.js', cu({ text: budgetMsg }), noCC).out, '');
+  assert.equal(hook(TER, 'cursor/term-stop-cursor.js', cu({ status: 'completed', loop_count: 0 }), noCC).out, '', 'non-strict: nothing');
+  hook(TER, 'cursor/term-response-cursor.js', cu({ text: budgetMsg }), noCC);
+  const strictStop = hook(TER, 'cursor/term-stop-cursor.js', cu({ status: 'completed', loop_count: 0 }), Object.assign({ TERMMON_STRICT: '1' }, noCC));
+  assert.match(JSON.parse(strictStop.out).followup_message, /Termination gate/);
+  hook(TER, 'cursor/term-response-cursor.js', cu({ text: budgetMsg }), noCC);
+  assert.equal(hook(TER, 'cursor/term-stop-cursor.js', cu({ status: 'completed', loop_count: 1 }), Object.assign({ TERMMON_STRICT: '1' }, noCC)).out, '', 'loop_count>0 never re-blocks');
+});
+
+// ---------------------------------------------------------------------------
+// coverage-self-monitoring
+// ---------------------------------------------------------------------------
+
+const COV = 'coverage-self-monitoring';
+const deferMsg = 'Parser and CLI are done. The streaming path is not yet implemented; it can be added later in a follow-up PR.';
+const goodCov = deferMsg + '\n\n[COVERAGE CHECK]\n- parser: done - npm test green\n- cli: done - smoke run\n- streaming: blocked - ws not installed (npm ls ws: empty)\n';
+
+test('coverage signals: stub markers net of replaced text, per line, per turn; prompt parts; close scan rules', () => {
+  const S = require(path.join(plugin(COV), 'lib/signals.js'));
+  assert.equal(S.countStubs('// TODO: wire\nthrow new Error("not implemented");\n// ...\n'), 3, 'one line is one marker');
+  assert.equal(S.countStubs('const stub = sinon.stub(); mock.returns(1)'), 0, 'test doubles are not deferrals');
+  const t = S.freshTurn();
+  assert.deepEqual(S.observe(t, 'Edit', { file_path: 'a.js', old_string: 'x', new_string: 'x // TODO' }), []);
+  assert.deepEqual(S.observe(t, 'Edit', { file_path: 'a.js', old_string: '// TODO a', new_string: '  // TODO a' }), []);
+  assert.equal(t.stubs, 1, 'moving an existing TODO is not a new one');
+  assert.deepEqual(S.observe(t, 'Read', { file_path: 'a.js' }), [], 'non-edit tools ignored');
+  const legacy = '// TODO a\n// TODO b\n// FIXME c\nfunction x() {}\n';
+  assert.deepEqual(S.observe(t, 'Write', { file_path: 'legacy.js', content: legacy }), [], 'whole-file content with no result to compare against is not counted');
+  assert.equal(t.stubs, 1, 'rewrite of a legacy file added nothing');
+  const upd = { type: 'update', content: legacy + 'x();\n', structuredPatch: [{ lines: [' function x() {}', '+x();'] }], originalFile: legacy };
+  assert.deepEqual(S.observe(t, 'Write', { file_path: 'legacy.js', content: upd.content }, upd), [], 'Write update: only the patch counts');
+  assert.equal(t.stubs, 1);
+  const newFile = 'def f():\n    raise NotImplementedError\n# FIXME later\n';
+  const fired = S.observe(t, 'Write', { file_path: 'b.py', content: newFile }, { type: 'create', content: newFile, structuredPatch: [], originalFile: null });
+  assert.equal(fired.length, 1);
+  assert.equal(fired[0].count, 3);
+  assert.deepEqual(fired[0].files, ['a.js', 'b.py']);
+  assert.deepEqual(S.observe(t, 'Edit', { file_path: 'a.js', old_string: '// TODO a', new_string: '// TODO a\n// TODO b' }, { structuredPatch: [{ lines: [' // TODO a', '+// TODO b'] }] }), [], 'Edit: patch lines net');
+  assert.equal(t.stubs, 4);
+  assert.deepEqual(S.observe(t, 'edit_file', { target_file: 'a.py', code_edit: '# ... existing code ...\ndef f():\n    pass\n# ... existing code ...' }), [], "Cursor's existing-code marker is not a stub");
+  assert.equal(t.stubs, 4);
+  assert.deepEqual(S.observe(t, 'MultiEdit', { file_path: 'c.ts', edits: [{ old_string: 'a', new_string: 'a // TODO' }, { old_string: 'b', new_string: 'b // XXX' }] }), [{ kind: 'stubs', count: 6, files: ['a.js', 'b.py', 'c.ts'] }], 'fires again at 6; a file that added nothing is not listed');
+  assert.deepEqual(S.observe(t, 'edit_file', { target_file: 'd.js', code_edit: '// ... existing code ...\nplaceholder' }), [], '7 is between thresholds; Cursor fields read');
+  assert.equal(t.stubs, 7);
+  assert.equal(S.partsOf('please:\n- add a\n- fix b\n- test c\n'), 3);
+  assert.equal(S.partsOf('1. a\n2) b\n3. c\n4. d'), 4);
+  assert.equal(S.partsOf('fix the bug and add a test'), 0);
+  assert.equal(S.partsOf('run:\n```\n- x\n- y\n- z\n```'), 0, 'fenced lists are not parts');
+  assert.equal(S.scanClose('All three parts are done and tested.').violations.length, 0);
+  assert.equal(S.scanClose(deferMsg).deferrals.length, 3);
+  assert.match(S.scanClose(deferMsg).violations[0], /no \[COVERAGE CHECK\]/);
+  assert.equal(S.scanClose('This is out of scope for this turn.').deferrals.length, 0, "reason-shaped 'out of scope for this turn' is termination's");
+  assert.equal(S.scanClose('That module is out of scope.').deferrals.length, 1);
+  assert.equal(S.scanClose('> still needs work\n`left as a TODO`').deferrals.length, 0, 'quoted and inline code stripped');
+  assert.equal(S.scanClose(goodCov).violations.length, 0);
+  assert.equal(S.scanClose(goodCov).parts, 3);
+  assert.match(S.scanClose(goodCov.replace(/- streaming:.*/, '- streaming: blocked')).violations[0], /no reason/);
+  assert.match(S.scanClose(goodCov.replace(/- streaming:.*/, '- streaming: returned - <the choice>')).violations[0], /no reason/, 'placeholder counts as empty');
+  assert.match(S.scanClose('[COVERAGE CHECK]\nnothing here\n').violations[0], /no part lines/);
+  // the empty-block rule is per block, whichever order the blocks come in
+  const twoBlocks = '[COVERAGE CHECK]\n- parser: done - tests green\n- cli: done - smoke\n\n[COVERAGE CHECK]\nnothing here\n';
+  assert.equal(S.scanClose(twoBlocks).parts, 2);
+  assert.match(S.scanClose(twoBlocks).violations[0], /no part lines/, 'second block empty');
+  assert.match(S.scanClose('[COVERAGE CHECK]\nnothing here\n\n[COVERAGE CHECK]\n- parser: done - x\n').violations[0], /no part lines/, 'first block empty');
+});
+
+test('coverage (claude): load on turn 1, ledger prompt at 3+ parts, stub nudge, stop never blocks, retrospective', (t) => {
+  const sid = uid('cov');
+  t.after(() => cleanupTemp(`covmon_claude_${sid}`));
+  const cc = (x) => Object.assign({ session_id: sid, cwd: os.tmpdir() }, x);
+  const first = hook(COV, 'hooks/cov-prompt.js', cc({ prompt: 'do:\n- a\n- b\n- c' })).out;
+  assert.match(first, /coverage self-monitoring\] This session/);
+  assert.match(first, /enumerates 3 parts/);
+  assert.equal(hook(COV, 'hooks/cov-prompt.js', cc({ prompt: 'fix it' })).out, '', 'turn 2, no parts, silent');
+  const write = (content) => hook(COV, 'hooks/cov-observe.js', cc({ tool_name: 'Write', tool_input: { file_path: 'src/x.js', content }, tool_response: { type: 'create', filePath: 'src/x.js', content, structuredPatch: [], originalFile: null } }));
+  assert.equal(write('// TODO one').out, '');
+  assert.equal(write('// TODO two').out, '');
+  assert.match(JSON.parse(write('// TODO three').out).hookSpecificOutput.additionalContext, /written 3 stub .* markers this turn \(src\/x\.js\)/);
+  assert.equal(write('clean code').out, '');
+  const stop = hook(COV, 'hooks/cov-stop.js', cc({ last_assistant_message: deferMsg }));
+  assert.equal(stop.code, 0); assert.equal(stop.out, '', 'stop is measurement only');
+  const next = hook(COV, 'hooks/cov-prompt.js', cc({ prompt: 'ok' })).out;
+  assert.match(next, /deferred work without closing the ledger/);
+  assert.equal(hook(COV, 'hooks/cov-prompt.js', cc({ prompt: 'ok' })).out, '', 'retrospective consumed once');
+  assert.equal(write('// TODO one').out, '', 'counters reset on new turn');
+  assert.equal(hook(COV, 'hooks/cov-stop.js', cc({ last_assistant_message: goodCov })).code, 0);
+  assert.equal(hook(COV, 'hooks/cov-prompt.js', cc({ prompt: 'ok' })).out, '', 'closed ledger leaves nothing');
+});
+
+test('coverage (cursor): sessionStart, postToolUse with Cursor fields, afterAgentResponse resets', (t) => {
+  const cid = uid('covc');
+  t.after(() => cleanupTemp(`covmon_cursor_${cid}`));
+  const noCC = { CLAUDECODE: '' };
+  assert.match(JSON.parse(hook(COV, 'cursor/cov-session-start.js', {}, noCC).out).additional_context, /coverage/);
+  const cu = (x) => Object.assign({ conversation_id: cid, workspace_roots: [os.tmpdir()] }, x);
+  const edit = (code) => hook(COV, 'cursor/cov-observe-cursor.js', cu({ tool_name: 'edit_file', tool_input: { target_file: 'a.py', code_edit: code } }), noCC);
+  assert.equal(edit('# TODO').out, ''); assert.equal(edit('pass  # TODO').out, '');
+  assert.match(JSON.parse(edit('raise NotImplementedError').out).additional_context, /3 stub/);
+  assert.equal(hook(COV, 'cursor/cov-response-cursor.js', cu({ text: deferMsg }), noCC).out, '');
+  assert.equal(edit('# TODO').out, '', 'counters reset after response');
+});
+
+// ---------------------------------------------------------------------------
 // Logging (shared contract across plugins)
 // ---------------------------------------------------------------------------
 
 test('logging is off by default and writes host-routed JSONL when enabled', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-log-'));
   const sid = uid('log');
-  t.after(() => { fs.rmSync(dir, { recursive: true, force: true }); cleanupTemp(`epimon_claude_${sid}`); cleanupTemp(`persistmon_claude_${sid}`); cleanupTemp(`claude_execmon_${sid}`); });
+  t.after(() => { fs.rmSync(dir, { recursive: true, force: true }); for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'claude_execmon_', 'termmon_claude_', 'covmon_claude_']) cleanupTemp(pfx + sid); });
   hook('executive-self-monitoring', 'hooks/exec-monitor.js', { session_id: sid, cwd: dir });
   hook(EPI, 'hooks/epi-prompt.js', { session_id: sid, cwd: dir });
   hook(PER, 'hooks/persist-prompt.js', { session_id: sid, cwd: dir });
+  hook(TER, 'hooks/term-prompt.js', { session_id: sid, cwd: dir });
+  hook(COV, 'hooks/cov-prompt.js', { session_id: sid, cwd: dir });
   assert.ok(!fs.existsSync(path.join(dir, '.claude')), 'no log files without the env var');
   hook('executive-self-monitoring', 'hooks/exec-monitor.js', { session_id: sid, cwd: dir }, { EXECMON_LOG: '1' });
   hook(EPI, 'hooks/epi-prompt.js', { session_id: sid, cwd: dir }, { EPIMON_LOG: '1' });
   hook(PER, 'hooks/persist-prompt.js', { session_id: sid, cwd: dir }, { PERSISTMON_LOG: '1' });
-  for (const f of ['executive-self-monitoring', 'epistemic-self-monitoring', 'persistence-self-monitoring']) {
+  hook(TER, 'hooks/term-prompt.js', { session_id: sid, cwd: dir }, { TERMMON_LOG: '1' });
+  hook(COV, 'hooks/cov-prompt.js', { session_id: sid, cwd: dir }, { COVMON_LOG: '1' });
+  for (const f of ['executive-self-monitoring', 'epistemic-self-monitoring', 'persistence-self-monitoring', 'termination-self-monitoring', 'coverage-self-monitoring']) {
     const p = path.join(dir, '.claude', 'logs', `${f}.jsonl`);
     assert.ok(fs.existsSync(p), `${f} log missing`);
     const line = JSON.parse(fs.readFileSync(p, 'utf8').trim().split('\n').pop());
@@ -315,4 +525,77 @@ test('logging is off by default and writes host-routed JSONL when enabled', (t) 
   }
   hook(EPI, 'cursor/epi-session-start.js', {}, { CLAUDECODE: '', CLAUDE_PLUGIN_ROOT: '', EPIMON_LOG: '1', CURSOR_PROJECT_DIR: dir });
   assert.ok(fs.existsSync(path.join(dir, '.cursor', 'logs', 'epistemic-self-monitoring.jsonl')), 'cursor host routes to .cursor/logs');
+});
+
+test('state updates survive parallel hook processes (PostToolUse bursts): N concurrent calls count N', async (t) => {
+  const { spawn } = require('child_process');
+  const N = 8;
+  const run = (pluginName, script, sid, input) => new Promise((res) => {
+    const p = spawn(process.execPath, [path.join(plugin(pluginName), script)], { env: Object.assign({}, process.env, { CLAUDECODE: '1' }) });
+    p.on('close', res);
+    p.stdin.end(JSON.stringify(Object.assign({ session_id: sid, cwd: os.tmpdir() }, input)));
+  });
+  const sidP = uid('race-per');
+  const sidC = uid('race-cov');
+  t.after(() => { cleanupTemp(`persistmon_claude_${sidP}`); cleanupTemp(`covmon_claude_${sidC}`); });
+  await Promise.all([
+    ...Array.from({ length: N }, () => run(PER, 'hooks/persist-observe.js', sidP, { tool_name: 'Read', tool_input: { file_path: 'x' }, tool_output: 'ok' })),
+    ...Array.from({ length: N }, () => run(COV, 'hooks/cov-observe.js', sidC, { tool_name: 'Edit', tool_input: { file_path: 'x.js', old_string: 'a', new_string: 'a // TODO' } })),
+  ]);
+  const per = JSON.parse(fs.readFileSync(path.join(os.tmpdir(), `persistmon_claude_${sidP}.json`), 'utf8'));
+  const cov = JSON.parse(fs.readFileSync(path.join(os.tmpdir(), `covmon_claude_${sidC}.json`), 'utf8'));
+  assert.equal(per.turn.tools, N, 'persistence: every parallel tool call counted');
+  assert.equal(cov.turn.stubs, N, 'coverage: every parallel stub counted');
+  assert.equal(fs.readdirSync(os.tmpdir()).filter((f) => f.startsWith(`persistmon_claude_${sidP}`) && /\.(lock|tmp)$/.test(f)).length, 0, 'no lock or temp file left behind');
+});
+
+test('loggers never write into the plugin install dir: no cwd and no project env means no log', (t) => {
+  const sid = uid('nocwd');
+  t.after(() => { for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'claude_execmon_', 'termmon_claude_', 'covmon_claude_']) cleanupTemp(pfx + sid); });
+  const noDir = { CLAUDE_PROJECT_DIR: '', CURSOR_PROJECT_DIR: '' };
+  const before = pluginNames.map((p) => fs.existsSync(path.join(plugin(p), '.claude')) || fs.existsSync(path.join(plugin(p), '.cursor')));
+  hook('executive-self-monitoring', 'hooks/exec-monitor.js', { session_id: sid }, Object.assign({ EXECMON_LOG: '1' }, noDir));
+  hook(EPI, 'hooks/epi-observe.js', { session_id: sid, tool_name: 'Bash', tool_output: 'Error: x' }, Object.assign({ EPIMON_LOG: '1' }, noDir));
+  hook(PER, 'hooks/persist-prompt.js', { session_id: sid }, Object.assign({ PERSISTMON_LOG: '1' }, noDir));
+  hook(TER, 'hooks/term-stop.js', { session_id: sid, last_assistant_message: budgetMsg }, Object.assign({ TERMMON_LOG: '1' }, noDir));
+  hook(COV, 'hooks/cov-stop.js', { session_id: sid, last_assistant_message: deferMsg }, Object.assign({ COVMON_LOG: '1' }, noDir));
+  hook(EPI, 'cursor/epi-session-start.js', {}, Object.assign({ CLAUDECODE: '', EPIMON_LOG: '1' }, noDir));
+  pluginNames.forEach((p, i) => {
+    const now = fs.existsSync(path.join(plugin(p), '.claude')) || fs.existsSync(path.join(plugin(p), '.cursor'));
+    assert.equal(now, before[i], `${p}: a log dir appeared under the plugin itself`);
+  });
+  // and CLAUDE_PROJECT_DIR alone is enough to route the log
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-envdir-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  hook(PER, 'hooks/persist-prompt.js', { session_id: sid }, { PERSISTMON_LOG: '1', CLAUDE_PROJECT_DIR: dir });
+  assert.ok(fs.existsSync(path.join(dir, '.claude', 'logs', 'persistence-self-monitoring.jsonl')), 'CLAUDE_PROJECT_DIR fallback');
+});
+
+test('scripts/calibrate.js reads the logs of every plugin and prints what-if nudge rates; exits 1 with none', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-cal-'));
+  const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-cal-empty-'));
+  const sid = uid('cal');
+  t.after(() => { for (const d of [dir, empty]) fs.rmSync(d, { recursive: true, force: true }); for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'claude_execmon_', 'termmon_claude_', 'covmon_claude_']) cleanupTemp(pfx + sid); });
+  const logs = { EXECMON_LOG: '1', EPIMON_LOG: '1', PERSISTMON_LOG: '1', TERMMON_LOG: '1', COVMON_LOG: '1' };
+  const cc = (x) => Object.assign({ session_id: sid, cwd: dir }, x);
+  hook('executive-self-monitoring', 'hooks/exec-monitor.js', cc({}), logs);
+  hook(EPI, 'hooks/epi-stop.js', cc({ last_assistant_message: badBlock }), logs);
+  hook(PER, 'hooks/persist-prompt.js', cc({}), logs);
+  for (let i = 0; i < 5; i++) hook(PER, 'hooks/persist-observe.js', cc({ tool_name: 'Edit', tool_input: { file_path: 'a.js' }, tool_output: 'ok' }), logs);
+  hook(PER, 'hooks/persist-stop.js', cc({}), logs);
+  hook(TER, 'hooks/term-stop.js', cc({ last_assistant_message: budgetMsg }), logs);
+  hook(COV, 'hooks/cov-prompt.js', cc({ prompt: '- a\n- b\n- c' }), logs);
+  hook(COV, 'hooks/cov-stop.js', cc({ last_assistant_message: deferMsg }), logs);
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts/calibrate.js'), dir], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  for (const p of pluginNames) assert.match(r.stdout, new RegExp(`== ${p}  \\(\\d+ events\\)`), `${p} section`);
+  assert.match(r.stdout, /same file edited \(EDITS_SAME_FILE\)\n\s+n=1\s+p50=5/, 'persistence per-turn max read from the turn event');
+  assert.match(r.stdout, /\* 4: 100\.0%/, 'what-if column marks the current threshold');
+  assert.match(r.stdout, /turns ending on a state-shaped reason \(any hit\)\s+100\.0%\s+\(1\/1\)/);
+  assert.match(r.stdout, /turns ending with deferral language\s+100\.0%\s+\(1\/1\)/);
+  assert.match(r.stdout, /== all plugins together  \(5 logging, 1 sessions, 1 prompts\)/, 'cross-plugin join on session + turn');
+  assert.match(r.stdout, /text blocks injected at the start of a prompt: mean/);
+  const none = spawnSync(process.execPath, [path.join(ROOT, 'scripts/calibrate.js'), empty], { encoding: 'utf8' });
+  assert.equal(none.status, 1);
+  assert.match(none.stdout, /No logs found/);
 });

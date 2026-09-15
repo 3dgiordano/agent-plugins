@@ -39,6 +39,28 @@
         "focus",
         "workflow"
       ]
+    },
+    {
+      "name": "termination-self-monitoring",
+      "source": "./plugins/termination-self-monitoring",
+      "description": "Checkable-reason discipline: a state-shaped reason to stop, defer or narrow (context budget, long session, not confident enough, given the complexity, a run of apologies) is replaced by a checkable one or dropped, and the work continues. Shared skill + per-host hooks. Non-blocking by default, opt-in strict gate.",
+      "category": "developer-tools",
+      "tags": [
+        "agent-loop",
+        "focus",
+        "workflow"
+      ]
+    },
+    {
+      "name": "coverage-self-monitoring",
+      "source": "./plugins/coverage-self-monitoring",
+      "description": "Parts-ledger discipline: the parts of a request, the hardest first, each closed as done, blocked with an observed reason, or returned to the owner. Hooks count stubs and TODOs written per turn and flag deferred work with no closing ledger. Shared skill + per-host hooks. Never blocks.",
+      "category": "developer-tools",
+      "tags": [
+        "agent-loop",
+        "focus",
+        "workflow"
+      ]
     }
   ]
 }

@@ -16,27 +16,24 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const msg = require('../lib/messages.js');
+const { cwdOf } = require('../lib/host.js');
 
 const HOST = 'cursor';
-
-function workspaceOf(data) {
-  if (Array.isArray(data.workspace_roots) && data.workspace_roots[0]) return data.workspace_roots[0];
-  return process.env.CURSOR_PROJECT_DIR || process.cwd();
-}
 
 function main(raw) {
   let data = {};
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
   const cid = data.conversation_id || 'noconversation';
 
-  const st = state.load(HOST, cid);
-  if (!st.turn) st.turn = signals.freshTurn();
-
-  const fired = signals.observe(st.turn, data.tool_name, data.tool_input, data.tool_output);
-  state.save(HOST, cid, st);
+  let st;
+  const fired = state.update(HOST, cid, (s) => {
+    st = s;
+    if (!st.turn) st.turn = signals.freshTurn();
+    return signals.observe(st.turn, data.tool_name, data.tool_input, data.tool_output);
+  });
 
   if (!fired.length) return;
-  logEvent(workspaceOf(data), { event: 'signal', host: 'cursor', conversation: cid, tools: st.turn.tools, signals: fired });
+  logEvent(cwdOf(data), { event: 'signal', host: 'cursor', conversation: cid, tools: st.turn.tools, signals: fired });
   process.stdout.write(JSON.stringify({ additional_context: msg.nudge(fired) }));
 }
 

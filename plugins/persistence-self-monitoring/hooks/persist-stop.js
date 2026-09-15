@@ -14,6 +14,7 @@
 const { logEvent, enabled } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
+const { cwdOf } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -23,7 +24,7 @@ function main(raw) {
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
   const sid = data.session_id || 'nosession';
   const st = state.load(HOST, sid);
-  logEvent(data.cwd, Object.assign({ event: 'turn', session: sid, turn: st.turns || 0 }, signals.summary(st.turn || signals.freshTurn())));
+  logEvent(cwdOf(data), Object.assign({ event: 'turn', session: sid, turn: st.turns || 0 }, signals.summary(st.turn || signals.freshTurn())));
 }
 
 let buf = '';

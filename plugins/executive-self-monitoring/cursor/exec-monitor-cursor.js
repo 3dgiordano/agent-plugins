@@ -24,6 +24,7 @@
 'use strict';
 
 const { logEvent } = require('../lib/execlog.js');
+const { cwdOf } = require('../lib/host.js');
 
 const MSG =
   '[executive self-monitoring] For long or iterative work, periodically re-ground: ' +
@@ -32,7 +33,7 @@ const MSG =
   're-read the plan before continuing. Use the executive-self-monitoring skill for ' +
   'the full protocol. This is a self-check, not a blocker - the plan defines the work.';
 
-const workspace = process.env.CURSOR_PROJECT_DIR || process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const workspace = cwdOf({});
 
 try { logEvent(workspace, { event: 'session_start', host: 'cursor' }); } catch (_) {}
 try { process.stdout.write(JSON.stringify({ additional_context: MSG })); } catch (_) {}
