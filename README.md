@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.svg" width="150" alt="agent-plugins mascot: a thinking bot whose face is ringed by three colored checkpoints">
+  <img src="assets/social-preview.svg" width="90%" alt="agent-plugins mascot: a thinking bot whose face is ringed by three colored checkpoints">
 </p>
 
 # agent-plugins
