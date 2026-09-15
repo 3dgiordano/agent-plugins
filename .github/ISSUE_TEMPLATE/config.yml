@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security issue
+    url: https://github.com/3dgiordano/agent-plugins/security/advisories/new
+    about: A hook doing something outside the contract in SECURITY.md - report privately, not as an issue.
+  - name: Question or idea
+    url: https://github.com/3dgiordano/agent-plugins/discussions
+    about: Not sure it is a bug or a full proposal yet? Start a discussion.

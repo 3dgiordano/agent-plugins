@@ -1,0 +1,65 @@
+name: Plugin proposal
+description: Propose a new self-monitoring plugin for the collection.
+labels: [proposal]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Every plugin here is a prosthesis for **one** executive function a coding agent lacks.
+        These questions are the design review — if they have good answers, the plugin fits.
+  - type: input
+    id: question
+    attributes:
+      label: The one question it answers
+      description: In the agent's voice, like the existing three.
+      placeholder: "Is this the right level of abstraction for the change?"
+    validations:
+      required: true
+  - type: textarea
+    id: function
+    attributes:
+      label: The executive / metacognitive function
+      description: What a human engineer does in the background that the agent does not. A pointer to the literature is welcome but not required.
+    validations:
+      required: true
+  - type: textarea
+    id: failure
+    attributes:
+      label: The failure it prevents
+      description: A concrete story of an agent getting it wrong. Real transcripts (trimmed) are the best evidence.
+    validations:
+      required: true
+  - type: textarea
+    id: anchor
+    attributes:
+      label: What it anchors to
+      description: |
+        An external artifact (plan, docs, code) or an objective signal a hook can count (edits, failures, tool calls, elapsed turns).
+        "The agent reflects on X" is not an anchor — say what the hook can observe that the agent cannot feel.
+    validations:
+      required: true
+  - type: textarea
+    id: when
+    attributes:
+      label: When it speaks
+      description: Which host events, at what cadence or threshold, and what the message carries. Remember it must be silent most of the time.
+    validations:
+      required: true
+  - type: textarea
+    id: hosts
+    attributes:
+      label: Host coverage
+      description: Claude Code and Cursor events you would use. If a host cannot express it, what degrades and how.
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: Fit
+      options:
+        - label: It answers one question, not two.
+          required: true
+        - label: It never blocks by default; any blocking mode is opt-in and fires at most once.
+          required: true
+        - label: The skill is host-neutral and contains nothing project-specific.
+          required: true
+        - label: It does not overlap with executive / epistemic / persistence — or I explain above why the overlap is a cross-reference, not a merge.
+          required: true

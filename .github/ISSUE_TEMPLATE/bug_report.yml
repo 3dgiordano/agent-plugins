@@ -1,0 +1,62 @@
+name: Bug report
+description: A hook or skill did something it should not have, or did not do what the README says.
+labels: [bug]
+body:
+  - type: dropdown
+    id: plugin
+    attributes:
+      label: Plugin
+      options:
+        - executive-self-monitoring
+        - epistemic-self-monitoring
+        - persistence-self-monitoring
+        - repository / tooling (scripts, CI, marketplaces)
+    validations:
+      required: true
+  - type: dropdown
+    id: host
+    attributes:
+      label: Host
+      options:
+        - Claude Code
+        - Cursor
+        - Other Agent Skills / Agent Plugins client (say which below)
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Plugin version (from `claude plugin list` or the manifest), host version, OS, Node version.
+      placeholder: "epistemic-self-monitoring 0.1.0 · Claude Code 2.1.x · Windows 11 · Node 22"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What the hook or skill did. If a message was injected, paste it verbatim.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: Point to the README line or the SKILL.md rule you were relying on, if any.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: |
+        The hook input that triggers it is ideal. With logging on (`EXECMON_LOG` / `EPIMON_LOG` / `PERSISTMON_LOG` = 1)
+        the relevant lines of `.claude/logs/<plugin>.jsonl` or `.cursor/logs/<plugin>.jsonl` usually show it.
+      render: text
+  - type: checkboxes
+    id: security
+    attributes:
+      label: Not a security issue
+      options:
+        - label: This is not about a hook doing something outside the contract in SECURITY.md (those go through private reporting, not issues).
+          required: true

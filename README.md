@@ -177,22 +177,13 @@ plugins/<name>/
   lib/                            # code shared by the adapters
 ```
 
-## Adding a plugin
+## Contributing
 
-1. Create `plugins/<name>/` with the layout above (at minimum: root
-   `plugin.json`, `.claude-plugin/plugin.json`, and a skill).
-2. Register it in **both** `.claude-plugin/marketplace.json` and
-   `.cursor-plugin/marketplace.json` (`source: "./plugins/<name>"`).
-3. Keep host-specific behavior in the adapters; keep the skill host-neutral.
-4. Set the version once for all manifests — never edit it by hand:
-
-   ```
-   node scripts/version.js <name> 1.4.0   # writes plugin.json + .claude-plugin + .cursor-plugin
-   node scripts/version.js --check        # fails if any plugin has drifting versions
-   ```
- 5. Run `node scripts/test.js` — the structural checks pick the new plugin up
-   automatically (manifests, skill frontmatter, marketplace entries, hook
-   scripts); add behaviour tests for its adapters alongside the existing ones.
+Proposals, bug reports and pull requests are welcome. What fits the collection
+(one executive function per plugin, anchored to an artifact or an objective
+count, never blocking by default, host-neutral skill), how to add or change a
+plugin, and how releases are cut are all in [CONTRIBUTING.md](CONTRIBUTING.md).
+Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
 ## Development
 
