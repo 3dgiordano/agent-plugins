@@ -1,3 +1,5 @@
+<img src="assets/logo.svg" width="72" align="right" alt="">
+
 # epistemic-self-monitoring
 
 Observation-vs-conjecture discipline for coding agents. Keeps what the agent
@@ -117,6 +119,7 @@ grep '"event":"close"' .claude/logs/epistemic-self-monitoring.jsonl | grep -vc '
 plugin.json                        # Agent Plugins manifest (portable core: skill only)
 .claude-plugin/plugin.json         # Claude Code manifest
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
+assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/epistemic-self-monitoring/SKILL.md
 hooks/hooks.json                   # Claude Code: UserPromptSubmit, PostToolUse(Bash), Stop
 hooks/epi-prompt.js

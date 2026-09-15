@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.svg" width="150" alt="agent-plugins mascot: a thinking bot whose face is ringed by three colored checkpoints">
+</p>
+
 # agent-plugins
 
 [![CI](https://github.com/3dgiordano/agent-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/3dgiordano/agent-plugins/actions/workflows/ci.yml)

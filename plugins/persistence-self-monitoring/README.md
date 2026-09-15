@@ -1,3 +1,5 @@
+<img src="assets/logo.svg" width="72" align="right" alt="">
+
 # persistence-self-monitoring
 
 Persist-or-quit self-check for coding agents. Counts the two things an agent
@@ -110,6 +112,7 @@ grep '"event":"turn"' .claude/logs/persistence-self-monitoring.jsonl | grep -o '
 plugin.json                         # Agent Plugins manifest (portable core: skill only)
 .claude-plugin/plugin.json          # Claude Code manifest
 .cursor-plugin/plugin.json          # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
+assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/persistence-self-monitoring/SKILL.md
 hooks/hooks.json                    # Claude Code: UserPromptSubmit, PostToolUse (all), Stop
 hooks/persist-prompt.js

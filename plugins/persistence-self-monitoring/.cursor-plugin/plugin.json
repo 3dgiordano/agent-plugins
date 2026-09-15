@@ -9,9 +9,23 @@
   "homepage": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/persistence-self-monitoring",
   "repository": "https://github.com/3dgiordano/agent-plugins",
   "license": "Apache-2.0",
-  "keywords": ["persistence", "self-monitoring", "sunk-cost", "perseveration", "stuck-detection", "effort-regulation", "metacognition", "agent-loop"],
+  "logo": "assets/logo.svg",
+  "keywords": [
+    "persistence",
+    "self-monitoring",
+    "sunk-cost",
+    "perseveration",
+    "stuck-detection",
+    "effort-regulation",
+    "metacognition",
+    "agent-loop"
+  ],
   "category": "developer-tools",
-  "tags": ["agent-loop", "focus", "workflow"],
+  "tags": [
+    "agent-loop",
+    "focus",
+    "workflow"
+  ],
   "skills": "./skills/",
   "hooks": "./cursor/hooks.json"
 }

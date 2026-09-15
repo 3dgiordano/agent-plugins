@@ -1,3 +1,5 @@
+<img src="assets/logo.svg" width="72" align="right" alt="">
+
 # executive-self-monitoring
 
 Plan-anchored drift self-check for coding agents. Periodically nudges the agent
@@ -113,6 +115,7 @@ grep '"event":"skill"' .claude/logs/executive-self-monitoring.jsonl | grep execu
 plugin.json                       # Agent Plugins manifest (portable core)
 .claude-plugin/plugin.json        # Claude Code manifest
 .cursor-plugin/plugin.json        # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
+assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/executive-self-monitoring/SKILL.md
 hooks/hooks.json                  # Claude Code: UserPromptSubmit + PreToolUse(Skill)
 hooks/exec-monitor.js

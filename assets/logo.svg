@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" fill="none" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="agent-plugins: a thinking bot whose face is ringed by three colored checkpoints">
+  <!-- face plate -->
+  <circle cx="64" cy="68" r="34" fill="#F4F6F9"/>
+  <!-- the ring: three arcs, three gaps - one per self-monitoring question -->
+  <g stroke-width="7">
+    <path d="M76.31 34.17 A36 36 0 0 1 99.45 74.25" stroke="#E8A33D"/>
+    <path d="M87.14 95.58 A36 36 0 0 1 40.86 95.58" stroke="#E4573D"/>
+    <path d="M28.55 74.25 A36 36 0 0 1 51.69 34.17" stroke="#3B82F6"/>
+  </g>
+  <!-- cheeks -->
+  <circle cx="41" cy="80" r="4.5" fill="#F4A6A0" opacity=".65"/>
+  <circle cx="87" cy="80" r="4.5" fill="#F4A6A0" opacity=".65"/>
+  <!-- brows: one flat, one raised -->
+  <path d="M40 53 L57 51" stroke="#1F2933" stroke-width="4"/>
+  <path d="M66 47 Q75 40.5 84 46" stroke="#1F2933" stroke-width="4"/>
+  <!-- lens eyes, looking up and to the side -->
+  <circle cx="50" cy="67" r="11.5" fill="#FFFFFF" stroke="#1F2933" stroke-width="3.5"/>
+  <circle cx="74" cy="66" r="11.5" fill="#FFFFFF" stroke="#1F2933" stroke-width="3.5"/>
+  <circle cx="53.5" cy="63.5" r="7" fill="#1F2933"/>
+  <circle cx="77.5" cy="62.5" r="7" fill="#1F2933"/>
+  <circle cx="55.8" cy="61.2" r="2.4" fill="#FFFFFF"/>
+  <circle cx="79.8" cy="60.2" r="2.4" fill="#FFFFFF"/>
+  <!-- mouth -->
+  <path d="M52 88 Q58 90.5 64 87" stroke="#1F2933" stroke-width="3.5"/>
+</svg>
