@@ -1,0 +1,14 @@
+# The only dependencies this repository has are the GitHub Actions used by CI.
+# Keep them current; group them so an update is one PR, not one per action.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    labels: [dependencies]
+    commit-message:
+      prefix: "ci"

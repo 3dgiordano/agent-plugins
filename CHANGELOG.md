@@ -15,6 +15,8 @@ release.
 - `CONTRIBUTING.md`, issue templates (bug report, plugin proposal) and a PR
   template.
 - This changelog.
+- Dependabot for the GitHub Actions used by CI (monthly, grouped) and an
+  `.editorconfig` matching the existing formatting.
 
 ### Changed
 - README opens with what the agent actually sees (real nudges), a two-command
