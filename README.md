@@ -6,12 +6,76 @@
 
 Cognitive scaffolding for coding agents, by [3dgiordano](https://github.com/3dgiordano).
 
+Three small plugins that give a coding agent the self-checks a human engineer
+runs in the background — *am I still on the plan?*, *is this actually verified?*,
+*is it worth another try?* — delivered as a nudge at the moment it is needed.
+They never block. They have no dependencies, make no network calls, and send
+nothing anywhere.
+
+## What your agent sees
+
+Four edits to the same file and three failed test runs into a turn, the agent
+gets this — from a hook, not from its own (absent) sense of frustration:
+
+```
+[persistence self-monitoring] you have edited `src/parser.js` 4 times this turn;
+`npm test` has failed 3 times this turn. Before the next attempt: what hypothesis
+are you holding, what changed between attempts, and what approach would you take
+if that hypothesis were wrong? If nothing new, say so to the user instead of
+trying again.
+```
+
+On the first turn of a session, and every fifth after that:
+
+```
+[executive self-monitoring] Checkpoint for long/iterative work: invoke the
+executive-self-monitoring skill before substantive steps - name the active
+plan/gate and confirm this step serves it. Not a blocker; skip if this turn is
+trivial.
+```
+
+And when it is about to declare "the cause is X", the epistemic skill asks it to
+write the claim with its evidence, its falsifier and its scope — so you can tell
+*observed* from *guessed* without asking.
+
+## Quick start
+
+```
+claude plugin marketplace add 3dgiordano/agent-plugins
+claude plugin install persistence-self-monitoring@3dgiordano-agent-plugins
+```
+
+Swap in `executive-self-monitoring` or `epistemic-self-monitoring`, or install
+all three. Cursor and other hosts: see [Install](#install).
+
+## What the hooks do — and don't
+
+You are installing scripts that run on every prompt and every tool call, so
+here is exactly what they are:
+
+- **Plain Node, no dependencies.** Each hook is one file you can read in a
+  minute; `node --check` is the whole build.
+- **No network, no telemetry.** Nothing leaves your machine. Ever.
+- **Nothing persisted by default.** Per-session counters live in the OS temp
+  dir and are the only state. Debug logs exist but are **off** unless you set
+  an env var, and then they are written inside your project, size-bounded.
+- **Never blocking by default.** Every hook fails silent: an error in a hook
+  lets the prompt, tool call or stop proceed. The one opt-in gate
+  (`EPIMON_STRICT`) blocks once, never in a loop.
+- **Tested as the host runs them.** CI drives every adapter with the JSON its
+  host sends, on Ubuntu and Windows, Node 18/20/22.
+
+Security policy: [SECURITY.md](SECURITY.md).
+
+## Why: executive functions, not "reflect harder"
+
 Coding agents are missing most of the **executive functions** a human engineer
 runs in the background: holding the goal in mind while deep in a task, noticing
 the difference between what was observed and what was inferred, feeling that an
 approach has stopped working. Each plugin here is a prosthesis for one of those
-functions — a small, honest self-check, anchored to an external artifact rather
-than to "reflect harder", delivered at the moment it is actually needed.
+functions — a small, honest self-check, anchored to an external artifact or an
+objective count rather than to "reflect harder", delivered at the moment it is
+actually needed.
 
 The collection is organized around three questions:
 
