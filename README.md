@@ -1,6 +1,23 @@
 # agent-plugins
 
-Reusable plugins for coding agents, by [3dgiordano](https://github.com/3dgiordano).
+Cognitive scaffolding for coding agents, by [3dgiordano](https://github.com/3dgiordano).
+
+Coding agents are missing most of the **executive functions** a human engineer
+runs in the background: holding the goal in mind while deep in a task, noticing
+the difference between what was observed and what was inferred, feeling that an
+approach has stopped working. Each plugin here is a prosthesis for one of those
+functions — a small, honest self-check, anchored to an external artifact rather
+than to "reflect harder", delivered at the moment it is actually needed.
+
+The collection is organized around three questions:
+
+| Question | Executive function | Plugin |
+|----------|--------------------|--------|
+| *Am I doing what the plan asks?* | goal maintenance | [executive-self-monitoring](plugins/executive-self-monitoring/) |
+| *Is what I concluded actually true?* | source monitoring / verification | [epistemic-self-monitoring](plugins/epistemic-self-monitoring/) |
+| *Is it still worth insisting on this?* | persistence / effort regulation | [persistence-self-monitoring](plugins/persistence-self-monitoring/) |
+
+They install independently and cross-reference each other where it helps.
 
 Each plugin is built around a shared, host-neutral core — an
 [Agent Skill](https://agentskills.io) (`skills/<name>/SKILL.md`) — plus thin
@@ -15,9 +32,11 @@ one install, on every host it supports:
 
 ## Plugins
 
-| Plugin | What it does |
-|--------|--------------|
-| [executive-self-monitoring](plugins/executive-self-monitoring/) | Plan-anchored drift self-check: periodically nudges the agent to re-read the active plan/gate instead of drifting. Not a blocker. |
+| Plugin | Status | What it does |
+|--------|--------|--------------|
+| [executive-self-monitoring](plugins/executive-self-monitoring/) | available | Plan-anchored drift self-check: periodically nudges the agent to re-read the active plan/gate instead of drifting. Not a blocker. |
+| [epistemic-self-monitoring](plugins/epistemic-self-monitoring/) | available | Observation vs. conjecture discipline: claims carry their evidence and a named falsifier; only verified claims become facts or closures. Non-blocking by default, opt-in strict gate. |
+| [persistence-self-monitoring](plugins/persistence-self-monitoring/) | available | Persist-or-quit signal: counts repeated attempts on the same file, command or error and effort since the user last spoke; nudges only when a threshold is crossed. Never blocks. |
 
 Each plugin folder has its own README with design notes, host differences and
 debugging tips.
@@ -32,11 +51,15 @@ from the `claude plugin` CLI or the interactive `/plugin` command in a session.
 ```
 claude plugin marketplace add 3dgiordano/agent-plugins
 claude plugin install executive-self-monitoring@3dgiordano-agent-plugins
+claude plugin install epistemic-self-monitoring@3dgiordano-agent-plugins
+claude plugin install persistence-self-monitoring@3dgiordano-agent-plugins
 ```
 
 ```
 /plugin marketplace add 3dgiordano/agent-plugins
 /plugin install executive-self-monitoring@3dgiordano-agent-plugins
+/plugin install epistemic-self-monitoring@3dgiordano-agent-plugins
+/plugin install persistence-self-monitoring@3dgiordano-agent-plugins
 ```
 
 Enabling the plugin makes the skill available **and** auto-registers its hooks —

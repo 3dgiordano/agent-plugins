@@ -1,0 +1,13 @@
+{
+  "name": "epistemic-self-monitoring",
+  "version": "0.1.0",
+  "description": "Observation-vs-conjecture discipline for coding agents. Bundles the epistemic-self-monitoring skill (the 'what': claims carry their evidence and a named falsifier; only verified claims become facts or closures) with per-host hooks (the 'when'). Non-blocking by default; an opt-in strict mode gates closures on a complete [EPISTEMIC CLOSE] block. Claude Code: UserPromptSubmit load, PostToolUse(Bash) observation nudge, Stop closure gate.",
+  "author": {
+    "name": "David Giordano",
+    "url": "https://github.com/3dgiordano"
+  },
+  "homepage": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/epistemic-self-monitoring",
+  "repository": "https://github.com/3dgiordano/agent-plugins",
+  "license": "Apache-2.0",
+  "keywords": ["epistemic", "self-monitoring", "verification", "falsifiability", "source-monitoring", "metacognition", "agent-loop"]
+}

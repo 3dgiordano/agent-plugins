@@ -1,0 +1,17 @@
+{
+  "name": "persistence-self-monitoring",
+  "displayName": "Persistence Self-Monitoring",
+  "version": "0.1.0",
+  "description": "Persist-or-quit self-check for coding agents. Bundles the persistence-self-monitoring skill (the 'what': name the hypothesis held, count the variants, name a rival, decide) with per-host hooks (the 'when') that count what an agent cannot feel - the same file edited N times, the same command or error failing N times, tool calls piling up since the user's last message - and speak only when a threshold is crossed. Never blocks. Cursor: sessionStart load, postToolUse counters on every tool, afterAgentResponse turn boundary.",
+  "author": {
+    "name": "David Giordano"
+  },
+  "homepage": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/persistence-self-monitoring",
+  "repository": "https://github.com/3dgiordano/agent-plugins",
+  "license": "Apache-2.0",
+  "keywords": ["persistence", "self-monitoring", "sunk-cost", "perseveration", "stuck-detection", "effort-regulation", "metacognition", "agent-loop"],
+  "category": "developer-tools",
+  "tags": ["agent-loop", "focus", "workflow"],
+  "skills": "./skills/",
+  "hooks": "./cursor/hooks.json"
+}

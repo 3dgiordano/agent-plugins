@@ -11,6 +11,16 @@
       "name": "executive-self-monitoring",
       "source": "./plugins/executive-self-monitoring",
       "description": "Plan-anchored drift self-check: shared skill + per-host cadence hook, installable as one unit."
+    },
+    {
+      "name": "epistemic-self-monitoring",
+      "source": "./plugins/epistemic-self-monitoring",
+      "description": "Observation-vs-conjecture discipline: claims carry their evidence and a named falsifier; only verified claims become facts or closures. Shared skill + per-host hooks."
+    },
+    {
+      "name": "persistence-self-monitoring",
+      "source": "./plugins/persistence-self-monitoring",
+      "description": "Persist-or-quit signal: counts repeated attempts on the same file, command or error and effort since the user last spoke, and nudges only when a threshold is crossed. Shared skill + per-host hooks. Never blocks."
     }
   ]
 }

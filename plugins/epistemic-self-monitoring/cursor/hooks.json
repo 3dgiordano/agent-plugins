@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "node ./cursor/epi-session-start.js"
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "node ./cursor/epi-observe-cursor.js"
+      }
+    ],
+    "afterAgentResponse": [
+      {
+        "command": "node ./cursor/epi-response-cursor.js"
+      }
+    ],
+    "stop": [
+      {
+        "command": "node ./cursor/epi-stop-cursor.js",
+        "loop_limit": 1
+      }
+    ]
+  }
+}

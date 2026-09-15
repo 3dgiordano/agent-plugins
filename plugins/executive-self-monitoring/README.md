@@ -8,6 +8,30 @@ score-chasing, or "while I'm here" work.
 It is a **self-check, not a blocker** — the plan defines the work; this just
 prompts the agent to re-read it.
 
+## Why it works: executive function, not "reflect harder"
+
+The protocol is a fairly literal implementation of the executive functions a
+human engineer runs in the background while deep in a task:
+
+| Executive function (human) | In the skill |
+|----------------------------|--------------|
+| **Goal maintenance** — keep the objective in working memory | *Name the plan* — bring the active objective back into view |
+| **Self-monitoring** — detect conflict between action and goal | *Compare* — do the last few actions serve the objective and move toward the gate? |
+| **Inhibition** of the prepotent response | The drift signatures — the attractive tangent, the cheap optimization, the number that tempts |
+| **Effort regulation** | *Calibrate effort* — depth proportional to what the gate needs |
+| **Cognitive offloading** — use external aids because working memory is limited | The core principle: *drift is only visible against an external artifact*. Every activation reads the plan; none relies on memory of it |
+
+The hook is the periodic **checkpoint** — the low-frequency interruption that
+makes a person look up and ask "is this still what I was supposed to be doing?",
+instead of trusting that the question will arise on its own mid-task. Agents
+have no fatigue, no unease and no clock to trigger that question; the hook
+supplies the trigger from outside.
+
+Sibling plugins in this collection cover the other two questions — *is what I
+concluded true?* (epistemic-self-monitoring) and *is it still worth insisting?*
+(persistence-self-monitoring). This one only asks *am I doing what the plan
+asks?*.
+
 ## How it's built
 
 Two pieces that install as one unit:
