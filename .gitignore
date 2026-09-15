@@ -1,0 +1,7 @@
+# opt-in debug logs written by the hooks (EXECMON_LOG=1)
+.claude/logs/
+.cursor/logs/
+
+node_modules/
+.DS_Store
+Thumbs.db

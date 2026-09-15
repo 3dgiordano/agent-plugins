@@ -1,0 +1,16 @@
+{
+  "name": "3dgiordano-agent-plugins",
+  "metadata": {
+    "description": "Reusable plugins for coding agents (Claude Code, Cursor, and Agent Plugins-compatible hosts) by 3dgiordano."
+  },
+  "owner": {
+    "name": "3dgiordano"
+  },
+  "plugins": [
+    {
+      "name": "executive-self-monitoring",
+      "source": "./plugins/executive-self-monitoring",
+      "description": "Plan-anchored drift self-check: shared skill + per-host cadence hook, installable as one unit."
+    }
+  ]
+}
