@@ -173,6 +173,8 @@ const conjBlock = '[EPISTEMIC CLOSE]\n- Claim: skew causes the flake\n- Status: 
 test('epistemic scanner: judges only blocks, and only by the three rules', () => {
   const { scan } = require(path.join(plugin(EPI), 'lib/scan.js'));
   assert.equal(scan('prose that says "the cause is X" with no block').violations.length, 0);
+  assert.equal(scan('docs that mention `[EPISTEMIC CLOSE]` blocks, or [EPISTEMIC CLOSE] inline, are not closures').blocks, 0);
+  assert.equal(scan('  [EPISTEMIC CLOSE]  \n- Claim: indented marker still counts\n- Status: observed\n- Evidence: x\n- Scope: y\n').blocks, 1);
   assert.equal(scan(goodBlock).violations.length, 0);
   assert.equal(scan(conjBlock).violations.length, 0);
   const bad = scan(badBlock).violations;

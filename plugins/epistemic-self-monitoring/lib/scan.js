@@ -14,7 +14,9 @@
  *   any block           -> requires a non-empty "Scope:" line
  */
 
-const BLOCK_RE = /\[EPISTEMIC CLOSE\]([\s\S]*?)(?=\n\s*\n|\[EPISTEMIC CLOSE\]|$)/g;
+// A block starts with the marker alone on its line. Mentioning the marker in
+// prose or inside backticks (as documentation does) is not a closure.
+const BLOCK_RE = /^[ \t]*\[EPISTEMIC CLOSE\][ \t]*$([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*\[EPISTEMIC CLOSE\][ \t]*$|(?![\s\S]))/gm;
 
 function field(block, name) {
   const re = new RegExp('^[ 	]*[-*]?[ 	]*' + name + '[ 	]*:[ 	]*(.*)$', 'im');
