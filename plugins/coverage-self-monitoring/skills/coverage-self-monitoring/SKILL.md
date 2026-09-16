@@ -95,27 +95,25 @@ named while it is still just a name — and a closing check against it.
 
 ## Integration
 
-Two short blocks: one before, one after. Companion hooks read the closing
-block; on hosts without hooks both are still the artifacts that make coverage
-visible to the reader. Block field names and the three states (`done`,
-`blocked`, `returned`) stay in English (hooks parse them); the part names and
-reasons are in the language of the turn.
+Two short blocks: one before, one after. Write them as markdown lists in the
+message, **not inside a fenced code block** — fences do not wrap. No blank
+line inside a block (the scanner stops at the first one). Companion hooks
+read the closing block; on hosts without hooks both are still the artifacts
+that make coverage visible to the reader. Block field names and the three
+states (`done`, `blocked`, `returned`) stay in English (hooks parse them);
+the part names and reasons are in the language of the turn.
 
-```
 [COVERAGE LEDGER]
 - Parts: <n>
 - 1. <part>
 - 2. <part>
 - Hardest: <which> - <why>
 - Order: <hardest first | dependency: … first>
-```
 
-```
 [COVERAGE CHECK]
 - <part>: done - <check run>
 - <part>: blocked - <observed limit, and the tool that showed it>
 - <part>: returned - <the choice the owner must make>
-```
 
 Rules the hooks check:
 - A part not delivered, treated as closed, with no `[COVERAGE CHECK]` block

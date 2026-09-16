@@ -37,7 +37,8 @@ same file does the job the feeling would have done.
   name the hypothesis held, count the variants, name an incompatible rival,
   check proportion, decide and say which. Plus the persistence failure
   signatures (variant cycling, whack-a-mole, retry without change, environment
-  fighting, rabbit hole, sunk cost) and the `[PERSISTENCE CHECK]` block.
+  fighting, rabbit hole, sunk cost) and the `[PERSISTENCE CHECK]` block (a
+  markdown list in the message, not a fenced code block).
 - **Hook adapters** — the counters live in `lib/signals.js`; each host wires
   them to its events:
 

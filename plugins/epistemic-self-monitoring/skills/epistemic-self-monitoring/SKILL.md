@@ -97,18 +97,19 @@ before you test it.
 ## Integration — the closure block
 
 Whenever you record a fact, a defect, a root cause, or a closure, write it as a
-closure block. Companion hooks in this plugin read it; on hosts without hooks it
-is still the artifact that makes your epistemic state visible to the reader.
+closure block — a markdown list in the message, **not inside a fenced code
+block**. Fences do not wrap. No blank line inside the block (the scanner
+stops at the first one). Companion hooks in this plugin read it; on hosts
+without hooks it is still the artifact that makes your epistemic state
+visible to the reader.
 
-```
 [EPISTEMIC CLOSE]
-- Claim: <one line — the thing you are asserting>
+- Claim: <one sentence — the thing you are asserting>
 - Status: observed | conjecture | verified
 - Evidence: <what was observed, and by which tool/command>
 - Falsifier: <the check, committed in advance, that would come out differently if wrong>
-- Verified by: <what was run and what it looked at>   (required when Status is verified)
+- Verified by: <what was run and what it looked at>   *(required when Status is verified)*
 - Scope: <what this covers — and what it does not>
-```
 
 Rules the hooks check:
 - `Status: conjecture` **requires** a `Falsifier`.

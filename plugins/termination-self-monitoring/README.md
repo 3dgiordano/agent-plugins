@@ -64,7 +64,8 @@ The two plugins are the two directions of one axis.
   name the trigger, test it against the four checkable reasons, decide from
   the reason, record a mistake in three sentences and continue, keep the
   register flat. Plus the termination failure signatures and the
-  `[TERMINATION CHECK]` block. Single source of truth; every host loads the
+  `[TERMINATION CHECK]` block (a markdown list in the message, not a fenced
+  code block). Single source of truth; every host loads the
   same file.
 - **Hook adapters** — two layers, same on both hosts:
 

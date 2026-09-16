@@ -10,12 +10,14 @@ const LOAD =
   'why, the order - hardest first unless a dependency forbids), and close each part as done, blocked with ' +
   'an observed reason, or returned to the owner - never silently dropped. A hole in the delivery ' +
   '(a stub, a postponed or excluded part) is a part that is not done, in any language. Stub and TODO ' +
-  'markers you write are counted. Not a blocker.';
+  'markers you write are counted. Write the [COVERAGE LEDGER] and [COVERAGE CHECK] as markdown lists, ' +
+  'not fenced code blocks. Not a blocker.';
 
 function ledger(parts) {
   return `[coverage self-monitoring] the request enumerates ${parts} parts. Before starting: write the ` +
-    '[COVERAGE LEDGER] - each part, which one is hardest and why, and the order you will take them in ' +
-    '(hardest first unless a dependency forbids). At the end, close every part in a [COVERAGE CHECK]. ' +
+    '[COVERAGE LEDGER] as a markdown list, not a fenced code block - each part, which one is hardest and why, and the order you will take them in ' +
+    '(hardest first unless a dependency forbids). At the end, close every part in a [COVERAGE CHECK] ' +
+    'the same way. ' +
     `(${SKILL} skill)`;
 }
 

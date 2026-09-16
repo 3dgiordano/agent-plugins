@@ -43,7 +43,7 @@ markers it wrote, and the deferral phrases it used.
   write the ledger, hardest part first, a stub is a debt, close every part in
   one of three states, compare the closing ledger to the opening one. Plus the
   coverage failure signatures and the `[COVERAGE LEDGER]` / `[COVERAGE CHECK]`
-  blocks. Single source of truth; every host loads the same file.
+  blocks (markdown lists in the message, not fenced code blocks). Single source of truth; every host loads the same file.
 - **Hook adapters** — the counters and scanners live in `lib/signals.js`;
   each host wires them to its events:
 

@@ -49,7 +49,7 @@ for an agent's turn:
 |------|--------|-------------|
 | Situation | Illness severity | `Status: done \| needs-decision \| blocked` — one word the reader triages on |
 | Background | Patient summary | `Situation` — what the reader has now, in their terms; the trace-register detail goes *below* the block |
-| Assessment | Situation awareness / contingency | `Options: A - consequence \| B - consequence. Default: A, because …`, or `Blocked-by` |
+| Assessment | Situation awareness / contingency | `Options` as a list, `Default` on its own line, or `Blocked-by` |
 | Recommendation | Action list | `Next` — the one action asked of the reader, or `nothing` |
 | — | Synthesis by receiver | the reader's reply; a hook cannot do it for them |
 
@@ -100,16 +100,20 @@ Any hit with no `[HANDOFF]` block is the finding. When there is a block, the
 rules are:
 
 - `Status` is one of `done | needs-decision | blocked` (a qualifier may follow)
-- `needs-decision` needs `Options` with at least two alternatives (inline,
-  separated by `|` / `vs`, or as a sub-list) and a `Default`
+- `needs-decision` needs `Options` with at least two alternatives (a list
+  under `Options`, one choice per line; a `|` / `vs` line is still accepted)
+  and a `Default` (own line, or trailing on `Options`)
 - `blocked` needs `Blocked-by`
 - `Situation` and `Next` are required; a template placeholder counts as empty
 
 The lexicon is English, like the sibling plugins'; the question and
-`returned` signals are language-neutral. The rules check the *form* of the
-block — that the options are well chosen, that the situation is really in the
-reader's register, is the skill's discipline, in the same way nobody checks
-that an epistemic `[verified]` line is true.
+`returned` signals are language-neutral. Write the block as a **markdown
+list in the message, not inside a fenced code block** — fences do not wrap,
+and a long `Options` line becomes a horizontal scroll. One option per line;
+`Default` on its own line. The rules check the *form* of the block — that
+the options are well chosen, that the situation is really in the reader's
+register, is the skill's discipline, in the same way nobody checks that an
+epistemic `[verified]` line is true.
 
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 prompt, a tool call or a stop.

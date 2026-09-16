@@ -176,6 +176,7 @@ test('epistemic scanner: judges only blocks, and only by the three rules', () =>
   assert.equal(scan('docs that mention `[EPISTEMIC CLOSE]` blocks, or [EPISTEMIC CLOSE] inline, are not closures').blocks, 0);
   assert.equal(scan('  [EPISTEMIC CLOSE]  \n- Claim: indented marker still counts\n- Status: observed\n- Evidence: x\n- Scope: y\n').blocks, 1);
   assert.equal(scan(goodBlock).violations.length, 0);
+  assert.equal(scan('```\n' + goodBlock + '```').violations.length, 0, 'a fenced close still parses');
   assert.equal(scan(conjBlock).violations.length, 0);
   const bad = scan(badBlock).violations;
   assert.equal(bad.length, 1);
@@ -339,6 +340,7 @@ test('termination scanner: first-person triggers, stripped code/quotes, apology 
   assert.equal(scan(budgetMsg).violations.length, 1, 'trigger with no block is the finding');
   assert.match(scan(budgetMsg).violations[0], /no \[TERMINATION CHECK\]/);
   assert.equal(scan(goodTerm).violations.length, 0, 'Reason none + continue passes');
+  assert.equal(scan('```\n[TERMINATION CHECK]\n- Trigger: running out of context\n- Reason: none\n- Decision: continue\n```').violations.length, 0, 'a fenced check still parses');
   assert.equal(scan(blockedTerm).violations.length, 0, 'limit-observed with evidence passes');
   assert.match(scan(blockedTerm.replace(/- Evidence:.*\n/, '')).violations[0], /Evidence is empty/);
   assert.match(scan(blockedTerm.replace(/Evidence: .*/, 'Evidence: <what was observed>')).violations[0], /Evidence is empty/, 'placeholder counts as empty');
@@ -467,6 +469,7 @@ test('coverage signals: stub markers net of replaced text, per line, per turn; p
   assert.equal(S.scanClose('That module is out of scope.').deferrals.length, 1);
   assert.equal(S.scanClose('> still needs work\n`left as a TODO`').deferrals.length, 0, 'quoted and inline code stripped');
   assert.equal(S.scanClose(goodCov).violations.length, 0);
+  assert.equal(S.scanClose('```\n[COVERAGE CHECK]\n- parser: done - tests\n```').violations.length, 0, 'a fenced check still parses');
   assert.equal(S.scanClose(goodCov).parts, 3);
   assert.match(S.scanClose(goodCov.replace(/- streaming:.*/, '- streaming: blocked')).violations[0], /no reason/);
   assert.match(S.scanClose(goodCov.replace(/- streaming:.*/, '- streaming: returned - <the choice>')).violations[0], /no reason/, 'placeholder counts as empty');
@@ -537,6 +540,8 @@ test('coverage (cursor): sessionStart, postToolUse with Cursor fields, afterAgen
 const HAN = 'handoff-self-monitoring';
 const offerMsg = 'Fixed the parser in `lib/parse.js`. Let me know if you want retries as well.';
 const goodHand = offerMsg + '\n\n[HANDOFF]\n- Status: needs-decision\n- Situation: the parser no longer drops the last record; the test for it is green\n' +
+  '- Options:\n  - A: keep retries out — nothing retries today stays true\n  - B: add retries with backoff — callers survive a blip\n- Default: A, because nothing upstream retries today\n- Next: answer A or B\n';
+const inlineHand = offerMsg + '\n\n[HANDOFF]\n- Status: needs-decision\n- Situation: the parser no longer drops the last record; the test for it is green\n' +
   '- Options: A - keep retries out | B - add retries with backoff. Default: A, because nothing upstream retries today\n- Next: answer A or B\n';
 const doneHand = 'All green.\n\n[HANDOFF]\n- Status: done\n- Situation: the parser no longer drops the last record\n- Next: nothing\n';
 
@@ -555,13 +560,15 @@ test('handoff scanner: offer / fork / closing question / returned part, stripped
   assert.equal(scan('All green. Done.').violations.length, 0);
   assert.equal(scan(offerMsg).violations.length, 1, 'offer with no block is the finding');
   assert.match(scan(offerMsg).violations[0], /no \[HANDOFF\]/);
-  assert.equal(scan(goodHand).violations.length, 0, 'needs-decision with two options and a default passes');
+  assert.equal(scan(goodHand).violations.length, 0, 'needs-decision with a list of options and a Default field passes');
   assert.equal(scan(doneHand).violations.length, 0, 'done + Next: nothing passes');
+  assert.equal(scan('```\n[HANDOFF]\n- Status: done\n- Situation: the parser no longer drops the last record\n- Next: nothing\n```').violations.length, 0, 'a fenced handoff still parses');
   assert.equal(scan(goodHand).status, 'needs-decision');
   assert.ok(!kinds(goodHand.replace('answer A or B', 'A or B?')).includes('question'), 'a question inside the block is not a trailing question');
-  assert.equal(scan(goodHand.replace(/- Options:.*\n/, '- Options:\n  - A - keep retries out\n  - B - add retries\n- Default: A, because nothing retries today\n')).violations.length, 0, 'sub-list options + Default field');
-  assert.match(scan(goodHand.replace(/- Options:.*\n/, '- Options: A - keep retries out. Default: A, because x\n')).violations[0], /fewer than two alternatives/);
-  assert.match(scan(goodHand.replace(/\. Default:.*/, '')).violations[0], /no Default/);
+  assert.equal(scan(inlineHand).violations.length, 0, 'inline Options still accepted');
+  assert.equal(scan(goodHand.replace(/- Options:\n(?:  - .+\n)+/, '- Options:\n- A: keep retries out\n- B: add retries\n')).violations.length, 0, 'unindented sibling options + Default field');
+  assert.match(scan(goodHand.replace(/- Options:\n(?:  - .+\n)+/, '- Options: A - keep retries out. Default: A, because x\n')).violations[0], /fewer than two alternatives/);
+  assert.match(scan(goodHand.replace(/- Default:.*/, '')).violations[0], /no Default/);
   assert.match(scan(goodHand.replace('needs-decision', 'mostly done')).violations[0], /Status must be one of/);
   assert.equal(scan(doneHand.replace('Status: done', 'Status: done (tests green)')).violations.length, 0, 'a qualifier may follow the status');
   assert.match(scan(doneHand.replace(/- Situation:.*/, '- Situation: <what the reader has now>')).violations[0], /Situation is empty/, 'placeholder counts as empty');
@@ -580,12 +587,13 @@ test('handoff: English lexicon and LOAD unchanged; Spanish offers/forks are not 
   assert.deepEqual(kinds('Hay dos caminos: dejar el cache o sacarlo.'), [], 'Spanish "two paths" is not a lexicon hit');
   assert.deepEqual(kinds('Cambié el resolver.\n\n¿Te parece bien?'), ['question'], 'a closing ? is language-neutral');
   const esBlock = 'Avísame si querés retries.\n\n[HANDOFF]\n- Status: needs-decision\n- Situation: el parser ya no pierde el último registro; el test está verde\n' +
-    '- Options: A - sin retries | B - con backoff. Default: A, because hoy nada reintenta\n- Next: respondé A o B\n';
+    '- Options:\n  - A: sin retries — hoy nada reintenta\n  - B: con backoff — los callers sobreviven un blip\n- Default: A, because hoy nada reintenta\n- Next: respondé A o B\n';
   assert.equal(scan(esBlock).violations.length, 0, 'Situation/Options/Next may be in the language of the turn');
   assert.equal(scan(esBlock).status, 'needs-decision');
   assert.match(scan('[HANDOFF]\n- Status: listo\n- Situation: el parser quedó bien\n- Next: nothing\n').violations[0], /Status must be one of/, 'Status tokens stay English');
   assert.match(msg.LOAD, /offer, a fork named but not decided/);
   assert.match(msg.LOAD, /let me know/);
+  assert.match(msg.LOAD, /markdown list, not a fenced/);
   assert.match(msg.preclose({ what: 'gate', label: 'npm test' }), /`npm test` passed - this turn looks close to its end/);
 });
 

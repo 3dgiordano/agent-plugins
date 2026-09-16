@@ -65,14 +65,14 @@ note or a project rule is a good place).
 
 ## Integration
 
-Insert naturally — a brief internal executive voice, not a mechanical checklist:
+Insert naturally — a brief internal executive voice, not a mechanical
+checklist. Write it as a markdown list in the message, **not inside a fenced
+code block**. Fences do not wrap. No blank line inside the block.
 
-```
 [EXECUTIVE SELF-MONITORING]
-- Active plan/gate: <artifact + one-line objective + gate>
+- Active plan/gate: <artifact + one-sentence objective + gate>
 - Aligned? <yes / drifting because …>
 - Decision: <continue / refocus / revise plan>
-```
 
 Then continue normal work. Keep it short and honest — the value is the re-read,
 not the ritual. If you find yourself writing "✓ still aligned" without opening

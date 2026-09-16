@@ -92,17 +92,16 @@ count and the numbers are honest.
 
 ## Integration
 
-When a signal arrives, or you catch yourself repeating, insert a short block and
-then act on the decision:
+When a signal arrives, or you catch yourself repeating, insert a short block
+as a markdown list in the message, **not inside a fenced code block**, and
+then act on the decision. Fences do not wrap. No blank line inside the block.
 
-```
 [PERSISTENCE CHECK]
 - Attempts: <n> on <what>
-- Hypothesis held: <one line>
-- Rival approach: <one line>
+- Hypothesis held: <one sentence>
+- Rival approach: <one sentence>
 - Proportion: <effort so far vs. size of the request>
 - Decision: one more (stop condition: …) | switch | step back | report
-```
 
 Keep it short. The value is in the decision being explicit — and visible to the
 user — not in the ritual.

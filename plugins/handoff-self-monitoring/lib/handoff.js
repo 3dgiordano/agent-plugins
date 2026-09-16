@@ -12,8 +12,9 @@
  * the question scan, so "Next: A or B?" inside it is not a trailing question.
  *
  * A hit is a signal, not a verdict: the hook only asks the agent to write the
- * block - status, situation in the reader's terms, options with a default,
- * one next action.
+ * block as a markdown list - status, situation in the reader's terms, options
+ * as a list with a default, one next action. Not a fenced code block: fences
+ * do not wrap.
  */
 
 const CATEGORIES = [
@@ -71,8 +72,12 @@ function field(block, name) {
   return placeholder(v) ? '' : v;
 }
 
-// Options may be inline ("A - x | B - y. Default: A, because z") or a
-// sub-list under the Options line, with Default inline or as its own field.
+const FIELD_RE = /^(Status|Situation|Options|Default|Blocked-by|Next)\b/i;
+const OPTION_ITEM_RE = /^[ \t]*[-*][ \t]+(\S.*)$/;
+
+// Options as a list (the form to write): indented under Options, or sibling
+// items "- A: …" until the next field. Inline "A | B. Default: A" is still
+// accepted so an older close is not a finding; it is not the form to write.
 function optionsOf(block) {
   const lines = block.split(/\r?\n/);
   const i = lines.findIndex((l) => /^[ \t]*[-*]?[ \t]*Options[ \t]*:/i.test(l));
@@ -80,7 +85,11 @@ function optionsOf(block) {
   const inline = lines[i].replace(/^[ \t]*[-*]?[ \t]*Options[ \t]*:[ \t]*/i, '').trim();
   const subs = [];
   for (let j = i + 1; j < lines.length; j++) {
-    if (/^[ \t]+[-*][ \t]+\S/.test(lines[j])) subs.push(lines[j].trim()); else break;
+    const line = lines[j];
+    if (/^[ \t]+[-*][ \t]+\S/.test(line)) { subs.push(line.trim()); continue; }
+    const item = line.match(OPTION_ITEM_RE);
+    if (item && !FIELD_RE.test(item[1])) { subs.push(line.trim()); continue; }
+    break;
   }
   const alts = placeholder(inline) ? [] :
     inline.replace(/\bdefault\s*:.*$/i, '').split(/\s+\|\s+|\s+vs\.?\s+|\s+versus\s+/i).map((s) => s.trim()).filter((s) => !placeholder(s));
@@ -154,10 +163,10 @@ function scan(text) {
     const known = STATUSES.find((s) => status === s || (status.startsWith(s) && /^[-:(]/.test(status.slice(s.length))));
     out.status = known || status || null;
     if (!known) out.violations.push(`Status must be one of ${STATUSES.join(' | ')}, got "${status || '(empty)'}"`);
-    if (!field(b, 'Situation')) out.violations.push('Situation is empty - one line, in the reader\'s terms: what do they have now?');
+    if (!field(b, 'Situation')) out.violations.push('Situation is empty - one sentence, in the reader\'s terms: what do they have now?');
     if (known === 'needs-decision') {
       const opt = optionsOf(b);
-      if (!opt || opt.count < 2) out.violations.push('Status is needs-decision but Options has fewer than two alternatives - the fork, as A - consequence | B - consequence');
+      if (!opt || opt.count < 2) out.violations.push('Status is needs-decision but Options has fewer than two alternatives - the fork as a list, one choice per line, Default on its own line');
       else if (!opt.hasDefault) out.violations.push('Options has no Default - which one, and why');
     }
     if (known === 'blocked' && !field(b, 'Blocked-by')) out.violations.push('Status is blocked but Blocked-by is empty - the observed limit, and the tool that showed it');

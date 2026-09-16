@@ -39,8 +39,10 @@ asks?*.
 Two pieces that install as one unit:
 
 - **Skill** (`skills/executive-self-monitoring/SKILL.md`) — the *what*: the
-  5-step re-grounding protocol and a list of domain-neutral drift signatures.
-  This is the **single source of truth**; every host loads the same file.
+  5-step re-grounding protocol, a list of domain-neutral drift signatures, and
+  the `[EXECUTIVE SELF-MONITORING]` check as a markdown list in the message,
+  not a fenced code block. This is the **single source of truth**; every host
+  loads the same file.
 - **Hook adapters** — the *when*. Hooks are not portable across hosts, so each
   host gets a thin adapter that only decides *when* to remind the agent to invoke
   the skill:

@@ -7,6 +7,34 @@ release.
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-09-16
+
+Protocol blocks as markdown lists in the message, not fenced code blocks —
+fences do not wrap, and a long `Options` line became a horizontal scroll.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.3.3 |
+| epistemic-self-monitoring | 0.1.4 |
+| persistence-self-monitoring | 0.1.4 |
+| termination-self-monitoring | 0.1.4 |
+| coverage-self-monitoring | 0.1.4 |
+| handoff-self-monitoring | 0.1.2 |
+
+### Changed
+- **handoff-self-monitoring 0.1.2** — `[HANDOFF]` is a markdown list in the
+  message, not a fenced code block (fences do not wrap). `Options` is one
+  alternative per line, `Default` on its own line. The scanner still accepts
+  a one-line `A | B` from older closes; the skill no longer teaches that
+  form. Sibling list items after `Options` (`- A: …` at the same indent)
+  count as alternatives, so a flattened list still parses.
+- **coverage-self-monitoring 0.1.4**, **epistemic-self-monitoring 0.1.4**,
+  **persistence-self-monitoring 0.1.4**, **termination-self-monitoring 0.1.4**,
+  **executive-self-monitoring 1.3.3** — protocol blocks are markdown lists
+  in the message, not fenced code blocks, matching handoff. Scanners still
+  accept a fenced copy of the same block (`scripts/test.js` locks that).
+  No blank line inside a block (the scanner stops at the first one).
+
 ## [0.3.0] — 2026-09-16
 
 A sixth plugin for structured handoff, sibling-plugin wiring to it, and
@@ -217,7 +245,8 @@ First public release.
   backticks was scanned as a closure block; the marker must now stand alone
   on its line.
 
-[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.3.1
 [0.3.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.3.0
 [0.2.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.2.0
 [0.1.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.1.0

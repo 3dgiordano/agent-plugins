@@ -8,7 +8,8 @@ const LOAD =
   'attempt, and effort out of proportion to the request. When a nudge arrives with a count, run the ' +
   `${SKILL} skill: name the hypothesis you are implicitly holding, count the variants tried, name an ` +
   'approach incompatible with it, and decide - one more attempt with a stated stop condition, switch, ' +
-  'step back to the plan, or report to the user. Not a blocker - a signal.';
+  'step back to the plan, or report to the user. Write the [PERSISTENCE CHECK] as a markdown list, not a ' +
+  'fenced code block. Not a blocker - a signal.';
 
 const TAIL =
   ' Before the next attempt: what hypothesis are you holding, what changed between attempts, and what ' +

@@ -39,7 +39,8 @@ choosing your own.
 
 - **Skill** (`skills/epistemic-self-monitoring/SKILL.md`) — the protocol, the
   claim ladder, the rival-explanation checklist, the closure checks, and the
-  `[EPISTEMIC CLOSE]` block format. Single source of truth; every host loads
+  `[EPISTEMIC CLOSE]` block format (a markdown list in the message, not a
+  fenced code block). Single source of truth; every host loads
   the same file.
 - **Hook adapters** — three layers, same on both hosts:
 

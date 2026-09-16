@@ -61,7 +61,7 @@ is that format for an agent's turn:
    "basically works" are not statuses; they are `needs-decision` or
    `blocked` with the reason not yet written.
 
-2. **The situation, in the reader's terms.** One line: what the reader has
+2. **The situation, in the reader's terms.** One sentence: what the reader has
    now that they did not have before. Test each word — would it mean
    anything to someone who did not see the tool calls? A path, a function
    name, a flag, an error code is trace register; *"the login form now
@@ -72,10 +72,10 @@ is that format for an agent's turn:
 3. **A fork is written as a decision, not offered as a favour.** An offer
    hands the assessment to the reader — in English, *"I can also add retries
    if you'd like"*; the act is the same in any language. A decision has the
-   options, non-equivalent, each with its consequence; a default; and why
-   the default. If you cannot name a default, the assessment is not finished:
-   finish it, then write. If the options are equivalent there is no decision
-   — pick one and say so.
+   options, non-equivalent, each with its consequence **on its own line**; a
+   default on its own line; and why the default. If you cannot name a
+   default, the assessment is not finished: finish it, then write. If the
+   options are equivalent there is no decision — pick one and say so.
 
 4. **Ask for one action.** `Next` is one thing the reader does: answer A or
    B, run this command, review this file, nothing. Not an open-ended ask (in
@@ -102,6 +102,10 @@ is that format for an agent's turn:
   right?"* or *"which do you prefer?"* with no options and no default.
 - **The buried fork** — the decision sits in paragraph three, in a
   subordinate clause: *"…which assumes the API is idempotent"*.
+- **The one-line fork** — Options packed with `|` so the choice is a
+  horizontal scroll. One option per line; `Default` on its own line.
+- **The fenced block** — wrapping `[HANDOFF]` in a code fence. Fences do
+  not wrap; the reader has to scroll. Write it as a markdown list.
 - **Done except** — *"done, except the migration still needs…"*: that is
   `needs-decision` or `blocked` with the reason not yet written.
 - **The identifier close** — *"Fixed in `resolveConfig`, see
@@ -111,27 +115,32 @@ is that format for an agent's turn:
 
 ## Integration
 
-Write the block at the close of the turn. Companion hooks read it; on hosts
-without hooks it is still the artifact that makes the handoff visible to the
-reader. Block field names stay in English (hooks parse them); `Situation`,
-`Options` and `Next` are in the language of the turn.
+Write the block at the close of the turn, **as a markdown list in the
+message, not inside a fenced code block**. Fences do not wrap; a long
+`Options` line becomes a horizontal scroll. Companion hooks read it; on
+hosts without hooks it is still the artifact that makes the handoff visible
+to the reader. Block field names stay in English (hooks parse them);
+`Situation`, `Options` and `Next` are in the language of the turn.
 
-```
 [HANDOFF]
 - Status: done | needs-decision | blocked
-- Situation: <what the reader has now, in their terms - one line>
-- Options: <A> - <consequence> | <B> - <consequence>. Default: <A>, because <why>   (needs-decision)
-- Blocked-by: <the observed limit, and the tool that showed it>   (blocked)
+- Situation: <what the reader has now, in their terms - one sentence>
+- Options:   *(needs-decision — one alternative per line)*
+  - A: <choice> — <consequence>
+  - B: <choice> — <consequence>
+- Default: A, because <why>   *(needs-decision)*
+- Blocked-by: <the observed limit, and the tool that showed it>   *(blocked)*
 - Next: <the one action asked of the reader, or: nothing>
-```
 
 Rules the hooks check:
 - `Status` is one of the three.
-- `needs-decision` **requires** `Options` with at least two alternatives and
-  a `Default`.
+- `needs-decision` **requires** `Options` with at least two alternatives
+  (a list under `Options`, not a `|`-separated line) and a `Default` (own
+  line, or trailing on `Options`).
 - `blocked` **requires** `Blocked-by`.
 - `Situation` and `Next` are required; a template placeholder counts as
   empty.
+- No blank line inside the block — the scanner stops at the first one.
 - The act — an offer, a fork, a question to the reader, or a `returned` part
   in a `[COVERAGE CHECK]` — with no `[HANDOFF]` block is the finding.
   Companion hooks also scan an English lexicon for offer/fork language as a
@@ -139,3 +148,5 @@ Rules the hooks check:
 
 Keep it short. The value is in the reader being able to act — status,
 situation, the choice with a default, one action — not in the ceremony.
+The scanner still accepts a one-line `Options: A | B` from older closes;
+do not write that form.

@@ -1,6 +1,6 @@
 {
   "name": "persistence-self-monitoring",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Persist-or-quit self-check for coding agents. Bundles the persistence-self-monitoring skill (the 'what': name the hypothesis held, count the variants, name a rival, decide) with per-host hooks (the 'when') that count what an agent cannot feel - the same file edited N times, the same command or error failing N times, tool calls piling up since the user's last message - and speak only when a threshold is crossed. Never blocks. Claude Code: UserPromptSubmit turn boundary, PostToolUse counters on every tool, Stop turn summary (log only).",
   "author": {
     "name": "David Giordano",

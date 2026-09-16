@@ -14,14 +14,14 @@ const LOAD =
 
 function retrospective(violations) {
   return '[termination self-monitoring] Your previous turn ended on a state-shaped reason: ' +
-    violations.join('; ') + '. If the work is unfinished, either write the [TERMINATION CHECK] block ' +
-    'with the checkable reason and its evidence, or pick the work back up now.';
+    violations.join('; ') + '. If the work is unfinished, either write the [TERMINATION CHECK] as a ' +
+    'markdown list, not a fenced code block, with the checkable reason and its evidence, or pick the work back up now.';
 }
 
 function blockReason(violations) {
-  return 'Termination gate: ' + violations.join('; ') + '. Add a [TERMINATION CHECK] block (Trigger, ' +
-    'Reason: gate-not-run | owner-choice | budget-spent | limit-observed | none, Evidence, Decision) - ' +
-    'or, if no checkable reason holds, continue the work instead of stopping. Then finish.';
+  return 'Termination gate: ' + violations.join('; ') + '. Add a [TERMINATION CHECK] markdown list, not a ' +
+    'fenced code block (Trigger, Reason: gate-not-run | owner-choice | budget-spent | limit-observed | none, ' +
+    'Evidence, Decision) - or, if no checkable reason holds, continue the work instead of stopping. Then finish.';
 }
 
 module.exports = { LOAD, retrospective, blockReason };

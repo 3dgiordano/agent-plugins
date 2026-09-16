@@ -104,19 +104,19 @@ it with the real reason.
 ## Integration
 
 When the stop is justified by a feeling or an unmanaged limit, or a hook
-reports one, write the block and act on its decision. Companion hooks read
-it; on hosts without hooks it is still the artifact that makes the reason
-visible to the reader. Block field names stay in English (hooks parse them);
-the `Trigger` quote and the rest of the message are in the language of the
-turn.
+reports one, write the block as a markdown list in the message, **not inside
+a fenced code block**, and act on its decision. Fences do not wrap. No blank
+line inside the block (the scanner stops at the first one). Companion hooks
+read it; on hosts without hooks it is still the artifact that makes the
+reason visible to the reader. Block field names stay in English (hooks parse
+them); the `Trigger` quote and the rest of the message are in the language
+of the turn.
 
-```
 [TERMINATION CHECK]
 - Trigger: <the phrase, quoted>
 - Reason: gate-not-run | owner-choice | budget-spent | limit-observed | none
-- Evidence: <what was observed and by which tool/command>   (required unless Reason is none)
+- Evidence: <what was observed and by which tool/command>   *(required unless Reason is none)*
 - Decision: continue | stop | ask owner
-```
 
 Rules the hooks check:
 - `Reason` must be one of the five.

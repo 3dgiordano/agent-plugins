@@ -70,9 +70,10 @@ message is about to be written:
 ```
 [handoff self-monitoring] `npm test` passed - this turn looks close to its end.
 When you write the final message: Status first (done | needs-decision |
-blocked), the situation in the reader's terms, any fork as options with a
-default, and one Next action - in a [HANDOFF] block, with the trace detail
-below it. (handoff-self-monitoring skill)
+blocked), the situation in the reader's terms, any fork as a list of options
+with Default on its own line, and one Next action - in a [HANDOFF] markdown
+list, not a fenced code block, with the trace detail below it.
+(handoff-self-monitoring skill)
 ```
 
 ## Quick start
