@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "node ./cursor/hand-session-start.js"
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "node ./cursor/hand-observe-cursor.js"
+      }
+    ],
+    "afterAgentResponse": [
+      {
+        "command": "node ./cursor/hand-response-cursor.js"
+      }
+    ],
+    "stop": [
+      {
+        "command": "node ./cursor/hand-stop-cursor.js",
+        "loop_limit": 1
+      }
+    ]
+  }
+}

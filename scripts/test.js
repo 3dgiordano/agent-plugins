@@ -272,7 +272,7 @@ test('failure detection (persistence + epistemic copies): green suites and code 
     'Error: boom\n    at x', 'TypeError: x is not a function', 'Traceback (most recent call last):', 'fatal: not a git repository',
     'npm ERR! code ELIFECYCLE', 'make: *** [all] Error 2', "main.c:5:3: error: expected ';'", 'error[E0308]: mismatched types',
     'src/a.ts(3,5): error TS2345: x', 'panic: runtime error', 'bash: foo: command not found', { stdout: '', stderr: 'Exit code 2' }];
-  for (const p of [PER, EPI]) {
+  for (const p of [PER, EPI, 'handoff-self-monitoring']) {
     const F = require(path.join(plugin(p), 'lib/fail.js'));
     for (const g of green) assert.equal(F.looksFailed(F.outputText(g)), false, `${p}: green counted as failure: ${JSON.stringify(g)}`);
     for (const r of red) assert.equal(F.looksFailed(F.outputText(r)), true, `${p}: failure missed: ${JSON.stringify(r)}`);
@@ -280,6 +280,7 @@ test('failure detection (persistence + epistemic copies): green suites and code 
     assert.equal(F.errorSignature('Error: got 3 at C:\\tmp\\3\\x.js:30'), 'Error: got # at <path>:#');
   }
   assert.equal(fs.readFileSync(path.join(plugin(PER), 'lib/fail.js'), 'utf8'), fs.readFileSync(path.join(plugin(EPI), 'lib/fail.js'), 'utf8'), 'the two copies must not diverge');
+  assert.equal(fs.readFileSync(path.join(plugin(PER), 'lib/fail.js'), 'utf8'), fs.readFileSync(path.join(plugin('handoff-self-monitoring'), 'lib/fail.js'), 'utf8'), 'the handoff copy must not diverge either');
   // the end-to-end shape of the bug: three green runs of the same command must not become "has failed 3 times"
   const S = require(path.join(plugin(PER), 'lib/signals.js'));
   const t = S.freshTurn();
@@ -498,25 +499,137 @@ test('coverage (cursor): sessionStart, postToolUse with Cursor fields, afterAgen
 });
 
 // ---------------------------------------------------------------------------
+// handoff-self-monitoring
+// ---------------------------------------------------------------------------
+
+const HAN = 'handoff-self-monitoring';
+const offerMsg = 'Fixed the parser in `lib/parse.js`. Let me know if you want retries as well.';
+const goodHand = offerMsg + '\n\n[HANDOFF]\n- Status: needs-decision\n- Situation: the parser no longer drops the last record; the test for it is green\n' +
+  '- Options: A - keep retries out | B - add retries with backoff. Default: A, because nothing upstream retries today\n- Next: answer A or B\n';
+const doneHand = 'All green.\n\n[HANDOFF]\n- Status: done\n- Situation: the parser no longer drops the last record\n- Next: nothing\n';
+
+test('handoff scanner: offer / fork / closing question / returned part, stripped code and quotes, block rules', () => {
+  const { scan } = require(path.join(plugin(HAN), 'lib/handoff.js'));
+  const kinds = (s) => scan(s).hits.map((h) => h.kind);
+  assert.deepEqual(kinds(offerMsg), ['offer']);
+  assert.deepEqual(kinds('It depends on whether the API is idempotent.'), ['fork']);
+  assert.deepEqual(kinds('There are two options here: keep the cache or drop it.'), ['fork']);
+  assert.deepEqual(kinds('I changed the resolver.\n\nDoes that look right?'), ['question']);
+  assert.deepEqual(kinds('Why does it fail?\nBecause X.\n1\n2\n3\n4\n5\n6\nAll green. Done.'), [], 'a question far from the end is not a closing question');
+  assert.deepEqual(kinds('Docs say agents write `let me know if you want`; not judged.'), [], 'inline code stripped');
+  assert.deepEqual(kinds('```\nlet me know if you want\n```\nfenced'), [], 'fenced code stripped');
+  assert.deepEqual(kinds('> let me know if you want\nquoted'), [], 'quoted lines stripped');
+  assert.deepEqual(kinds('[COVERAGE CHECK]\n- retries: returned - owner picks the backoff policy'), ['returned']);
+  assert.equal(scan('All green. Done.').violations.length, 0);
+  assert.equal(scan(offerMsg).violations.length, 1, 'offer with no block is the finding');
+  assert.match(scan(offerMsg).violations[0], /no \[HANDOFF\]/);
+  assert.equal(scan(goodHand).violations.length, 0, 'needs-decision with two options and a default passes');
+  assert.equal(scan(doneHand).violations.length, 0, 'done + Next: nothing passes');
+  assert.equal(scan(goodHand).status, 'needs-decision');
+  assert.ok(!kinds(goodHand.replace('answer A or B', 'A or B?')).includes('question'), 'a question inside the block is not a trailing question');
+  assert.equal(scan(goodHand.replace(/- Options:.*\n/, '- Options:\n  - A - keep retries out\n  - B - add retries\n- Default: A, because nothing retries today\n')).violations.length, 0, 'sub-list options + Default field');
+  assert.match(scan(goodHand.replace(/- Options:.*\n/, '- Options: A - keep retries out. Default: A, because x\n')).violations[0], /fewer than two alternatives/);
+  assert.match(scan(goodHand.replace(/\. Default:.*/, '')).violations[0], /no Default/);
+  assert.match(scan(goodHand.replace('needs-decision', 'mostly done')).violations[0], /Status must be one of/);
+  assert.equal(scan(doneHand.replace('Status: done', 'Status: done (tests green)')).violations.length, 0, 'a qualifier may follow the status');
+  assert.match(scan(doneHand.replace(/- Situation:.*/, '- Situation: <what the reader has now>')).violations[0], /Situation is empty/, 'placeholder counts as empty');
+  assert.match(scan(doneHand.replace('- Next: nothing', '- Next: ')).violations[0], /Next is empty/);
+  assert.match(scan('[HANDOFF]\n- Status: blocked\n- Situation: x\n- Next: grant access').violations[0], /Blocked-by is empty/);
+  assert.equal(scan('[HANDOFF]\n- Status: blocked\n- Situation: x\n- Blocked-by: Write denied on .env (permission prompt declined)\n- Next: grant access or say no').violations.length, 0);
+});
+
+test('handoff signals: pre-close fires once per turn on a green gate or a commit, never on a red run', () => {
+  const S = require(path.join(plugin(HAN), 'lib/signals.js'));
+  const t = S.freshTurn();
+  assert.deepEqual(S.observe(t, 'Bash', { command: 'npm test' }, { stdout: 'Tests: 1 failed, 4 passed', stderr: '' }), [], 'a red run is not a close');
+  assert.deepEqual(S.observe(t, 'Read', { file_path: 'x' }, 'ok'), []);
+  const fired = S.observe(t, 'Bash', { command: 'npm test' }, { stdout: 'Tests: 5 passed, 0 failed', stderr: '' });
+  assert.equal(fired.length, 1);
+  assert.equal(fired[0].what, 'gate');
+  assert.equal(fired[0].label, 'npm test');
+  assert.deepEqual(S.observe(t, 'Bash', { command: 'git commit -m x' }, 'ok'), [], 'once per turn');
+  assert.deepEqual(S.summary(t), { tools: 4, preclose: true });
+  const t2 = S.freshTurn();
+  const c = S.observe(t2, 'run_terminal_cmd', { command: 'cd api && git push origin main' }, 'ok');
+  assert.equal(c[0].what, 'commit');
+  assert.equal(c[0].label, 'git push');
+  assert.deepEqual(S.observe(S.freshTurn(), 'Bash', { command: 'grep -r test src' }, 'ok'), [], 'the word test in a grep is not a gate');
+  assert.deepEqual(S.observe(S.freshTurn(), 'Bash', { command: 'git status' }, 'ok'), [], 'git status is not a close');
+});
+
+test('handoff (claude): load on turn 1, pre-close nudge once, retrospective after an unhanded decision, silent otherwise', (t) => {
+  const sid = uid('han');
+  t.after(() => cleanupTemp(`handmon_claude_${sid}`));
+  const cc = (x) => Object.assign({ session_id: sid, cwd: os.tmpdir() }, x);
+  assert.match(hook(HAN, 'hooks/hand-prompt.js', cc({})).out, /handoff self-monitoring/);
+  assert.equal(hook(HAN, 'hooks/hand-prompt.js', cc({})).out, '');
+  assert.equal(hook(HAN, 'hooks/hand-observe.js', cc({ tool_name: 'Bash', tool_input: { command: 'npm test' }, tool_response: { stdout: 'FAIL src/x.test.js' } })).out, '', 'red run: nothing');
+  const pre = hook(HAN, 'hooks/hand-observe.js', cc({ tool_name: 'Bash', tool_input: { command: 'npm test' }, tool_response: { stdout: 'Tests: 5 passed' } }));
+  assert.match(JSON.parse(pre.out).hookSpecificOutput.additionalContext, /`npm test` passed - this turn looks close to its end/);
+  assert.equal(hook(HAN, 'hooks/hand-observe.js', cc({ tool_name: 'Bash', tool_input: { command: 'git commit -m x' }, tool_response: 'ok' })).out, '', 'once per turn');
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: doneHand })).code, 0);
+  assert.equal(hook(HAN, 'hooks/hand-prompt.js', cc({})).out, '', 'clean stop leaves nothing');
+  assert.match(JSON.parse(hook(HAN, 'hooks/hand-observe.js', cc({ tool_name: 'Bash', tool_input: { command: 'git commit -m x' }, tool_response: 'ok' })).out).hookSpecificOutput.additionalContext, /`git commit` ran/, 'new turn: fires again');
+  const stop = hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: offerMsg }));
+  assert.equal(stop.code, 0, 'non-strict never blocks');
+  assert.match(hook(HAN, 'hooks/hand-prompt.js', cc({})).out, /left the reader without a handoff/);
+  assert.equal(hook(HAN, 'hooks/hand-prompt.js', cc({})).out, '', 'retrospective is consumed once');
+});
+
+test('handoff (claude): strict mode blocks once with exit 2, never re-blocks, passes a good block', (t) => {
+  const sid = uid('han');
+  t.after(() => cleanupTemp(`handmon_claude_${sid}`));
+  const strict = { HANDMON_STRICT: '1' };
+  const cc = (x) => Object.assign({ session_id: sid, cwd: os.tmpdir() }, x);
+  const blocked = hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: offerMsg }), strict);
+  assert.equal(blocked.code, 2);
+  assert.match(blocked.err, /Handoff gate/);
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: offerMsg, stop_hook_active: true }), strict).code, 0);
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: goodHand }), strict).code, 0);
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: 'done' }), strict).code, 0);
+});
+
+test('handoff (cursor): sessionStart, postToolUse pre-close, afterAgentResponse parks findings and resets the turn, stop gate strict-only and once', (t) => {
+  const cid = uid('hanc');
+  t.after(() => cleanupTemp(`handmon_cursor_${cid}`));
+  const noCC = { CLAUDECODE: '' };
+  assert.match(JSON.parse(hook(HAN, 'cursor/hand-session-start.js', {}, noCC).out).additional_context, /handoff/);
+  const cu = (x) => Object.assign({ conversation_id: cid, workspace_roots: [os.tmpdir()] }, x);
+  const pre = hook(HAN, 'cursor/hand-observe-cursor.js', cu({ tool_name: 'run_terminal_cmd', tool_input: { command: 'pytest' }, tool_output: '5 passed' }), noCC);
+  assert.match(JSON.parse(pre.out).additional_context, /`pytest` passed/);
+  assert.equal(hook(HAN, 'cursor/hand-observe-cursor.js', cu({ tool_name: 'run_terminal_cmd', tool_input: { command: 'pytest' }, tool_output: '5 passed' }), noCC).out, '', 'once per turn');
+  assert.equal(hook(HAN, 'cursor/hand-response-cursor.js', cu({ text: offerMsg }), noCC).out, '');
+  assert.match(JSON.parse(hook(HAN, 'cursor/hand-observe-cursor.js', cu({ tool_name: 'run_terminal_cmd', tool_input: { command: 'pytest' }, tool_output: '5 passed' }), noCC).out).additional_context, /passed/, 'afterAgentResponse reset the turn');
+  assert.equal(hook(HAN, 'cursor/hand-stop-cursor.js', cu({ status: 'completed', loop_count: 0 }), noCC).out, '', 'non-strict: nothing');
+  hook(HAN, 'cursor/hand-response-cursor.js', cu({ text: offerMsg }), noCC);
+  const strictStop = hook(HAN, 'cursor/hand-stop-cursor.js', cu({ status: 'completed', loop_count: 0 }), Object.assign({ HANDMON_STRICT: '1' }, noCC));
+  assert.match(JSON.parse(strictStop.out).followup_message, /Handoff gate/);
+  hook(HAN, 'cursor/hand-response-cursor.js', cu({ text: offerMsg }), noCC);
+  assert.equal(hook(HAN, 'cursor/hand-stop-cursor.js', cu({ status: 'completed', loop_count: 1 }), Object.assign({ HANDMON_STRICT: '1' }, noCC)).out, '', 'loop_count>0 never re-blocks');
+});
+
+// ---------------------------------------------------------------------------
 // Logging (shared contract across plugins)
 // ---------------------------------------------------------------------------
 
 test('logging is off by default and writes host-routed JSONL when enabled', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-log-'));
   const sid = uid('log');
-  t.after(() => { fs.rmSync(dir, { recursive: true, force: true }); for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'claude_execmon_', 'termmon_claude_', 'covmon_claude_']) cleanupTemp(pfx + sid); });
+  t.after(() => { fs.rmSync(dir, { recursive: true, force: true }); for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'claude_execmon_', 'termmon_claude_', 'covmon_claude_', 'handmon_claude_']) cleanupTemp(pfx + sid); });
   hook('executive-self-monitoring', 'hooks/exec-monitor.js', { session_id: sid, cwd: dir });
   hook(EPI, 'hooks/epi-prompt.js', { session_id: sid, cwd: dir });
   hook(PER, 'hooks/persist-prompt.js', { session_id: sid, cwd: dir });
   hook(TER, 'hooks/term-prompt.js', { session_id: sid, cwd: dir });
   hook(COV, 'hooks/cov-prompt.js', { session_id: sid, cwd: dir });
+  hook(HAN, 'hooks/hand-prompt.js', { session_id: sid, cwd: dir });
   assert.ok(!fs.existsSync(path.join(dir, '.claude')), 'no log files without the env var');
   hook('executive-self-monitoring', 'hooks/exec-monitor.js', { session_id: sid, cwd: dir }, { EXECMON_LOG: '1' });
   hook(EPI, 'hooks/epi-prompt.js', { session_id: sid, cwd: dir }, { EPIMON_LOG: '1' });
   hook(PER, 'hooks/persist-prompt.js', { session_id: sid, cwd: dir }, { PERSISTMON_LOG: '1' });
   hook(TER, 'hooks/term-prompt.js', { session_id: sid, cwd: dir }, { TERMMON_LOG: '1' });
   hook(COV, 'hooks/cov-prompt.js', { session_id: sid, cwd: dir }, { COVMON_LOG: '1' });
-  for (const f of ['executive-self-monitoring', 'epistemic-self-monitoring', 'persistence-self-monitoring', 'termination-self-monitoring', 'coverage-self-monitoring']) {
+  hook(HAN, 'hooks/hand-prompt.js', { session_id: sid, cwd: dir }, { HANDMON_LOG: '1' });
+  for (const f of ['executive-self-monitoring', 'epistemic-self-monitoring', 'persistence-self-monitoring', 'termination-self-monitoring', 'coverage-self-monitoring', 'handoff-self-monitoring']) {
     const p = path.join(dir, '.claude', 'logs', `${f}.jsonl`);
     assert.ok(fs.existsSync(p), `${f} log missing`);
     const line = JSON.parse(fs.readFileSync(p, 'utf8').trim().split('\n').pop());
@@ -551,7 +664,7 @@ test('state updates survive parallel hook processes (PostToolUse bursts): N conc
 
 test('loggers never write into the plugin install dir: no cwd and no project env means no log', (t) => {
   const sid = uid('nocwd');
-  t.after(() => { for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'claude_execmon_', 'termmon_claude_', 'covmon_claude_']) cleanupTemp(pfx + sid); });
+  t.after(() => { for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'claude_execmon_', 'termmon_claude_', 'covmon_claude_', 'handmon_claude_']) cleanupTemp(pfx + sid); });
   const noDir = { CLAUDE_PROJECT_DIR: '', CURSOR_PROJECT_DIR: '' };
   const before = pluginNames.map((p) => fs.existsSync(path.join(plugin(p), '.claude')) || fs.existsSync(path.join(plugin(p), '.cursor')));
   hook('executive-self-monitoring', 'hooks/exec-monitor.js', { session_id: sid }, Object.assign({ EXECMON_LOG: '1' }, noDir));
@@ -559,6 +672,7 @@ test('loggers never write into the plugin install dir: no cwd and no project env
   hook(PER, 'hooks/persist-prompt.js', { session_id: sid }, Object.assign({ PERSISTMON_LOG: '1' }, noDir));
   hook(TER, 'hooks/term-stop.js', { session_id: sid, last_assistant_message: budgetMsg }, Object.assign({ TERMMON_LOG: '1' }, noDir));
   hook(COV, 'hooks/cov-stop.js', { session_id: sid, last_assistant_message: deferMsg }, Object.assign({ COVMON_LOG: '1' }, noDir));
+  hook(HAN, 'hooks/hand-stop.js', { session_id: sid, last_assistant_message: offerMsg }, Object.assign({ HANDMON_LOG: '1' }, noDir));
   hook(EPI, 'cursor/epi-session-start.js', {}, Object.assign({ CLAUDECODE: '', EPIMON_LOG: '1' }, noDir));
   pluginNames.forEach((p, i) => {
     const now = fs.existsSync(path.join(plugin(p), '.claude')) || fs.existsSync(path.join(plugin(p), '.cursor'));
@@ -575,8 +689,8 @@ test('scripts/calibrate.js reads the logs of every plugin and prints what-if nud
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-cal-'));
   const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-cal-empty-'));
   const sid = uid('cal');
-  t.after(() => { for (const d of [dir, empty]) fs.rmSync(d, { recursive: true, force: true }); for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'claude_execmon_', 'termmon_claude_', 'covmon_claude_']) cleanupTemp(pfx + sid); });
-  const logs = { EXECMON_LOG: '1', EPIMON_LOG: '1', PERSISTMON_LOG: '1', TERMMON_LOG: '1', COVMON_LOG: '1' };
+  t.after(() => { for (const d of [dir, empty]) fs.rmSync(d, { recursive: true, force: true }); for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'claude_execmon_', 'termmon_claude_', 'covmon_claude_', 'handmon_claude_']) cleanupTemp(pfx + sid); });
+  const logs = { EXECMON_LOG: '1', EPIMON_LOG: '1', PERSISTMON_LOG: '1', TERMMON_LOG: '1', COVMON_LOG: '1', HANDMON_LOG: '1' };
   const cc = (x) => Object.assign({ session_id: sid, cwd: dir }, x);
   hook('executive-self-monitoring', 'hooks/exec-monitor.js', cc({}), logs);
   hook(EPI, 'hooks/epi-stop.js', cc({ last_assistant_message: badBlock }), logs);
@@ -586,6 +700,7 @@ test('scripts/calibrate.js reads the logs of every plugin and prints what-if nud
   hook(TER, 'hooks/term-stop.js', cc({ last_assistant_message: budgetMsg }), logs);
   hook(COV, 'hooks/cov-prompt.js', cc({ prompt: '- a\n- b\n- c' }), logs);
   hook(COV, 'hooks/cov-stop.js', cc({ last_assistant_message: deferMsg }), logs);
+  hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: offerMsg }), logs);
   const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts/calibrate.js'), dir], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   for (const p of pluginNames) assert.match(r.stdout, new RegExp(`== ${p}  \\(\\d+ events\\)`), `${p} section`);
@@ -593,7 +708,8 @@ test('scripts/calibrate.js reads the logs of every plugin and prints what-if nud
   assert.match(r.stdout, /\* 4: 100\.0%/, 'what-if column marks the current threshold');
   assert.match(r.stdout, /turns ending on a state-shaped reason \(any hit\)\s+100\.0%\s+\(1\/1\)/);
   assert.match(r.stdout, /turns ending with deferral language\s+100\.0%\s+\(1\/1\)/);
-  assert.match(r.stdout, /== all plugins together  \(5 logging, 1 sessions, 1 prompts\)/, 'cross-plugin join on session + turn');
+  assert.match(r.stdout, /turns ending on a decision not handed off \(any hit\)\s+100\.0%\s+\(1\/1\)/);
+  assert.match(r.stdout, /== all plugins together  \(6 logging, 1 sessions, 1 prompts\)/, 'cross-plugin join on session + turn');
   assert.match(r.stdout, /text blocks injected at the start of a prompt: mean/);
   const none = spawnSync(process.execPath, [path.join(ROOT, 'scripts/calibrate.js'), empty], { encoding: 'utf8' });
   assert.equal(none.status, 1);

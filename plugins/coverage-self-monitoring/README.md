@@ -87,6 +87,13 @@ lands here; "out of scope for this turn" lands there. A blocked part whose
 reason is a mood fails the termination check, which sends it back here as
 not blocked.
 
+**Boundary with handoff-self-monitoring.** A `returned` part says the owner
+must choose; [handoff-self-monitoring](../handoff-self-monitoring/) makes sure
+the choice reaches them formulated — its scanner reads the `returned` lines of
+the `[COVERAGE CHECK]` and asks for a `[HANDOFF]` block (options with their
+consequences, a default, one next action) when there is none. Coverage says
+*which* parts are open; handoff says it in the reader's terms.
+
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 prompt, a tool call, or a stop.
 

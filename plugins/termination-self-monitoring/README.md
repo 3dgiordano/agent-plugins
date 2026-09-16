@@ -112,6 +112,11 @@ Silence. An agent that narrows the task without saying so writes no trigger
 phrase and gets no nudge. That failure is about *what got delivered*, not the
 reason given, and it belongs to [coverage-self-monitoring](../coverage-self-monitoring/).
 
+Nor the *form* of a justified stop. `owner-choice` says the owner must pick;
+how that choice is put to them — options with consequences, a default, one
+action asked, in the reader's register — is
+[handoff-self-monitoring](../handoff-self-monitoring/)'s `[HANDOFF]` block.
+
 ## Debug log (opt-in, off by default)
 
 Off unless `TERMMON_LOG` is set (`1`/`true`/`yes`/`on`); with it unset the hooks

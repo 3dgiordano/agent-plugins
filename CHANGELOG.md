@@ -7,6 +7,49 @@ release.
 
 ## [Unreleased]
 
+### Added
+- **handoff-self-monitoring 0.1.0** — structured-handoff discipline for the
+  final message of a turn. The agent knows the state, the problem and the
+  open decision, and writes its close in the register of its own trace; the
+  reader, who has the message and not the trace, cannot tell what to decide
+  or do next (curse of knowledge, illusion of transparency, writer-based
+  prose). The `[HANDOFF]` block is modelled on the SBAR / I-PASS handoff
+  protocols: `Status` (done | needs-decision | blocked), `Situation` in the
+  reader's terms, `Options` with a `Default` when there is a fork,
+  `Blocked-by` when blocked, `Next` as one action or `nothing`. Three
+  layers: load on the first prompt and every 10th; a pre-close nudge on the
+  first closing-shaped tool call of the turn (a green test / build run, a
+  commit or push, a PR opened) — the scaffold arrives when the final message
+  is about to be written, which is also what reaches the silent case; a Stop
+  scan for a decision named but not handed off (an offer, a fork, a question
+  in the last 6 lines, a `returned` coverage part) and for the block's
+  rules. Non-blocking by default with a next-prompt retrospective,
+  `HANDMON_STRICT=1` blocks once. Claude Code: `UserPromptSubmit`,
+  `PostToolUse`, `Stop`; Cursor: `sessionStart`, `postToolUse`,
+  `afterAgentResponse`, `stop`. Sixth question in the README: *can the
+  reader act on what I wrote?*; `scripts/calibrate.js` reads its log.
+- Mark for the new plugin (an arrow reaching a receiving bar) and the social
+  preview updated to the six questions.
+
+### Changed
+- **coverage-self-monitoring 0.1.2** — the `returned` state points at the
+  `[HANDOFF]` block: the owner's choice reaches them formulated (options,
+  consequences, a default), not named. README: boundary with
+  handoff-self-monitoring, whose scanner reads the `returned` lines of the
+  `[COVERAGE CHECK]`.
+- **termination-self-monitoring 0.1.2** — `owner-choice` is asked in the
+  `[HANDOFF]` block, so the reader gets a decision and not an offer. README:
+  the form of a justified stop is handoff's.
+- **persistence-self-monitoring 0.1.3** — the *Report* decision is written as
+  a handoff (status, situation, options with a default, one action asked),
+  not as a log of the attempts.
+- **epistemic-self-monitoring 0.1.3** — the closure block says whether the
+  claim is true; whether it reaches the reader usable is the `[HANDOFF]`
+  block's job. Cross-reference to handoff-self-monitoring.
+- SECURITY: three opt-in gates (handoff's `HANDMON_STRICT` joins epistemic's
+  and termination's); the handoff scanner's interpolated values listed in the
+  scope notes. Issue templates list all six plugins.
+
 ## [0.2.0] — 2026-09-15
 
 Two new plugins, a review pass over all five, and the calibration tool.

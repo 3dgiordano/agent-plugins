@@ -10,6 +10,9 @@ body:
         - executive-self-monitoring
         - epistemic-self-monitoring
         - persistence-self-monitoring
+        - termination-self-monitoring
+        - coverage-self-monitoring
+        - handoff-self-monitoring
         - repository / tooling (scripts, CI, marketplaces)
     validations:
       required: true

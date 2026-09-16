@@ -21,10 +21,11 @@ Every hook in this repository, on every host:
   dependencies** (only Node built-ins: `fs`, `os`, `path`), and reads no files
   other than its own state.
 
-Two hooks can block: `epistemic-self-monitoring`'s closure gate (only when
-`EPIMON_STRICT` is set) and `termination-self-monitoring`'s termination gate
-(only when `TERMMON_STRICT` is set). Each does so at most once per turn, and
-only by exit code / a documented host response — never by altering the
+Three hooks can block: `epistemic-self-monitoring`'s closure gate (only when
+`EPIMON_STRICT` is set), `termination-self-monitoring`'s termination gate
+(only when `TERMMON_STRICT` is set) and `handoff-self-monitoring`'s handoff
+gate (only when `HANDMON_STRICT` is set). Each does so at most once per turn,
+and only by exit code / a documented host response — never by altering the
 agent's output. The other three plugins have no blocking mode.
 
 If you find any behaviour outside this list, treat it as a vulnerability and
@@ -66,7 +67,8 @@ plugin (see each `plugin.json`); the repository release lists them.
   and, from the agent's own final message, the `Claim` text of a closure
   block, the trigger phrase (≤80 chars) and the `Reason` / `Decision` values
   of a termination block, the deferral phrase (≤80 chars) and the part names
-  of a coverage block. From the user's prompt only a number is derived (how
+  of a coverage block, the offer / fork / question phrase (≤80 chars) and the
+  `Status` value of a handoff block. From the user's prompt only a number is derived (how
   many enumerated items it has); no user prompt text and no file contents are
   ever echoed back.
 - **Third-party hosts.** How Claude Code, Cursor or another client executes

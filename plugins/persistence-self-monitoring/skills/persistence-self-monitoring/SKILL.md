@@ -53,7 +53,10 @@ Treat it as one.
      executive-self-monitoring skill covers this); the task may have drifted.
    - **Report** to the user: what was tried, what each attempt showed, what
      you would try next and why you stopped. Stopping with an honest account is
-     a good outcome, not a failure.
+     a good outcome, not a failure — write it as a handoff (the
+     handoff-self-monitoring skill's `[HANDOFF]` block: status, the situation
+     in the reader's terms, the options with a default, one action asked), not
+     as a log of the attempts.
 
    A **count** is what licenses this decision. Stopping with no count, on
    "this has been a long session" or "I'm not confident enough", is the

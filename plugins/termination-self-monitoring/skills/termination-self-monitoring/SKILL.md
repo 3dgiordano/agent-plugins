@@ -57,7 +57,10 @@ does not exist, and replace it with the real reason.
 3. **Decide from the reason, not from the phrase.**
    - `none` → **continue.** Drop the phrase; do the next step.
    - `gate-not-run` → run the gate, or state exactly what is needed to run it.
-   - `owner-choice` → ask, with the two options laid side by side.
+   - `owner-choice` → ask, with the two options laid side by side — in the
+     handoff-self-monitoring skill's `[HANDOFF]` block (each option with its
+     consequence, a default, one action asked), so the reader gets a decision
+     and not an offer.
    - `budget-spent` or `limit-observed` → stop and report, with the number or
      the observation in the report.
 

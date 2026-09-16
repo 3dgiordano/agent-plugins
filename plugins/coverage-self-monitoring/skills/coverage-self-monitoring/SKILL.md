@@ -58,7 +58,7 @@ named while it is still just a name — and a closing check against it.
    |-------|---------|---------------|
    | `done` | delivered and checked against the gate the plan names | the check that was run (the epistemic-self-monitoring skill's `[verified]`) |
    | `blocked` | a real limit stops it | the **observed** limit — a denied call, a missing dependency, a failing gate you cannot fix from here — with the tool that showed it |
-   | `returned` | the owner has to choose | the two non-equivalent options, side by side |
+   | `returned` | the owner has to choose | the two non-equivalent options, side by side — and, in the final message, the handoff-self-monitoring skill's `[HANDOFF]` block, so the choice reaches the owner formulated (options, consequences, a default) rather than named |
 
    There is no fourth state. "Left for a follow-up", "out of scope",
    "simplified for now" with nothing after it is a part silently dropped. If

@@ -66,6 +66,22 @@ const PLUGINS = {
       { name: 'stops blocked (strict mode)', filter: (e) => e.event === 'stop', hit: (e) => !!e.blocked },
     ],
   },
+  'handoff-self-monitoring': {
+    env: 'HANDMON_LOG',
+    turns: (e) => e.event === 'stop',
+    rates: [
+      { name: 'turns ending on a decision not handed off (any hit)', filter: (e) => e.event === 'stop', hit: (e) => (e.hits || []).length > 0 },
+      { name: '  offer', filter: (e) => e.event === 'stop', hit: (e) => (e.hits || []).some((h) => h.kind === 'offer') },
+      { name: '  fork', filter: (e) => e.event === 'stop', hit: (e) => (e.hits || []).some((h) => h.kind === 'fork') },
+      { name: '  closing question', filter: (e) => e.event === 'stop', hit: (e) => (e.hits || []).some((h) => h.kind === 'question') },
+      { name: '  returned coverage part', filter: (e) => e.event === 'stop', hit: (e) => (e.hits || []).some((h) => h.kind === 'returned') },
+      { name: '  ... of which with a [HANDOFF] block', filter: (e) => e.event === 'stop' && (e.hits || []).length > 0, hit: (e) => e.blocks > 0 },
+      { name: 'turns closing with a [HANDOFF] block at all', filter: (e) => e.event === 'stop', hit: (e) => e.blocks > 0 },
+      { name: '  ... of which incomplete (violations)', filter: (e) => e.event === 'stop' && e.blocks > 0, hit: (e) => (e.violations || []).length > 0 },
+      { name: 'turns that got the pre-close nudge (closing-shaped call)', filter: (e) => e.event === 'stop' && e.preclose !== undefined, hit: (e) => !!e.preclose },
+      { name: 'stops blocked (strict mode)', filter: (e) => e.event === 'stop', hit: (e) => !!e.blocked },
+    ],
+  },
   'epistemic-self-monitoring': {
     env: 'EPIMON_LOG',
     rates: [
@@ -141,11 +157,13 @@ function crossPlugin(dirs) {
     'persistence-self-monitoring': (e) => (e.turn === 1 ? 1 : 0),
     'termination-self-monitoring': (e) => (e.load ? 1 : 0) + (e.retrospective ? 1 : 0),
     'coverage-self-monitoring': (e) => (e.turn === 1 ? 1 : 0) + (e.ledger ? 1 : 0) + (e.retrospective ? 1 : 0),
+    'handoff-self-monitoring': (e) => (e.load ? 1 : 0) + (e.retrospective ? 1 : 0),
   };
   const midTurn = {
     'epistemic-self-monitoring': (e) => e.event === 'observe' && !!e.emitted,
     'persistence-self-monitoring': (e) => e.event === 'signal',
     'coverage-self-monitoring': (e) => e.event === 'signal',
+    'handoff-self-monitoring': (e) => e.event === 'signal',
   };
   const prompts = new Map(); // "session\tturn" -> blocks
   const sessions = new Map(); // session -> { turns, nudges }
@@ -210,7 +228,7 @@ function main() {
 
   if (!any) {
     console.log('\nNo logs found. Enable logging in the projects you work in (EXECMON_LOG, EPIMON_LOG, PERSISTMON_LOG,');
-    console.log('TERMMON_LOG, COVMON_LOG = 1), work normally for a while, then run this against those project dirs.');
+    console.log('TERMMON_LOG, COVMON_LOG, HANDMON_LOG = 1), work normally for a while, then run this against those project dirs.');
     process.exitCode = 1;
     return;
   }

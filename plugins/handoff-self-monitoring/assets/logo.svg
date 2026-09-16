@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="handoff-self-monitoring: an open loop with an arrow reaching a receiving bar at its center - the turn handed to its reader">
+  <rect width="64" height="64" rx="14" fill="#F4F6F9"/>
+  <path d="M51.05 43 A22 22 0 1 1 51.05 21" stroke="#1F2933" stroke-width="6"/>
+  <path d="M21 32 H34 M28 25 L35 32 L28 39" stroke="#0891B2" stroke-width="5"/>
+  <path d="M42 23 V41" stroke="#0891B2" stroke-width="5"/>
+</svg>

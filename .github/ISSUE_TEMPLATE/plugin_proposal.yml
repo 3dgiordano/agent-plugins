@@ -61,7 +61,7 @@ body:
           required: true
         - label: The skill is host-neutral and contains nothing project-specific.
           required: true
-        - label: It does not overlap with executive / epistemic / persistence / termination / coverage — or I explain above why the overlap is a cross-reference, not a merge.
+        - label: It does not overlap with executive / epistemic / persistence / termination / coverage / handoff — or I explain above why the overlap is a cross-reference, not a merge.
           required: true
         - label: Its name says what is monitored (a decision or a variable), not an internal state.
           required: true

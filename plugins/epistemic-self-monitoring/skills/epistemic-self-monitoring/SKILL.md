@@ -121,5 +121,11 @@ Rules the hooks check:
 Inline tags (`[observed]`, `[conjecture]`, `[verified — by: …]`) are welcome in
 running text too; the block is what makes a *closure* auditable.
 
+The closure block says whether what you concluded is true. Whether it reaches
+the reader in a form they can act on — status, the situation in their terms,
+the open decision with a default — is the handoff-self-monitoring skill's
+`[HANDOFF]` block; a `verified` claim in trace register is still a poor
+handoff.
+
 Keep it short. The value is in naming the falsifier before you run it, not in
 the ceremony.

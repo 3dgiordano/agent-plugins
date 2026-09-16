@@ -10,10 +10,11 @@
 
 Cognitive scaffolding for coding agents, by [3dgiordano](https://github.com/3dgiordano).
 
-Five small plugins that give a coding agent the self-checks a human engineer
+Six small plugins that give a coding agent the self-checks a human engineer
 runs in the background — *am I still on the plan?*, *is this actually verified?*,
 *is it worth another try?*, *is that a reason or a phrase?*, *did I do the hard
-part?* — delivered as a nudge at the moment it is needed. They never block. They have no dependencies, make no network calls, and send
+part?*, *can the reader act on what I wrote?* — delivered as a nudge at the
+moment it is needed. They never block. They have no dependencies, make no network calls, and send
 nothing anywhere.
 
 ## What your agent sees
@@ -63,6 +64,17 @@ is not done: implement it now, or list it in the [COVERAGE CHECK] as blocked
 with the observed reason or returned to the owner. (coverage-self-monitoring skill)
 ```
 
+And when the tests go green after a run of edits — the moment the final
+message is about to be written:
+
+```
+[handoff self-monitoring] `npm test` passed - this turn looks close to its end.
+When you write the final message: Status first (done | needs-decision |
+blocked), the situation in the reader's terms, any fork as options with a
+default, and one Next action - in a [HANDOFF] block, with the trace detail
+below it. (handoff-self-monitoring skill)
+```
+
 ## Quick start
 
 ```
@@ -70,7 +82,7 @@ claude plugin marketplace add 3dgiordano/agent-plugins
 claude plugin install persistence-self-monitoring@3dgiordano-agent-plugins
 ```
 
-Swap in any of the other four, or install all five. Cursor and other hosts: see
+Swap in any of the other five, or install all six. Cursor and other hosts: see
 [Install](#install).
 
 ## What the hooks do — and don't
@@ -85,10 +97,11 @@ here is exactly what they are:
   dir and are the only state. Debug logs exist but are **off** unless you set
   an env var, and then they are written inside your project, size-bounded.
 - **Never blocking by default.** Every hook fails silent: an error in a hook
-  lets the prompt, tool call or stop proceed. Two opt-in gates exist —
-  `EPIMON_STRICT` (an incomplete closure block) and `TERMMON_STRICT` (a
-  state-shaped reason to stop with no checkable one) — and each blocks once,
-  never in a loop. The other three plugins have no blocking mode at all.
+  lets the prompt, tool call or stop proceed. Three opt-in gates exist —
+  `EPIMON_STRICT` (an incomplete closure block), `TERMMON_STRICT` (a
+  state-shaped reason to stop with no checkable one) and `HANDMON_STRICT` (a
+  decision named with no handoff) — and each blocks once, never in a loop.
+  The other three plugins have no blocking mode at all.
 - **Tested as the host runs them.** CI drives every adapter with the JSON its
   host sends, on Ubuntu and Windows, Node 18/20/22.
 
@@ -107,7 +120,7 @@ missing function, or a filter for one such artifact — a small, honest
 self-check, anchored to an external artifact or an objective count rather than
 to "reflect harder", delivered at the moment it is actually needed.
 
-The collection is organized around five questions:
+The collection is organized around six questions:
 
 | Question | What it monitors | Plugin |
 |----------|------------------|--------|
@@ -116,11 +129,14 @@ The collection is organized around five questions:
 | *Is it still worth insisting on this?* | persistence / effort regulation | [persistence-self-monitoring](plugins/persistence-self-monitoring/) |
 | *Is this stop justified by something checkable?* | the stated reason for a stop — vs. a persona artifact | [termination-self-monitoring](plugins/termination-self-monitoring/) |
 | *Did I deliver every part, including the hard one?* | task coverage / effort allocation | [coverage-self-monitoring](plugins/coverage-self-monitoring/) |
+| *Can the reader act on what I wrote?* | the handoff of the turn — recipient design | [handoff-self-monitoring](plugins/handoff-self-monitoring/) |
 
 Persistence and termination are the two directions of one axis — stopping too
 late on no signal, and stopping too early on a signal the agent does not have.
 Executive and coverage are likewise a pair: work *outside* the plan, and work
-*below* it. They install independently and cross-reference each other where it
+*below* it. Epistemic and handoff are the knowing side and the transmitting
+side of one claim: is it true, and did it reach the reader in a form they can
+use. They install independently and cross-reference each other where it
 helps. Names say what is monitored, never an internal state: what looks like
 fatigue or avoidance from outside is a training-data artifact, and the plugin's
 job is to name it, not to adopt it.
@@ -145,6 +161,7 @@ one install, on every host it supports:
 | [persistence-self-monitoring](plugins/persistence-self-monitoring/) | available | Persist-or-quit signal: counts repeated attempts on the same file, command or error and effort since the user last spoke; nudges only when a threshold is crossed. Never blocks. |
 | [termination-self-monitoring](plugins/termination-self-monitoring/) | available | Checkable-reason discipline: a state-shaped reason to stop, defer or narrow ("running out of context", "long session", "not confident enough", "given the complexity", a run of apologies) is replaced by a checkable one or dropped, and the work continues. Non-blocking by default, opt-in strict gate. |
 | [coverage-self-monitoring](plugins/coverage-self-monitoring/) | available | Parts-ledger discipline: the parts of a request, hardest first, each closed as done, blocked with an observed reason, or returned to the owner. Counts stubs and TODOs written per turn; flags deferred work with no closing ledger. Never blocks. |
+| [handoff-self-monitoring](plugins/handoff-self-monitoring/) | available | Structured-handoff discipline: the final message closes with a `[HANDOFF]` block modelled on SBAR / I-PASS — status, situation in the reader's terms, options with a default, one next action. Injects the format on the first green gate or commit of the turn; flags a decision named but not handed off. Non-blocking by default, opt-in strict gate. |
 
 ### What each host actually gets
 
@@ -162,6 +179,8 @@ context after the agent's final message, so two layers degrade there:
 | Coverage stub counter | ✓ | ✓ |
 | Coverage ledger prompt (3+ enumerated parts) | ✓ | **—** |
 | Coverage close scan (deferred work vs. `[COVERAGE CHECK]`) | ✓ + retrospective | **log only** — the agent is not told |
+| Handoff pre-close nudge (first green gate or commit) | ✓ | ✓ |
+| Handoff close scan (decision named vs. `[HANDOFF]`) | ✓ + retrospective, strict gate | scan + strict gate (`followup_message`); **no retrospective** |
 
 So on Cursor, coverage is the skill plus the stub counter; the closing
 discipline it describes reaches the agent only through the skill text. An A/B
@@ -184,6 +203,7 @@ claude plugin install epistemic-self-monitoring@3dgiordano-agent-plugins
 claude plugin install persistence-self-monitoring@3dgiordano-agent-plugins
 claude plugin install termination-self-monitoring@3dgiordano-agent-plugins
 claude plugin install coverage-self-monitoring@3dgiordano-agent-plugins
+claude plugin install handoff-self-monitoring@3dgiordano-agent-plugins
 ```
 
 ```
@@ -193,6 +213,7 @@ claude plugin install coverage-self-monitoring@3dgiordano-agent-plugins
 /plugin install persistence-self-monitoring@3dgiordano-agent-plugins
 /plugin install termination-self-monitoring@3dgiordano-agent-plugins
 /plugin install coverage-self-monitoring@3dgiordano-agent-plugins
+/plugin install handoff-self-monitoring@3dgiordano-agent-plugins
 ```
 
 Enabling the plugin makes the skill available **and** auto-registers its hooks —
@@ -257,7 +278,7 @@ node scripts/calibrate.js <dir> # what-if nudge rates from the opt-in logs of re
 ```
 
 The thresholds (4 edits, 3 failures, 30 tool calls, 3 stubs, 3 parts, 3
-apologies) are reasoned, not measured. To tune them: set the `*_LOG` env vars
+apologies, 6 closing lines) are reasoned, not measured. To tune them: set the `*_LOG` env vars
 in a project you actually work in, work for a while, then run
 `calibrate.js` on that project. It prints, per signal, the distribution of the
 per-turn measurement and the share of turns that would have been nudged at
