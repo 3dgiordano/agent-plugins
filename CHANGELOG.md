@@ -7,6 +7,20 @@ release.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-09-16
+
+A sixth plugin for structured handoff, sibling-plugin wiring to it, and
+act-first skills so the protocol blocks can be written in any language.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.3.2 |
+| epistemic-self-monitoring | 0.1.3 |
+| persistence-self-monitoring | 0.1.3 |
+| termination-self-monitoring | 0.1.3 |
+| coverage-self-monitoring | 0.1.3 |
+| handoff-self-monitoring | 0.1.1 |
+
 ### Added
 - **handoff-self-monitoring 0.1.0** — structured-handoff discipline for the
   final message of a turn. The agent knows the state, the problem and the
@@ -203,6 +217,7 @@ First public release.
   backticks was scanned as a closure block; the marker must now stand alone
   on its line.
 
-[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.3.0
 [0.2.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.2.0
 [0.1.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.1.0
