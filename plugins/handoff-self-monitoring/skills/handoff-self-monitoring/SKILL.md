@@ -1,6 +1,6 @@
 ---
 name: handoff-self-monitoring
-description: "Structured-handoff discipline for the final message of a turn. An agent that knows the state, the problem and the open decision writes its close in the register of its own trace - paths, identifiers, what it ran - and the reader, who has only the message, cannot tell what to decide or what to do next. This skill anchors the close to a [HANDOFF] block modelled on the SBAR and I-PASS handoff protocols: status first, the situation in the reader's terms, the fork as options with a default, one action asked of the reader. Not a blocker - a format. Triggers - final message, closing the turn, wrapping up, summary, next steps, let me know, if you want, would you like me to, should I, up to you, your call, depends on, alternatively, two options, trade-off, what do you think, returned to the owner, handoff, report back."
+description: "Structured-handoff discipline for the final message of a turn. An agent that knows the state, the problem and the open decision writes its close in the register of its own trace - paths, identifiers, what it ran - and the reader, who has only the message, cannot tell what to decide or what to do next. This skill anchors the close to a [HANDOFF] block modelled on the SBAR and I-PASS handoff protocols: status first, the situation in the reader's terms, the fork as options with a default, one action asked of the reader. Not a blocker - a format. Triggers - offer to the reader, unnamed fork, closing question, reader cannot act, final message, closing the turn, wrapping up, summary, next steps, let me know, if you want, would you like me to, should I, up to you, your call, depends on, alternatively, two options, trade-off, what do you think, returned to the owner, handoff, report back."
 ---
 
 # Handoff Self-Monitoring Skill
@@ -41,9 +41,14 @@ is that format for an agent's turn:
 - Something in the turn is the owner's to decide: two non-equivalent options,
   a choice of scope, an ambiguity you resolved by assumption, a risk you did
   not take.
-- You are about to write "let me know", "if you want", "would you like me
-  to", "should I", "up to you", "depends on", "alternatively" — or to end on
-  a question.
+- The close is an **offer**: the assessment is handed to the reader as a
+  favour. In English that often looks like "let me know", "if you want",
+  "would you like me to", "should I", "up to you".
+- The close is a **fork**: two non-equivalent paths are named without options,
+  consequences and a default. In English: "it depends on", "alternatively",
+  "two options".
+- The close is a **question to the reader** — a `?` in the last lines, in any
+  language.
 - The coverage-self-monitoring ledger has a `returned` part.
 - A companion hook reports that the turn is closing (a green gate, a commit),
   or that your previous close named a decision without formulating it.
@@ -64,18 +69,19 @@ is that format for an agent's turn:
    register. The trace-register detail goes after the block, for the reader
    who wants it.
 
-3. **A fork is written as a decision, not offered as a favour.** An offer —
-   *"I can also add retries if you'd like"* — hands the assessment to the
-   reader. A decision has the options, non-equivalent, each with its
-   consequence; a default; and why the default. If you cannot name a default,
-   the assessment is not finished: finish it, then write. If the options are
-   equivalent there is no decision — pick one and say so.
+3. **A fork is written as a decision, not offered as a favour.** An offer
+   hands the assessment to the reader — in English, *"I can also add retries
+   if you'd like"*; the act is the same in any language. A decision has the
+   options, non-equivalent, each with its consequence; a default; and why
+   the default. If you cannot name a default, the assessment is not finished:
+   finish it, then write. If the options are equivalent there is no decision
+   — pick one and say so.
 
 4. **Ask for one action.** `Next` is one thing the reader does: answer A or
-   B, run this command, review this file, nothing. Not "let me know your
-   thoughts". When the status is `done` and nothing is asked, write
-   `Next: nothing` — the explicit nothing is what tells the reader the turn
-   is closed and they are not waiting for anything.
+   B, run this command, review this file, nothing. Not an open-ended ask (in
+   English, "let me know your thoughts"). When the status is `done` and
+   nothing is asked, write `Next: nothing` — the explicit nothing is what
+   tells the reader the turn is closed and they are not waiting for anything.
 
 5. **Blocked means observed.** Same rule as the coverage-self-monitoring
    skill: `blocked` carries the observed limit and the tool that showed it.
@@ -107,7 +113,8 @@ is that format for an agent's turn:
 
 Write the block at the close of the turn. Companion hooks read it; on hosts
 without hooks it is still the artifact that makes the handoff visible to the
-reader.
+reader. Block field names stay in English (hooks parse them); `Situation`,
+`Options` and `Next` are in the language of the turn.
 
 ```
 [HANDOFF]
@@ -125,10 +132,10 @@ Rules the hooks check:
 - `blocked` **requires** `Blocked-by`.
 - `Situation` and `Next` are required; a template placeholder counts as
   empty.
-- Offer or fork language in the final message ("let me know", "if you
-  want", "should I", "alternatively", "depends on"), or a question in its
-  closing lines, with no `[HANDOFF]` block is the finding. So is a `returned`
-  part in a `[COVERAGE CHECK]` with no `[HANDOFF]`.
+- The act — an offer, a fork, a question to the reader, or a `returned` part
+  in a `[COVERAGE CHECK]` — with no `[HANDOFF]` block is the finding.
+  Companion hooks also scan an English lexicon for offer/fork language as a
+  backstop.
 
 Keep it short. The value is in the reader being able to act — status,
 situation, the choice with a default, one action — not in the ceremony.

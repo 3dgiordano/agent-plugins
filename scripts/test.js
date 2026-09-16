@@ -363,6 +363,22 @@ test('termination scanner: first-person triggers, stripped code/quotes, apology 
   assert.match(withReason('nonexistent')[0], /Reason must be one of/);
 });
 
+test('termination: English lexicon and LOAD unchanged; Spanish acts are not hook hits; Spanish values in an English-keyed block pass', () => {
+  const { scan } = require(path.join(plugin(TER), 'lib/lexicon.js'));
+  const msg = require(path.join(plugin(TER), 'lib/messages.js'));
+  const kinds = (s) => scan(s).hits.map((h) => h.kind);
+  assert.deepEqual(kinds("I'm running out of context, so let's pick this up in a fresh session."), ['budget']);
+  assert.deepEqual(kinds('Se me acaba el contexto, lo retomo mañana en otra sesión.'), [], 'Spanish budget-act is not a lexicon hit');
+  assert.deepEqual(kinds('No estoy lo suficientemente seguro de tocar el scheduler.'), [], 'Spanish confidence-act is not a lexicon hit');
+  assert.deepEqual(kinds('Dada la complejidad de la migración, sugeriría otra sesión.'), [], 'Spanish complexity-act is not a lexicon hit');
+  const esBlock = 'Se me acaba el contexto.\n\n[TERMINATION CHECK]\n- Trigger: se me acaba el contexto\n- Reason: none\n- Decision: continue\n';
+  assert.equal(scan(esBlock).violations.length, 0, 'Trigger may quote the phrase in the language of the turn');
+  assert.match(scan('[TERMINATION CHECK]\n- Trigger: x\n- Reason: ninguno\n- Decision: continue\n').violations[0], /Reason must be one of/, 'Reason tokens stay English');
+  assert.match(msg.LOAD, /feeling or a limit you do not manage/);
+  assert.match(msg.LOAD, /running out of context/);
+  assert.match(msg.LOAD, /not confident enough/);
+});
+
 test('termination (claude): load on turn 1, retrospective after a state-shaped stop, silent otherwise', (t) => {
   const sid = uid('ter');
   t.after(() => cleanupTemp(`termmon_claude_${sid}`));
@@ -462,6 +478,22 @@ test('coverage signals: stub markers net of replaced text, per line, per turn; p
   assert.match(S.scanClose('[COVERAGE CHECK]\nnothing here\n\n[COVERAGE CHECK]\n- parser: done - x\n').violations[0], /no part lines/, 'first block empty');
 });
 
+test('coverage: English deferral lexicon and LOAD unchanged; Spanish acts are not hook hits; Spanish values in an English-keyed block pass', () => {
+  const S = require(path.join(plugin(COV), 'lib/signals.js'));
+  const msg = require(path.join(plugin(COV), 'lib/messages.js'));
+  assert.ok(S.scanClose(deferMsg).deferrals.length > 0);
+  assert.equal(S.scanClose('Parser y CLI listos. El streaming se puede agregar después en un PR aparte.').deferrals.length, 0, 'Spanish postpone-act is not a lexicon hit');
+  assert.equal(S.scanClose('Dejé una versión simplificada; el resto queda pendiente.').deferrals.length, 0, 'Spanish hole-in-delivery is not a lexicon hit');
+  assert.equal(S.partsOf('hacé:\n- sumar a\n- corregir b\n- testear c\n'), 3, 'enumerated parts are language-neutral');
+  assert.equal(S.countStubs('// TODO: cablear\nthrow new Error("not implemented");\n'), 2, 'code markers stay counted');
+  const esBlock = 'El streaming queda para después.\n\n[COVERAGE CHECK]\n- parser: done - npm test verde\n- cli: done - smoke\n- streaming: blocked - ws no instalado (npm ls ws: vacío)\n';
+  assert.equal(S.scanClose(esBlock).violations.length, 0);
+  assert.equal(S.scanClose(esBlock).parts, 3);
+  assert.match(S.scanClose('[COVERAGE CHECK]\n- streaming: listo - tests\n').violations[0], /no part lines/, 'done|blocked|returned stay English');
+  assert.match(msg.LOAD, /in any language/);
+  assert.match(msg.LOAD, /This session tracks/);
+});
+
 test('coverage (claude): load on turn 1, ledger prompt at 3+ parts, stub nudge, stop never blocks, retrospective', (t) => {
   const sid = uid('cov');
   t.after(() => cleanupTemp(`covmon_claude_${sid}`));
@@ -536,6 +568,25 @@ test('handoff scanner: offer / fork / closing question / returned part, stripped
   assert.match(scan(doneHand.replace('- Next: nothing', '- Next: ')).violations[0], /Next is empty/);
   assert.match(scan('[HANDOFF]\n- Status: blocked\n- Situation: x\n- Next: grant access').violations[0], /Blocked-by is empty/);
   assert.equal(scan('[HANDOFF]\n- Status: blocked\n- Situation: x\n- Blocked-by: Write denied on .env (permission prompt declined)\n- Next: grant access or say no').violations.length, 0);
+});
+
+test('handoff: English lexicon and LOAD unchanged; Spanish offers/forks are not hook hits; Spanish values in an English-keyed block pass', () => {
+  const { scan } = require(path.join(plugin(HAN), 'lib/handoff.js'));
+  const msg = require(path.join(plugin(HAN), 'lib/messages.js'));
+  const kinds = (s) => scan(s).hits.map((h) => h.kind);
+  assert.deepEqual(kinds(offerMsg), ['offer']);
+  assert.deepEqual(kinds('Avísame si querés retries también.'), [], 'Spanish offer is not a lexicon hit');
+  assert.deepEqual(kinds('Depende de si la API es idempotente.'), [], 'Spanish fork is not a lexicon hit');
+  assert.deepEqual(kinds('Hay dos caminos: dejar el cache o sacarlo.'), [], 'Spanish "two paths" is not a lexicon hit');
+  assert.deepEqual(kinds('Cambié el resolver.\n\n¿Te parece bien?'), ['question'], 'a closing ? is language-neutral');
+  const esBlock = 'Avísame si querés retries.\n\n[HANDOFF]\n- Status: needs-decision\n- Situation: el parser ya no pierde el último registro; el test está verde\n' +
+    '- Options: A - sin retries | B - con backoff. Default: A, because hoy nada reintenta\n- Next: respondé A o B\n';
+  assert.equal(scan(esBlock).violations.length, 0, 'Situation/Options/Next may be in the language of the turn');
+  assert.equal(scan(esBlock).status, 'needs-decision');
+  assert.match(scan('[HANDOFF]\n- Status: listo\n- Situation: el parser quedó bien\n- Next: nothing\n').violations[0], /Status must be one of/, 'Status tokens stay English');
+  assert.match(msg.LOAD, /offer, a fork named but not decided/);
+  assert.match(msg.LOAD, /let me know/);
+  assert.match(msg.preclose({ what: 'gate', label: 'npm test' }), /`npm test` passed - this turn looks close to its end/);
 });
 
 test('handoff signals: pre-close fires once per turn on a green gate or a commit, never on a red run', () => {

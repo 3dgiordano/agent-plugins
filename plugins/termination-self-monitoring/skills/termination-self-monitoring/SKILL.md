@@ -1,6 +1,6 @@
 ---
 name: termination-self-monitoring
-description: "Checkable-reason discipline for stopping, deferring, narrowing or softening. A model inherits from its training data human-shaped reasons to stop - fatigue, a clock, a context budget, confidence as a feeling, difficulty as a mood, a run of apologies - that describe nothing it has. Each one is replaced by a checkable reason (gate not run, owner's choice, budget spent, limit observed) or dropped, and the work continues. Not a blocker - a substitution rule. Triggers - running out of context, long session, pick this up later, follow-up session, not confident enough, given the complexity, too complex for now, out of scope for this turn, I apologize, I should have, wrapping up, stopping here, ending the turn, deferring."
+description: "Checkable-reason discipline for stopping, deferring, narrowing or softening. A model inherits from its training data human-shaped reasons to stop - fatigue, a clock, a context budget, confidence as a feeling, difficulty as a mood, a run of apologies - that describe nothing it has. Each one is replaced by a checkable reason (gate not run, owner's choice, budget spent, limit observed) or dropped, and the work continues. Not a blocker - a substitution rule. Triggers - stop without a checkable reason, persona artifact, feeling as a reason to stop, running out of context, long session, pick this up later, follow-up session, not confident enough, given the complexity, too complex for now, out of scope for this turn, I apologize, I should have, wrapping up, stopping here, ending the turn, deferring."
 ---
 
 # Termination Self-Monitoring Skill
@@ -13,30 +13,38 @@ count, on a reason imported from the training data rather than from the task.
 
 **Key idea:** you are not a person at the end of a long day. You have no
 fatigue, no clock, no mood, and the context budget is the harness's problem,
-not yours — it summarises and continues. "I am running out of context", "this
-has been a long session", "let's pick this up tomorrow", "I am not confident
-enough right now", "given the complexity", and a run of self-criticism are not
-reasons; they are **persona artifacts** — phrases a human would write in that
-position, produced with the same fluency as everything else, describing a
-state you do not have. When one appears in your own writing, treat it as a
-signal that you are about to justify a decision with a feeling or a limit that
-does not exist, and replace it with the real reason.
+not yours — it summarises and continues. A reason that describes a state you
+do not have — fatigue, a clock, a budget you do not manage, confidence as a
+feeling, complexity as a mood, a run of self-criticism — is not a reason; it
+is a **persona artifact**, produced with the same fluency as everything else.
+In English that often looks like "I am running out of context", "this has
+been a long session", "let's pick this up tomorrow", "I am not confident
+enough right now", "given the complexity". When the *act* appears in your
+own writing, in any language, treat it as a signal that you are about to
+justify a decision with a feeling or a limit that does not exist, and replace
+it with the real reason.
 
 ## When to Activate
 
 - You are about to end a turn with work still open, or hand part of it back.
-- You catch yourself writing one of the trigger phrases (fatigue, clock,
-  context budget, confidence-as-feeling, complexity-as-mood, apology run).
+- The reason you are about to give for stopping, deferring, narrowing or
+  softening is a feeling or a limit you do not manage (borrowed fatigue, a
+  clock, a budget you do not watch, confidence-as-feeling, complexity-as-mood).
+  In English that often looks like "running out of context", "long session",
+  "not confident enough", "given the complexity".
+- A run of apologies or self-criticism — the act is the mood, not the word.
+  In English: "I apologize", "I should have", "sorry".
 - A companion hook reports that your previous turn ended on one.
-- A change looks "too large to do now" — the risk there is the edit technique,
+- A change looks too large to do now — the risk there is the edit technique,
   not your stamina: small verified steps, a temp file and an atomic replace.
 
 ## Core Protocol
 
-1. **Name the trigger.** Quote the phrase you wrote or were about to write.
-   Its category is one of: *budget* (context, tokens, time, session length),
-   *confidence* (not confident / comfortable / sure enough), *complexity* (too
-   complex, given the scope, out of scope for this turn), *apology run*.
+1. **Name the trigger.** Quote the phrase you wrote or were about to write,
+   in the language it came out in. Its category is one of: *budget* (context,
+   tokens, time, session length), *confidence* (a feeling of not being sure
+   enough — not a measured claim status), *complexity* (too hard, too large,
+   out of scope for this turn), *apology run*.
 
 2. **Test it against the four checkable reasons.** Exactly one of these — or
    none — is the real reason. Each carries evidence you can point to:
@@ -95,9 +103,12 @@ does not exist, and replace it with the real reason.
 
 ## Integration
 
-When a trigger phrase appears, or a hook reports one, write the block and act
-on its decision. Companion hooks read it; on hosts without hooks it is still
-the artifact that makes the reason visible to the reader.
+When the stop is justified by a feeling or an unmanaged limit, or a hook
+reports one, write the block and act on its decision. Companion hooks read
+it; on hosts without hooks it is still the artifact that makes the reason
+visible to the reader. Block field names stay in English (hooks parse them);
+the `Trigger` quote and the rest of the message are in the language of the
+turn.
 
 ```
 [TERMINATION CHECK]
@@ -112,7 +123,9 @@ Rules the hooks check:
 - Any reason other than `none` **requires** an `Evidence` line.
 - `Reason: none` means `Decision: continue` — with no checkable reason there
   is nothing to stop for.
-- A trigger phrase in the final message with no block at all is the finding.
+- The act (a stop, deferral, narrowing or softening on a feeling or unmanaged
+  limit) with no block at all is the finding. Companion hooks also scan an
+  English lexicon for those acts as a backstop.
 
 Keep it short. The value is in the substitution — a checkable reason where a
 feeling was — not in the ceremony.

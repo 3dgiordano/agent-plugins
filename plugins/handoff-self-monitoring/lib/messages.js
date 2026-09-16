@@ -7,15 +7,17 @@ const LOAD =
   `[handoff self-monitoring] The reader of your final message has the message, not your trace. Before ` +
   `you close a turn, run the ${SKILL} skill: write the [HANDOFF] block - Status (done | needs-decision | ` +
   'blocked), Situation in the reader\'s terms, Options with a default when there is a fork, Next as one ' +
-  'action - and keep paths, identifiers and what you ran below it. An offer ("let me know", "if you want", ' +
-  '"should I") and a closing question are not decisions. Not a blocker.';
+  'action - and keep paths, identifiers and what you ran below it. An offer, a fork named but not decided, ' +
+  'or a question to the reader is not a decision (in English an offer often looks like "let me know", ' +
+  '"if you want", "should I"). Not a blocker.';
 
 function preclose(signal) {
   const seen = signal.what === 'commit' ? `\`${signal.label}\` ran` : `\`${signal.label}\` passed`;
   return `[handoff self-monitoring] ${seen} - this turn looks close to its end. When you write the final ` +
-    'message: Status first (done | needs-decision | blocked), the situation in the reader\'s terms, any ' +
-    'fork as options with a default, and one Next action - in a [HANDOFF] block, with the trace detail ' +
-    `below it. (${SKILL} skill)`;
+    'message, if the close is an offer, a fork, a question to the reader, or the turn is simply ending: ' +
+    'Status first (done | needs-decision | blocked), the situation in the reader\'s terms, any fork as ' +
+    'options with a default, and one Next action - in a [HANDOFF] block, with the trace detail below it. ' +
+    `(${SKILL} skill)`;
 }
 
 function retrospective(violations) {

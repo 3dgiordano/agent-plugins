@@ -32,6 +32,14 @@ release.
   preview updated to the six questions.
 
 ### Changed
+- **handoff-self-monitoring 0.1.1**, **coverage-self-monitoring 0.1.3**,
+  **termination-self-monitoring 0.1.3** — skill and injected reminders name
+  the *act* first (an offer, a hole in the delivery, a stop on a feeling);
+  English phrases stay as examples and as the hook lexicon backstop. Block
+  field names stay in English; values and the rest of the message follow the
+  language of the turn. `scripts/test.js` locks that contract: English
+  lexicon hits still fire, Spanish semantic equivalents do not, and an
+  English-keyed block with Spanish values still passes.
 - **coverage-self-monitoring 0.1.2** — the `returned` state points at the
   `[HANDOFF]` block: the owner's choice reaches them formulated (options,
   consequences, a default), not named. README: boundary with

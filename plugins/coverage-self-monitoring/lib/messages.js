@@ -8,8 +8,9 @@ const LOAD =
   'request, including the hard one - the tractable subset comes out with the same fluency as the whole. ' +
   `For a multi-part task, run the ${SKILL} skill: write the ledger first (the parts, which is hardest and ` +
   'why, the order - hardest first unless a dependency forbids), and close each part as done, blocked with ' +
-  'an observed reason, or returned to the owner - never silently dropped. Stub and TODO markers you write ' +
-  'are counted. Not a blocker.';
+  'an observed reason, or returned to the owner - never silently dropped. A hole in the delivery ' +
+  '(a stub, a postponed or excluded part) is a part that is not done, in any language. Stub and TODO ' +
+  'markers you write are counted. Not a blocker.';
 
 function ledger(parts) {
   return `[coverage self-monitoring] the request enumerates ${parts} parts. Before starting: write the ` +

@@ -1,6 +1,6 @@
 ---
 name: coverage-self-monitoring
-description: "Parts-ledger discipline for multi-part or hard tasks. An agent produces the tractable subset of a request with the same fluency as the whole - the easy parts get done, the hard one becomes a stub, a 'simplified version' or a follow-up. This skill anchors delivery to a ledger written before starting (the parts, which is hardest and why, hardest first) and closes each part as done, blocked with an observed reason, or returned to the owner - never silently dropped. Not a blocker - a ledger. Triggers - multi-part request, several items, hardest part, the tricky bit, simplified version, basic version, MVP, placeholder, stub, TODO, follow-up, remaining work, out of scope, partial implementation, did I cover everything, done?"
+description: "Parts-ledger discipline for multi-part or hard tasks. An agent produces the tractable subset of a request with the same fluency as the whole - the easy parts get done, the hard one becomes a stub, a 'simplified version' or a follow-up. This skill anchors delivery to a ledger written before starting (the parts, which is hardest and why, hardest first) and closes each part as done, blocked with an observed reason, or returned to the owner - never silently dropped. Not a blocker - a ledger. Triggers - part not delivered, hole in the delivery, postponed part, multi-part request, several items, hardest part, the tricky bit, simplified version, basic version, MVP, placeholder, stub, TODO, follow-up, remaining work, out of scope, partial implementation, did I cover everything, done?"
 ---
 
 # Coverage Self-Monitoring Skill
@@ -25,9 +25,13 @@ named while it is still just a name — and a closing check against it.
 - The request has several parts (a companion hook counts enumerated items
   and asks for the ledger at three or more), or one part that is clearly the
   hard one.
-- You are about to write a stub, a placeholder, a `TODO`, `NotImplemented`,
-  "rest of the code here", or a "simplified / basic / initial version".
-- You are about to write "in a follow-up", "left as", "still needs", "out of
+- You are about to leave a **hole in the delivery**: a stub, a placeholder, a
+  not-implemented branch, or a version that skips the constraint that made
+  the request hard. In English / in code that often looks like `TODO`,
+  `NotImplemented`, "rest of the code here", "simplified / basic / initial
+  version".
+- You are about to **postpone or exclude a part** and the close will read as
+  finished. In English: "in a follow-up", "left as", "still needs", "out of
   scope", "remaining work".
 - A companion hook reports a stub count, or that your previous turn deferred
   work without closing the ledger.
@@ -47,7 +51,7 @@ named while it is still just a name — and a closing check against it.
    information the rest of the work needs.
 
 3. **A stub is a debt, not a delivery.** If you write a placeholder, a
-   `TODO`, a "simplified version" or a not-implemented branch, it goes on the
+   `TODO`, a narrowed version or a not-implemented branch, it goes on the
    ledger as an open part the moment you write it. It does not become "done"
    because the file compiles.
 
@@ -60,12 +64,14 @@ named while it is still just a name — and a closing check against it.
    | `blocked` | a real limit stops it | the **observed** limit — a denied call, a missing dependency, a failing gate you cannot fix from here — with the tool that showed it |
    | `returned` | the owner has to choose | the two non-equivalent options, side by side — and, in the final message, the handoff-self-monitoring skill's `[HANDOFF]` block, so the choice reaches the owner formulated (options, consequences, a default) rather than named |
 
-   There is no fourth state. "Left for a follow-up", "out of scope",
-   "simplified for now" with nothing after it is a part silently dropped. If
-   what you are about to write is a *reason* rather than a *state* — "given
-   the complexity", "not confident enough", "this has been a long turn" —
-   that is the termination-self-monitoring skill's territory: test the reason
-   there, and if it comes back `none`, the part is not blocked; do it.
+   There is no fourth state. Postponing or excluding a part with nothing after
+   it is a part silently dropped (in English: "left for a follow-up", "out of
+   scope", "simplified for now"). If what you are about to write is a
+   *reason* rather than a *state* — a feeling or an unmanaged limit, in
+   English "given the complexity", "not confident enough", "this has been a
+   long turn" — that is the termination-self-monitoring skill's territory:
+   test the reason there, and if it comes back `none`, the part is not
+   blocked; do it.
 
 5. **Compare the closing ledger to the opening one.** Same parts, same
    hardest part? A part that vanished between the two is the finding.
@@ -91,7 +97,9 @@ named while it is still just a name — and a closing check against it.
 
 Two short blocks: one before, one after. Companion hooks read the closing
 block; on hosts without hooks both are still the artifacts that make coverage
-visible to the reader.
+visible to the reader. Block field names and the three states (`done`,
+`blocked`, `returned`) stay in English (hooks parse them); the part names and
+reasons are in the language of the turn.
 
 ```
 [COVERAGE LEDGER]
@@ -110,9 +118,10 @@ visible to the reader.
 ```
 
 Rules the hooks check:
-- Deferral language in the final message ("follow-up", "left as", "still
-  needs", "simplified version", "out of scope", "not yet implemented") with
-  no `[COVERAGE CHECK]` block is the finding.
+- A part not delivered, treated as closed, with no `[COVERAGE CHECK]` block
+  is the finding. Companion hooks also scan an English deferral lexicon
+  ("follow-up", "left as", "still needs", "simplified version", "out of
+  scope", "not yet implemented") as a backstop.
 - A `blocked` or `returned` line **requires** the reason after it.
 - Stub / placeholder / `TODO` markers written during the turn are counted;
   at the threshold you are asked to implement them or list them.

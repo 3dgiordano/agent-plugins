@@ -5,9 +5,10 @@ const SKILL = 'termination-self-monitoring';
 
 const LOAD =
   `[termination self-monitoring] You have no fatigue, no clock, no mood and no context budget to manage - ` +
-  'the harness handles context. If you find yourself writing "running out of context", "long session", ' +
-  '"pick this up later", "not confident enough", "given the complexity", or a run of apologies as a reason ' +
-  `to stop, defer, narrow or soften, run the ${SKILL} skill: name which checkable reason actually holds ` +
+  'the harness handles context. If you are about to stop, defer, narrow or soften on a feeling or a limit ' +
+  'you do not manage (in English that often looks like "running out of context", "long session", ' +
+  '"pick this up later", "not confident enough", "given the complexity", or a run of apologies), ' +
+  `run the ${SKILL} skill: name which checkable reason actually holds ` +
   '(gate-not-run | owner-choice | budget-spent | limit-observed) with its evidence, or none - and then ' +
   'continue. A count from persistence-self-monitoring overrides this; a phrase never does. Not a blocker.';
 
