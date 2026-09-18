@@ -28,16 +28,39 @@ function field(block, name) {
   return v;
 }
 
+/*
+ * Remove what must not be judged: fenced code, inline code, quoted lines -
+ * the same rule the termination, coverage and handoff scanners apply.
+ *
+ * Unlike those, this scanner has no prose-level hit detection: the block IS
+ * the trigger, so the stripping has to happen before BLOCK_RE runs or a
+ * message that *documents the format* is read as a real closure. That is not
+ * hypothetical - it is what a message explaining the skill looks like, and
+ * under EPIMON_STRICT it blocked the stop.
+ *
+ * BLOCK_RE is line-anchored (^...$ with /m), so fenced content is blanked
+ * character by character with the newlines kept, rather than collapsed to a
+ * space: the lines survive, the markers on them do not.
+ */
+function prose(text) {
+  return text
+    .replace(/```[\s\S]*?```/g, (fence) => fence.replace(/[^\n]/g, ' '))
+    .replace(/`[^`\n]*`/g, ' ')
+    .split(/\r?\n/).map((l) => (/^\s*>/.test(l) ? '' : l)).join('\n');
+}
+
 function scan(text) {
   const out = { blocks: 0, violations: [], tags: { observed: 0, conjecture: 0, verified: 0 } };
   if (typeof text !== 'string' || !text) return out;
 
-  out.tags.observed = (text.match(/\[observed\]/gi) || []).length;
-  out.tags.conjecture = (text.match(/\[conjecture\]/gi) || []).length;
-  out.tags.verified = (text.match(/\[verified\b[^\]]*\]/gi) || []).length;
+  const body0 = prose(text);
+
+  out.tags.observed = (body0.match(/\[observed\]/gi) || []).length;
+  out.tags.conjecture = (body0.match(/\[conjecture\]/gi) || []).length;
+  out.tags.verified = (body0.match(/\[verified\b[^\]]*\]/gi) || []).length;
 
   let m;
-  while ((m = BLOCK_RE.exec(text)) !== null) {
+  while ((m = BLOCK_RE.exec(body0)) !== null) {
     out.blocks += 1;
     const body = m[1];
     const claim = field(body, 'Claim') || '(unnamed claim)';

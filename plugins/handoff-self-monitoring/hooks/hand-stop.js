@@ -35,16 +35,25 @@ function main(raw) {
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
   const sid = data.session_id || 'nosession';
 
+  // SubagentStop carries the same last_assistant_message as Stop, but a
+  // subagent has no "next user prompt" for a retrospective to ride on:
+  // parking `pending` here would deliver a SUBAGENT's close to the parent's
+  // next turn, misattributing it. And blocking a subagent's stop stalls the
+  // parent that is waiting on it. So a subagent close is measured and nothing
+  // else - which is the order this collection prescribes anyway: find out how
+  // often it happens before deciding a gate is worth its cost.
+  const subagent = data.hook_event_name === 'SubagentStop';
+
   const res = scan(data.last_assistant_message || '');
-  const blocking = strict() && res.violations.length > 0 && !data.stop_hook_active;
+  const blocking = strict() && res.violations.length > 0 && !data.stop_hook_active && !subagent;
 
   const st = state.load(HOST, sid);
   logEvent(cwdOf(data), Object.assign({
-    event: 'stop', session: sid, hits: res.hits, blocks: res.blocks, status: res.status,
+    event: subagent ? 'subagent_stop' : 'stop', session: sid, agent: data.agent_type || null, hits: res.hits, blocks: res.blocks, status: res.status,
     violations: res.violations, strict: strict(), blocked: blocking
   }, signals.summary(st.turn || signals.freshTurn())));
 
-  if (res.violations.length && !blocking) {
+  if (res.violations.length && !blocking && !subagent) {
     st.pending = res.violations;
     state.save(HOST, sid, st);
   }

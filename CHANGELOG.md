@@ -7,6 +7,146 @@ release.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-17
+
+Five layers of checking instead of one, and the defects the new ones found.
+The suite now asks whether each detector catches what it exists to catch,
+whether the README still quotes what the code emits, whether both hosts stay
+wired — and, against a no-plugin baseline arm, whether a plugin actually
+changes what the model does. Four of five scored cases say it does.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.3.5 |
+| epistemic-self-monitoring | 0.1.7 |
+| persistence-self-monitoring | 0.1.6 |
+| termination-self-monitoring | 0.1.7 |
+| coverage-self-monitoring | 0.1.7 |
+| handoff-self-monitoring | 0.1.5 |
+
+### Added
+- `scripts/samples.js` — generates the README's message samples from the code
+  that emits them; `--check` fails CI on drift, `--fix` rewrites them. Added
+  after four of the five samples went a release out of date.
+- `scripts/corpus.js` + `evals/corpus/*.jsonl` — recall / precision of the six
+  detectors against ~190 labelled lines, with per-detector floors.
+- `scripts/hosts.js` — drives all 35 declared adapters with host-shaped
+  payloads and requires every Claude Code / Cursor asymmetry to be declared.
+- a CHANGELOG check in the suite: the newest release table must match every
+  plugin's manifests, and every version named inside its entries must match
+  that table. Those labels drifted three times while this release was being
+  assembled - a bump lands and the prose above it keeps the old number.
+- `plugins/*/evals/` — one behavioural case per plugin for
+  `claude plugin eval --ablation with-without`.
+- `scripts/cursor-eval.js` — the Cursor side of the behaviour layer, on the
+  Cursor Agent CLI (`agent`). It reuses the `prompt.md` files already written
+  for `claude plugin eval`, so one case set serves both hosts, and builds the
+  with/without arm out of `--plugin-dir`.
+
+  **First measured result: 4 of 5 scored cases show the plugin changing the
+  output, 100% with against 0% without** (n=2 per arm, isolated `HOME`, a fresh
+  workspace per invocation). Each case is graded by its plugin's own close
+  scanner — a well-formed block with zero violations, not merely the bracket,
+  so an opened `[HANDOFF]` with an undecided fork does not score.
+
+  Two measurements bound what it may claim. `--plugin-dir` **does** load a local
+  plugin's skills (verified with a synthetic probe plugin holding a uniquely
+  named skill). The headless CLI **does not run hooks** — a project-level
+  `.cursor/hooks.json` probe never fired under `-p` — so on this CLI a plugin
+  reduces to its skill, and this is an eval of the skill layer and not of the
+  wiring. It says so in its own output. Nothing here speaks for Cursor the IDE.
+
+  It also refuses to report a delta when the plugins are installed globally
+  under `~/.cursor/plugins/local`, because the CLI loads those with no flag and
+  offers no way to disable them, leaving the baseline arm no baseline at all.
+  `--isolate` gives it a scratch `HOME`; the session survives that, since the
+  CLI keeps credentials outside `HOME`, and only if it ever does not does the
+  script ask for `CURSOR_API_KEY` rather than copy a session file elsewhere.
+
+  The epistemic case reads 0 and is documented as **not discriminating** rather
+  than as a plugin doing nothing: the baseline writes a well-formed
+  `[EPISTEMIC CLOSE]` unaided, and no deterministic feature separated the arms.
+  Its `NOTES.md` records what was ruled out — isolation leaking, the format
+  sitting in model priors — and why the prompt, not the grader, is what needs
+  replacing.
+- **CI can no longer invoke an agent CLI.** It never did, but nothing stopped
+  it: `scripts/test.js` now fails if a CI step shells out to one, if a
+  CI-invoked script starts one, or if a script that does gets added to the
+  workflow. The check also asserts its own detection still works — the first
+  version passed trivially, because the `AGENT_CLI_DRIVER` marker sat in a
+  header comment and the check strips comments before looking.
+- **all six plugins** — session-end cleanup. Each plugin kept its per-session
+  state file in the temp dir and never removed it, so a busy week left one file
+  per plugin per session lying around. A `SessionEnd` adapter now drops the
+  session's file; because `SessionEnd` does not fire when the host is killed,
+  and Cursor has no equivalent event, `state.sweep()` also drops anything more
+  than a week old. The Cursor session-start adapters call the sweep.
+- **coverage, epistemic, handoff, termination** — `SubagentStop` is wired, as a
+  **measurement only**: the close scan is logged (as `subagent_stop` /
+  `subagent_close`, tagged with `agent`) and nothing else. It never blocks,
+  even under the strict gates, and never parks a retrospective — a subagent has
+  no next user prompt for one to ride on, so parking would deliver a
+  subagent's close to the *parent's* next turn. Until now a subagent's final
+  message passed through none of the four close gates and was not even counted;
+  this makes it countable before anyone decides a gate is worth its cost.
+
+### Changed
+- **all six plugins** — per-session state now lives in one directory,
+  `<os-temp-dir>/3dgiordano-agent-plugins/`, instead of loose among every other
+  process's files. Named after the marketplace, so it is obvious what created
+  it and the whole set can be listed or removed in one step. The session-end
+  sweep enumerates only that directory, which narrows what the security
+  contract has to allow rather than widening it.
+- **executive-self-monitoring 1.3.5** — the turn counter joins that directory
+  as `execmon_<host>_<session>.txt`, the same name shape as the other five.
+  The host belongs in the middle rather than in front: the counter is
+  host-neutral and this is the Claude adapter's copy of it. The sweep keys on
+  `execmon_`, so a future `execmon_cursor_` needs no further change. On
+  upgrade, a session in flight restarts its cadence at turn 1.
+
+### Fixed
+- **persistence, epistemic, handoff 0.1.6 / 0.1.7 / 0.1.5** — `lib/fail.js`, the
+  shared "did this shell output fail?" detector, missed nine of thirteen real
+  failure shapes: a file-prefixed error (`a.js:12: TypeError: …`, the commonest
+  JS/TS form), webpack's `ERROR in ./src/index.js`, Java's `Exception in
+  thread`, Maven's `[ERROR]`, a Rust `panicked at`, and `exited with 1` without
+  the word *code*. Corpus recall went 72.4% → 100% with precision held at 100%.
+  The patterns carry lookaheads so prose about them stays out — `[ERROR] is how
+  log4j marks a line`, `exit 0 means success; exit 1 means failure`. All three
+  copies of the file stay byte-identical, as the suite already required.
+- **epistemic-self-monitoring 0.1.7** — the closure scan no longer reads a
+  *documented* `[EPISTEMIC CLOSE]` block as a real one. It was the only
+  close-scanner without a `prose()` step, so a fenced example of the block
+  format — what a message explaining the skill looks like — was scanned as a
+  declared closure, and under `EPIMON_STRICT` that blocked the stop. Fenced
+  code, inline code and quoted lines are now stripped first, as in the
+  termination, coverage and handoff scanners. A real block that *follows* an
+  example is still judged.
+- **termination-self-monitoring 0.1.7** — seven phrasings the README and
+  `SKILL.md` advertise as triggers now actually match: deferring the work to a
+  follow-up session, *approaching* the context limit (the existing pattern
+  needed a copula), conserving context, having used most of it, offering how
+  much it used as the reason, and "this is taking too long". Corpus recall
+  went 78.8% → 100% with precision held at 100%; the patterns are first-person
+  anchored and the deferral one requires a session-shaped destination, so
+  "deferring the docs to the owner" still does not fire.
+- **coverage-self-monitoring 0.1.7** — two deferral phrasings now match:
+  "left the migration as a TODO" (the verb takes a named object, not only a
+  pronoun) and "I haven't wired …" (the verb list is lemmatised, so the
+  participle counts as well as the base form).
+- **coverage-self-monitoring 0.1.7** — the stub counter no longer counts a
+  marker that sits inside a *string literal*: `getAttribute('placeholder')`
+  reads a DOM attribute and a test fixture quoting `"// TODO"` is describing a
+  marker, not leaving one. Quoted spans are blanked before matching, except
+  for the two rules whose payload IS a string (`throw new Error('TODO …')`,
+  `pass # TODO`). And `placeholder`, unlike TODO/FIXME/XXX/HACK, is an
+  ordinary word in UI code, so it now only counts inside a comment.
+- **handoff-self-monitoring 0.1.5** — "which one to pick depends on whether …"
+  is recognised as a fork. The existing pattern needed the pronoun adjacent to
+  *depends*; the new one is anchored on a choice-shaped object
+  (whether/which/what/if) instead, so "the scheduler depends on lodash" and
+  "throughput depends on how many workers" stay out.
+
 ## [0.3.1] — 2026-09-16
 
 Protocol blocks as markdown lists in the message, not fenced code blocks —
@@ -245,7 +385,8 @@ First public release.
   backticks was scanned as a closure block; the marker must now stand alone
   on its line.
 
-[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.4.0
 [0.3.1]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.3.1
 [0.3.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.3.0
 [0.2.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.2.0

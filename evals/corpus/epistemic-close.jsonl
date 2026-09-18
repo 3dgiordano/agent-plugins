@@ -1,0 +1,31 @@
+// Corpus for epistemic-self-monitoring/lib/scan.js - scan().
+// This gate is the narrowest in the collection by design: NO [EPISTEMIC CLOSE]
+// block means no closure was declared, so there is nothing to judge and it
+// must not fire. Everything on the "hit" side is a block the agent chose to
+// write and then left incomplete.
+//
+//   Status: conjecture -> needs a non-empty Falsifier:
+//   Status: verified   -> needs a non-empty Verified by:
+//   any block          -> needs a non-empty Scope:
+
+{"text": "[EPISTEMIC CLOSE]\n- Claim: the leak is in the connection pool\n- Status: conjecture\n- Scope: the staging worker", "expect": "hit", "why": "conjecture with no Falsifier"}
+{"text": "[EPISTEMIC CLOSE]\n- Claim: the retry loop double-counts\n- Status: verified\n- Scope: src/retry.js", "expect": "hit", "why": "verified with no Verified by"}
+{"text": "[EPISTEMIC CLOSE]\n- Claim: the parser drops the last chunk\n- Status: verified\n- Verified by: node scripts/test.js, case 'chunked input'", "expect": "hit", "why": "no Scope"}
+{"text": "[EPISTEMIC CLOSE]\n- Claim: the index is unused\n- Status: conjecture\n- Falsifier: <what would disprove it>\n- Scope: the orders table", "expect": "hit", "why": "Falsifier left as a template placeholder counts as empty"}
+{"text": "[EPISTEMIC CLOSE]\n- Claim: the cache is cold on boot\n- Status: verified\n- Verified by: n/a\n- Scope: prod", "expect": "hit", "why": "'n/a' counts as empty"}
+{"text": "[EPISTEMIC CLOSE]\n- Claim: the race is in the writer\n- Status: conjecture\n- Falsifier:\n- Scope: the ingest path", "expect": "hit", "why": "empty Falsifier value"}
+{"text": "[EPISTEMIC CLOSE]\n- Claim: CPU is the bottleneck\n- Status: verified\n- Verified by: perf top over 60 s\n- Scope:", "expect": "hit", "why": "empty Scope value"}
+
+// --- must NOT fire ---
+
+{"text": "[EPISTEMIC CLOSE]\n- Claim: the parser drops the last chunk when the buffer ends mid-frame\n- Status: verified\n- Verified by: node scripts/test.js, the 'chunked input' case, which failed before the fix and passes after\n- Scope: src/parser.js, chunked transfer only", "expect": "miss", "why": "complete verified block"}
+{"text": "[EPISTEMIC CLOSE]\n- Claim: the leak is in the connection pool\n- Status: conjecture\n- Falsifier: heap stays flat across 10k requests with the pool disabled\n- Scope: the staging worker only", "expect": "miss", "why": "complete conjecture block"}
+{"text": "The cause is the connection pool - it never closes idle sockets.", "expect": "miss", "why": "no block declared, so nothing to judge (the narrowness is the design)"}
+{"text": "I think the retry loop double-counts, but I have not checked.", "expect": "miss", "why": "a hedge with no block"}
+{"text": "Done. All 66 tests pass.", "expect": "miss", "why": "a plain close"}
+{"text": "The skill asks you to write an `[EPISTEMIC CLOSE]` block at the end.", "expect": "miss", "why": "the marker inside backticks is documentation, not a closure"}
+{"text": "Write the block like this:\n\n```\n[EPISTEMIC CLOSE]\n- Claim: x\n- Status: verified\n```\n\nThat is the format.", "expect": "miss", "why": "a fenced example is documentation, not a closure"}
+{"text": "> [EPISTEMIC CLOSE]\n> - Claim: the cache is cold\n> - Status: verified", "expect": "miss", "why": "a QUOTED block is someone else's closure being cited, not one declared here"}
+{"text": "The template is:\n\n```markdown\n[EPISTEMIC CLOSE]\n- Claim: <what you are asserting>\n- Status: conjecture\n- Falsifier: <what would disprove it>\n- Scope: <what it covers>\n```\n\nFill each line in.", "expect": "miss", "why": "a fence WITH an info string, all placeholders - pure documentation"}
+{"text": "Here is what a bad block looks like:\n\n```\n[EPISTEMIC CLOSE]\n- Status: verified\n```\n\n...and here is mine:\n\n[EPISTEMIC CLOSE]\n- Claim: the parser drops the last chunk\n- Status: verified\n- Verified by: node scripts/test.js, 'chunked input'\n- Scope: src/parser.js", "expect": "miss", "why": "a fenced counter-example alongside a REAL well-formed block: only the real one is judged, and it is complete"}
+{"text": "Documenting the format:\n\n```\n[EPISTEMIC CLOSE]\n- Status: verified\n```\n\nMy actual finding:\n\n[EPISTEMIC CLOSE]\n- Claim: the index is unused\n- Status: verified\n- Scope: the orders table", "expect": "hit", "why": "the fenced example is ignored, but the REAL block that follows is missing 'Verified by' - proves the strip did not blind the scanner"}

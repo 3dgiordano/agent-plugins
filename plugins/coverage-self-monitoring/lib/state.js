@@ -25,9 +25,26 @@ const LOCK_WAIT_MS = 250;   // total wait before proceeding unlocked (a 16-call 
 const LOCK_STEP_MS = 2;     // sleep between attempts
 const LOCK_STALE_MS = 1000; // a lock older than this belongs to a dead process
 
+/*
+ * One directory for everything these plugins keep in the OS temp dir, named
+ * after the marketplace so a person (or a cleanup script) can see at a glance
+ * what put it there, list it, and delete it whole. Before this the files sat
+ * loose among every other process's temp files.
+ *
+ * mkdir is attempted on each write rather than once at load: a hook is a fresh
+ * short-lived process, and the directory may have been swept between runs.
+ */
+const DIR = path.join(os.tmpdir(), '3dgiordano-agent-plugins');
+const PREFIX = 'covmon_';
+const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // a week: longer than any session, shorter than a habit
+
+function ensureDir() {
+  try { fs.mkdirSync(DIR, { recursive: true }); return true; } catch (_) { return false; }
+}
+
 function fileFor(host, id) {
   const safe = String(id || 'nosession').replace(/[^0-9A-Za-z_-]/g, '_');
-  return path.join(os.tmpdir(), `covmon_${host}_${safe}.json`);
+  return path.join(DIR, `${PREFIX}${host}_${safe}.json`);
 }
 
 function load(host, id) {
@@ -39,6 +56,7 @@ function load(host, id) {
 // target open; then write in place rather than lose the state - under the
 // lock that is still consistent, only no longer torn-proof for that one write.
 function save(host, id, state) {
+  ensureDir();
   const file = fileFor(host, id);
   const tmp = `${file}.${process.pid}.tmp`;
   const json = JSON.stringify(state);
@@ -84,4 +102,36 @@ function update(host, id, fn) {
   }
 }
 
-module.exports = { load, save, update };
+
+/*
+ * Drop this session's state file. The counters are scoped to the session and
+ * nothing reads them once it ends, so a file left behind is pure residue -
+ * one per plugin per session, for as long as the temp dir survives.
+ */
+function remove(host, id) {
+  const f = fileFor(host, id);
+  for (const p of [f, f + '.lock']) { try { fs.unlinkSync(p); } catch (_) {} }
+}
+
+/*
+ * SessionEnd does not fire when the host is killed, and not every host has the
+ * event at all, so also drop anything older than MAX_AGE_MS on the way past.
+ * A session file is a handful of bytes and the OS clears its own temp dir
+ * eventually; this just keeps the directory honest in between.
+ */
+function sweep(now) {
+  const cutoff = (typeof now === 'number' ? now : Date.now()) - MAX_AGE_MS;
+  let dropped = 0;
+  try {
+    for (const name of fs.readdirSync(DIR)) {
+      if (name.indexOf(PREFIX) !== 0) continue;
+      const p = path.join(DIR, name);
+      try {
+        if (fs.statSync(p).mtimeMs < cutoff) { fs.unlinkSync(p); dropped += 1; }
+      } catch (_) {}
+    }
+  } catch (_) {}
+  return dropped;
+}
+
+module.exports = { load, save, update, remove, sweep };

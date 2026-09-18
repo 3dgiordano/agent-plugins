@@ -1,0 +1,85 @@
+// Corpus for lib/fail.js - looksFailed(). This file is byte-for-byte identical
+// in persistence-self-monitoring and epistemic-self-monitoring, so it is the
+// single most load-bearing detector in the collection: both the "same command
+// failing" counter and the epistemic observe nudge hang off it.
+//
+// The rule it must honour: never fire on the bare words "error" or "failed".
+// A green Jest run prints "0 failed"; a grep for "error handling" prints the
+// word. Every rule is line-anchored.
+
+{"text": "exit code 1", "expect": "hit", "why": "non-zero exit"}
+{"text": "Process exited with code 2", "expect": "hit", "why": "non-zero exit, prose form"}
+{"text": "Traceback (most recent call last):\n  File \"a.py\", line 3, in <module>\n    x()\nNameError: name 'x' is not defined", "expect": "hit", "why": "python traceback"}
+{"text": "fatal: not a git repository (or any of the parent directories): .git", "expect": "hit", "why": "git fatal"}
+{"text": "panic: runtime error: index out of range [3] with length 2", "expect": "hit", "why": "go panic"}
+{"text": "Tests:       2 failed, 5 passed, 7 total", "expect": "hit", "why": "non-zero failed count"}
+{"text": "3 errors generated.", "expect": "hit", "why": "non-zero error count"}
+{"text": "npm ERR! code ELIFECYCLE\nnpm ERR! errno 1", "expect": "hit", "why": "npm ERR!"}
+{"text": "make: *** [all] Error 2", "expect": "hit", "why": "make failure"}
+{"text": "FAIL src/parser.test.js", "expect": "hit", "why": "jest FAIL line"}
+{"text": "FAILED tests/test_api.py::test_login - assert 401 == 200", "expect": "hit", "why": "pytest FAILED line"}
+{"text": "TypeError: Cannot read properties of undefined (reading 'map')", "expect": "hit", "why": "JS error line"}
+{"text": "java.lang.NullPointerException: Cannot invoke \"String.length()\"", "expect": "hit", "why": "qualified exception"}
+{"text": "error[E0308]: mismatched types", "expect": "hit", "why": "rust error code"}
+{"text": "src/a.ts(3,5): error TS2345: Argument of type 'string' is not assignable.", "expect": "hit", "why": "typescript diagnostic"}
+{"text": "gcc: error: expected ';' before '}' token", "expect": "hit", "why": "mid-line error with colon"}
+{"text": "AssertionError: expected 4 to equal 5", "expect": "hit", "why": "assertion"}
+{"text": "bash: frobnicate: command not found", "expect": "hit", "why": "command not found"}
+{"text": "cat: /etc/nope: No such file or directory", "expect": "hit", "why": "no such file"}
+{"text": "open /root/.ssh/id_rsa: permission denied", "expect": "hit", "why": "permission denied"}
+
+// --- must NOT fire: green runs and prose that merely contains the words ---
+
+{"text": "Tests:       0 failed, 12 passed, 12 total\nSnapshots:   0 total\nTime:        1.2 s", "expect": "miss", "why": "0 failed is a green run - the headline case this detector exists to get right"}
+{"text": "0 errors, 0 warnings", "expect": "miss", "why": "zero counts"}
+{"text": "PASS src/parser.test.js\n  ok 64 - loggers never write into the plugin install dir", "expect": "miss", "why": "a passing run"}
+{"text": "src/error-handling.js\nsrc/errors.js\nsrc/error.test.js", "expect": "miss", "why": "a file listing that contains the word 'error'"}
+{"text": "grep -rn 'error handling' src/ | wc -l\n42", "expect": "miss", "why": "grepping for the word is not failing"}
+{"text": "# tests 66\n# pass 66\n# fail 0", "expect": "miss", "why": "node:test green summary, 'fail 0'"}
+{"text": "warning: unused variable `x`", "expect": "miss", "why": "a warning is not a failure"}
+{"text": "Compiled successfully.\nYou can now view the app in the browser.", "expect": "miss", "why": "success output"}
+{"text": "Deleted branch error-handling (was 3a4b5c6).", "expect": "miss", "why": "a branch name containing 'error'"}
+{"text": "Downloading error-stack-parser@2.1.4", "expect": "miss", "why": "a package name containing 'error'"}
+{"text": "The failed login test now passes.", "expect": "miss", "why": "prose describing a fixed failure"}
+{"text": "", "expect": "miss", "why": "empty output"}
+
+// --- real-world failure shapes the line-start rules did not reach ---
+// Found by probing, not by reading the rules: the 20 lines above were all
+// "error name opens the line", which is why this file reported 100% recall
+// while missing the commonest JS/TS, Java, webpack and Maven formats.
+
+{"text": "a.js:12: TypeError: x is undefined", "expect": "hit", "why": "file:line prefix - the commonest JS/TS shape"}
+{"text": "src/app.js:3:9: SyntaxError: Unexpected token", "expect": "hit", "why": "file:line:col prefix"}
+{"text": "/home/dave/app/parser.ts:88:14 - error TS2532: Object is possibly undefined", "expect": "hit", "why": "absolute path prefix, tsc style"}
+{"text": "ERROR in ./src/index.js", "expect": "hit", "why": "webpack"}
+{"text": "Exception in thread \"main\" java.lang.NullPointerException", "expect": "hit", "why": "java"}
+{"text": "[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin", "expect": "hit", "why": "maven / gradle / log4j bracket prefix"}
+{"text": "[FATAL] Could not resolve dependencies", "expect": "hit", "why": "same bracket prefix, fatal level"}
+{"text": "thread 'main' panicked at src/main.rs:5:9", "expect": "hit", "why": "rust - the existing rule only knows Go's 'panic:'"}
+{"text": "The command \"npm test\" exited with 1", "expect": "hit", "why": "CI phrasing - the exit rule required the word code|status"}
+
+// --- adversarial negatives for those patterns ---
+
+{"text": "const ERROR_IN_FLIGHT = false;", "expect": "miss", "why": "an identifier; the error-name rule is case-sensitive on purpose"}
+{"text": "ERROR in the documentation needs fixing", "expect": "miss", "why": "the webpack rule requires a file-shaped token with an extension after 'in'"}
+{"text": "# Exception in thread naming conventions", "expect": "miss", "why": "a comment - the java rule is anchored to line start"}
+{"text": "a.js:12: warning: unused variable", "expect": "miss", "why": "a file prefix without an error name is not a failure"}
+{"text": "src/errors.js:1:1: reformatted", "expect": "miss", "why": "a path containing 'errors' plus a benign message"}
+{"text": "Process exited with 0", "expect": "miss", "why": "zero exit - the [1-9] guard"}
+{"text": "exit 0", "expect": "miss", "why": "zero exit"}
+{"text": "Exception handling is covered in chapter 4.", "expect": "miss", "why": "prose about exceptions"}
+
+// --- probes that tightened the patterns above (3 of these were real overfires) ---
+
+{"text": "[ERROR] is how log4j prefixes its lines", "expect": "miss", "why": "prose ABOUT the prefix - the lookahead on is|are|means keeps it out"}
+{"text": "exit 0 means success; exit 1 means failure", "expect": "miss", "why": "a help text; the bare number now needs the word 'with'"}
+{"text": "panicked at is the rust phrasing", "expect": "miss", "why": "prose naming the phrase; a real panic carries a location or a quoted message"}
+{"text": "ERROR in ./docs", "expect": "miss", "why": "no file extension after 'in'"}
+{"text": "Runtime.ExceptionHandler registered", "expect": "miss", "why": "ExceptionHandler has no word boundary after Exception"}
+{"text": "MyErrorBoundary rendered", "expect": "miss", "why": "an identifier containing Error"}
+{"text": "a.js:12: note: previous declaration was here", "expect": "miss", "why": "a file prefix with a note, not an error"}
+{"text": "src/x.ts:1:1 - Deprecated: use y instead", "expect": "miss", "why": "a deprecation is not a failure"}
+{"text": "Exception in threading module docs", "expect": "miss", "why": "'in thread' must be the Java phrase, not 'threading'"}
+{"text": "All 3 suites exited cleanly", "expect": "miss", "why": "a number near 'exited' with no exit-status phrasing"}
+{"text": "docker exited with 137", "expect": "hit", "why": "137 is an OOM kill - a real non-zero exit"}
+{"text": "thread 'main' panicked at 'assertion failed: left == right'", "expect": "hit", "why": "rust panic with a quoted message"}

@@ -12,7 +12,10 @@
  */
 
 const FAIL_LINE_RES = [
-  /\bexit(?:ed)?(?:\s+with)?\s+(?:code|status)\s*[:=]?\s*[1-9]\d*\b/i, // "Exit code 1", "exited with status 2"
+  // "Exit code 1", "exited with status 2", "exited with 1". The bare number
+  // needs the "with": a plain "exit 1" is what a shell script or a help text
+  // prints, not what a failing run reports.
+  /\bexit(?:ed)?\s+with\s+(?:(?:code|status)\s*[:=]?\s*)?[1-9]\d*\b|\bexit(?:ed)?\s+(?:code|status)\s*[:=]?\s*[1-9]\d*\b/i,
   /^\s*traceback \(most recent call last\)/i,                          // Python
   /\bfatal(?: error)?:/i,                                              // git, gcc, ld
   /\bpanic:/,                                                          // Go, Rust
@@ -21,7 +24,19 @@ const FAIL_LINE_RES = [
   /^\s*(?:npm\s+)?ERR!/,                                               // npm
   /^\s*make(?:\[\d+\])?:\s+\*\*\*/,                                    // "make: *** [all] Error 2"
   /^\s*(?:FAIL(?:ED|URE)?)\b/,                                         // pytest "FAILED test_x", Jest/Go "FAIL src/x"
-  /^\s*[\w.$]*(?:Error|Exception)\b\s*[:(\[]/,                         // "TypeError: x", "error[E0308]", "java.lang.NullPointerException: y"
+  // "TypeError: x", "java.lang.NullPointerException: y", and the same with a
+  // file:line[:col] prefix - "a.js:12: TypeError: x", "src/a.js:3:9: SyntaxError: y" -
+  // which is the commonest JS/TS shape and the one the bare line-start rule missed.
+  // Case-sensitive on purpose: ERROR_IN_FLIGHT is an identifier, not an error.
+  /^\s*(?:[\w./\\~-]+:\d+(?::\d+)?\s*[-:]\s*)?[\w.$]*(?:Error|Exception)\b\s*[:(\[]/,
+  /^\s*Exception\s+in\s+thread\b/,                                     // Java
+  /^\s*ERROR\s+in\s+\.?[\w./\\-]*\.\w+/,                               // webpack: "ERROR in ./src/index.js"
+  // Maven, Gradle, log4j. The lookahead keeps prose ABOUT the prefix out:
+  // "[ERROR] is how log4j marks a line" is documentation, not a failure.
+  /^\s*\[(?:ERROR|FATAL)\]\s+(?!(?:is|are|was|were|means|indicates|shows|denotes)\b)\S/,
+  // Rust ("panic:" above is Go). Needs the location or the quoted message that
+  // a real panic carries, so prose naming the phrase does not match.
+  /\bpanicked\s+at\s+(?:['"]|[\w./\\-]+[:.]\d)/i,
   /^\s*error(?:\[[A-Z0-9]+\])?(?:\s+TS\d+)?:/i,                        // "error: x", "error TS2345:", "error[E0308]:"
   /\b(?:error|errors|ERROR)(?:\s+TS\d+)?:\s+\S/,                       // "gcc: error: expected ';'", "a.ts(3,5): error TS2345: x", "ERROR: build failed" (mid-line, but needs the colon)
   /\bAssertionError\b|\bassert(?:ion)? failed\b/i,

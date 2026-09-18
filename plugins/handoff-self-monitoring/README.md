@@ -196,6 +196,7 @@ Code) or `<project>/.cursor/logs/…` (Cursor); override with
 | `session_start` | — | once per Cursor session |
 | `signal` | `tools`, `signals: [{kind: closing, what: gate\|commit, label}]` | the pre-close nudge fired |
 | `stop` | `hits`, `blocks`, `status`, `violations`, `preclose`, `tools`, `strict`, `blocked` | per final message: which kinds hit, whether a block was there and complete, whether the pre-close nudge had fired this turn |
+| `subagent_stop` | same as `stop`, plus `agent` | a subagent's final message. Measured only: never blocks even under `HANDMON_STRICT`, and never parks a retrospective |
 
 ```
 # how often does a close name a decision and not hand it off?
@@ -216,12 +217,13 @@ plugin.json                        # Agent Plugins manifest (portable core: skil
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/handoff-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code: UserPromptSubmit, PostToolUse, Stop
+hooks/hooks.json                   # Claude Code: UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/hand-prompt.js
 hooks/hand-observe.js
 hooks/hand-stop.js
+hooks/hand-session-end.js
 cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse, stop
-cursor/hand-session-start.js
+cursor/hand-session-start.js   # also sweeps aged state (Cursor has no session-end event)
 cursor/hand-observe-cursor.js
 cursor/hand-response-cursor.js
 cursor/hand-stop-cursor.js
@@ -229,7 +231,7 @@ lib/handoff.js                     # final-message scanner + [HANDOFF] rules
 lib/signals.js                     # pre-close signal: first green gate or commit of the turn
 lib/fail.js                        # did a shell output look like a failure? (copy shared with persistence / epistemic)
 lib/messages.js                    # reminder texts shared by both adapters
-lib/state.js                       # per-session state (OS temp dir); lockfile-guarded update() for concurrent hooks
+lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); remove()/sweep() drop it at session end
 lib/host.js                        # cwdOf(): the project dir from the event, else the host env var, else null
 lib/log.js                         # opt-in logger (per-plugin copy; plugins are self-contained)
 ```

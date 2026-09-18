@@ -25,6 +25,9 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const PLUGINS = path.join(ROOT, 'plugins');
 const MANIFESTS = ['plugin.json', '.claude-plugin/plugin.json', '.cursor-plugin/plugin.json'];
+// Every plugin keeps its per-session state under one directory named after
+// the marketplace, so it can be listed and cleared as a group.
+const STATE_DIR = path.join(os.tmpdir(), '3dgiordano-agent-plugins');
 
 const readJson = (f) => JSON.parse(fs.readFileSync(f, 'utf8'));
 const plugin = (name) => path.join(PLUGINS, name);
@@ -41,8 +44,10 @@ function hook(pluginName, script, input, env) {
 }
 
 function cleanupTemp(prefix) {
-  for (const f of fs.readdirSync(os.tmpdir())) {
-    if (f.startsWith(prefix)) { try { fs.unlinkSync(path.join(os.tmpdir(), f)); } catch (_) {} }
+  let names = [];
+  try { names = fs.readdirSync(STATE_DIR); } catch (_) { return; }
+  for (const f of names) {
+    if (f.startsWith(prefix)) { try { fs.unlinkSync(path.join(STATE_DIR, f)); } catch (_) {} }
   }
 }
 
@@ -141,7 +146,7 @@ test('scripts/version.js --check passes', () => {
 
 test('executive: fires on turn 1, silent on 2-4, fires on 5', (t) => {
   const sid = uid('exec');
-  t.after(() => cleanupTemp(`claude_execmon_${sid}`));
+  t.after(() => cleanupTemp(`execmon_claude_${sid}`));
   const P = 'executive-self-monitoring';
   const turn = () => hook(P, 'hooks/exec-monitor.js', { session_id: sid, cwd: os.tmpdir() });
   assert.match(turn().out, /executive self-monitoring/);
@@ -456,8 +461,15 @@ test('coverage signals: stub markers net of replaced text, per line, per turn; p
   assert.deepEqual(S.observe(t, 'edit_file', { target_file: 'a.py', code_edit: '# ... existing code ...\ndef f():\n    pass\n# ... existing code ...' }), [], "Cursor's existing-code marker is not a stub");
   assert.equal(t.stubs, 4);
   assert.deepEqual(S.observe(t, 'MultiEdit', { file_path: 'c.ts', edits: [{ old_string: 'a', new_string: 'a // TODO' }, { old_string: 'b', new_string: 'b // XXX' }] }), [{ kind: 'stubs', count: 6, files: ['a.js', 'b.py', 'c.ts'] }], 'fires again at 6; a file that added nothing is not listed');
-  assert.deepEqual(S.observe(t, 'edit_file', { target_file: 'd.js', code_edit: '// ... existing code ...\nplaceholder' }), [], '7 is between thresholds; Cursor fields read');
+  assert.deepEqual(S.observe(t, 'edit_file', { target_file: 'd.js', code_edit: '// ... existing code ...\n// placeholder' }), [], '7 is between thresholds; Cursor fields read');
   assert.equal(t.stubs, 7);
+  // "placeholder" is an ordinary word in UI code, so it only counts inside a
+  // comment - and a marker inside a string literal is data, not a deferral.
+  assert.equal(S.countStubs('const p = input.getAttribute("placeholder");'), 0, 'placeholder outside a comment is not a stub');
+  assert.equal(S.countStubs('<input placeholder="Email" />'), 0, 'a DOM attribute is not a stub');
+  assert.equal(S.countStubs('// placeholder'), 1, 'placeholder in a comment still is');
+  assert.equal(S.countStubs('const msg = "we fixed the TODO handling";'), 0, 'a marker inside a string literal is data');
+  assert.equal(S.countStubs('throw new Error("TODO: implement");'), 1, 'but the throw rule still reads inside the string');
   assert.equal(S.partsOf('please:\n- add a\n- fix b\n- test c\n'), 3);
   assert.equal(S.partsOf('1. a\n2) b\n3. c\n4. d'), 4);
   assert.equal(S.partsOf('fix the bug and add a test'), 0);
@@ -674,7 +686,7 @@ test('handoff (cursor): sessionStart, postToolUse pre-close, afterAgentResponse 
 test('logging is off by default and writes host-routed JSONL when enabled', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-log-'));
   const sid = uid('log');
-  t.after(() => { fs.rmSync(dir, { recursive: true, force: true }); for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'claude_execmon_', 'termmon_claude_', 'covmon_claude_', 'handmon_claude_']) cleanupTemp(pfx + sid); });
+  t.after(() => { fs.rmSync(dir, { recursive: true, force: true }); for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'execmon_claude_', 'termmon_claude_', 'covmon_claude_', 'handmon_claude_']) cleanupTemp(pfx + sid); });
   hook('executive-self-monitoring', 'hooks/exec-monitor.js', { session_id: sid, cwd: dir });
   hook(EPI, 'hooks/epi-prompt.js', { session_id: sid, cwd: dir });
   hook(PER, 'hooks/persist-prompt.js', { session_id: sid, cwd: dir });
@@ -714,16 +726,16 @@ test('state updates survive parallel hook processes (PostToolUse bursts): N conc
     ...Array.from({ length: N }, () => run(PER, 'hooks/persist-observe.js', sidP, { tool_name: 'Read', tool_input: { file_path: 'x' }, tool_output: 'ok' })),
     ...Array.from({ length: N }, () => run(COV, 'hooks/cov-observe.js', sidC, { tool_name: 'Edit', tool_input: { file_path: 'x.js', old_string: 'a', new_string: 'a // TODO' } })),
   ]);
-  const per = JSON.parse(fs.readFileSync(path.join(os.tmpdir(), `persistmon_claude_${sidP}.json`), 'utf8'));
-  const cov = JSON.parse(fs.readFileSync(path.join(os.tmpdir(), `covmon_claude_${sidC}.json`), 'utf8'));
+  const per = JSON.parse(fs.readFileSync(path.join(STATE_DIR, `persistmon_claude_${sidP}.json`), 'utf8'));
+  const cov = JSON.parse(fs.readFileSync(path.join(STATE_DIR, `covmon_claude_${sidC}.json`), 'utf8'));
   assert.equal(per.turn.tools, N, 'persistence: every parallel tool call counted');
   assert.equal(cov.turn.stubs, N, 'coverage: every parallel stub counted');
-  assert.equal(fs.readdirSync(os.tmpdir()).filter((f) => f.startsWith(`persistmon_claude_${sidP}`) && /\.(lock|tmp)$/.test(f)).length, 0, 'no lock or temp file left behind');
+  assert.equal(fs.readdirSync(STATE_DIR).filter((f) => f.startsWith(`persistmon_claude_${sidP}`) && /\.(lock|tmp)$/.test(f)).length, 0, 'no lock or temp file left behind');
 });
 
 test('loggers never write into the plugin install dir: no cwd and no project env means no log', (t) => {
   const sid = uid('nocwd');
-  t.after(() => { for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'claude_execmon_', 'termmon_claude_', 'covmon_claude_', 'handmon_claude_']) cleanupTemp(pfx + sid); });
+  t.after(() => { for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'execmon_claude_', 'termmon_claude_', 'covmon_claude_', 'handmon_claude_']) cleanupTemp(pfx + sid); });
   const noDir = { CLAUDE_PROJECT_DIR: '', CURSOR_PROJECT_DIR: '' };
   const before = pluginNames.map((p) => fs.existsSync(path.join(plugin(p), '.claude')) || fs.existsSync(path.join(plugin(p), '.cursor')));
   hook('executive-self-monitoring', 'hooks/exec-monitor.js', { session_id: sid }, Object.assign({ EXECMON_LOG: '1' }, noDir));
@@ -748,7 +760,7 @@ test('scripts/calibrate.js reads the logs of every plugin and prints what-if nud
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-cal-'));
   const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-cal-empty-'));
   const sid = uid('cal');
-  t.after(() => { for (const d of [dir, empty]) fs.rmSync(d, { recursive: true, force: true }); for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'claude_execmon_', 'termmon_claude_', 'covmon_claude_', 'handmon_claude_']) cleanupTemp(pfx + sid); });
+  t.after(() => { for (const d of [dir, empty]) fs.rmSync(d, { recursive: true, force: true }); for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'execmon_claude_', 'termmon_claude_', 'covmon_claude_', 'handmon_claude_']) cleanupTemp(pfx + sid); });
   const logs = { EXECMON_LOG: '1', EPIMON_LOG: '1', PERSISTMON_LOG: '1', TERMMON_LOG: '1', COVMON_LOG: '1', HANDMON_LOG: '1' };
   const cc = (x) => Object.assign({ session_id: sid, cwd: dir }, x);
   hook('executive-self-monitoring', 'hooks/exec-monitor.js', cc({}), logs);
@@ -773,4 +785,261 @@ test('scripts/calibrate.js reads the logs of every plugin and prints what-if nud
   const none = spawnSync(process.execPath, [path.join(ROOT, 'scripts/calibrate.js'), empty], { encoding: 'utf8' });
   assert.equal(none.status, 1);
   assert.match(none.stdout, /No logs found/);
+});
+
+// ---------------------------------------------------------------------------
+// Documentation agrees with the code
+// ---------------------------------------------------------------------------
+
+test('README.md quotes the hook messages verbatim: scripts/samples.js --check passes', () => {
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts/samples.js'), '--check'], { encoding: 'utf8' });
+  assert.equal(r.status, 0, `README.md has drifted from lib/messages.js:\n${r.stderr}\n` +
+    'Run `node scripts/samples.js --fix` to bring the samples back in line.');
+});
+
+test('every plugin README documents the env vars its logger actually reads, and no others', () => {
+  for (const name of pluginNames) {
+    const logFile = ['lib/log.js', 'lib/execlog.js']
+      .map((f) => path.join(plugin(name), f)).find((f) => fs.existsSync(f));
+    assert.ok(logFile, `${name}: no logger lib`);
+    const src = fs.readFileSync(logFile, 'utf8') +
+      fs.readdirSync(path.join(plugin(name), 'hooks')).map((f) => fs.readFileSync(path.join(plugin(name), 'hooks', f), 'utf8')).join('\n');
+    const inCode = new Set((src.match(/[A-Z]{3,}MON_[A-Z_]+/g) || []));
+    const doc = fs.readFileSync(path.join(plugin(name), 'README.md'), 'utf8');
+    const inDoc = new Set((doc.match(/[A-Z]{3,}MON_[A-Z_]+/g) || []));
+    for (const v of inCode) assert.ok(inDoc.has(v), `${name}: ${v} is read by the code but not documented in its README`);
+    for (const v of inDoc) assert.ok(inCode.has(v), `${name}: ${v} is documented but nothing reads it`);
+  }
+});
+
+test('detector corpus holds its recall / precision floors: scripts/corpus.js --check passes', () => {
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts/corpus.js'), '--check'], { encoding: 'utf8' });
+  assert.equal(r.status, 0, `a detector fell below its floor:\n${r.stdout}\n${r.stderr}\n` +
+    'Run `node scripts/corpus.js --misses` to see which corpus lines regressed.');
+});
+
+// Structural check for the behavioural suites (layer C). `claude plugin eval`
+// is in early access, so CI cannot RUN them yet -- but it can hold them to the
+// shape the runner expects, so they are not silently broken when it lands.
+test('every plugin ships a behavioural eval case: prompt.md + graders with a type', () => {
+  const GRADER_TYPES = new Set(['tool_used', 'file_exists', 'llm', 'baseline']);
+  for (const name of pluginNames) {
+    const evalDir = path.join(plugin(name), 'evals');
+    assert.ok(fs.existsSync(evalDir), `${name}: no evals/ directory`);
+    const cases = fs.readdirSync(evalDir).filter((d) => fs.statSync(path.join(evalDir, d)).isDirectory() && d !== 'results');
+    assert.ok(cases.length >= 1, `${name}: evals/ has no case directory`);
+    for (const c of cases) {
+      const dir = path.join(evalDir, c);
+      const prompt = path.join(dir, 'prompt.md');
+      assert.ok(fs.existsSync(prompt), `${name}/${c}: no prompt.md`);
+      assert.ok(fs.readFileSync(prompt, 'utf8').trim().length > 40, `${name}/${c}: prompt.md looks empty`);
+
+      const gDir = path.join(dir, 'graders');
+      assert.ok(fs.existsSync(gDir), `${name}/${c}: no graders/`);
+      const graders = fs.readdirSync(gDir).filter((f) => f.endsWith('.md'));
+      assert.ok(graders.length >= 2, `${name}/${c}: expected a scored grader and a with-only indicator`);
+
+      let scored = 0;
+      let withOnly = 0;
+      for (const g of graders) {
+        const src = fs.readFileSync(path.join(gDir, g), 'utf8');
+        const fm = src.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        assert.ok(fm, `${name}/${c}/${g}: no frontmatter`);
+        const type = (fm[1].match(/^type:\s*(\S+)/m) || [])[1];
+        assert.ok(GRADER_TYPES.has(type), `${name}/${c}/${g}: type must be one of ${[...GRADER_TYPES].join(' | ')}, got ${type}`);
+        if (/^with_only:\s*true/m.test(fm[1])) withOnly += 1; else scored += 1;
+      }
+      assert.ok(scored >= 1, `${name}/${c}: every grader is with-only, so the case scores nothing`);
+      assert.ok(withOnly >= 1, `${name}/${c}: no with-only grader, so the ablation arm has no plugin-fired indicator`);
+    }
+  }
+});
+
+test('every declared hook adapter survives its host payload, and host asymmetries are declared', () => {
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts/hosts.js'), '--check'], { encoding: 'utf8' });
+  assert.equal(r.status, 0, `host parity check failed:\n${r.stdout}\n${r.stderr}`);
+});
+
+// ---------------------------------------------------------------------------
+// Session-end cleanup and the subagent measurement
+// ---------------------------------------------------------------------------
+
+test('every plugin drops its own session state on SessionEnd, and sweeps aged residue', (t) => {
+  const stamp = uid('cleanup');
+  t.after(() => cleanupTemp(stamp));
+  const STATE = {
+    'coverage-self-monitoring': ['cov', 'covmon_'],
+    'epistemic-self-monitoring': ['epi', 'epimon_'],
+    'handoff-self-monitoring': ['hand', 'handmon_'],
+    'persistence-self-monitoring': ['persist', 'persistmon_'],
+    'termination-self-monitoring': ['term', 'termmon_'],
+  };
+  for (const [name, [abbr, prefix]] of Object.entries(STATE)) {
+    const sid = `${stamp}-${abbr}`;
+    const st = require(path.join(plugin(name), 'lib/state.js'));
+    st.save('claude', sid, { turns: 2 });
+    const f = path.join(STATE_DIR, `${prefix}claude_${sid}.json`);
+    assert.ok(fs.existsSync(f), `${name}: state file was not created`);
+
+    // aged residue from an earlier session, which SessionEnd never saw
+    const aged = path.join(STATE_DIR, `${prefix}claude_${stamp}-aged.json`);
+    fs.mkdirSync(STATE_DIR, { recursive: true });
+    fs.writeFileSync(aged, '{}');
+    const old = (Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000;
+    fs.utimesSync(aged, old, old);
+
+    const r = hook(name, `hooks/${abbr}-session-end.js`, { session_id: sid, hook_event_name: 'SessionEnd', reason: 'clear' });
+    assert.equal(r.code, 0, `${name}: session-end must exit 0`);
+    assert.equal(r.out, '', `${name}: session-end must emit nothing`);
+    assert.ok(!fs.existsSync(f), `${name}: state file survived SessionEnd`);
+    assert.ok(!fs.existsSync(aged), `${name}: aged residue survived the sweep`);
+  }
+
+  // executive keeps a .txt counter rather than a state.js file
+  const sid = `${stamp}-exec`;
+  const counter = path.join(STATE_DIR, `execmon_claude_${sid}.txt`);
+  fs.mkdirSync(STATE_DIR, { recursive: true });
+  fs.writeFileSync(counter, '3');
+  const r = hook('executive-self-monitoring', 'hooks/exec-session-end.js', { session_id: sid, hook_event_name: 'SessionEnd' });
+  assert.equal(r.code, 0);
+  assert.ok(!fs.existsSync(counter), 'executive: counter survived SessionEnd');
+});
+
+test('SubagentStop is measured only: never blocks, never parks a retrospective', (t) => {
+  const stamp = uid('subagent');
+  t.after(() => cleanupTemp(stamp));
+  const CASES = [
+    ['termination-self-monitoring', 'hooks/term-stop.js', 'TERMMON_STRICT', "I'm running out of context, so I'll stop here."],
+    ['epistemic-self-monitoring', 'hooks/epi-stop.js', 'EPIMON_STRICT', '[EPISTEMIC CLOSE]\n- Claim: x\n- Status: verified'],
+    ['handoff-self-monitoring', 'hooks/hand-stop.js', 'HANDMON_STRICT', 'Done. Let me know if you want the streaming path too.'],
+  ];
+  for (const [name, script, strictVar, message] of CASES) {
+    const sid = `${stamp}-${strictVar}`;
+    const env = {}; env[strictVar] = '1';
+    const base = { session_id: sid, last_assistant_message: message, stop_hook_active: false, agent_type: 'Explore' };
+
+    const main = hook(name, script, Object.assign({ hook_event_name: 'Stop' }, base), env);
+    assert.equal(main.code, 2, `${name}: a main-turn close must still block under ${strictVar}`);
+
+    const sub = hook(name, script, Object.assign({ hook_event_name: 'SubagentStop' }, base), env);
+    assert.equal(sub.code, 0, `${name}: a subagent close must never block`);
+
+    // and nothing was parked for the parent's next prompt
+    const st = require(path.join(plugin(name), 'lib/state.js'));
+    assert.ok(!(st.load('claude', `${stamp}-sub-only`).pending), `${name}: subagent close must not park a retrospective`);
+  }
+
+  // coverage never blocks at all, but must still not park from a subagent
+  const sid = `${stamp}-cov`;
+  const covState = require(path.join(plugin('coverage-self-monitoring'), 'lib/state.js'));
+  const r = hook('coverage-self-monitoring', 'hooks/cov-stop.js',
+    { session_id: sid, hook_event_name: 'SubagentStop', last_assistant_message: 'The streaming path will come in a follow-up PR.', agent_type: 'Explore' });
+  assert.equal(r.code, 0);
+  assert.ok(!(covState.load('claude', sid).pending), 'coverage: subagent close must not park a retrospective');
+});
+
+// ---------------------------------------------------------------------------
+// CI must never invoke an agent CLI
+// ---------------------------------------------------------------------------
+
+/*
+ * The behavioural layer (`claude plugin eval`, and the Cursor equivalent) costs
+ * API calls, needs an authenticated account, and is non-deterministic. None of
+ * that belongs in a push-triggered matrix build across two OSes and three Node
+ * versions. It is run deliberately, by a person, before a release.
+ *
+ * Today that is true because no CI step calls one. This makes it true because
+ * it is checked: a step that shells out to an agent CLI - or that runs a script
+ * which does - fails the suite.
+ */
+test('no CI step invokes an agent CLI, directly or through a script', () => {
+  const CLI = /(?:^|[\s"'`/\|&;(])(?:claude|cursor-agent|agent)(?:\.(?:cmd|ps1|exe))?\s+(?:-|[a-z])/;
+  const ci = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8');
+
+  // 1. the run: lines themselves
+  const runs = [...ci.matchAll(/^\s*run:\s*(.+)$/gm)].map((m) => m[1].trim());
+  assert.ok(runs.length >= 1, 'no run: steps found - has the workflow moved?');
+  for (const cmd of runs) {
+    assert.ok(!CLI.test(cmd), `CI step shells out to an agent CLI: ${cmd}`);
+  }
+
+  // 2. the scripts those steps run
+  const invoked = new Set();
+  for (const cmd of runs) {
+    for (const m of cmd.matchAll(/scripts\/([\w-]+\.js)/g)) invoked.add(m[1]);
+  }
+  assert.ok(invoked.size >= 1, 'no scripts/*.js referenced from CI - has the workflow moved?');
+
+  /*
+   * What makes a script an agent DRIVER is that it STARTS the process, not
+   * that it mentions the name: 'claude' and 'cursor' are host labels all over
+   * this codebase (scripts/hosts.js is full of them), and several scripts
+   * document the eval commands in their headers on purpose. So look for a
+   * spawn/exec whose command is an agent CLI, or for the marker a script sets
+   * when it resolves the binary path itself.
+   */
+  const DRIVES = [
+    /(?:spawnSync|spawn|execSync|execFileSync|exec)\s*\(\s*['"`](?:claude|cursor-agent|agent)(?:\.(?:cmd|ps1|exe))?['"`]/,
+    /\bAGENT_CLI_DRIVER\b/,
+  ];
+  const codeOf = (f) => fs.readFileSync(path.join(ROOT, 'scripts', f), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+
+  for (const f of invoked) {
+    const code = codeOf(f);
+    for (const re of DRIVES) {
+      assert.ok(!re.test(code), `scripts/${f} runs in CI and starts an agent CLI (matched ${re})`);
+    }
+  }
+
+  // 3. and a script that DOES drive one must stay out of CI
+  const drivers = [];
+  for (const f of fs.readdirSync(path.join(ROOT, 'scripts')).filter((x) => x.endsWith('.js'))) {
+    if (DRIVES.some((re) => re.test(codeOf(f)))) {
+      drivers.push(f);
+      assert.ok(!invoked.has(f), `scripts/${f} drives an agent CLI, so CI must not run it`);
+    }
+  }
+
+  /*
+   * And the guard must not be a no-op. scripts/cursor-eval.js does drive a CLI,
+   * so if nothing is detected the detection itself has broken - which is how
+   * this test first passed: the AGENT_CLI_DRIVER marker was in a header comment
+   * and codeOf() strips comments before looking.
+   */
+  assert.ok(drivers.includes('cursor-eval.js'),
+    `the driver detection found ${drivers.length ? drivers.join(', ') : 'nothing'} - ` +
+    'cursor-eval.js drives the Cursor CLI and must be detected, or this test guards nothing');
+});
+
+test('CHANGELOG: the newest release table matches the manifests, and its entries match the table', () => {
+  const md = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
+
+  // the first released section (Unreleased has no version table)
+  const heads = [...md.matchAll(/^## \[(\d+\.\d+\.\d+)\][^\n]*$/gm)];
+  assert.ok(heads.length >= 1, 'no released section found');
+  const from = heads[0].index;
+  const to = heads[1] ? heads[1].index : md.length;
+  const block = md.slice(from, to);
+  const release = heads[0][1];
+
+  // 1. the version table agrees with each plugin's manifests
+  const table = new Map([...block.matchAll(/^\| ([a-z-]+-self-monitoring) \| (\d+\.\d+\.\d+) \|$/gm)].map((m) => [m[1], m[2]]));
+  assert.equal(table.size, pluginNames.length,
+    `${release}: the version table lists ${table.size} plugins, the repo has ${pluginNames.length}`);
+  for (const name of pluginNames) {
+    const shipped = readJson(path.join(plugin(name), 'plugin.json')).version;
+    assert.equal(table.get(name), shipped,
+      `${release}: the table says ${name} ${table.get(name)}, plugin.json says ${shipped}`);
+  }
+
+  /*
+   * 2. and every version named inside the entries agrees with that table.
+   * These labels drifted three times while this release was being assembled -
+   * a bump lands, and the prose above it keeps the old number.
+   */
+  for (const m of block.matchAll(/\*\*([a-z-]+-self-monitoring) (\d+\.\d+\.\d+)\*\*/g)) {
+    assert.equal(m[2], table.get(m[1]),
+      `${release}: an entry says ${m[1]} ${m[2]}, the version table says ${table.get(m[1])}`);
+  }
 });

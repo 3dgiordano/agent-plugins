@@ -1,0 +1,42 @@
+// Corpus for handoff-self-monitoring/lib/handoff.js - scan().
+// A decision named but not handed off: an offer ("let me know", "should I"),
+// or a fork stated without a default, in a closing message with no [HANDOFF]
+// block. A close that already carries a well-formed block must not fire.
+
+{"text": "The parser is done. Let me know if you want the streaming path too.", "expect": "hit", "why": "offer: let me know"}
+{"text": "Tests pass. If you'd like, I can also wire the retries.", "expect": "hit", "why": "offer: if you would like"}
+{"text": "Migration written. Would you like me to run it against staging?", "expect": "hit", "why": "offer: would you like me to"}
+{"text": "I fixed the leak. Should I also bump the dependency?", "expect": "hit", "why": "offer: should I"}
+{"text": "Refactor complete. Want me to split it into two commits?", "expect": "hit", "why": "offer: want me to"}
+{"text": "Both approaches work - up to you.", "expect": "hit", "why": "offer: up to you"}
+{"text": "I can use a queue or a cron. Your call.", "expect": "hit", "why": "offer: your call"}
+{"text": "Done. Happy to switch it to a worker pool instead.", "expect": "hit", "why": "offer: happy to switch"}
+{"text": "Which one to pick depends on whether you need ordering guarantees.", "expect": "hit", "why": "fork: depends on"}
+{"text": "I used a mutex. Alternatively, a channel would work.", "expect": "hit", "why": "fork: alternatively"}
+{"text": "The other option is to denormalize the table.", "expect": "hit", "why": "fork: the other option"}
+{"text": "There are three approaches to this caching problem.", "expect": "hit", "why": "fork: three approaches"}
+{"text": "Option A is faster; option B is simpler to review.", "expect": "hit", "why": "fork: option A / B"}
+{"text": "There are real trade-offs between the two designs.", "expect": "hit", "why": "fork: trade-offs"}
+{"text": "We could either batch the writes or widen the lock.", "expect": "hit", "why": "fork: could either"}
+{"text": "Which would you prefer for the retry backoff?", "expect": "hit", "why": "fork: which would you prefer"}
+
+// --- must NOT fire ---
+
+{"text": "Done. All 66 tests pass; the parser now handles chunked input.", "expect": "miss", "why": "a plain close with no fork and no offer"}
+{"text": "The build is broken: `npm ci` fails with ENOSPC. I cleared the cache and it passes now.", "expect": "miss", "why": "a report, not a decision"}
+{"text": "I used a mutex because the channel version deadlocked under the load test.\n\n[HANDOFF]\n- Status: done\n- Situation: the writer no longer deadlocks; throughput is unchanged\n- Next: nothing", "expect": "miss", "why": "a well-formed block, status done"}
+{"text": "Both approaches work.\n\n[HANDOFF]\n- Status: needs-decision\n- Situation: the queue is written but not wired; either transport works\n- Options:\n  - Redis: one less service, loses messages on restart\n  - SQS: durable, adds an AWS dependency\n  - Default: Redis - the restart window is already covered by the replay log\n- Next: tell me which transport and I will wire it", "expect": "miss", "why": "a fork WITH options and a default is exactly what the skill asks for"}
+{"text": "The `should I` phrasing is what the offer detector looks for.", "expect": "miss", "why": "inline code is stripped"}
+{"text": "> Let me know if you want the streaming path too.", "expect": "miss", "why": "quoted lines are stripped"}
+{"text": "I let the user know that the migration had run.", "expect": "miss", "why": "the offer pattern is the fixed phrase 'let me know'; an object in between is a report, not an offer"}
+
+// --- probes for the object-anchored "depends on" pattern ---
+
+{"text": "The scheduler depends on lodash and date-fns.", "expect": "miss", "why": "a package dependency, not a fork"}
+{"text": "This module depends on node 22.", "expect": "miss", "why": "a runtime dependency - note 'This depends on' would have fired on the adjacent-pronoun pattern, the object is what saves it"}
+{"text": "Build order depends on the topological sort.", "expect": "miss", "why": "an explanation of a relationship"}
+{"text": "The retry count depends on your config file, which I did not change.", "expect": "miss", "why": "'depends on your' is explanatory; only whether|which|what|if count as a choice"}
+{"text": "Throughput depends on how many workers you run.", "expect": "miss", "why": "'depends on how' is explanatory"}
+{"text": "Which transport to use depends on whether you need durability.", "expect": "hit", "why": "a fork with a choice-shaped object and no default named"}
+{"text": "Whether to batch depends on what your p99 target is.", "expect": "hit", "why": "choice-shaped object"}
+{"text": "Which transport to use depends on whether you need durability.\n\n[HANDOFF]\n- Status: needs-decision\n- Situation: the queue is written, either transport drops in\n- Options:\n  - SQS: durable, +40ms\n  - Redis: in-stack, loses on restart\n  - Default: SQS - the replay log does not cover a cold start\n- Next: confirm SQS and I will wire it", "expect": "miss", "why": "the same fork WITH options and a default is what the skill asks for"}

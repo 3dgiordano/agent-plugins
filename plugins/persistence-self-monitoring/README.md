@@ -92,7 +92,7 @@ prompt, a tool call, or a stop.
 ## Debug log (opt-in, off by default)
 
 Off unless `PERSISTMON_LOG` is set (`1`/`true`/`yes`/`on`); with it unset the
-hooks still count (in the OS temp dir) but write no log files.
+hooks still count (in `<temp>/3dgiordano-agent-plugins/`) but write no log files.
 
 ```
 # PowerShell:  $env:PERSISTMON_LOG = "1"
@@ -126,18 +126,19 @@ plugin.json                         # Agent Plugins manifest (portable core: ski
 .cursor-plugin/plugin.json          # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/persistence-self-monitoring/SKILL.md
-hooks/hooks.json                    # Claude Code: UserPromptSubmit, PostToolUse (all), Stop
+hooks/hooks.json                    # Claude Code: UserPromptSubmit, PostToolUse (all), Stop, SessionEnd
 hooks/persist-prompt.js
 hooks/persist-observe.js
 hooks/persist-stop.js
+hooks/persist-session-end.js
 cursor/hooks.json                   # Cursor: sessionStart, postToolUse, afterAgentResponse
-cursor/persist-session-start.js
+cursor/persist-session-start.js   # also sweeps aged state (Cursor has no session-end event)
 cursor/persist-observe-cursor.js
 cursor/persist-response-cursor.js
 lib/signals.js                      # the counters + thresholds (host-neutral)
 lib/messages.js                     # reminder texts shared by both adapters
 lib/fail.js                         # did a shell output look like a failure? line rules, no bare "error"/"failed" (per-plugin copy)
-lib/state.js                        # per-session turn state (OS temp dir); lockfile-guarded update() for concurrent hooks
+lib/state.js                        # per-session turn state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); remove()/sweep() drop it at session end
 lib/host.js                         # cwdOf(): the project dir from the event, else the host env var, else null
 lib/log.js                          # opt-in logger (per-plugin copy; plugins are self-contained)
 ```

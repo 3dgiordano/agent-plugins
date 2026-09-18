@@ -117,6 +117,7 @@ Code) or `<project>/.cursor/logs/…` (Cursor); override with
 | `session_start` | — | once per Cursor session |
 | `signal` | `stubs`, `signals` | stub threshold crossed: count and files |
 | `stop` | `deferrals`, `blocks`, `parts`, `violations`, `tools`, `stubs`, `stubFiles` | per final message: deferral phrases, closing ledger, turn totals |
+| `subagent_stop` | same as `stop`, plus `agent` | a subagent's final message. Measured only: never blocks, and never parks a retrospective — a subagent has no next user prompt to carry one, so parking would deliver it to the parent's turn |
 
 ```
 # how often does a turn end with deferred work and no closing ledger?
@@ -132,17 +133,18 @@ plugin.json                        # Agent Plugins manifest (portable core: skil
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/coverage-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code: UserPromptSubmit, PostToolUse, Stop
+hooks/hooks.json                   # Claude Code: UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/cov-prompt.js
 hooks/cov-observe.js
 hooks/cov-stop.js
+hooks/cov-session-end.js
 cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse
-cursor/cov-session-start.js
+cursor/cov-session-start.js   # also sweeps aged state (Cursor has no session-end event)
 cursor/cov-observe-cursor.js
 cursor/cov-response-cursor.js
 lib/signals.js                     # stub counter, prompt parts, close scan + [COVERAGE CHECK] rules
 lib/messages.js                    # reminder texts shared by both adapters
-lib/state.js                       # per-session state (OS temp dir); lockfile-guarded update() for concurrent hooks
+lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); remove()/sweep() drop it at session end
 lib/host.js                        # cwdOf(): the project dir from the event, else the host env var, else null
 lib/log.js                         # opt-in logger (per-plugin copy; plugins are self-contained)
 ```

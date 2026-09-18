@@ -137,6 +137,7 @@ Code) or `<project>/.cursor/logs/…` (Cursor); override with
 | `prompt` | `turn`, `load`, `retrospective` | cadence decision per user prompt (Claude Code) |
 | `session_start` | — | once per Cursor session |
 | `stop` | `hits`, `apologies`, `blocks`, `violations`, `strict`, `blocked` | per final message: which trigger phrases, how many apologies, block rules broken |
+| `subagent_stop` | same as `stop`, plus `agent` | a subagent's final message. Measured only: never blocks even under `TERMMON_STRICT`, and never parks a retrospective |
 
 ```
 # how often does a turn end on a state-shaped reason?
@@ -152,16 +153,17 @@ plugin.json                        # Agent Plugins manifest (portable core: skil
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/termination-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code: UserPromptSubmit, Stop
+hooks/hooks.json                   # Claude Code: UserPromptSubmit, Stop, SubagentStop, SessionEnd
 hooks/term-prompt.js
 hooks/term-stop.js
+hooks/term-session-end.js
 cursor/hooks.json                  # Cursor: sessionStart, afterAgentResponse, stop
-cursor/term-session-start.js
+cursor/term-session-start.js   # also sweeps aged state (Cursor has no session-end event)
 cursor/term-response-cursor.js
 cursor/term-stop-cursor.js
 lib/lexicon.js                     # trigger-phrase scanner + [TERMINATION CHECK] rules
 lib/messages.js                    # reminder texts shared by both adapters
-lib/state.js                       # per-session state (OS temp dir); lockfile-guarded update() for concurrent hooks
+lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); remove()/sweep() drop it at session end
 lib/host.js                        # cwdOf(): the project dir from the event, else the host env var, else null
 lib/log.js                         # opt-in logger (per-plugin copy; plugins are self-contained)
 ```

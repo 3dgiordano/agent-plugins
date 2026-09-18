@@ -34,7 +34,13 @@ function main(raw) {
   if (typeof data.session_id === 'string' && data.session_id) sid = data.session_id;
 
   const safe = sid.replace(/[^0-9A-Za-z_-]/g, '_');
-  const counterFile = path.join(os.tmpdir(), `claude_execmon_${safe}.txt`);
+  // <tmpdir>/3dgiordano-agent-plugins/execmon_<host>_<session>.txt, the same
+  // directory and the same name shape as the other five plugins' state files.
+  // The host goes in the middle, not in front: the counter is host-neutral and
+  // this is the Claude adapter's copy of it.
+  const dir = path.join(os.tmpdir(), '3dgiordano-agent-plugins');
+  try { fs.mkdirSync(dir, { recursive: true }); } catch (_) {}
+  const counterFile = path.join(dir, `execmon_claude_${safe}.txt`);
 
   let count = 0;
   try { count = parseInt(fs.readFileSync(counterFile, 'utf8'), 10) || 0; } catch (_) {}

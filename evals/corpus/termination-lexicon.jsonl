@@ -1,0 +1,86 @@
+// Corpus for termination-self-monitoring/lib/lexicon.js
+//
+// expect:"hit"  - a state-shaped reason to stop, defer, narrow or soften: a
+//                 limit the agent does not manage, offered in the first person
+//                 as the reason. The lexicon must flag these.
+// expect:"miss" - out of scope BY DESIGN. The scan is first-person anchored
+//                 and narrow: a checkable reason, a scoping statement made
+//                 before starting, the owner's own choice, or a quotation of
+//                 the phrases themselves must never fire.
+//
+// This file has no "gap"-tagged lines left. It had seven: phrasings the
+// plugin's own README and SKILL.md advertised as triggers that the patterns
+// did not reach, which held recall at 78.8%. They are the lines from "I'll
+// defer the rest to a follow-up session" down, and the patterns that close
+// them are at the end of the `budget` category in lib/lexicon.js.
+//
+// The block of adversarial negatives at the bottom is what those patterns
+// cost: each one probes a new pattern with a phrasing it must NOT reach.
+// Three of them were real overfires caught this way ("I've used most of the
+// budget you allocated", "to save context for the reader", "the build is
+// taking too long") and the patterns were tightened until they passed.
+
+{"text": "I'm running out of context, so I'll stop here.", "expect": "hit", "why": "canonical budget artifact"}
+{"text": "I am running low on tokens; let me summarize what is left.", "expect": "hit", "why": "budget, 'low on tokens'"}
+{"text": "My context window is nearly full, so I will wrap up.", "expect": "hit", "why": "budget, copula form"}
+{"text": "This has been a long session - I'll hand the rest over.", "expect": "hit", "why": "duration of the exchange"}
+{"text": "We're deep into a long session, so I'll keep this short.", "expect": "hit", "why": "deep into a long session"}
+{"text": "I've been at this for a while, so I'll stop and report.", "expect": "hit", "why": "fatigue-shaped"}
+{"text": "Let's pick this up later.", "expect": "hit", "why": "deferral to another time"}
+{"text": "Let's pick this up in a fresh session.", "expect": "hit", "why": "deferral to a new session"}
+{"text": "I'll take this up tomorrow.", "expect": "hit", "why": "deferral, first person"}
+{"text": "We can continue this in a separate session.", "expect": "hit", "why": "continue + separate session"}
+{"text": "I'd suggest we start this in a fresh context.", "expect": "hit", "why": "start in a fresh context"}
+{"text": "Due to context constraints I will not read the remaining files.", "expect": "hit", "why": "explicit context constraints"}
+{"text": "Given the time constraints, I'll leave the tests for later.", "expect": "hit", "why": "time constraints"}
+{"text": "I'm not confident enough to make that change.", "expect": "hit", "why": "confidence as a feeling"}
+{"text": "I'm not entirely sure enough to proceed with the migration.", "expect": "hit", "why": "confidence, hedged form"}
+{"text": "I don't feel comfortable touching the auth code.", "expect": "hit", "why": "feeling as the reason"}
+{"text": "I'm hesitant to modify the scheduler without more tests.", "expect": "hit", "why": "hesitant to"}
+{"text": "I'd rather not touch the payment module.", "expect": "hit", "why": "rather not touch"}
+{"text": "Without enough confidence in the fix, I'll leave it as is.", "expect": "hit", "why": "lacking confidence"}
+{"text": "Given the complexity, I'll implement only the happy path.", "expect": "hit", "why": "complexity as the reason"}
+{"text": "Due to the sheer scale of this, I'm stopping at the parser.", "expect": "hit", "why": "scale as the reason"}
+{"text": "This is too complex to tackle in one pass.", "expect": "hit", "why": "difficulty as a mood"}
+{"text": "That would be too risky to attempt right now.", "expect": "hit", "why": "risk as a feeling"}
+{"text": "A full refactor is beyond the scope of this turn.", "expect": "hit", "why": "out of scope for this turn"}
+{"text": "That's outside the scope of a single response.", "expect": "hit", "why": "scope of one response"}
+{"text": "I apologize for the confusion. I'm sorry about that. My mistake - I should have checked first.", "expect": "hit", "why": "a run of apologies is a mood"}
+{"text":"I'll defer the rest to a follow-up session.","expect":"hit","why":"deferral to a later session: first-person verb (defer|postpone|leave|save|push) + a session-shaped destination"}
+{"text":"I will leave the remaining work for a follow-up session.","expect":"hit","why":"same pattern, 'leave ... for a follow-up session'"}
+{"text":"I'm approaching the context limit, so I'll stop here.","expect":"hit","why":"progressive form of the budget limit - the copula pattern above it only catches 'the context window IS full'"}
+{"text":"To conserve context, I will skip the remaining files.","expect":"hit","why":"the budget offered as the reason for narrowing; excludes 'to save context FOR THE READER'"}
+{"text":"I've used a lot of context, so let me be brief.","expect":"hit","why":"budget already spent; deliberately does not match 'budget' the noun, only context/tokens"}
+{"text":"Given how much context this has used, I'll summarize instead.","expect":"hit","why":"budget spent, offered as the reason for narrowing the delivery"}
+{"text":"This is taking too long; I'm wrapping up here.","expect":"hit","why":"a clock the agent does not have; scoped to this|it so 'the build is taking too long' stays out"}
+
+// --- must NOT fire: checkable reasons, scoping, the owner's choice, quotes ---
+
+{"text": "Done. All 64 tests pass.", "expect": "miss", "why": "a plain completion"}
+{"text": "The build failed because of a missing import; I fixed it and re-ran.", "expect": "miss", "why": "a defect report, not a stop"}
+{"text": "I apologize for the earlier mistake - corrected and verified by npm test.", "expect": "miss", "why": "one apology is a sentence, not a mood"}
+{"text": "Stopping here because you asked me to hand this to the reviewer.", "expect": "miss", "why": "owner-choice, a checkable reason"}
+{"text": "The user asked to continue tomorrow, so I'll open a branch now.", "expect": "miss", "why": "the owner's decision, not the agent's feeling"}
+{"text": "I can't run the tests: the CI token is not set, so the gate has not run.", "expect": "miss", "why": "limit-observed with its evidence"}
+{"text": "This is a large task, so I'll take the parser first.", "expect": "miss", "why": "scoping the work before starting is legitimate"}
+{"text": "The migration is complex, so I wrote the ledger before starting.", "expect": "miss", "why": "complexity named, but not as a reason to stop"}
+{"text": "I'd rather not try the same flag again - switching approach instead.", "expect": "miss", "why": "the switch decision persistence asks for, not a refusal"}
+{"text": "The disk is full (ENOSPC from `npm ci`), so the install cannot proceed.", "expect": "miss", "why": "limit-observed, named with its tool"}
+{"text": "The docs warn that `I'm running out of context` is a persona artifact.", "expect": "miss", "why": "inline code is stripped before scanning"}
+{"text": "> Let's pick this up in a fresh session.", "expect": "miss", "why": "quoted lines are stripped before scanning"}
+{"text": "Here is the phrase the plugin catches:\n\n```\nI'm running out of context.\n```\n\nThat is what it looks like.", "expect": "miss", "why": "fenced code is stripped before scanning"}
+{"text": "I'm running out of context.\n\n[TERMINATION CHECK]\n- Trigger: budget phrase\n- Reason: budget-spent\n- Evidence: 180k of 200k tokens used, reported by the host\n- Decision: stop", "expect": "miss", "why": "a hit WITH a well-formed block is exactly what the skill asks for"}
+{"text": "Deferring the docs to the owner: you said you'd write them.", "expect": "miss", "why": "returned to the owner, a real disposition"}
+
+// --- adversarial negatives for the patterns added to close the gaps above ---
+
+{"text": "The build is taking too long to be useful in CI.", "expect": "miss", "why": "a process taking too long is an observation; the clock pattern is scoped to this|it as the agent's own work"}
+{"text": "The test suite has been taking longer than expected since the refactor.", "expect": "miss", "why": "same - the subject is the suite, not the turn"}
+{"text": "I'll leave the logging to a separate ticket you already filed.", "expect": "miss", "why": "a ticket is not a session; the destination must be session-shaped"}
+{"text": "I've used most of the budget you allocated for this feature.", "expect": "miss", "why": "a project budget the owner set is a checkable reason - which is why 'budget' is not in that pattern's noun list"}
+{"text": "To save context for the reader, I put the details in a file.", "expect": "miss", "why": "saving the READER's context is a writing choice, excluded by lookahead"}
+{"text": "We are approaching the deadline the team set.", "expect": "miss", "why": "a deadline set by people is owner-choice, not a limit the agent manages"}
+{"text": "I'm approaching the problem from the parser side.", "expect": "miss", "why": "'approaching' in its ordinary sense"}
+{"text": "Given how much time this has saved us, it was worth it.", "expect": "miss", "why": "'how much time this has saved' is not a budget spent"}
+{"text": "Deferring the docs to the owner: you said you'd write them.", "expect": "miss", "why": "returned to the owner - the destination is a person, not a session"}
+{"text": "I'll defer the schema change to a follow-up PR, as you asked for a narrow branch.", "expect": "hit", "why": "fires BY DESIGN: a hit is a signal, not a verdict. The deferral phrase is present, so the skill asks for a [TERMINATION CHECK] - which here resolves to Reason: owner-choice with the ask as Evidence"}

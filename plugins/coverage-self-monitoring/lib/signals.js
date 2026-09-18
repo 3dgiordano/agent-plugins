@@ -25,21 +25,41 @@ const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff/i
 
 // Markers that say "not done here". Deliberately excludes bare "stub" (test
 // doubles) and "mock": those are legitimate code, not deferrals.
+/*
+ * A marker inside a STRING LITERAL is data, not a deferral the agent just
+ * wrote: `getAttribute('placeholder')` reads a DOM attribute, and a test
+ * fixture or corpus line that quotes "// TODO" is describing a marker, not
+ * leaving one. So every rule is tested against the line with its quoted spans
+ * blanked out.
+ *
+ * Two rules look inside a string ON PURPOSE - the marker is the payload of a
+ * throw, or of a Python `pass` comment - and are marked `raw` so they see the
+ * line as written.
+ */
 const STUB_RES = [
-  /\b(?:TODO|FIXME|XXX|HACK)\b/,
-  /\bnot\s+implemented\b/i,
-  /\bNotImplemented(?:Error|Exception)?\b/,
-  /\bunimplemented!?\b/i,
-  /\bplaceholder\b/i,
-  /\b(?:rest|remainder)\s+of\s+(?:the\s+)?(?:code|file|implementation|logic|function|class)(?:\s+goes)?\s+here\b/i,
-  /(?:\/\/|#|\/\*)\s*\.\.\.\s*(?:\*\/)?\s*$/m,
-  /\.\.\.\s*(?:rest|more|remaining|etc\.?)\b/i,
-  /throw\s+new\s+Error\(\s*['"`](?:TODO|not implemented|unimplemented|implement me)/i,
-  /\bpass\s*#\s*(?:TODO|FIXME|stub|later|implement)/i,
-  /\bimplement\s+(?:this|me)\s+later\b/i,
-  /\bfill\s+(?:this\s+)?in\s+later\b/i,
-  /\bleft\s+as\s+(?:an\s+)?exercise\b/i,
+  { re: /\b(?:TODO|FIXME|XXX|HACK)\b/ },
+  { re: /\bnot\s+implemented\b/i },
+  { re: /\bNotImplemented(?:Error|Exception)?\b/ },
+  { re: /\bunimplemented!?\b/i },
+  // Unlike TODO/FIXME/XXX/HACK, "placeholder" is an ordinary word in UI code -
+  // a DOM attribute, a property, a prop name - so it only counts as a stub
+  // when it appears in a COMMENT.
+  { re: /(?:\/\/|#|\/\*|^\s*\*|<!--)[^\n]*\bplaceholder\b/i },
+  { re: /\b(?:rest|remainder)\s+of\s+(?:the\s+)?(?:code|file|implementation|logic|function|class)(?:\s+goes)?\s+here\b/i },
+  { re: /(?:\/\/|#|\/\*)\s*\.\.\.\s*(?:\*\/)?\s*$/m },
+  { re: /\.\.\.\s*(?:rest|more|remaining|etc\.?)\b/i },
+  { re: /throw\s+new\s+Error\(\s*['"`](?:TODO|not implemented|unimplemented|implement me)/i, raw: true },
+  { re: /\bpass\s*#\s*(?:TODO|FIXME|stub|later|implement)/i, raw: true },
+  { re: /\bimplement\s+(?:this|me)\s+later\b/i },
+  { re: /\bfill\s+(?:this\s+)?in\s+later\b/i },
+  { re: /\bleft\s+as\s+(?:an\s+)?exercise\b/i },
 ];
+
+// Blank out double-, single- and backtick-quoted spans, keeping the line's
+// length and shape so the end-anchored rules still see a line end.
+function unquoted(line) {
+  return line.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`/g, (s) => ' '.repeat(s.length));
+}
 
 function freshTurn() {
   return { tools: 0, stubs: 0, files: {}, fired: { stubs: 0 } };
@@ -63,7 +83,8 @@ function countStubs(text) {
   if (typeof text !== 'string' || !text) return 0;
   let n = 0;
   for (const line of text.split(/\r?\n/)) {
-    if (STUB_RES.some((re) => re.test(line))) n += 1;
+    const bare = unquoted(line);
+    if (STUB_RES.some((r) => r.re.test(r.raw ? line : bare))) n += 1;
   }
   return n;
 }
@@ -160,10 +181,15 @@ function partsOf(prompt) {
 const DEFERRAL_RES = [
   /\bin\s+a\s+(?:follow[- ]?up|separate|later|future|subsequent|next)\s+(?:PR|pull request|pass|change|task|step|iteration|commit|turn|session|ticket|issue)\b/i,
   /\b(?:as|for)\s+(?:a\s+)?(?:follow[- ]?up|future\s+work)\b/i,
-  /\b(?:left|leave|leaving)\s+(?:it\s+|this\s+|that\s+|them\s+)?(?:as|for)\s+(?:a\s+)?(?:TODO|later|follow[- ]?up|exercise|future)\b/i,
+  // The thing left behind can be named, not just pronominalised: "left the
+  // migration as a TODO" as well as "left it as a TODO". Bounded and lazy so
+  // it cannot run across a sentence boundary.
+  /\b(?:left|leave|leaving)\s+(?:[^.!?]{0,30}?\s+)?(?:as|for)\s+(?:a\s+|an\s+)?(?:TODO|later|follow[- ]?up|exercise|future)\b/i,
   /\b(?:left|added|add|leaving|with)\s+(?:a\s+|some\s+|\d+\s+)?TODOs?\b/i,
   /\bnot\s+yet\s+(?:implemented|done|addressed|covered|handled|wired|tested)\b/i,
-  /\bI\s+(?:did\s+not|didn't|have\s+not|haven't)\s+(?:implement|address|cover|handle|touch|finish|wire|test|get\s+to)\b/i,
+  // "did not wire" takes the base form, "have not wired" the participle, so
+  // the verbs are matched with an optional -d/-ed rather than listed twice.
+  /\bI\s+(?:did\s+not|didn't|have\s+not|haven't)\s+(?:(?:implement|address|cover|handle|touch|finish|wire|test)(?:ed|d)?|got\s+to|get\s+to)\b/i,
   /\b(?:a\s+|the\s+)?(?:simplified|basic|minimal|initial|partial|naive|first[- ]pass|skeleton|bare[- ]bones|MVP|proof[- ]of[- ]concept)\s+(?:version|implementation|approach|solution|pass|form)\b/i,
   /\bout\s+of\s+scope\b(?!\s+(?:of|for)\s+(?:this|the\s+current|a\s+single|one)\s+(?:turn|response|session|pass|message|conversation))/i,
   /\bremaining\s+(?:work|items|tasks|parts|steps|pieces)\b/i,

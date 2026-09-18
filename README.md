@@ -23,20 +23,20 @@ Four edits to the same file and three failed test runs into a turn, the agent
 gets this — from a hook, not from its own (absent) sense of frustration:
 
 ```
-[persistence self-monitoring] you have edited `src/parser.js` 4 times this turn;
-`npm test` has failed 3 times this turn. Before the next attempt: what hypothesis
-are you holding, what changed between attempts, and what approach would you take
-if that hypothesis were wrong? If nothing new, say so to the user instead of
-trying again.
+[persistence self-monitoring] you have edited `src/parser.js` 4 times this
+turn; `npm test` has failed 3 times this turn. Before the next attempt: what
+hypothesis are you holding, what changed between attempts, and what approach
+would you take if that hypothesis were wrong? If nothing new, say so to the
+user instead of trying again. (persistence-self-monitoring skill)
 ```
 
 On the first turn of a session, and every fifth after that:
 
 ```
 [executive self-monitoring] Checkpoint for long/iterative work: invoke the
-executive-self-monitoring skill before substantive steps - name the active
-plan/gate and confirm this step serves it. Not a blocker; skip if this turn is
-trivial.
+executive-self-monitoring skill (the source of truth) before substantive steps
+- name the active plan/gate and confirm this step serves it. Not a blocker;
+skip if this turn is trivial.
 ```
 
 And when it is about to declare "the cause is X", the epistemic skill asks it to
@@ -48,11 +48,12 @@ session" — a reason the agent has read a thousand times and cannot actually
 have — the next prompt opens with:
 
 ```
-[termination self-monitoring] Your previous turn ended on a state-shaped reason:
-a state-shaped reason (budget: "I'm running out of context") with no
+[termination self-monitoring] Your previous turn ended on a state-shaped
+reason: a state-shaped reason (budget: "I'm running out of context") with no
 [TERMINATION CHECK] block - name the checkable reason or continue. If the work
-is unfinished, either write the [TERMINATION CHECK] block with the checkable
-reason and its evidence, or pick the work back up now.
+is unfinished, either write the [TERMINATION CHECK] as a markdown list, not a
+fenced code block, with the checkable reason and its evidence, or pick the
+work back up now.
 ```
 
 And three `TODO`s into a turn:
@@ -68,12 +69,13 @@ And when the tests go green after a run of edits — the moment the final
 message is about to be written:
 
 ```
-[handoff self-monitoring] `npm test` passed - this turn looks close to its end.
-When you write the final message: Status first (done | needs-decision |
-blocked), the situation in the reader's terms, any fork as a list of options
-with Default on its own line, and one Next action - in a [HANDOFF] markdown
-list, not a fenced code block, with the trace detail below it.
-(handoff-self-monitoring skill)
+[handoff self-monitoring] `npm test` passed - this turn looks close to its
+end. When you write the final message, if the close is an offer, a fork, a
+question to the reader, or the turn is simply ending: Status first (done |
+needs-decision | blocked), the situation in the reader's terms, any fork as a
+list of options with Default on its own line, and one Next action - in a
+[HANDOFF] markdown list, not a fenced code block, with the trace detail below
+it. (handoff-self-monitoring skill)
 ```
 
 ## Quick start

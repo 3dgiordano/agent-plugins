@@ -106,6 +106,7 @@ Code) or `<project>/.cursor/logs/…` (Cursor); override with
 | `session_start` | — | once per Cursor session |
 | `observe` | `shell`, `failed`, `emitted` | per shell command: did the nudge fire |
 | `close` | `blocks`, `tags`, `violations`, `strict`, `blocked` | per final message: closure scan result |
+| `subagent_close` | same as `close`, plus `agent` | a subagent's final message. Measured only: never blocks even under `EPIMON_STRICT`, and never parks a retrospective |
 | `stop` | `status`, `violations`, `blocked` | Cursor stop decision |
 
 ```
@@ -122,18 +123,19 @@ plugin.json                        # Agent Plugins manifest (portable core: skil
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/epistemic-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code: UserPromptSubmit, PostToolUse(Bash), Stop
+hooks/hooks.json                   # Claude Code: UserPromptSubmit, PostToolUse(Bash), Stop, SubagentStop, SessionEnd
 hooks/epi-prompt.js
 hooks/epi-observe.js
 hooks/epi-stop.js
+hooks/epi-session-end.js
 cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse, stop
-cursor/epi-session-start.js
+cursor/epi-session-start.js   # also sweeps aged state (Cursor has no session-end event)
 cursor/epi-observe-cursor.js
 cursor/epi-response-cursor.js
 cursor/epi-stop-cursor.js
 lib/scan.js                        # [EPISTEMIC CLOSE] block parser + rules
 lib/messages.js                    # reminder texts shared by both adapters
-lib/state.js                       # per-session state (OS temp dir); lockfile-guarded update() for concurrent hooks
+lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); remove()/sweep() drop it at session end
 lib/host.js                        # cwdOf(): the project dir from the event, else the host env var, else null
 lib/fail.js                        # did a shell output look like a failure? line rules, no bare "error"/"failed" (per-plugin copy)
 lib/log.js                         # opt-in logger (per-plugin copy; plugins are self-contained)

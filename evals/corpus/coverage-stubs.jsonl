@@ -1,0 +1,52 @@
+// Corpus for coverage-self-monitoring/lib/signals.js - countStubs().
+// One LINE is one deferral, however many markers it carries. The input is the
+// code an edit tool wrote, not prose - so the "miss" side is mostly ordinary
+// code that happens to contain a marker-shaped word.
+
+{"text": "// TODO: handle the retry case", "expect": "hit", "why": "TODO"}
+{"text": "# FIXME: this drops the last chunk", "expect": "hit", "why": "FIXME"}
+{"text": "// XXX unsafe cast", "expect": "hit", "why": "XXX"}
+{"text": "// HACK: works around the upstream bug", "expect": "hit", "why": "HACK"}
+{"text": "raise NotImplementedError", "expect": "hit", "why": "NotImplementedError"}
+{"text": "throw new NotImplementedException();", "expect": "hit", "why": "NotImplementedException"}
+{"text": "unimplemented!()", "expect": "hit", "why": "rust unimplemented"}
+{"text": "return null; // not implemented yet", "expect": "hit", "why": "not implemented"}
+{"text": "const config = {}; // placeholder", "expect": "hit", "why": "placeholder"}
+{"text": "// rest of the implementation goes here", "expect": "hit", "why": "rest of the implementation here"}
+{"text": "function parse(s) {\n  // ...\n}", "expect": "hit", "why": "elided body comment"}
+{"text": "  # ...", "expect": "hit", "why": "elided body, python comment"}
+{"text": "const { a, b } = opts; // ... rest", "expect": "hit", "why": "... rest"}
+{"text": "throw new Error('TODO: implement');", "expect": "hit", "why": "throw new Error TODO"}
+{"text": "throw new Error(\"not implemented\")", "expect": "hit", "why": "throw new Error not implemented"}
+{"text": "def handle(self):\n    pass # TODO", "expect": "hit", "why": "pass # TODO"}
+{"text": "// implement this later", "expect": "hit", "why": "implement this later"}
+{"text": "// fill this in later", "expect": "hit", "why": "fill in later"}
+{"text": "// the error path is left as an exercise", "expect": "hit", "why": "left as an exercise"}
+{"text": "// TODO: retry\n// FIXME: backoff\nconst x = 1;", "expect": "hit", "why": "two marker lines still counts as hits"}
+
+// --- must NOT fire: ordinary code ---
+
+{"text": "const todos = await db.todos.findMany();", "expect": "miss", "why": "'todos' is a domain word, not the TODO marker"}
+{"text": "export function TodoList({ items }) { return items.map(renderTodo); }", "expect": "miss", "why": "a Todo component"}
+{"text": "if (!user) { throw new Error('user not found'); }", "expect": "miss", "why": "a real error path"}
+{"text": "function add(a, b) {\n  return a + b;\n}", "expect": "miss", "why": "complete implementation"}
+{"text":"const placeholderText = input.getAttribute('placeholder');","expect":"miss","why":"the quoted attribute is blanked before matching, and placeholder now needs comment context"}
+{"text":"{\"text\": \"// TODO: handle retry\", \"expect\": \"hit\"}","expect":"miss","why":"a marker inside a string literal is data, not a deferral - quoted spans are blanked before matching"}
+{"text": "await page.fill('#email', 'a@b.c');", "expect": "miss", "why": "ordinary test code"}
+{"text": "// Parse the header, then the body, then the trailer.", "expect": "miss", "why": "a descriptive comment"}
+{"text": "const REST_OF_LINE = /[^\\n]*/;", "expect": "miss", "why": "a constant named REST_OF_LINE"}
+{"text": "import { rest } from 'lodash';", "expect": "miss", "why": "an import named rest"}
+{"text": "", "expect": "miss", "why": "empty edit"}
+
+// --- probes for the string-literal and comment-context tightening ---
+
+{"text": "<input placeholder=\"Email\" />", "expect": "miss", "why": "a DOM attribute name, not a stub - 'placeholder' now needs comment context"}
+{"text": "input.placeholder = 'Enter your email';", "expect": "miss", "why": "a property assignment in UI code"}
+{"text": "function Field({ placeholder, value }) { return null; }", "expect": "miss", "why": "a prop name"}
+{"text": "const msg = \"we fixed the TODO handling\";", "expect": "miss", "why": "a marker inside a string literal is data"}
+{"text": "assert.equal(countStubs('// TODO: x'), 1);", "expect": "miss", "why": "a test asserting ON the marker is not writing one"}
+{"text": "// placeholder", "expect": "hit", "why": "comment context - the legitimate form"}
+{"text": "return cfg; /* placeholder until the loader lands */", "expect": "hit", "why": "block comment context"}
+{"text": " * placeholder - fill in when the API settles", "expect": "hit", "why": "jsdoc continuation line"}
+{"text": "logger.warn('not implemented');", "expect": "miss", "why": "a runtime warning string, not a stub the agent left"}
+{"text": "const MARKER_RE = /TODO|FIXME/;", "expect": "miss", "gap": true, "why": "KNOWN FALSE POSITIVE: a regex literal holding the marker. Blanking regex spans is unsafe - /.../ is ambiguous with division - so this one is recorded rather than fixed. It is why editing this very file trips the hook"}

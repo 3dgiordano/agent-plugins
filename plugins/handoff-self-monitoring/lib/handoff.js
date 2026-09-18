@@ -35,6 +35,15 @@ const CATEGORIES = [
     kind: 'fork', // a fork named, but not written as a decision
     re: [
       /\b(?:it|this|that|which)\s+depends\s+on\b/i,
+      // The pronoun is not always adjacent: "which one to pick depends on ...".
+      // Anchored on the OBJECT instead, because "the scheduler depends on
+      // lodash" is a dependency, not a fork.
+      //
+      // Deliberately narrower than the `depending on` pattern below: only
+      // objects that ARE a choice (whether / which / what / if). "depends on
+      // your config" and "depends on how many workers" are explanations of a
+      // relationship, not a fork handed to the reader.
+      /\bdepends\s+on\s+(?:whether|which|what|if)\b/i,
       /\bdepending\s+on\s+(?:whether|which|what|how|your|the)\b/i,
       /\balternatively\b/i,
       /\b(?:the\s+)?(?:other|alternative|second)\s+(?:option|approach|route|path)\b/i,

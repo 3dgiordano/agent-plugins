@@ -1,0 +1,43 @@
+// Corpus for coverage-self-monitoring/lib/signals.js - scanClose().
+// A turn that defers a PART of the request without closing the ledger. The
+// REASON side ("given the complexity", "out of scope for this turn") belongs
+// to the termination scanner and must NOT fire here.
+//
+// A deferral WITH a well-formed [COVERAGE CHECK] is what the skill asks for
+// and must not be flagged.
+
+{"text": "Added the parser. The streaming path will come in a follow-up PR.", "expect": "hit", "why": "in a follow-up PR"}
+{"text": "Wired the happy path; error handling in a separate change.", "expect": "hit", "why": "in a separate change"}
+{"text": "Shipped the schema. Left the migration as a TODO.", "expect": "hit", "why": "left as a TODO"}
+{"text": "I added TODOs where the retry logic belongs.", "expect": "hit", "why": "added TODOs"}
+{"text": "The websocket transport is not yet implemented.", "expect": "hit", "why": "not yet implemented"}
+{"text": "I didn't get to the integration tests.", "expect": "hit", "why": "did not get to"}
+{"text": "I haven't wired the cache invalidation.", "expect": "hit", "why": "have not wired"}
+{"text": "This is a simplified version that covers the common case.", "expect": "hit", "why": "simplified version"}
+{"text": "Here is a minimal implementation to get you started.", "expect": "hit", "why": "minimal implementation"}
+{"text": "I built an MVP version of the reconciler.", "expect": "hit", "why": "MVP version"}
+{"text": "Auth is out of scope, so I stubbed the middleware.", "expect": "hit", "why": "out of scope (bare, not 'for this turn')"}
+{"text": "The remaining work is the CLI flags and the docs.", "expect": "hit", "why": "remaining work"}
+{"text": "The retry policy still needs tuning.", "expect": "hit", "why": "still needs"}
+{"text": "Pagination can be added later.", "expect": "hit", "why": "can be added later"}
+{"text": "Full coverage would need a separate pass.", "expect": "hit", "why": "would need a separate pass"}
+{"text": "Left it as future work for now.", "expect": "hit", "why": "as future work"}
+
+// --- must NOT fire ---
+
+{"text": "Done. Parser, streaming and retries are all implemented and tested.", "expect": "miss", "why": "nothing deferred"}
+{"text": "Given the complexity, I stopped at the parser.", "expect": "miss", "why": "a REASON, not a part - belongs to the termination scanner"}
+{"text": "A full refactor is out of scope for this turn.", "expect": "miss", "why": "explicitly excluded: 'out of scope for this turn' is the termination scanner's phrase"}
+{"text": "The `TODO` marker is what the stub counter looks for.", "expect": "miss", "why": "inline code is stripped before scanning"}
+{"text": "> The streaming path will come in a follow-up PR.", "expect": "miss", "why": "quoted lines are stripped"}
+{"text": "Added the parser. The streaming path will come in a follow-up PR.\n\n[COVERAGE CHECK]\n- parser: done\n- streaming: blocked - the upstream API has no chunked endpoint yet (404 from /v2/stream)\n- docs: returned - you said you would write them", "expect": "miss", "why": "a deferral WITH a well-formed ledger is exactly what the skill asks for"}
+{"text": "I implemented the full retry policy with exponential backoff and jitter.", "expect": "miss", "why": "complete delivery"}
+{"text": "Removed the TODOs that were already done.", "expect": "miss", "why": "cleaning up markers is the opposite of deferring - 'Removed' is not in the (left|added|add|leaving|with) verb list, correctly"}
+
+// --- probes for the two patterns widened to close the gaps above ---
+
+{"text": "I left the tests as they were, since they still pass.", "expect": "miss", "why": "'left X as' only defers when what follows is TODO|later|follow-up|exercise|future"}
+{"text": "I left the parser alone for good reason.", "expect": "miss", "why": "'left ... for' needs a deferral noun after it"}
+{"text": "We leave the socket open for the duration of the stream.", "expect": "miss", "why": "ordinary use of 'leave ... for'"}
+{"text": "I have not touched the payment module, as you asked.", "expect": "hit", "why": "fires by design, and newly so since the verb list was lemmatised: a part not done IS the ledger's business - this one closes as 'returned to the owner', which is what the nudge asks for"}
+{"text": "I did not test manually; the suite covers it.", "expect": "miss", "gap": true, "why": "KNOWN FALSE POSITIVE, pre-dates the lemmatisation (verified against HEAD): the part IS covered, by other means. Distinguishing 'not done' from 'done another way' needs more than a verb list"}

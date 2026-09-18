@@ -30,6 +30,30 @@ const CATEGORIES = [
       /\b(?:let(?:'s| us)|we\s+(?:can|could|should)|I(?:'ll| will|'d| would| can| could)(?:\s+(?:suggest|recommend|propose))?)\s+(?:we\s+|you\s+)?(?:continue|resume|revisit|finish|do|handle)\s+(?:this|it|that|the rest)?\s*(?:later|tomorrow|in (?:a|another) (?:new|fresh|separate|future) (?:session|conversation|context))\b/i,
       /\b(?:let(?:'s| us)|we\s+(?:can|could|should)|I(?:'ll| will|'d| would| can| could)(?:\s+(?:suggest|recommend|propose))?)\s+(?:we\s+|you\s+)?(?:start|continue|resume)\s+(?:this\s+|it\s+)?(?:in|with|from)\s+a\s+(?:new|fresh|clean)\s+(?:session|context|conversation)\b/i,
       /\b(?:due to|given|because of|under)\s+(?:the\s+)?(?:time|context|length|token)\s+(?:constraints?|limits?|pressure|budget)\b/i,
+
+      // Deferring the WORK to a later session. First-person anchored, and the
+      // destination must be a session-shaped thing: "I'll defer the rest to a
+      // follow-up session" is the artifact, "Deferring the docs to the owner"
+      // is a real disposition and must not match.
+      /\b(?:I(?:'ll| will|'d| would|'m going to| am going to)|we(?:'ll| will))\s+(?:defer|postpone|leave|save|push)\s+(?:[^.!?]{0,40}?\s+)?(?:to|for|until)\s+(?:a\s+|the\s+)?(?:follow[- ]?up|later|another|future|separate|next|new|fresh)\s+(?:session|turn|conversation|pass|round|time|PR|change)\b/i,
+
+      // Approaching a limit the agent does not manage. The pattern above it
+      // needs a copula ("the context window IS full"); this one catches the
+      // far commoner progressive form.
+      /\b(?:I(?:'m| am)|we(?:'re| are))\s+(?:approaching|nearing|close to|hitting|running up against|bumping\s+(?:up\s+)?against)\s+(?:the\s+|my\s+|our\s+)?(?:context|token|time|budget)\s+(?:limit|window|budget|cap|ceiling)\b/i,
+
+      // The budget offered as the reason for narrowing the delivery.
+      // "to save context FOR THE READER" is a writing choice, not a stop, so
+      // the narrowing has to be about the agent's own budget.
+      /\b(?:to|in order to)\s+(?:conserve|save|preserve|stay\s+within|avoid\s+(?:using|burning))\s+(?:the\s+|my\s+)?(?:context|tokens?|budget)\b(?!\s+for\s+(?:the\s+reader|the\s+user|you\b|clarity|readability))/i,
+      // Deliberately NOT "budget": "I've used most of the budget you allocated"
+      // is a project budget the owner set, which is a checkable reason.
+      /\bI(?:'ve| have)\s+(?:used|consumed|burned|spent|gone\s+through)\s+(?:up\s+)?(?:a\s+lot\s+of|much|most\s+of|quite\s+a\s+bit\s+of|a\s+good\s+deal\s+of|significant)\s+(?:the\s+|my\s+)?(?:context|tokens?)\b/i,
+      /\b(?:given|considering|because\s+of|due\s+to)\s+how\s+(?:much|long)\s+(?:context|time|tokens?)\s+(?:this|it|that|we|I)\s+(?:has|have|'ve)?\s*(?:used|taken|consumed|spent)\b/i,
+
+      // A clock the agent does not have. Scoped to this|it so that "the build
+      // is taking too long" - an observation about a process - stays out.
+      /\b(?:this|it)\s+(?:is|has been|'s)\s+(?:been\s+)?taking\s+(?:too\s+long|far\s+too\s+long|longer\s+than\s+(?:expected|I\s+expected|it\s+should))\b/i,
     ],
   },
   {

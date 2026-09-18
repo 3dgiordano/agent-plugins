@@ -11,15 +11,33 @@ Every hook in this repository, on every host:
 - reads one JSON document from stdin (what the host sends: session id, tool
   name, tool input/output, the assistant's final message) and treats it as
   **data** — it is never evaluated, executed, or passed to a shell;
-- writes at most two places: a small per-session state file in the OS temp
-  dir, and — only when the corresponding `*_LOG` env var is set — a JSONL log
-  under `<project>/.claude/logs/` or `<project>/.cursor/logs/`, rotated at
-  ~256 KB;
+- writes at most two places: a small per-session state file under
+  `<os-temp-dir>/3dgiordano-agent-plugins/`, and — only when the corresponding
+  `*_LOG` env var is set — a JSONL log under `<project>/.claude/logs/` or
+  `<project>/.cursor/logs/`, rotated at ~256 KB. One directory, named after the
+  marketplace, so you can see what put it there, list it, and remove it whole;
+- **deletes only its own leftovers**: at session end (Claude Code `SessionEnd`,
+  and on Cursor at session start, which has no end event) each plugin removes
+  the state file for that session, then lists
+  `<os-temp-dir>/3dgiordano-agent-plugins/` — never the bare temp dir — and
+  removes entries whose name begins with its own prefix (`covmon_`, `epimon_`,
+  `execmon_`, `handmon_`, `persistmon_`, `termmon_`) whose mtime is more than
+  seven days old. That one directory is the only one a hook enumerates, it
+  never deletes a path outside it, and it never touches the log files;
 - prints a short, fixed text (or JSON wrapping it) to stdout for the host to
   inject as context, or nothing;
 - makes **no network calls**, spawns **no processes**, loads **no
   dependencies** (only Node built-ins: `fs`, `os`, `path`), and reads no files
   other than its own state.
+
+Hooks also run at the close of a **subagent** turn (`SubagentStop`), where they
+only measure: the scan result goes to the opt-in log and nothing else. They
+never block a subagent's stop, even with a strict gate enabled, and never carry
+a finding from a subagent into the parent's next turn.
+
+The eval scripts under `scripts/` are **not** hooks and are not covered by the
+list above — `scripts/cursor-eval.js` starts the Cursor Agent CLI on purpose.
+Nothing in CI runs them, and `scripts/test.js` fails if that ever changes.
 
 Three hooks can block: `epistemic-self-monitoring`'s closure gate (only when
 `EPIMON_STRICT` is set), `termination-self-monitoring`'s termination gate

@@ -119,9 +119,10 @@ plugin.json                       # Agent Plugins manifest (portable core)
 .cursor-plugin/plugin.json        # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/executive-self-monitoring/SKILL.md
-hooks/hooks.json                  # Claude Code: UserPromptSubmit + PreToolUse(Skill)
+hooks/hooks.json                  # Claude Code: UserPromptSubmit + PreToolUse(Skill) + SessionEnd
 hooks/exec-monitor.js
 hooks/exec-log-skill.js
+hooks/exec-session-end.js
 cursor/hooks.json                 # Cursor: sessionStart
 cursor/exec-monitor-cursor.js
 lib/execlog.js                    # shared opt-in logger

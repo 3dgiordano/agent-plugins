@@ -31,3 +31,12 @@ jobs:
 
       - name: Test suite (structure + hook adapters for Claude Code and Cursor)
         run: node scripts/test.js
+
+      - name: Docs agree with the code (README message samples)
+        run: node scripts/samples.js --check
+
+      - name: Detector recall / precision floors
+        run: node scripts/corpus.js --check
+
+      - name: Host parity (Claude Code + Cursor adapters)
+        run: node scripts/hosts.js --check
