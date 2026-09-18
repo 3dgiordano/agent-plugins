@@ -29,8 +29,8 @@ changes what the model does. Four of five scored cases say it does.
   that emits them; `--check` fails CI on drift, `--fix` rewrites them. Added
   after four of the five samples went a release out of date.
 - `scripts/corpus.js` + `evals/corpus/*.jsonl` — recall / precision of the six
-  detectors against ~190 labelled lines, with per-detector floors.
-- `scripts/hosts.js` — drives all 35 declared adapters with host-shaped
+  detectors against 238 labelled lines, with per-detector floors.
+- `scripts/hosts.js` — drives all 44 declared adapters with host-shaped
   payloads and requires every Claude Code / Cursor asymmetry to be declared.
 - a CHANGELOG check in the suite: the newest release table must match every
   plugin's manifests, and every version named inside its entries must match

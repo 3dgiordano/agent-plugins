@@ -116,7 +116,7 @@ or to a message.
 **Neither behaviour layer runs in CI, and that is enforced rather than assumed.**
 They cost API calls, need an authenticated account and are non-deterministic;
 a push-triggered matrix across two OSes and three Node versions is the wrong
-place for all three. `scripts/test.js` fails if a CI step shells out to an
+place for either. `scripts/test.js` fails if a CI step shells out to an
 agent CLI, if a CI-invoked script starts one, or if a script that does start
 one gets added to the workflow. A script that drives a CLI declares itself with
 an `AGENT_CLI_DRIVER` binding — a real binding, not a comment, because the
@@ -144,7 +144,7 @@ design). It reports recall and precision against a floor.
 - **When you add a pattern to a detector, add the corpus lines first.** That is
   the only way the number moves for a reason you can point at.
 
-**`scripts/hosts.js`** drives all 35 declared adapters with host-shaped
+**`scripts/hosts.js`** drives all 44 declared adapters with host-shaped
 payloads and asserts they exit 0 and stay off stderr. A capability present on
 one host and not the other must be listed in `ACCEPTED` in that file with a
 reason — that is how a deliberate asymmetry is told apart from a Cursor adapter
