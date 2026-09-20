@@ -25,9 +25,10 @@ five rules the existing plugins follow:
    patterns of a particular codebase, metrics of a particular domain) belongs
    in the user's `CLAUDE.md` or rules, not in the skill.
 5. **Name the monitored decision or variable, never an internal state.**
-   `executive`, `epistemic`, `persistence`, `termination`, `coverage` name
-   what is checked — alignment to the plan, the status of a claim, the
-   persist-or-quit decision, the reason for a stop, the parts delivered. A
+   `executive`, `epistemic`, `persistence`, `termination`, `coverage`,
+   `handoff`, `progress` name what is checked — alignment to the plan, the
+   status of a claim, the persist-or-quit decision, the reason for a stop, the
+   parts delivered, the handoff to the reader, the residue across sessions. A
    name like *affective* or *avoidance* would assert a state the agent does
    not have; what looks like one from outside is a training-data artifact,
    and the plugin's job is to name the artifact, not to adopt it. The same
@@ -158,6 +159,18 @@ induce the failure the plugin exists to catch, plus graders in `graders/*.md`.
 a case both arms pass is a case that proves nothing, so rewrite the prompt.
 Graders marked `with_only: true` (the `tool_used: Skill` indicator) show the
 plugin fired and are reported apart from the score.
+
+A case whose discipline leaves a **file** rather than a block — progress's
+ledger is the one so far — is graded on that file. Put what the workspace
+should contain before the run under `evals/<case>/files/` (both runners copy
+it into the scratch workspace; a seeded ledger and a previous "session's"
+code is how one prompt stands in for the second session of a two-session
+failure), list the plugin in `ARTIFACT` in `scripts/evallib.js`, and name the
+rules in `case.json` under `artifact`: `exists`, `changed` (against the
+seeded copy), `open_min` / `open_max` (per the plugin's own parser). The
+file is kept beside the transcript as `<run>.artifact.md`, so `--rescore`
+grades it the same way. A quiet case of this kind asks that the file be
+absent, or exactly as seeded.
 
 > `plugin eval` is in early access. Until it is enabled on your account the
 > command exits without running, so `scripts/test.js` holds the suites to the

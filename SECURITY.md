@@ -21,14 +21,19 @@ Every hook in this repository, on every host:
   the state file for that session, then lists
   `<os-temp-dir>/3dgiordano-agent-plugins/` — never the bare temp dir — and
   removes entries whose name begins with its own prefix (`covmon_`, `epimon_`,
-  `execmon_`, `handmon_`, `persistmon_`, `termmon_`) whose mtime is more than
+  `execmon_`, `handmon_`, `persistmon_`, `progmon_`, `termmon_`) whose mtime is more than
   seven days old. That one directory is the only one a hook enumerates, it
   never deletes a path outside it, and it never touches the log files;
 - prints a short, fixed text (or JSON wrapping it) to stdout for the host to
   inject as context, or nothing;
 - makes **no network calls**, spawns **no processes**, loads **no
   dependencies** (only Node built-ins: `fs`, `os`, `path`), and reads no files
-  other than its own state.
+  other than its own state — with one exception, stated here so it can be
+  checked: `progress-self-monitoring` reads **one fixed project-relative
+  path**, `<project>/.agent/progress.md`, when it exists, for its mtime and
+  a count of `- blocked:` / `- returned:` lines under `## Open` (at most 64
+  KB of it). It never writes that file, never emits its text, and reads no
+  other path in the project.
 
 Hooks also run at the close of a **subagent** turn (`SubagentStop`), where they
 only measure: the scan result goes to the opt-in log and nothing else. They
@@ -44,7 +49,7 @@ Three hooks can block: `epistemic-self-monitoring`'s closure gate (only when
 (only when `TERMMON_STRICT` is set) and `handoff-self-monitoring`'s handoff
 gate (only when `HANDMON_STRICT` is set). Each does so at most once per turn,
 and only by exit code / a documented host response — never by altering the
-agent's output. The other three plugins have no blocking mode.
+agent's output. The other four plugins have no blocking mode.
 
 If you find any behaviour outside this list, treat it as a vulnerability and
 report it.

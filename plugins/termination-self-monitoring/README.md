@@ -86,6 +86,12 @@ per message; the block rules are:
 - a trigger phrase with no block at all is the finding; so is an apology run
   (three or more apology / "I should have" phrases in one message)
 
+**Boundary with progress-self-monitoring.** "I'll pick this up next session"
+is a stop on a phrase until something checkable says what is blocked and by
+what. [progress-self-monitoring](../progress-self-monitoring/) is where that
+record lives across the boundary — `.agent/progress.md` — and it holds a
+reason, not a mood: a `blocked:` line names the limit that was observed.
+
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 prompt or a stop.
 

@@ -62,6 +62,9 @@ const SAMPLES = {
   ]),
 
   handoff: () => lib('handoff', 'messages.js').preclose({ what: 'gate', label: 'npm test' }),
+
+  // The session-boundary status: counts and the path, never the ledger's text.
+  progress: () => lib('progress', 'messages.js').status({ open: 2, ageMs: 2 * 24 * 3600 * 1000 }),
 };
 
 // Wrap on spaces at WRAP columns, the way the rest of the README is wrapped.

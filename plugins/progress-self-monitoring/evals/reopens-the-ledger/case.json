@@ -1,0 +1,10 @@
+{
+  "intent": "work",
+  "expect": "block",
+  "artifact": {
+    "exists": true,
+    "changed": true,
+    "open_max": 1
+  },
+  "why": "The second session of a two-session task, stood in for by a seeded workspace: a small package, the first session's release scripts, and a ledger with two open items - the publish script blocked on NPM_TOKEN, and a question returned to the owner about `## [Unreleased]`. The prompt never mentions a previous session: it retires the publish path (closing the blocked item, with nothing to delete - the runner denies `rm`) and asks to sort out the empty newest section. Measured: with nothing in the prompt pointing at the past, the baseline never opens the ledger (0 of 3 touched it); with the plugin, 3 of 3 re-opened and updated it. The grader reads the file: changed, and the publish item gone (at most one open). The returned question's fate is NOT graded: 'sort that out' is an owner instruction that resolves it, so a prompt that holds the question open would have to leave the changelog alone - that is a different case. Unchanged is the failure this one exists for: a ledger nobody re-opened."
+}

@@ -1,0 +1,28 @@
+// Corpus for progress-self-monitoring/lib/signals.js - spansSessions().
+// The USER's prompt says the work continues in a later session - the one
+// objective signal, on arrival, that this turn's residue must reach disk.
+// Misses: "session" in every other sense (storage, cookies, ids, this one).
+{"text": "Do what can be done now. We will continue in a later session.", "expect": "hit", "why": "later session"}
+{"text": "Build the script; I'll set the token in a later session.", "expect": "hit", "why": "later session"}
+{"text": "Let's get the parser done today and pick this up next session.", "expect": "hit", "why": "next session"}
+{"text": "This is part one; the deploy half comes in another session.", "expect": "hit", "why": "another session"}
+{"text": "We'll continue this tomorrow, so leave notes for where you stop.", "expect": "hit", "why": "we'll continue ... tomorrow"}
+{"text": "I have to go - we'll pick this up later. Get as far as you can.", "expect": "hit", "why": "pick this up later"}
+{"text": "Start the migration; we'll pick it back up next week.", "expect": "hit", "why": "pick it back up next week"}
+{"text": "This spans a few sessions. For this one, do the schema.", "expect": "hit", "why": "spans sessions"}
+{"text": "We are setting this up across multiple sessions; today is the CLI.", "expect": "hit", "why": "across sessions"}
+{"text": "Continue where we left off in the previous session.", "expect": "hit", "why": "previous session"}
+{"text": "Same project as last session - carry on from the ledger.", "expect": "hit", "why": "last session"}
+{"text": "Next time we'll do the tests; for now, the implementation.", "expect": "hit", "why": "next time"}
+{"text": "Add a session cookie to the login flow and expire it after an hour.", "expect": "miss", "why": "session cookie"}
+{"text": "Store the draft in sessionStorage so a reload keeps it.", "expect": "miss", "why": "sessionStorage"}
+{"text": "The session id is leaking into the logs; redact it.", "expect": "miss", "why": "session id"}
+{"text": "In this session, fix the flaky test and nothing else.", "expect": "miss", "why": "this session"}
+{"text": "Open a tmux session and run the watcher there.", "expect": "miss", "why": "tmux session"}
+{"text": "Users report being logged out - the session store is losing entries.", "expect": "miss", "why": "session store"}
+{"text": "Continue with the next file in the list.", "expect": "miss", "why": "continue, no session"}
+{"text": "Let's continue: implement the second endpoint now.", "expect": "miss", "why": "continue now"}
+{"text": "What is the difference between some() and every() on an empty array?", "expect": "miss", "why": "a question"}
+{"text": "Implement the three parts and run the tests.", "expect": "miss", "why": "a task, no boundary"}
+{"text": "The training session for new hires is on Friday; add it to the calendar page.", "expect": "miss", "why": "training session"}
+{"text": "Pick the fastest option later in the pipeline, after the cache warms.", "expect": "miss", "why": "later, no session"}

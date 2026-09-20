@@ -141,6 +141,27 @@ const DETECTORS = [
     // the corpus now, so the next widening cannot quietly undo this one.
     floors: { recall: 1.0, precision: 1.0 },
   },
+  {
+    id: 'progress-ledger',
+    file: 'progress-ledger.jsonl',
+    what: 'open items in .agent/progress.md - blocked / returned lines under ## Open',
+    plugin: 'progress-self-monitoring',
+    fire: (t) => lib('progress', 'ledger.js').openItems(t) > 0,
+    // The one detector whose miss is silent: a refused line is a session that
+    // opens with no reminder. The grammar was fixed before the parser and the
+    // corpus written first, so the floors start at 1.0 / 1.0 and stay there.
+    floors: { recall: 1.0, precision: 1.0 },
+  },
+  {
+    id: 'progress-prompt',
+    file: 'progress-prompt.jsonl',
+    what: 'the user says the work continues in a later session',
+    plugin: 'progress-self-monitoring',
+    fire: (t) => lib('progress', 'signals.js').spansSessions(t),
+    // Fires on the user's prompt, once, and answers with the file's name.
+    // "session" in any other sense is a labelled miss; precision stays 1.0.
+    floors: { recall: 1.0, precision: 1.0 },
+  },
 ];
 
 function loadCorpus(file) {

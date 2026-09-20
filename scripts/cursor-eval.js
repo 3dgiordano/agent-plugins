@@ -85,7 +85,7 @@ const ROOT = path.resolve(__dirname, '..');
 const PLUGINS = path.join(ROOT, 'plugins');
 const GLOBAL_PLUGINS = path.join(os.homedir(), '.cursor', 'plugins', 'local');
 
-const { PLUGINS: PLUGINS_DIR, cases, graderFor, gradingOf, usable, verdict, reportLine, summaryLines, scratchWorkspace, isolatedHome, quote } = require('./evallib.js');
+const { PLUGINS: PLUGINS_DIR, cases, graderFor, gradingOf, usable, verdict, reportLine, summaryLines, scratchWorkspace, isolatedHome, quote, seed, harvest } = require('./evallib.js');
 
 // ---------------------------------------------------------------------------
 // The CLI
@@ -333,14 +333,17 @@ function main() {
       const arm = withPlugin ? 'with' : 'without';
       for (let i = 0; i < runs; i++) {
         const ws = scratchWorkspace();
+        seed(ws, c);
         const r = run(cli.bin, argsFor(c, withPlugin, model, ws), env, c.prompt, ws);
         const text = `${r.stdout || ''}`;
-        fs.writeFileSync(path.join(outDir, `${c.plugin}__${c.id}__${arm}__${i + 1}.txt`), text);
+        const base = `${c.plugin}__${c.id}__${arm}__${i + 1}`;
+        fs.writeFileSync(path.join(outDir, `${base}.txt`), text);
+        const artifact = harvest(ws, c, outDir, base);
         // See usable() - a CLI error on stdout is not an answer, and for a
         // quiet case it would otherwise score as a pass.
         if (!usable(text)) { dead += 1; continue; }
         valid[arm] += 1;
-        if (verdict(c, text)) score[arm] += 1;
+        if (verdict(c, text, artifact)) score[arm] += 1;
       }
     }
     incomplete.dead += dead;

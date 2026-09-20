@@ -5,6 +5,95 @@ All notable changes to this repository. The format follows
 version is independent of the per-plugin versions, which are listed in each
 release.
 
+## [Unreleased]
+
+## [0.7.0] — 2026-09-20
+
+A seventh plugin, and the first whose artifact is on disk. Six plugins anchor
+the agent to something it writes into the turn, and a session boundary — a new
+chat, a `/clear`, a resume nobody used, a compaction — drops the turn and
+keeps the disk. progress-self-monitoring puts what must outlive the session
+where the next one will look: `.agent/progress.md`, the parts still
+`blocked` or `returned` with their observed reason, and the next action. The
+ledger is the block; there is no copy in the message by design.
+
+It is also the one hook in the collection that reads a project file — one
+fixed path, its mtime and a line count, never its text, never written by a
+hook — and SECURITY.md now says so. Measured on the way in, three runs per arm
+on Claude Code: both block cases 100% with the plugin and 0% without, the
+quiet case costing nothing. The number that mattered came from the second
+case's third prompt: a baseline never opens a ledger the prompt does not
+point at.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.5.0 |
+| epistemic-self-monitoring | 0.1.11 |
+| persistence-self-monitoring | 0.1.11 |
+| termination-self-monitoring | 0.1.11 |
+| coverage-self-monitoring | 0.1.11 |
+| handoff-self-monitoring | 0.1.10 |
+| progress-self-monitoring | 0.1.0 |
+
+### Added
+- **progress-self-monitoring 0.1.0** — the seventh plugin, and the first
+  whose artifact is on disk. What a session leaves open — the parts still
+  `blocked` or `returned` with their observed reason, and the next
+  action — goes in `.agent/progress.md`, written by the agent and re-opened
+  by the next session before it works. There is no block in the message by
+  design: the message is what a session boundary drops.
+
+  Hooks: `SessionStart` (startup, resume, clear, and compact) says how many
+  items are open and how old the ledger is, never its text; `Stop` compares
+  the turn's edits with the ledger's mtime and parks "the work moved, the
+  record did not" for the next prompt, once per ledger version; `SessionEnd`
+  logs whether the session ended on a stale ledger — the number a strict gate
+  would be argued from, so there is none yet. The parser is strict on
+  vocabulary and tolerant on formatting, with its grammar fixed in
+  `evals/corpus/progress-ledger.jsonl` (36 rows, 1.0 / 1.0) before it was
+  written.
+
+  This is the one hook in the collection that reads a project file: one fixed
+  path, metadata and a count, read-only. SECURITY.md records it.
+
+  Measured on the way in, three runs per arm. The first `keeps-the-residue`
+  run scored 1 of 3 with the plugin and 0 of 3 without: two runs wrote "cannot
+  be exercised until you set the token in a later session" in the reply and
+  persisted nothing - they knew it was residue, and the reply is where they
+  put it. The owner had said "later session" in the prompt and nothing read
+  it. So the prompt hook now does (`spansSessions`, corpus
+  `evals/corpus/progress-prompt.jsonl`, 24 rows, 1.0 / 1.0) and answers
+  with the file's name. The first `reopens-the-ledger` run scored 0 of 3 in
+  both arms and every one of the six was right: the prompt asserted a token
+  the runner never set, the agents kept the item blocked with the observed
+  reason, and the case's `open_max: 0` graded that as failure. The prompt
+  was rewritten twice more. Once to close both items by the owner's decision
+  - and the runner denied the `rm` that asked for, so every run kept one
+  item blocked with that reason and the grader failed all six for it. Then to
+  say nothing about a previous session at all, which is where the number
+  came from: the baseline never opened a ledger the prompt did not point at
+  (0 of 3 touched it), the plugin arm re-opened and updated it 3 of 3. Three
+  cases, 3 runs per arm on Claude Code: keeps-the-residue 100% / 0%,
+  reopens-the-ledger 100% / 0%, stays-quiet 100% quiet in both arms.
+- **eval runners: file-graded cases.** A case may ship a `files/` directory
+  that both runners copy into the scratch workspace before the run, and a
+  plugin listed in `ARTIFACT` (`scripts/evallib.js`) is graded on the file
+  it leaves behind — kept beside the transcript as `<run>.artifact.md`, so
+  `--rescore` reads it too — by the rules its `case.json` names under
+  `artifact`. Progress ships three such cases; a seeded workspace is how a
+  one-prompt run stands in for the second session of a two-session failure.
+- **the seventh question** — *can the next session pick this up?* — on the
+  social preview, in the issue templates, in CONTRIBUTING's naming rule and
+  the assets guide; coverage's and termination's READMEs name the boundary.
+- **scripts/hosts.js** knows `SessionStart` as a turn-boundary capability;
+  **scripts/calibrate.js** reads the progress log, including the age
+  distribution behind `MAX_AGE_DAYS`.
+
+### Changed
+- **scripts/test.js** — the CHANGELOG check no longer assumes the newest
+  release table lists every plugin in the repo: a plugin added since is
+  expected under *Unreleased* instead, named with its version.
+
 ## [0.6.0] — 2026-09-20
 
 What an injected message has to carry, measured rather than reasoned about.
@@ -882,7 +971,8 @@ First public release.
   backticks was scanned as a closure block; the marker must now stand alone
   on its line.
 
-[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.7.0
 [0.6.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.6.0
 [0.5.1]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.5.1
 [0.5.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.5.0

@@ -13,6 +13,7 @@ body:
         - termination-self-monitoring
         - coverage-self-monitoring
         - handoff-self-monitoring
+        - progress-self-monitoring
         - repository / tooling (scripts, CI, marketplaces)
     validations:
       required: true

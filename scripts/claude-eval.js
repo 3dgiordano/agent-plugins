@@ -73,7 +73,7 @@ const { spawnSync } = require('child_process');
 // A real binding, not a comment: the CI guard strips comments before looking.
 const AGENT_CLI_DRIVER = true;
 
-const { ROOT, PLUGINS, cases, gradingOf, usable, verdict, reportLine, summaryLines, scratchWorkspace, quote } = require('./evallib.js');
+const { ROOT, PLUGINS, cases, gradingOf, usable, verdict, reportLine, summaryLines, scratchWorkspace, quote, seed, harvest, readArtifact } = require('./evallib.js');
 
 const GLOBAL_PLUGINS = path.join(os.homedir(), '.claude', 'plugins');
 const MARKETPLACE = (() => {
@@ -343,7 +343,7 @@ function main() {
       const text = fs.readFileSync(path.join(dir, f), 'utf8');
       if (!usable(text)) { acc.dead += 1; continue; }
       acc.valid[m[3]] += 1;
-      if (verdict(c, text)) acc[m[3]] += 1;
+      if (verdict(c, text, readArtifact(dir, f.replace(/\.txt$/, '')))) acc[m[3]] += 1;
     }
     if (!byCase.size) { console.error(`no transcripts in ${dir} match a current case`); process.exitCode = 1; return; }
     console.log(`re-scored from disk, no calls made: ${dir}\n`);
@@ -415,15 +415,18 @@ function main() {
       const arm = withPlugin ? 'with' : 'without';
       for (let i = 0; i < runs; i++) {
         const ws = bareWorkspace(c.intent);
+        seed(ws, c);
         const r = run(cli.bin, argsFor(c, withPlugin, model), {}, c.prompt, ws);
         const text = `${r.stdout || ''}`;
-        fs.writeFileSync(path.join(outDir, `${c.plugin}__${c.id}__${arm}__${i + 1}.txt`), text);
+        const base = `${c.plugin}__${c.id}__${arm}__${i + 1}`;
+        fs.writeFileSync(path.join(outDir, `${base}.txt`), text);
+        const artifact = harvest(ws, c, outDir, base);
         // A run that never reached the model is not evidence either way. It is
         // dropped from the denominator rather than counted as a failure - and,
         // for a quiet case, rather than counted as a pass.
         if (!usable(text)) { dead += 1; continue; }
         valid[arm] += 1;
-        if (verdict(c, text)) score[arm] += 1;
+        if (verdict(c, text, artifact)) score[arm] += 1;
       }
     }
     incomplete.dead += dead;

@@ -1,0 +1,41 @@
+// Corpus for progress-self-monitoring/lib/ledger.js - openItems().
+// The ledger on disk: `- blocked:` / `- returned:` lines under `## Open` are open
+// items; nothing else is. Vocabulary strict, formatting tolerant - an agent
+// writing markdown decorates, and a refusal here is silent (no reminder).
+// `count` is read by scripts/test.js, not by corpus.js, which is binary.
+{"text":"## Open\n- blocked: waiting on API key from owner\n","expect":"hit","why":"single blocked","count":1}
+{"text":"## Open\n- returned: migration deferred to owner\n","expect":"hit","why":"single returned","count":1}
+{"text":"## Open\n- blocked: flaky CI\n- returned: docs later\n","expect":"hit","why":"two open items","count":2}
+{"text":"Updated: 2026-09-18\n\n## Open\n- blocked: need prod dump\n\nNext: re-run importer\n","expect":"hit","why":"noise outside Open ignored","count":1}
+{"text":"## Open\n- blocked:\n","expect":"hit","why":"empty reason still counts; skill requires reason","count":1}
+{"text":"## Open\n- blocked: a\n- blocked: b\n- returned: c\n","expect":"hit","why":"three lines","count":3}
+{"text":"## Open\r\n- blocked: CRLF file\r\n","expect":"hit","why":"CRLF","count":1}
+{"text":"## Open \n- blocked: trailing space on heading\n","expect":"hit","why":"heading trailing space","count":1}
+{"text":"## Open\n* blocked: star bullet\n","expect":"hit","why":"bullet variant","count":1}
+{"text":"## Open\n+ blocked: plus bullet\n","expect":"hit","why":"plus bullet","count":1}
+{"text":"## Open\n- Blocked: capital\n","expect":"hit","why":"case","count":1}
+{"text":"## Open\n- **blocked:** bold field\n","expect":"hit","why":"bold, colon inside","count":1}
+{"text":"## Open\n- **blocked**: bold field\n","expect":"hit","why":"bold, colon outside","count":1}
+{"text":"## Open\n  - blocked: indented\n","expect":"hit","why":"indent","count":1}
+{"text":"## Open\n- blocked : space before colon\n","expect":"hit","why":"space before colon","count":1}
+{"text":"## Open\n- blocked:no space after colon\n","expect":"hit","why":"no space after colon","count":1}
+{"text":"## Open\n- blocked: a\n## Open\n- returned: b\n","expect":"hit","why":"two Open sections add","count":2}
+{"text":"## Open\n- blocked: a\n- done: b\n","expect":"hit","why":"done ignored, blocked counts","count":1}
+{"text":"## Open\n\t- returned: tab indent\n","expect":"hit","why":"tab indent","count":1}
+{"text":"## Open\n- RETURNED: upper\n","expect":"hit","why":"returned case","count":1}
+{"text":"## Open\n- done: finished importer\n","expect":"miss","why":"done does not count"}
+{"text":"## Open\nblocked: missing dash\n","expect":"miss","why":"not a list item"}
+{"text":"## Open\n- blocked waiting on owner\n","expect":"miss","why":"no colon"}
+{"text":"## Open\n-blocked: no space after dash\n","expect":"miss","why":"not a list item"}
+{"text":"### Open\n- blocked: wrong level\n","expect":"miss","why":"heading level is the contract"}
+{"text":"**Open**\n- blocked: bold not heading\n","expect":"miss","why":"not a heading"}
+{"text":"## Open\n\n## Next\n- blocked: under another heading\n","expect":"miss","why":"section ends at next heading"}
+{"text":"## Progress\n- blocked: wrong heading\n","expect":"miss","why":"only ## Open"}
+{"text":"## Open\n- abandoned: old vocab\n","expect":"miss","why":"no abandoned state"}
+{"text":"","expect":"miss","why":"empty file"}
+{"text":"Updated: 2026-09-01\nNext: something\n","expect":"miss","why":"no Open section"}
+{"text":"## Open\nWe should continue the migration later.\n","expect":"miss","why":"prose is not an item"}
+{"text":"- blocked: outside section\n## Open\n","expect":"miss","why":"item before empty Open"}
+{"text":"## Open\n- [ ] blocked: checkbox\n","expect":"hit","why":"checkbox open is decoration","count":1}
+{"text":"## Open\n- [x] blocked: checked still open token\n","expect":"hit","why":"checkbox checked still blocked token; skill closes by removing or done","count":1}
+{"text":"## Open\n- [ ] returned: checkbox returned\n","expect":"hit","why":"checkbox on returned","count":1}

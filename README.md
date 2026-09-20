@@ -10,11 +10,11 @@
 
 Cognitive scaffolding for coding agents, by [3dgiordano](https://github.com/3dgiordano).
 
-Six small plugins that give a coding agent the self-checks a human engineer
+Seven small plugins that give a coding agent the self-checks a human engineer
 runs in the background — *am I still on the plan?*, *is this actually verified?*,
 *is it worth another try?*, *is that a reason or a phrase?*, *did I do the hard
-part?*, *can the reader act on what I wrote?* — delivered as a nudge at the
-moment it is needed. They never block. They have no dependencies, make no network calls, and send
+part?*, *can the reader act on what I wrote?*, *can the next session pick this
+up?* — delivered as a nudge at the moment it is needed. They never block. They have no dependencies, make no network calls, and send
 nothing anywhere.
 
 ## What your agent sees
@@ -70,6 +70,17 @@ CHECK] as blocked or returned, with the reason. (coverage-self-monitoring
 skill, "Core Protocol")
 ```
 
+And when a session opens — or continues after a compaction — in a project
+whose ledger has something in it:
+
+```
+[progress self-monitoring] `.agent/progress.md` has 2 open items, updated 2
+days ago. Re-open it before substantive work: it is the record of what the
+last session left blocked or returned. Carry each item into this session or
+close it, and keep Updated and Next current. (progress-self-monitoring skill,
+"Core Protocol")
+```
+
 And when the tests go green after a run of edits — the moment the final
 message is about to be written:
 
@@ -88,7 +99,7 @@ claude plugin marketplace add 3dgiordano/agent-plugins
 claude plugin install persistence-self-monitoring@3dgiordano-agent-plugins
 ```
 
-Swap in any of the other five, or install all six. Cursor and other hosts: see
+Swap in any of the other six, or install all seven. Cursor and other hosts: see
 [Install](#install).
 
 ## What the hooks do — and don't
@@ -102,12 +113,15 @@ here is exactly what they are:
 - **Nothing persisted by default.** Per-session counters live in the OS temp
   dir and are the only state. Debug logs exist but are **off** unless you set
   an env var, and then they are written inside your project, size-bounded.
+  One plugin, progress, **reads** one fixed file in your project
+  (`.agent/progress.md`) if you keep one — its mtime and a line count, never
+  its text — and no hook writes it.
 - **Never blocking by default.** Every hook fails silent: an error in a hook
   lets the prompt, tool call or stop proceed. Three opt-in gates exist —
   `EPIMON_STRICT` (an incomplete closure block), `TERMMON_STRICT` (a
   state-shaped reason to stop with no checkable one) and `HANDMON_STRICT` (a
   decision named with no handoff) — and each blocks once, never in a loop.
-  The other three plugins have no blocking mode at all.
+  The other four plugins have no blocking mode at all.
 - **Tested as the host runs them.** CI drives every adapter with the JSON its
   host sends, on Ubuntu and Windows, Node 18/20/22.
 
@@ -126,7 +140,7 @@ missing function, or a filter for one such artifact — a small, honest
 self-check, anchored to an external artifact or an objective count rather than
 to "reflect harder", delivered at the moment it is actually needed.
 
-The collection is organized around six questions:
+The collection is organized around seven questions:
 
 | Question | What it monitors | Plugin |
 |----------|------------------|--------|
@@ -136,14 +150,17 @@ The collection is organized around six questions:
 | *Is this stop justified by something checkable?* | the stated reason for a stop — vs. a persona artifact | [termination-self-monitoring](plugins/termination-self-monitoring/) |
 | *Did I deliver every part, including the hard one?* | task coverage / effort allocation | [coverage-self-monitoring](plugins/coverage-self-monitoring/) |
 | *Can the reader act on what I wrote?* | the handoff of the turn — recipient design | [handoff-self-monitoring](plugins/handoff-self-monitoring/) |
+| *Can the next session pick this up?* | the residue across a session boundary — prospective memory | [progress-self-monitoring](plugins/progress-self-monitoring/) |
 
 Persistence and termination are the two directions of one axis — stopping too
 late on no signal, and stopping too early on a signal the agent does not have.
 Executive and coverage are likewise a pair: work *outside* the plan, and work
 *below* it. Epistemic and handoff are the knowing side and the transmitting
 side of one claim: is it true, and did it reach the reader in a form they can
-use. They install independently and cross-reference each other where it
-helps. Names say what is monitored, never an internal state: what looks like
+use. Progress is the one that looks past the turn: what the other six leave
+open when the session ends, kept where the next session will find it — on
+disk, because the message is what the boundary drops. They install
+independently and cross-reference each other where it helps. Names say what is monitored, never an internal state: what looks like
 fatigue or avoidance from outside is a training-data artifact, and the plugin's
 job is to name it, not to adopt it.
 
@@ -168,6 +185,7 @@ one install, on every host it supports:
 | [termination-self-monitoring](plugins/termination-self-monitoring/) | available | Checkable-reason discipline: a state-shaped reason to stop, defer or narrow ("running out of context", "long session", "not confident enough", "given the complexity", a run of apologies) is replaced by a checkable one or dropped, and the work continues. Non-blocking by default, opt-in strict gate. |
 | [coverage-self-monitoring](plugins/coverage-self-monitoring/) | available | Parts-ledger discipline: the parts of a request, hardest first, each closed as done, blocked with an observed reason, or returned to the owner. Counts stubs and TODOs written per turn; flags deferred work with no closing ledger. Never blocks. |
 | [handoff-self-monitoring](plugins/handoff-self-monitoring/) | available | Structured-handoff discipline: the final message closes with a `[HANDOFF]` block modelled on SBAR / I-PASS — status, situation in the reader's terms, options with a default, one next action. Injects the format on the first green gate or commit of the turn; flags a decision named but not handed off. Non-blocking by default, opt-in strict gate. |
+| [progress-self-monitoring](plugins/progress-self-monitoring/) | available | Cross-session ledger discipline: what a session leaves `blocked` or `returned`, with the reason, and the next action, kept in `.agent/progress.md` and re-opened before the next session works. Announces the ledger's open items when a session opens or continues after a compaction; notices a turn that edited files and left it untouched. Never blocks. |
 
 ### What each host actually gets
 
@@ -187,6 +205,8 @@ context after the agent's final message, so two layers degrade there:
 | Coverage close scan (deferred work vs. `[COVERAGE CHECK]`) | ✓ + retrospective | **log only** — the agent is not told |
 | Handoff pre-close nudge (first green gate or commit) | ✓ | ✓ |
 | Handoff close scan (decision named vs. `[HANDOFF]`) | ✓ + retrospective, strict gate | scan + strict gate (`followup_message`); **no retrospective** |
+| Progress ledger status (open items at session start / after compaction) | ✓ (`SessionStart`, first prompt as fallback) | ✓ (`sessionStart`) |
+| Progress stale-ledger finding (edits, ledger untouched) | ✓ retrospective, once per ledger version | **log only** — the agent is not told |
 
 So on Cursor, coverage is the skill plus the stub counter; the closing
 discipline it describes reaches the agent only through the skill text. An A/B
@@ -210,6 +230,7 @@ claude plugin install persistence-self-monitoring@3dgiordano-agent-plugins
 claude plugin install termination-self-monitoring@3dgiordano-agent-plugins
 claude plugin install coverage-self-monitoring@3dgiordano-agent-plugins
 claude plugin install handoff-self-monitoring@3dgiordano-agent-plugins
+claude plugin install progress-self-monitoring@3dgiordano-agent-plugins
 ```
 
 ```
@@ -220,6 +241,7 @@ claude plugin install handoff-self-monitoring@3dgiordano-agent-plugins
 /plugin install termination-self-monitoring@3dgiordano-agent-plugins
 /plugin install coverage-self-monitoring@3dgiordano-agent-plugins
 /plugin install handoff-self-monitoring@3dgiordano-agent-plugins
+/plugin install progress-self-monitoring@3dgiordano-agent-plugins
 ```
 
 Enabling the plugin makes the skill available **and** auto-registers its hooks —

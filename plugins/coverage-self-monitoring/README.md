@@ -94,6 +94,13 @@ the `[COVERAGE CHECK]` and asks for a `[HANDOFF]` block (options with their
 consequences, a default, one next action) when there is none. Coverage says
 *which* parts are open; handoff says it in the reader's terms.
 
+**Boundary with progress-self-monitoring.** The ledger here lives in the
+turn and closes with it. What the `[COVERAGE CHECK]` leaves `blocked` or
+`returned` and the session will not resolve is what
+[progress-self-monitoring](../progress-self-monitoring/) keeps on disk, in
+`.agent/progress.md`, under the same two words — so the next session opens
+on the parts this one could not close, with their reasons.
+
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 prompt, a tool call, or a stop.
 

@@ -703,19 +703,176 @@ test('handoff (cursor): sessionStart, postToolUse pre-close, afterAgentResponse 
 });
 
 // ---------------------------------------------------------------------------
+// progress-self-monitoring
+// ---------------------------------------------------------------------------
+
+const PRO = 'progress-self-monitoring';
+
+// A project dir with a ledger, its mtime set an hour back so "written this
+// turn" is false until the test writes it.
+function ledgerProject(t, text) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-prog-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  if (text !== undefined) {
+    fs.mkdirSync(path.join(dir, '.agent'), { recursive: true });
+    fs.writeFileSync(path.join(dir, '.agent', 'progress.md'), text);
+    const old = (Date.now() - 3600 * 1000) / 1000;
+    fs.utimesSync(path.join(dir, '.agent', 'progress.md'), old, old);
+  }
+  return dir;
+}
+
+test('progress ledger parser: strict vocabulary, tolerant formatting, and the corpus counts agree', () => {
+  const { openItems, isLedgerPath, inspect, MAX_AGE_MS } = require(path.join(plugin(PRO), 'lib/ledger.js'));
+  // every corpus row that carries a count is an exact-count assertion here;
+  // corpus.js only checks fire / no fire
+  const rows = fs.readFileSync(path.join(ROOT, 'evals/corpus/progress-ledger.jsonl'), 'utf8').split(/\r?\n/)
+    .filter((l) => l.trim() && !l.startsWith('//')).map((l) => JSON.parse(l));
+  assert.ok(rows.length >= 30, 'the corpus is the spec; it should not have shrunk');
+  for (const r of rows) {
+    if (typeof r.count === 'number') assert.equal(openItems(r.text), r.count, `count for: ${r.why}`);
+    else assert.equal(openItems(r.text), 0, `must not count: ${r.why}`);
+  }
+  assert.equal(openItems('## Open\n- [x] **Blocked** : a\n\t+ returned:b\n### Sub\n- blocked: no\n## Open\n- returned: c\n'), 3);
+  assert.equal(openItems(null), 0);
+  assert.ok(isLedgerPath('.agent/progress.md') && isLedgerPath('C:\\proj\\.agent\\progress.md') && isLedgerPath('/p/.agent/progress.md'));
+  assert.ok(!isLedgerPath('agent/progress.md') && !isLedgerPath('.agent/progress.md.bak') && !isLedgerPath(''));
+  assert.deepEqual(inspect(null), { exists: false, open: 0, mtimeMs: null, ageMs: null, fresh: false });
+  assert.ok(MAX_AGE_MS > 0);
+});
+
+test('progress (claude): session start speaks only on a fresh ledger with open items; the first prompt does not repeat it', (t) => {
+  const sid = uid('prog-ss');
+  t.after(() => cleanupTemp('progmon_claude_' + sid));
+  const none = ledgerProject(t);
+  assert.equal(hook(PRO, 'hooks/prog-session-start.js', { session_id: sid, cwd: none, source: 'startup' }).out, '', 'no ledger: silent');
+  const empty = ledgerProject(t, '# Progress\nUpdated: 2026-09-20\n\n## Open\n\nNext: none\n');
+  assert.equal(hook(PRO, 'hooks/prog-session-start.js', { session_id: sid, cwd: empty, source: 'startup' }).out, '', 'nothing open: silent');
+  const open = ledgerProject(t, '## Open\n- blocked: a\n- returned: b\n');
+  const r = hook(PRO, 'hooks/prog-session-start.js', { session_id: sid, cwd: open, source: 'compact' });
+  assert.equal(r.code, 0);
+  assert.match(r.out, /^\[progress self-monitoring\] `\.agent\/progress\.md` has 2 open items, updated 1 hour ago/);
+  assert.ok(!r.out.includes('blocked: a'), 'the ledger text never travels through a hook');
+  const p1 = hook(PRO, 'hooks/prog-prompt.js', { session_id: sid, cwd: open, prompt: 'go' });
+  assert.match(p1.out, /Load the progress-self-monitoring skill if it is not already loaded/, 'turn 1 loads');
+  assert.ok(!p1.out.includes('has 2 open items'), 'already announced by SessionStart: not repeated');
+  // a stale-by-age ledger is left alone
+  const stale = ledgerProject(t, '## Open\n- blocked: a\n');
+  const veryOld = (Date.now() - 40 * 24 * 3600 * 1000) / 1000;
+  fs.utimesSync(path.join(stale, '.agent', 'progress.md'), veryOld, veryOld);
+  assert.equal(hook(PRO, 'hooks/prog-session-start.js', { session_id: uid('prog-old'), cwd: stale, source: 'startup' }).out, '', 'older than MAX_AGE_DAYS: silent');
+});
+
+test('progress (claude): the first prompt announces the ledger when SessionStart did not run', (t) => {
+  const sid = uid('prog-p1');
+  t.after(() => cleanupTemp('progmon_claude_' + sid));
+  const open = ledgerProject(t, '## Open\n- blocked: a\n');
+  const p1 = hook(PRO, 'hooks/prog-prompt.js', { session_id: sid, cwd: open, prompt: 'go' });
+  assert.match(p1.out, /has 1 open item, updated 1 hour ago/, 'no SessionStart ran: the prompt carries the status');
+  const p2 = hook(PRO, 'hooks/prog-prompt.js', { session_id: sid, cwd: open, prompt: 'go' });
+  assert.equal(p2.out, '', 'turn 2: silent');
+});
+
+test('progress (claude): a turn that edits files and leaves a ledger with open items untouched is reported once per ledger version, on the next prompt', (t) => {
+  const sid = uid('prog-stale');
+  t.after(() => cleanupTemp('progmon_claude_' + sid));
+  const dir = ledgerProject(t, '## Open\n- blocked: a\n- returned: b\n');
+  const cc = (x) => Object.assign({ session_id: sid, cwd: dir }, x);
+  const edit = (f) => hook(PRO, 'hooks/prog-observe.js', cc({ tool_name: 'Edit', tool_input: { file_path: f } }));
+  const stop = () => hook(PRO, 'hooks/prog-stop.js', cc({ hook_event_name: 'Stop', last_assistant_message: 'done' }));
+  const prompt = () => hook(PRO, 'hooks/prog-prompt.js', cc({ prompt: 'go' }));
+  const older = (Date.now() - 3600 * 1000) / 1000;
+
+  prompt();
+  // no edits -> nothing, whatever the ledger says
+  assert.equal(stop().code, 0);
+  assert.equal(prompt().out, '', 'a turn with no edits is not a stale turn');
+  // edits, ledger untouched -> retrospective
+  edit('src/a.js'); edit('src/b.js');
+  assert.equal(stop().out, '', 'stop itself never speaks');
+  const r = prompt();
+  assert.match(r.out, /^\[progress self-monitoring\] Your previous turn made 2 file edits and left `\.agent\/progress\.md` untouched with 2 open items/);
+  // same ledger version, another editing turn -> silent (once per version)
+  edit('src/c.js'); stop();
+  assert.equal(prompt().out, '', 'already reported for this ledger version');
+  // the ledger is written this turn (mtime moves) -> silent, and the signal re-arms
+  edit('src/d.js');
+  fs.writeFileSync(path.join(dir, '.agent', 'progress.md'), '## Open\n- returned: b\n');
+  stop();
+  assert.equal(prompt().out, '', 'ledger updated in the turn: nothing to report');
+  fs.utimesSync(path.join(dir, '.agent', 'progress.md'), older - 100, older - 100); // a distinct stamp per version: two an ms apart round to one mtime
+  edit('src/e.js'); stop();
+  assert.match(prompt().out, /1 file edit and left .* with 1 open item\./, 're-armed for the new version');
+  // an edit tool call on the ledger path counts as written even if mtime did not move
+  fs.utimesSync(path.join(dir, '.agent', 'progress.md'), older - 200, older - 200);
+  edit('src/f.js');
+  hook(PRO, 'hooks/prog-observe.js', cc({ tool_name: 'Write', tool_input: { file_path: path.join(dir, '.agent', 'progress.md') } }));
+  stop();
+  assert.equal(prompt().out, '', 'the hook saw the ledger written');
+  // ledger with nothing open next to edits -> silent
+  fs.writeFileSync(path.join(dir, '.agent', 'progress.md'), '## Open\n');
+  fs.utimesSync(path.join(dir, '.agent', 'progress.md'), older - 300, older - 300);
+  edit('src/g.js'); stop();
+  assert.equal(prompt().out, '', 'nothing open: nothing to keep current');
+});
+
+test('progress (claude): SessionEnd measures how the session ended, then drops its state', (t) => {
+  const sid = uid('prog-end');
+  t.after(() => cleanupTemp('progmon_claude_' + sid));
+  const dir = ledgerProject(t, '## Open\n- blocked: a\n');
+  const cc = (x) => Object.assign({ session_id: sid, cwd: dir }, x);
+  hook(PRO, 'hooks/prog-prompt.js', cc({ prompt: 'go' }));
+  hook(PRO, 'hooks/prog-observe.js', cc({ tool_name: 'Edit', tool_input: { file_path: 'a.js' } }));
+  hook(PRO, 'hooks/prog-stop.js', cc({ hook_event_name: 'Stop' }));
+  const r = hook(PRO, 'hooks/prog-session-end.js', cc({ reason: 'exit' }), { PROGRESSMON_LOG: '1' });
+  assert.equal(r.code, 0);
+  assert.equal(r.out, '');
+  const line = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'logs', 'progress-self-monitoring.jsonl'), 'utf8').trim().split('\n').pop());
+  assert.equal(line.event, 'session_end');
+  assert.equal(line.open, 1);
+  assert.equal(line.stale, true, 'the last turn edited files and left the ledger: the number a strict gate would be argued from');
+  assert.ok(!fs.existsSync(path.join(STATE_DIR, `progmon_claude_${sid}.json`)), 'state dropped');
+});
+
+test('progress (cursor): sessionStart carries load + status, postToolUse counts Cursor edits, afterAgentResponse logs the stale turn and resets', (t) => {
+  const cid = uid('prog-cur');
+  t.after(() => cleanupTemp('progmon_cursor_' + cid));
+  const dir = ledgerProject(t, '## Open\n- blocked: a\n');
+  const cursorEnv = { CLAUDECODE: '', CLAUDE_PLUGIN_ROOT: '', CURSOR_PROJECT_DIR: dir, PROGRESSMON_LOG: '1' };
+  const ss = hook(PRO, 'cursor/prog-session-start.js', {}, cursorEnv);
+  assert.equal(ss.code, 0);
+  const ctx = JSON.parse(ss.out).additional_context;
+  assert.match(ctx, /Load the progress-self-monitoring skill if it is not already loaded/);
+  assert.match(ctx, /has 1 open item, updated 1 hour ago/);
+  const cc = (x) => Object.assign({ conversation_id: cid, workspace_roots: [dir] }, x);
+  assert.equal(hook(PRO, 'cursor/prog-observe-cursor.js', cc({ tool_name: 'edit_file', tool_input: { target_file: 'x.js', code_edit: 'a' } }), cursorEnv).out, '');
+  const ar = hook(PRO, 'cursor/prog-response-cursor.js', cc({ text: 'done' }), cursorEnv);
+  assert.equal(ar.code, 0);
+  assert.equal(ar.out, '', 'log only: Cursor has no injection point after the response');
+  const line = JSON.parse(fs.readFileSync(path.join(dir, '.cursor', 'logs', 'progress-self-monitoring.jsonl'), 'utf8').trim().split('\n').pop());
+  assert.equal(line.event, 'stop');
+  assert.equal(line.edits, 1);
+  assert.equal(line.stale, true);
+  const st = require(path.join(plugin(PRO), 'lib/state.js')).load('cursor', cid);
+  assert.equal(st.turn.edits, 0, 'turn reset after the response');
+});
+
+
+// ---------------------------------------------------------------------------
 // Logging (shared contract across plugins)
 // ---------------------------------------------------------------------------
 
 test('logging is off by default and writes host-routed JSONL when enabled', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-log-'));
   const sid = uid('log');
-  t.after(() => { fs.rmSync(dir, { recursive: true, force: true }); for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'execmon_claude_', 'termmon_claude_', 'covmon_claude_', 'handmon_claude_']) cleanupTemp(pfx + sid); });
+  t.after(() => { fs.rmSync(dir, { recursive: true, force: true }); for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'execmon_claude_', 'termmon_claude_', 'covmon_claude_', 'handmon_claude_', 'progmon_claude_']) cleanupTemp(pfx + sid); });
   hook('executive-self-monitoring', 'hooks/exec-monitor.js', { session_id: sid, cwd: dir });
   hook(EPI, 'hooks/epi-prompt.js', { session_id: sid, cwd: dir });
   hook(PER, 'hooks/persist-prompt.js', { session_id: sid, cwd: dir });
   hook(TER, 'hooks/term-prompt.js', { session_id: sid, cwd: dir });
   hook(COV, 'hooks/cov-prompt.js', { session_id: sid, cwd: dir });
   hook(HAN, 'hooks/hand-prompt.js', { session_id: sid, cwd: dir });
+  hook(PRO, 'hooks/prog-prompt.js', { session_id: sid, cwd: dir });
   assert.ok(!fs.existsSync(path.join(dir, '.claude')), 'no log files without the env var');
   hook('executive-self-monitoring', 'hooks/exec-monitor.js', { session_id: sid, cwd: dir }, { EXECMON_LOG: '1' });
   hook(EPI, 'hooks/epi-prompt.js', { session_id: sid, cwd: dir }, { EPIMON_LOG: '1' });
@@ -723,7 +880,8 @@ test('logging is off by default and writes host-routed JSONL when enabled', (t) 
   hook(TER, 'hooks/term-prompt.js', { session_id: sid, cwd: dir }, { TERMMON_LOG: '1' });
   hook(COV, 'hooks/cov-prompt.js', { session_id: sid, cwd: dir }, { COVMON_LOG: '1' });
   hook(HAN, 'hooks/hand-prompt.js', { session_id: sid, cwd: dir }, { HANDMON_LOG: '1' });
-  for (const f of ['executive-self-monitoring', 'epistemic-self-monitoring', 'persistence-self-monitoring', 'termination-self-monitoring', 'coverage-self-monitoring', 'handoff-self-monitoring']) {
+  hook(PRO, 'hooks/prog-prompt.js', { session_id: sid, cwd: dir }, { PROGRESSMON_LOG: '1' });
+  for (const f of ['executive-self-monitoring', 'epistemic-self-monitoring', 'persistence-self-monitoring', 'termination-self-monitoring', 'coverage-self-monitoring', 'handoff-self-monitoring', 'progress-self-monitoring']) {
     const p = path.join(dir, '.claude', 'logs', `${f}.jsonl`);
     assert.ok(fs.existsSync(p), `${f} log missing`);
     const line = JSON.parse(fs.readFileSync(p, 'utf8').trim().split('\n').pop());
@@ -758,7 +916,7 @@ test('state updates survive parallel hook processes (PostToolUse bursts): N conc
 
 test('loggers never write into the plugin install dir: no cwd and no project env means no log', (t) => {
   const sid = uid('nocwd');
-  t.after(() => { for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'execmon_claude_', 'termmon_claude_', 'covmon_claude_', 'handmon_claude_']) cleanupTemp(pfx + sid); });
+  t.after(() => { for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'execmon_claude_', 'termmon_claude_', 'covmon_claude_', 'handmon_claude_', 'progmon_claude_']) cleanupTemp(pfx + sid); });
   const noDir = { CLAUDE_PROJECT_DIR: '', CURSOR_PROJECT_DIR: '' };
   const before = pluginNames.map((p) => fs.existsSync(path.join(plugin(p), '.claude')) || fs.existsSync(path.join(plugin(p), '.cursor')));
   hook('executive-self-monitoring', 'hooks/exec-monitor.js', { session_id: sid }, Object.assign({ EXECMON_LOG: '1' }, noDir));
@@ -768,6 +926,7 @@ test('loggers never write into the plugin install dir: no cwd and no project env
   hook(COV, 'hooks/cov-stop.js', { session_id: sid, last_assistant_message: deferMsg }, Object.assign({ COVMON_LOG: '1' }, noDir));
   hook(HAN, 'hooks/hand-stop.js', { session_id: sid, last_assistant_message: offerMsg }, Object.assign({ HANDMON_LOG: '1' }, noDir));
   hook(EPI, 'cursor/epi-session-start.js', {}, Object.assign({ CLAUDECODE: '', EPIMON_LOG: '1' }, noDir));
+  hook(PRO, 'hooks/prog-session-start.js', { session_id: sid, source: 'startup' }, Object.assign({ PROGRESSMON_LOG: '1' }, noDir));
   pluginNames.forEach((p, i) => {
     const now = fs.existsSync(path.join(plugin(p), '.claude')) || fs.existsSync(path.join(plugin(p), '.cursor'));
     assert.equal(now, before[i], `${p}: a log dir appeared under the plugin itself`);
@@ -783,8 +942,8 @@ test('scripts/calibrate.js reads the logs of every plugin and prints what-if nud
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-cal-'));
   const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-cal-empty-'));
   const sid = uid('cal');
-  t.after(() => { for (const d of [dir, empty]) fs.rmSync(d, { recursive: true, force: true }); for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'execmon_claude_', 'termmon_claude_', 'covmon_claude_', 'handmon_claude_']) cleanupTemp(pfx + sid); });
-  const logs = { EXECMON_LOG: '1', EPIMON_LOG: '1', PERSISTMON_LOG: '1', TERMMON_LOG: '1', COVMON_LOG: '1', HANDMON_LOG: '1' };
+  t.after(() => { for (const d of [dir, empty]) fs.rmSync(d, { recursive: true, force: true }); for (const pfx of ['epimon_claude_', 'persistmon_claude_', 'execmon_claude_', 'termmon_claude_', 'covmon_claude_', 'handmon_claude_', 'progmon_claude_']) cleanupTemp(pfx + sid); });
+  const logs = { EXECMON_LOG: '1', EPIMON_LOG: '1', PERSISTMON_LOG: '1', TERMMON_LOG: '1', COVMON_LOG: '1', HANDMON_LOG: '1', PROGRESSMON_LOG: '1' };
   const cc = (x) => Object.assign({ session_id: sid, cwd: dir }, x);
   hook('executive-self-monitoring', 'hooks/exec-monitor.js', cc({}), logs);
   hook(EPI, 'hooks/epi-stop.js', cc({ last_assistant_message: badBlock }), logs);
@@ -795,6 +954,11 @@ test('scripts/calibrate.js reads the logs of every plugin and prints what-if nud
   hook(COV, 'hooks/cov-prompt.js', cc({ prompt: '- a\n- b\n- c' }), logs);
   hook(COV, 'hooks/cov-stop.js', cc({ last_assistant_message: deferMsg }), logs);
   hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: offerMsg }), logs);
+  fs.mkdirSync(path.join(dir, '.agent'), { recursive: true });
+  fs.writeFileSync(path.join(dir, '.agent', 'progress.md'), '## Open\n- blocked: x\n');
+  hook(PRO, 'hooks/prog-session-start.js', cc({ source: 'startup' }), logs);
+  hook(PRO, 'hooks/prog-prompt.js', cc({ prompt: 'go' }), logs);
+  hook(PRO, 'hooks/prog-stop.js', cc({ hook_event_name: 'Stop' }), logs);
   const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts/calibrate.js'), dir], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   for (const p of pluginNames) assert.match(r.stdout, new RegExp(`== ${p}  \\(\\d+ events\\)`), `${p} section`);
@@ -803,7 +967,8 @@ test('scripts/calibrate.js reads the logs of every plugin and prints what-if nud
   assert.match(r.stdout, /turns ending on a state-shaped reason \(any hit\)\s+100\.0%\s+\(1\/1\)/);
   assert.match(r.stdout, /turns ending with deferral language\s+100\.0%\s+\(1\/1\)/);
   assert.match(r.stdout, /turns ending on a decision not handed off \(any hit\)\s+100\.0%\s+\(1\/1\)/);
-  assert.match(r.stdout, /== all plugins together  \(6 logging, 1 sessions, 1 prompts\)/, 'cross-plugin join on session + turn');
+  assert.match(r.stdout, /sessions opening on a ledger with open items \(announced\)\s+100\.0%\s+\(1\/1\)/);
+  assert.match(r.stdout, /== all plugins together  \(7 logging, 1 sessions, 1 prompts\)/, 'cross-plugin join on session + turn');
   assert.match(r.stdout, /text blocks injected at the start of a prompt: mean/);
   const none = spawnSync(process.execPath, [path.join(ROOT, 'scripts/calibrate.js'), empty], { encoding: 'utf8' });
   assert.equal(none.status, 1);
@@ -909,6 +1074,7 @@ test('every plugin drops its own session state on SessionEnd, and sweeps aged re
     'handoff-self-monitoring': ['hand', 'handmon_'],
     'persistence-self-monitoring': ['persist', 'persistmon_'],
     'termination-self-monitoring': ['term', 'termmon_'],
+    'progress-self-monitoring': ['prog', 'progmon_'],
   };
   for (const [name, [abbr, prefix]] of Object.entries(STATE)) {
     const sid = `${stamp}-${abbr}`;
@@ -963,6 +1129,27 @@ test('SubagentStop is measured only: never blocks, never parks a retrospective',
     // and nothing was parked for the parent's next prompt
     const st = require(path.join(plugin(name), 'lib/state.js'));
     assert.ok(!(st.load('claude', `${stamp}-sub-only`).pending), `${name}: subagent close must not park a retrospective`);
+  }
+
+  // progress never blocks at all, and its finding is a stale ledger next to
+  // edits - a subagent's edits are the parent's turn, so nothing is parked
+  {
+    const sidP = `${stamp}-prog`;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-sub-prog-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    fs.mkdirSync(path.join(dir, '.agent'), { recursive: true });
+    fs.writeFileSync(path.join(dir, '.agent', 'progress.md'), '## Open\n- blocked: x\n');
+    const old = (Date.now() - 3600 * 1000) / 1000;
+    fs.utimesSync(path.join(dir, '.agent', 'progress.md'), old, old);
+    hook(PRO, 'hooks/prog-prompt.js', { session_id: sidP, cwd: dir, prompt: 'go' });
+    hook(PRO, 'hooks/prog-observe.js', { session_id: sidP, cwd: dir, tool_name: 'Edit', tool_input: { file_path: 'a.js' } });
+    const r = hook(PRO, 'hooks/prog-stop.js', { session_id: sidP, cwd: dir, hook_event_name: 'SubagentStop', agent_type: 'Explore' });
+    assert.equal(r.code, 0);
+    const progState = require(path.join(plugin(PRO), 'lib/state.js'));
+    assert.ok(!progState.load('claude', sidP).pending, 'progress: subagent close must not park a retrospective');
+    const main = hook(PRO, 'hooks/prog-stop.js', { session_id: sidP, cwd: dir, hook_event_name: 'Stop' });
+    assert.equal(main.code, 0);
+    assert.ok(progState.load('claude', sidP).pending, 'progress: the same close on the main turn parks one');
   }
 
   // coverage never blocks at all, but must still not park from a subagent
@@ -1060,8 +1247,19 @@ test('CHANGELOG: the newest release table matches the manifests, and its entries
   const release = heads[0][1];
 
   const table = new Map([...block.matchAll(/^\| ([a-z-]+-self-monitoring) \| (\d+\.\d+\.\d+) \|$/gm)].map((m) => [m[1], m[2]]));
-  assert.equal(table.size, pluginNames.length,
-    `${release}: the version table lists ${table.size} plugins, the repo has ${pluginNames.length}`);
+  /*
+   * A plugin the newest release did not ship is not in its table, and must
+   * not be: the table records what shipped. It has to be queued instead - an
+   * "Added" line under Unreleased that names it with its version - or it is
+   * a plugin nobody wrote down.
+   */
+  const unreleasedHead = md.indexOf('## [Unreleased]');
+  const unreleasedText = unreleasedHead === -1 ? '' : md.slice(unreleasedHead, from);
+  for (const p of pluginNames.filter((p) => !table.has(p))) {
+    assert.ok(new RegExp(`^- \\*\\*${p} \\d+\\.\\d+\\.\\d+\\*\\*`, 'm').test(unreleasedText),
+      `${p} is not in the ${release} table and not queued under Unreleased as "- **${p} x.y.z**"`);
+  }
+  for (const p of table.keys()) assert.ok(pluginNames.includes(p), `${release}: the table lists ${p}, which is not in plugins/`);
 
   /*
    * 1. the table agrees with the manifests - but only while nothing is queued
@@ -1071,13 +1269,13 @@ test('CHANGELOG: the newest release table matches the manifests, and its entries
    * What still holds either way: a manifest may never fall BEHIND what the
    * newest release shipped.
    */
-  const unreleased = md.slice(md.indexOf('## [Unreleased]'), from);
-  const queued = /^- /m.test(unreleased);
+  const queued = /^- /m.test(unreleasedText);
   const asNum = (v) => v.split('.').map(Number).reduce((a, n) => a * 1000 + n, 0);
 
   for (const name of pluginNames) {
     const shipped = readJson(path.join(plugin(name), 'plugin.json')).version;
     const released = table.get(name);
+    if (!released) continue; // queued as new, checked above
     if (queued) {
       assert.ok(asNum(shipped) >= asNum(released),
         `${name} is ${shipped}, behind the ${release} release table's ${released}`);

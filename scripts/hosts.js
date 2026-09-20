@@ -43,6 +43,7 @@ const dirOf = (n) => path.join(PLUGINS, n);
 const CAPABILITY = {
   // Claude Code
   UserPromptSubmit: 'turn-boundary',   // reset counters, load the discipline, carry a retrospective
+  SessionStart: 'turn-boundary',       // the session's first boundary: say what the last one left (progress)
   PostToolUse: 'observe',              // count tool calls, nudge on a threshold
   PreToolUse: 'observe',
   Stop: 'close',                       // read the final message; gate it when strict
@@ -103,6 +104,17 @@ const ACCEPTED = {
     note: "Never blocks on either host, so it wires no Cursor `stop` gate.",
     capabilities: {},
   },
+  'progress-self-monitoring': {
+    // Not a capability difference, so not flagged: on Claude Code the close
+    // finding (a turn that edited files and left the ledger stale) is parked
+    // and delivered on the next prompt; Cursor has no non-blocking injection
+    // point after the response, so afterAgentResponse logs it and nothing
+    // reaches the agent. This plugin has no strict gate to deliver it through
+    // either. The README's host table says so.
+    note: "Never blocks on either host, so it wires no Cursor `stop` gate; the close " +
+      "finding is a retrospective on Claude Code and log-only on Cursor.",
+    capabilities: {},
+  },
 };
 
 function wiring(name) {
@@ -142,6 +154,7 @@ function payload(host, event, sid) {
   const text = 'Work continues; nothing deferred.';
   if (host === 'claude') {
     if (event === 'UserPromptSubmit') return Object.assign(base, { prompt: 'do the thing' });
+    if (event === 'SessionStart') return Object.assign(base, { source: 'startup' });
     if (event === 'PostToolUse' || event === 'PreToolUse') {
       return Object.assign(base, { tool_name: 'Bash', tool_input: { command: 'npm test' }, tool_output: 'ok' });
     }

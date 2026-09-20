@@ -97,6 +97,21 @@ const PLUGINS = {
       { name: 'prompts that received the checkpoint (EVERY_N_TURNS)', filter: (e) => e.event === 'prompt', hit: (e) => !!e.emitted },
     ],
   },
+  'progress-self-monitoring': {
+    env: 'PROGRESSMON_LOG',
+    turns: (e) => e.event === 'stop',
+    // The age cut-off is the one reasoned number here: past it a ledger is
+    // announced no more. Its distribution at session start is what tunes it.
+    prompts: { filter: (e) => e.event === 'session_start' && e.exists && typeof e.ageMs === 'number', name: 'ledger age in days at session start (MAX_AGE_DAYS)', current: 14, value: (e) => Math.floor(e.ageMs / 86400000), candidates: [3, 7, 14, 30, 60] },
+    rates: [
+      { name: 'sessions opening on a ledger with open items (announced)', filter: (e) => e.event === 'session_start', hit: (e) => !!e.emitted },
+      { name: 'sessions opening in a project with a ledger at all', filter: (e) => e.event === 'session_start', hit: (e) => !!e.exists },
+      { name: 'turns that edited files next to a ledger with open items', filter: (e) => e.event === 'stop' && e.exists && e.open > 0, hit: (e) => e.edits > 0 },
+      { name: '  ... of which left it stale (edits, ledger untouched)', filter: (e) => e.event === 'stop' && e.exists && e.open > 0 && e.edits > 0, hit: (e) => !!e.stale },
+      { name: '  ... of which got the retrospective (once per ledger version)', filter: (e) => e.event === 'stop' && !!e.stale, hit: (e) => !!e.fired },
+      { name: 'sessions ending with open items and a stale ledger (the unreachable last turn - the case for a strict gate)', filter: (e) => e.event === 'session_end', hit: (e) => e.exists && e.open > 0 && !!e.stale },
+    ],
+  },
 };
 
 function readLogs(dirs, plugin) {
@@ -158,6 +173,7 @@ function crossPlugin(dirs) {
     'termination-self-monitoring': (e) => (e.load ? 1 : 0) + (e.retrospective ? 1 : 0),
     'coverage-self-monitoring': (e) => (e.turn === 1 ? 1 : 0) + (e.ledger ? 1 : 0) + (e.retrospective ? 1 : 0),
     'handoff-self-monitoring': (e) => (e.load ? 1 : 0) + (e.retrospective ? 1 : 0),
+    'progress-self-monitoring': (e) => (e.turn === 1 ? 1 : 0) + (e.retrospective ? 1 : 0),
   };
   const midTurn = {
     'epistemic-self-monitoring': (e) => e.event === 'observe' && !!e.emitted,
@@ -228,7 +244,8 @@ function main() {
 
   if (!any) {
     console.log('\nNo logs found. Enable logging in the projects you work in (EXECMON_LOG, EPIMON_LOG, PERSISTMON_LOG,');
-    console.log('TERMMON_LOG, COVMON_LOG, HANDMON_LOG = 1), work normally for a while, then run this against those project dirs.');
+    console.log('TERMMON_LOG, COVMON_LOG, HANDMON_LOG, PROGRESSMON_LOG = 1), work normally for a while, then run this against those');
+    console.log('project dirs.');
     process.exitCode = 1;
     return;
   }

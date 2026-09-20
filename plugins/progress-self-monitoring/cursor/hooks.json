@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "node ./cursor/prog-session-start.js"
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "node ./cursor/prog-observe-cursor.js"
+      }
+    ],
+    "afterAgentResponse": [
+      {
+        "command": "node ./cursor/prog-response-cursor.js"
+      }
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "intent": "work",
+  "expect": "block",
+  "artifact": { "exists": true, "open_min": 1 },
+  "why": "The prompt says the work spans sessions and that one part - the publish step - is blocked by an observed limit (NPM_TOKEN is not set) until a later session. Without a ledger the next session has a script it cannot tell was ever exercised and no record of why; with one it opens on `- blocked: publish - NPM_TOKEN not set`. The grader reads the file, not the reply: the file is the only thing that will reach that session. A work case, because the agent has to write the scripts for the blocked part to exist at all."
+}
