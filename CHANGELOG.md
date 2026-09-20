@@ -5,7 +5,147 @@ All notable changes to this repository. The format follows
 version is independent of the per-plugin versions, which are listed in each
 release.
 
-## [Unreleased]
+## [0.6.0] — 2026-09-20
+
+What an injected message has to carry, measured rather than reasoned about.
+The pointer design of 0.5.0 was right about the prose and wrong about the
+names: an agent that already knows the protocol still needs the shape, and the
+shape is the field names. Naming them moved executive from 0/6 to 5/6 and
+handoff's pre-close from 0/3 to 3/3, while the messages that fire constantly
+got shorter.
+
+Then three defects of the same family as the four before them — the scanner
+refusing a correct block over its formatting — and the first one of the family
+that was *silent*: a marker that opened a line and parsed as nothing produced
+no block and no violation, so the run reported the plugin as never having
+fired. All thirteen eval cases end the release green on Claude Code: 7 of 7
+block cases changing the output, 6 of 6 quiet cases costing nothing.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.5.0 |
+| epistemic-self-monitoring | 0.1.11 |
+| persistence-self-monitoring | 0.1.11 |
+| termination-self-monitoring | 0.1.11 |
+| coverage-self-monitoring | 0.1.11 |
+| handoff-self-monitoring | 0.1.10 |
+
+### Changed
+- **executive 1.5.0** — the load message names the block's four fields instead
+  of pointing at the skill for them, and that is the whole of the change.
+  Measured with the Skill tool's own `PreToolUse` hook logging every
+  invocation, six runs per configuration:
+
+  | configuration | skill loaded | block written |
+  |---|---|---|
+  | skill available, no message at all | 0/6 | 0/6 |
+  | skill + a message that points at it | 0/6 | 0/6 |
+  | skill + a message naming Plan, Gate, Drift, Decision | 0/6 | **5/6** |
+
+  The skill was never loaded, in any configuration. The agent was not missing
+  the protocol — the failing transcripts quote the gate and name every tangent
+  in prose — it was missing the shape of the block, which is precisely what the
+  pointer design had removed from the message.
+
+  A pointer only works when what it points at is what the reader lacks.
+- **the five event messages are pointers, with the field names kept.**
+  `preclose`, `retrospective`, `nudge` and `blockReason` used to restate the
+  protocol they point at. What stays is what the scanner reads — the marker,
+  the field names, the status and reason tokens — and what goes is the prose
+  the skill already carries, named as `(<plugin> skill, "Core Protocol")`.
+
+  Measured on handoff's pre-close, same case and scanner, one variable:
+  **0 of 3 with the old wording, 3 of 3 with the new.** All three old runs wrote
+  the marker and none wrote a block the scanner accepted; two opened a field
+  called `Next action:`, which is the message's own phrase, and none produced
+  `Situation:`, because "the situation" inside a sentence does not read as a
+  label. **The prose of a message becomes the field names of the block.**
+
+  Summed over all eighteen messages this moves 3%, because naming fields costs
+  characters. Weighted by a real session's firing rates — the messages that grew
+  fire only after a violation or under a gate that is off by default, the ones
+  that shrank fire constantly — it is −20%, about 690 tokens over eleven turns.
+
+- **handoff 0.1.10** — the Status field carries its three values into `LOAD`
+  and `preclose`. The skill named them and the message named only the field, so
+  on a review turn the agent wrote `Status: Reviewed; <the finding>` in **6 of
+  6 runs** — a well-formed block, `Options` and `Next` correctly laid out
+  below it, whose only violation was that word. The case scored **0%**.
+
+  The enum is in the message for the same reason the field names are: the
+  scanner reads the *value* against that set, which makes the set scanner-read
+  content rather than the protocol prose that 0.5.0 measured as harmful. It is
+  deliberately **not** in `retrospective` or `blockReason`, which carry the
+  violations and so quote the three values already.
+
+  The skill gained the rule the enum alone does not teach: an activity is not a
+  status. `Reviewed`, `Analysed`, `Investigated` name what you did, and the
+  reader triages on what they must do. An assessment that hands back a choice
+  is `needs-decision`; the finding goes in `Situation`, which is the slot for
+  it. Measured: **0% → 100%**, and the `Default` violations that were predicted
+  to be hiding behind the invalid status never appeared — framing the turn
+  correctly brought the default with it.
+
+### Added
+- **`handoff/hands-off-after-a-green-gate`** — the first case that reaches a
+  message other than `LOAD`. Every other case is `intent: answer`: one reply,
+  no tools, no previous turn, so the pre-close, the retrospective and the gate
+  never fire and three of handoff's four messages were unmeasured by anything.
+  Here the agent writes two files and runs `node test-slug.js`, which the
+  closing-signal detector counts as a green gate.
+- **`evals/PROTOCOL.md`** gains three sections from this round: how to write an
+  injected message, why a guard written from one sample is a guard for one
+  sample, and the host asymmetry above.
+
+### Fixed
+- **executive 1.5.0 — a botched block is no longer indistinguishable from no
+  block.** `BLOCK_RE` wants the marker alone on its line, and one run wrote
+  `[PLAN CHECK] Plan: … Gate: … Drift: … Decision: refocus` on a single line:
+  every field present, the gate quoted, and `refocus` arguably the best of the
+  three answers, since it scoped the work to the two agreed steps. It parsed as
+  no block, and because nothing parsed there was nothing to complain about, so
+  the eval read a correct answer as the plugin never firing.
+
+  *No block is not a violation* was always about a turn that wrote nothing —
+  most turns, and the reason this plugin nudges rather than gates. It was never
+  meant to cover a turn that wrote the marker and got the shape wrong. A marker
+  that opens a line and yields no block now says so. Anchored to the line start
+  on purpose: the marker named mid-sentence is prose, not an attempt.
+
+  This does not raise the case's score, and is not meant to — a botched block
+  fails either way. What it ends is the silence.
+- **handoff 0.1.10 — a marker written as a list item is still a marker.**
+  `- [HANDOFF]` with the fields hanging off it as sub-bullets: a complete
+  block, `Status: needs-decision`, no violations at all once the two characters
+  in front of the marker are removed. `BLOCK_RE` already tolerated heading
+  hashes and emphasis; the bullet is the same kind of decoration, and the field
+  parser already handled the indent that came with the nesting.
+
+  One transcript in 51, which is the point: this is the fifth defect of the
+  shape, and the first found by counting rather than by hitting it. Across 171
+  transcripts the silent miss fired twice — once here, once in executive — and
+  **not once** in coverage, epistemic or termination over 109. Those three are
+  untouched. The hole exists in all five scanners by construction, since each
+  defines its own `BLOCK_RE`; it is fixed where it was observed.
+- **the eval harness stopped leaving a workspace behind on every invocation.**
+  `scratchWorkspace()` created one per call and nothing ever removed them: 623
+  directories had accumulated. Small — 21MB, and not what actually filled the
+  disk when a run finally died of it — but a suite that leaves a directory
+  behind every time it measures anything degrades the machine it runs on. It
+  now sweeps its own, older than a day, best-effort, on the way past.
+- **the dead-run guard missed the second outage.** Its pattern was the literal
+  `spend limit`, written from the only sample there was, and the next notice
+  said `session limit`: 77 of 78 transcripts went unrecognised and the run
+  again reported 6 of 6 quiet cases costing nothing — the same false all-clear,
+  from the guard built for exactly this.
+
+  It now matches the family (`you've (hit|reached) your <x> limit`, and a
+  notice ending in `· resets …`) and carries a length floor of 105 characters,
+  which is the shortest real answer across every transcript this repository has
+  collected. Both observed notices sit either side of it — 68 and about 160 —
+  which is why neither length nor literal is sufficient alone. Every notice
+  actually hit is now in `scripts/test.js` verbatim, to be added beside rather
+  than replaced.
 
 ## [0.5.1] — 2026-09-20
 
@@ -100,6 +240,14 @@ it.
   What is measured: the message is 38% shorter (3140 → 1959 characters across
   the five shared ones), and the agent does load the skill from the pointer —
   a stream trace shows the Skill tool invoked with the short name.
+
+  > **Corrected in 0.6.0.** That last clause rested on a single stream trace.
+  > Measured properly afterwards — executive's eval case, three configurations,
+  > six runs each, with the Skill tool's own `PreToolUse` hook logging every
+  > invocation — the skill loaded **0 times out of 18**, including six runs with
+  > the skill available and no message at all. Under `claude -p` the pointer
+  > does not produce a load. See `evals/PROTOCOL.md`, "The skill is not a lever
+  > on Claude Code headless".
 
   What is NOT measured: any change in how often the block comes out. The same
   case, same n=3 and same configuration produced 100% and then 33% on
@@ -734,7 +882,8 @@ First public release.
   backticks was scanned as a closure block; the marker must now stand alone
   on its line.
 
-[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.6.0
 [0.5.1]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.5.1
 [0.5.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.5.0
 [0.4.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.4.0

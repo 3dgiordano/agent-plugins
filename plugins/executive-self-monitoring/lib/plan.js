@@ -29,6 +29,10 @@ const BLOCK_RE = new RegExp(
   'gm'
 );
 
+// The marker opening a line, whatever follows it. Used only to tell a botched
+// block apart from no block at all - see the note at the end of scan().
+const MARKER_LINE_RE = new RegExp('^[ \\t]*(?:[-*+][ \\t]+)?' + MARK, 'm');
+
 const DECISIONS = ['continue', 'refocus', 'revise-plan'];
 
 // Emphasis around the field name, with the colon inside it or outside - see
@@ -104,6 +108,31 @@ function scan(text) {
       out.violations.push(`Drift is none but Decision is "${known}" - with nothing pulling away, the decision is continue`);
     }
     out.decision = known || null;
+  }
+
+  /*
+   * A marker that opened a line and produced no block.
+   *
+   * "No block is not a violation" above is about a turn that wrote nothing -
+   * most turns, and the reason this plugin nudges rather than gates. It was
+   * never meant to cover a turn that wrote the marker and got the shape wrong,
+   * but that is what it did: BLOCK_RE wants the marker alone on its line, and
+   * one measured run opened with `[PLAN CHECK] Plan: ... Gate: ... Drift: ...
+   * Decision: refocus` - every field present, the gate quoted, the decision
+   * right, all of it on one line. It parsed as nothing, complained about
+   * nothing, and the eval reported the plugin as not having fired.
+   *
+   * That is the worst of the three outcomes. A correct block should pass, a
+   * malformed one should say what is missing, and neither should be silently
+   * indistinguishable from an agent that ignored the checkpoint.
+   *
+   * Anchored to the line start on purpose: prose that mentions the marker
+   * mid-sentence - this comment, the skill, a turn discussing the protocol -
+   * is not an attempt at a block and must not be flagged as one.
+   */
+  if (out.blocks === 0 && MARKER_LINE_RE.test(unfenced(text))) {
+    out.violations.push('a [PLAN CHECK] line that is not a block - put the marker on its own line and ' +
+      'the fields under it, one per line: Plan, Gate, Drift, Decision');
   }
   return out;
 }

@@ -61,6 +61,18 @@ is that format for an agent's turn:
    "basically works" are not statuses; they are `needs-decision` or
    `blocked` with the reason not yet written.
 
+   Neither is what you *did* a status. "Reviewed", "Analysed", "Investigated"
+   name the activity, and the reader triages on what they must do, not on what
+   you have been doing. An assessment that hands back a choice is
+   `needs-decision`; one that asks nothing of the reader is `done`. This is the
+   measured failure mode on review turns — the agent writes
+   `Status: Reviewed; <the finding>`, having already laid out `Options` and
+   `Next` correctly below it, so the block is a `needs-decision` in everything
+   but the word. The pull is real: the finding *is* the most important thing on
+   the page. It goes in `Situation`, which is the slot for it. `Status` is the
+   triage word, and it is worth more to the reader precisely because it is one
+   of three and they never have to read it twice.
+
 2. **The situation, in the reader's terms.** One sentence: what the reader has
    now that they did not have before. Test each word — would it mean
    anything to someone who did not see the tool calls? A path, a function

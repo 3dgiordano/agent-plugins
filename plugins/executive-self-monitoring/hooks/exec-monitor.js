@@ -54,20 +54,27 @@ function main(raw) {
   if (!fire) return;
 
   /*
-   * A pointer, not a paraphrase: "load ... if it is not already loaded" so the
-   * every-Nth-turn cadence does not ask for the same load again and again.
+   * The marker used to be named and the four fields were not, on the reasoning
+   * that the fields are static protocol and belong in the skill. Measured, that
+   * reasoning was wrong in a way worth recording: six runs of this plugin's
+   * eval case, logged through the Skill PreToolUse hook, loaded the skill ZERO
+   * times and wrote the block zero times - while doing the whole discipline in
+   * prose, quoting the gate and naming every tangent.
    *
-   * The marker is named and the four fields are not. Naming the marker is what
-   * gets the block written at all - the observed failure across this set is an
-   * agent doing the discipline and writing it in some other shape - while the
-   * fields are static protocol and belong in the skill, which is also the only
-   * place they can be kept in one piece.
+   * The agent did not need the skill to know what to do. It needed the block's
+   * shape, and that was the one thing the message withheld. A pointer only
+   * works when what it points at is what the reader lacks.
+   *
+   * So the fields are named here, which is the same rule that took handoff's
+   * pre-close message from 0 of 3 to 3 of 3. The rules behind them stay in the
+   * skill and are referenced.
    */
   process.stdout.write(
-    '[executive self-monitoring] Checkpoint for long/iterative work: load the ' +
-    'executive-self-monitoring skill if it is not already loaded, then re-open the ' +
-    'artifact that defines this work and write its [PLAN CHECK] block. Not a ' +
-    'blocker; skip if this turn is trivial.'
+    '[executive self-monitoring] Checkpoint for long/iterative work: re-open the artifact that ' +
+    'defines it and write the [PLAN CHECK] markdown list - Plan (the artifact, named), Gate (quoted ' +
+    'from it), Drift (none, or what pulls away), Decision (continue | refocus | revise-plan). Load ' +
+    'the executive-self-monitoring skill if it is not already loaded for the rules behind them. ' +
+    'Not a blocker; skip if this turn is trivial.'
   );
 }
 

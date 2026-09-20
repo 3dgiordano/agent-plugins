@@ -16,18 +16,36 @@ const SKILL = 'coverage-self-monitoring';
  * trigger, and point at the skill for the rest. "Load ... if it is not already
  * loaded" keeps a cadence injection from asking for the same load every time.
  */
+/*
+ * The field names are here, not only in the skill. Measured on executive with
+ * the Skill tool's own PreToolUse hook logging every invocation: the skill
+ * loaded 0 times in 28 runs under `claude -p` - announced, permitted, and with
+ * a description written to match the situation - while naming the block's
+ * fields in the message took it from 0 of 6 to 6 of 6. The skill still carries
+ * the full protocol, because on Cursor no hook runs and it is all there is.
+ */
 const LOAD =
   `[coverage self-monitoring] This session tracks whether you deliver every part of the request, ` +
   'including the hard one: a hole in the delivery - a stub, a postponed or excluded part - is a part ' +
-  `that is not done, in any language. For a multi-part task, load the ${SKILL} skill if it is not ` +
-  'already loaded: it carries the ledger and the exact block format the hooks read. Not a blocker.';
+  'that is not done, in any language. For a multi-part task write the [COVERAGE LEDGER] first - the ' +
+  'parts, which is hardest, the order - and close each one in a [COVERAGE CHECK]: done | blocked | ' +
+  `returned. Load the ${SKILL} skill if it is not already loaded for the rules. Not a blocker.`;
 
+const PROTOCOL = `(${SKILL} skill, "Core Protocol")`;
+
+/*
+ * This block is the odd one in the collection: its list items are the parts of
+ * the request, named by the request, so there are no fixed field labels for a
+ * message's prose to overwrite. That is why coverage was untouched by the
+ * decorated-field defect in 0.5.1, and why less is at stake here than in the
+ * other four. What moves to the skill is the ordering rule and the closing
+ * vocabulary; what stays is the two markers and the one thing the skill cannot
+ * know, which is how many parts were counted.
+ */
 function ledger(parts) {
   return `[coverage self-monitoring] the request enumerates ${parts} parts. Before starting: write the ` +
-    '[COVERAGE LEDGER] as a markdown list, not a fenced code block - each part, which one is hardest and why, and the order you will take them in ' +
-    '(hardest first unless a dependency forbids). At the end, close every part in a [COVERAGE CHECK] ' +
-    'the same way. ' +
-    `(${SKILL} skill)`;
+    '[COVERAGE LEDGER] as a markdown list, not a fenced code block - the parts, which is hardest, the ' +
+    `order. At the end close every part in a [COVERAGE CHECK]: done | blocked | returned. ${PROTOCOL}`;
 }
 
 function nudge(signals) {
@@ -36,19 +54,19 @@ function nudge(signals) {
       case 'stubs': {
         const files = s.files.length ? ` (${s.files.slice(0, 4).join(', ')}${s.files.length > 4 ? ', ...' : ''})` : '';
         return `you have written ${s.count} stub / placeholder / TODO markers this turn${files}. Each one is a ` +
-          'part of the request that is not done: implement it now, or list it in the [COVERAGE CHECK] as ' +
-          'blocked with the observed reason or returned to the owner';
+          'part of the request that is not done: implement it now, or close it in the [COVERAGE CHECK] as ' +
+          'blocked or returned, with the reason';
       }
       default: return '';
     }
   }).filter(Boolean);
-  return '[coverage self-monitoring] ' + lines.join('; ') + `. (${SKILL} skill)`;
+  return '[coverage self-monitoring] ' + lines.join('; ') + `. ${PROTOCOL}`;
 }
 
 function retrospective(violations) {
   return '[coverage self-monitoring] Your previous turn deferred work without closing the ledger: ' +
-    violations.join('; ') + '. For each deferred part, say which it is - done now, blocked (the observed ' +
-    'limit), or returned to the owner (the choice they must make) - and do the ones that are none of those.';
+    violations.join('; ') + '. Close each deferred part in a [COVERAGE CHECK] - done, blocked, or ' +
+    `returned, with the reason - and do the ones that are none of those. ${PROTOCOL}`;
 }
 
 module.exports = { LOAD, ledger, nudge, retrospective };

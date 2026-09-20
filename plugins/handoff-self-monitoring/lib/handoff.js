@@ -69,7 +69,23 @@ const CLOSING_LINES = 6; // a question this close to the end is asked of the rea
  * a blocked stop. Backticks stay out of the allowed set, so an inline-code
  * mention is still documentation rather than a closure.
  */
-const BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[HANDOFF\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[HANDOFF\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$|(?![\s\S]))/gm;
+/*
+ * The bullet is here for the same reason the heading hashes and the emphasis
+ * are: they are all ways of writing the same marker, and the block underneath
+ * is unaffected by which one the writer reached for.
+ *
+ * Measured, not anticipated. One transcript in 51 opened its close with
+ * `- [HANDOFF]` and carried the fields as sub-bullets: a complete block,
+ * `Status: needs-decision`, no violations once the two characters in front of
+ * the marker are removed. It scored as no block at all - and because nothing
+ * parsed, nothing complained either, so the run reported the plugin as not
+ * having fired. The field parser already tolerated the indent that came with
+ * the nesting; only the marker line rejected it.
+ *
+ * `[-*+][ \t]+` needs the whitespace: without it the `*` would eat the first
+ * star of a `**[HANDOFF]**` and the emphasis branch below would never see it.
+ */
+const BLOCK_RE = /^[ \t]*(?:[-*+][ \t]+)?(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[HANDOFF\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*(?:[-*+][ \t]+)?(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[HANDOFF\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$|(?![\s\S]))/gm;
 const STATUSES = ['done', 'needs-decision', 'blocked'];
 
 const COVERAGE_BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[COVERAGE CHECK\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$([\s\S]*?)(?=\n[ \t]*\n|(?![\s\S]))/gm;

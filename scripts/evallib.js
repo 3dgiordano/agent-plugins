@@ -137,6 +137,17 @@ function gradingOf(c) {
  *
  * So the guard is not an error-message filter for tidiness; it is what keeps an
  * outage from being reported as evidence about the plugins.
+ *
+ * It then missed the second outage, and the reason is worth keeping: the first
+ * version matched the literal `spend limit`, written from the one sample there
+ * was, and the next outage said `session limit`. 77 of 78 transcripts were that
+ * notice, and the run reported 6 of 6 quiet cases costing nothing - the same
+ * false all-clear, from a guard built for exactly this.
+ *
+ * Hence the shape below. The patterns describe a FAMILY ("you've hit your <x>
+ * limit", a notice ending in "· resets ..."), and the length floor is measured
+ * rather than guessed. A third variant is still possible; the test carries both
+ * observed strings so the next one is added beside them rather than instead.
  */
 /*
  * Each pattern is the SHAPE of a CLI failure, not its topic. A bare
@@ -146,7 +157,8 @@ function gradingOf(c) {
  * transcripts for mentioning it would quietly shrink the denominator.
  */
 const NOT_AN_ANSWER = [
-  /you'?ve hit your (?:individual )?spend limit/i,
+  /you'?ve (?:hit|reached) your\b[^.\n]{0,40}\blimit\b/i,
+  /\blimit\b[^.\n]{0,30}·\s*resets?\b/i,
   /usage limit reached/i,
   /^(?:API )?Error:\s/im,
   /\brate_limit_error\b/,
@@ -157,9 +169,19 @@ const NOT_AN_ANSWER = [
   /credit balance is too low/i,
 ];
 
+/*
+ * 105 is measured, not chosen: across every transcript this repository has
+ * collected, the shortest real answer is 105 characters - a quiet case where
+ * the right reply is a short one. Both CLI notices seen so far sit near it
+ * from either side (68 for "You've hit your session limit", ~160 for "You've
+ * hit your individual spend limit"), which is why neither length alone nor a
+ * literal alone is enough.
+ */
+const SHORTEST_REAL_ANSWER = 105;
+
 function usable(text) {
   const t = (text || '').trim();
-  if (t.length < 24) return false; // a real answer to any of these prompts is longer
+  if (t.length < SHORTEST_REAL_ANSWER) return false;
   return !NOT_AN_ANSWER.some((re) => re.test(t));
 }
 
@@ -258,12 +280,47 @@ function summaryLines(rows, subject, incomplete) {
   return out;
 }
 
-// A fresh workspace per invocation: both CLIs keep session state per directory,
-// and reusing one leaks the WITH arm into the WITHOUT arm that follows it.
+/*
+ * A fresh workspace per invocation: both CLIs keep session state per directory,
+ * and reusing one leaks the WITH arm into the WITHOUT arm that follows it.
+ *
+ * Nothing removed them, and they accumulated: 623 directories, one per
+ * invocation across a few days of runs. Small - 21MB in total, and not what
+ * actually filled the disk when a run finally died of it - but a suite that
+ * leaves a directory behind every time it measures anything is a suite that
+ * degrades the machine it runs on.
+ *
+ * So the same treatment the plugins already give their own state files: sweep
+ * anything of ours older than a day, best-effort, on the way past. A workspace
+ * is only interesting while its run is going; the transcripts are what get
+ * kept, and they live under evals/results.
+ */
+const WS_PREFIX = 'agent-plugins-eval-';
+const WS_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+function sweepWorkspaces() {
+  const os = require('os');
+  const tmp = os.tmpdir();
+  let removed = 0;
+  let entries = [];
+  try { entries = fs.readdirSync(tmp); } catch (_) { return 0; }
+  for (const name of entries) {
+    if (name.indexOf(WS_PREFIX) !== 0) continue;
+    const p = path.join(tmp, name);
+    try {
+      if (Date.now() - fs.statSync(p).mtimeMs < WS_MAX_AGE_MS) continue;
+      fs.rmSync(p, { recursive: true, force: true });
+      removed += 1;
+    } catch (_) { /* in use, or gone already */ }
+  }
+  return removed;
+}
+
 let wsSeq = 0;
 function scratchWorkspace() {
   const os = require('os');
-  const d = path.join(os.tmpdir(), `agent-plugins-eval-${process.pid}-${Date.now()}-${wsSeq++}`);
+  if (wsSeq === 0) sweepWorkspaces(); // once per process, not per invocation
+  const d = path.join(os.tmpdir(), `${WS_PREFIX}${process.pid}-${Date.now()}-${wsSeq++}`);
   fs.mkdirSync(d, { recursive: true });
   return d;
 }
@@ -278,4 +335,4 @@ function isolatedHome(dotDir) {
 
 const quote = (s) => (/[\s"]/.test(s) ? `"${s.replace(/"/g, '\\"')}"` : s);
 
-module.exports = { ROOT, PLUGINS, MARKER, SCANNER, graderFor, cases, gradingOf, usable, verdict, reportLine, summaryLines, scratchWorkspace, isolatedHome, quote };
+module.exports = { ROOT, PLUGINS, MARKER, SCANNER, graderFor, cases, gradingOf, usable, verdict, reportLine, summaryLines, scratchWorkspace, sweepWorkspaces, isolatedHome, quote };

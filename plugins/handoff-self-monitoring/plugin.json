@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "handoff-self-monitoring",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Structured-handoff discipline for the final message of a turn. Bundles the handoff-self-monitoring skill (the 'what': a close modelled on the SBAR / I-PASS handoff protocols - Status first, Situation in the reader's terms, the fork as Options with a default, one Next action - so a reader who has the message and not the trace can act on it) with per-host hooks (the 'when') that inject the format on the first closing-shaped tool call of a turn and scan the final message for a decision named but not handed off - an offer, a fork, a closing question, a returned coverage part - and for the [HANDOFF] block. Non-blocking by default; HANDMON_STRICT=1 blocks once. Portable core: the skill only; hooks are host-specific (hooks/ for Claude Code, cursor/ for Cursor).",
   "author": {
     "name": "David Giordano",

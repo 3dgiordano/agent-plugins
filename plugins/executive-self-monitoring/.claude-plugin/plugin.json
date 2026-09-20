@@ -1,6 +1,6 @@
 {
   "name": "executive-self-monitoring",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "Plan-anchored drift self-check for coding agents. Bundles the executive-self-monitoring skill (the 'what': re-ground in the active plan/gate before substantive work) with a per-host cadence hook (the 'when'). Not a blocker - a periodic nudge to avoid investing effort outside the plan. Claude Code: fires on session start, then every Nth turn.",
   "author": {
     "name": "David Giordano",

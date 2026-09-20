@@ -224,3 +224,112 @@ hosts while this was live, because those agents happened to write their fields
 plain. A corpus line will: `handoff-close` caught the `__` variant that the
 hand-written test missed, because the test author decorated the shapes he
 thought of and the corpus holds the shapes that showed up.
+
+## Writing an injected message
+
+Measured on handoff, by running one case three times against each version of
+the message with everything else held fixed: **0 of 3 with the old wording, 3 of
+3 with the new.** Same prompt, same scanner, baseline at 0 in both.
+
+The old message asked for the block in prose:
+
+> …the situation in the reader's terms, any fork as a list of options with
+> Default on its own line, and one **Next action**
+
+All three runs wrote the marker. None wrote a block the scanner accepted. Two of
+them opened a field called `Next action:` — the message's own phrase — and none
+produced `Situation:`, because "the situation", lowercase and inside a sentence,
+does not read as a label. The third invented `What:` and `Files:`.
+
+**The prose of a message becomes the field names of the block.** So:
+
+- **Name the fields, as a list.** `Status, Situation in the reader's terms,
+  Options with Default on its own line, Next`. Whatever the scanner matches on
+  — a field name, a status token, a reason token — stays in the message, because
+  the skill cannot hold it on the message's behalf.
+- **Name the rules, do not copy them.** What a fork is, what the reader's terms
+  are, why a default is required: that is the skill's, referenced as
+  `(<name> skill, "Core Protocol")`. Check the section exists; a pointer at a
+  renamed heading is a dead link, and a test can catch that.
+- **Weight by firing rate, not by length.** The sum of the message texts is the
+  wrong measure. Migrating all six moved that sum by 3%, because naming fields
+  costs characters — but the messages that grew (`retrospective`, `blockReason`)
+  fire only after a violation or under a gate that is off by default, and the
+  ones that shrank fire constantly. Weighted by a real session's cadence the
+  same change is −20%.
+- **A message is not always cheaper than the skill it points at.** One skill
+  load costs more than every message in this collection put together, so
+  replacing fields with a pointer only saves when the skill was going to be
+  loaded anyway. Keeping the field names is what lets a turn that needs nothing
+  more than the shape avoid paying for the load.
+
+The exception is a message that asks for no block. `epistemic OBSERVE` is a
+prompt to think, fires at the moment of an observation, and has no fields; what
+it drops is a taxonomy the skill already enumerates in full.
+
+## A guard written from one sample is a guard for one sample
+
+`usable()` exists because an account limit once turned 40 dead transcripts into
+results, and the quiet cases — which pass on silence — reported six perfect
+scores on runs where nothing had executed.
+
+It then missed the next outage. The pattern was the literal `spend limit`,
+written from the only sample there was, and the next notice said `session
+limit`. 77 of 78 transcripts went unrecognised, and the run again reported
+6 of 6 quiet cases costing nothing.
+
+The repair is the same one this collection keeps needing, and it is worth
+stating as a rule rather than as four separate repairs:
+
+- **Match the family, not the string.** `you've (hit|reached) your <x> limit`,
+  not one filled-in `<x>`. The same mistake produced the coverage em-dash, the
+  executive comma and the decorated field name — each time a pattern was
+  written from the shapes its author had seen.
+- **Derive thresholds from the corpus you already have.** The length floor here
+  is 105 characters because that is the shortest real answer across every
+  transcript this repository has collected. Both observed notices sit either
+  side of it (68 and ~160), which is why neither length nor literal is enough
+  alone and both are used.
+- **Keep the samples, do not replace them.** Every notice actually hit is in
+  `scripts/test.js` verbatim. A third wording gets added beside them.
+
+And the general one: **a failure that produces a plausible number is worse than
+a crash.** Both outages reported clean-looking output. What caught them was
+reading the transcripts, not reading the summary — so a result that looks
+surprising in either direction gets a `grep` over the directory before it gets
+an explanation.
+
+## The skill is not a lever on Claude Code headless
+
+Measured on executive, three configurations, six runs each, with the Skill
+PreToolUse hook logging every invocation:
+
+| configuration | skill loaded | block written |
+|---|---|---|
+| skill available, no message at all | 0/6 | 0/6 |
+| skill + a message that points at it | 0/6 | 0/6 |
+| skill + a message that names the fields | 0/6 | **5/6** |
+
+The skill was never loaded once, in any configuration. Everything the plugin
+achieves under `claude -p` comes from the injected message.
+
+Two rivals were killed before this was written. The logger records a skill
+event when fed one by hand, and a prompt that demands the skill ("invoke it,
+then quote step 1 verbatim") produces both the log line and a verbatim quote —
+so `PreToolUse:Skill` is observable under `-p`, and the Skill tool is not
+blocked by `--permission-mode dontAsk`, which that probe also ran under.
+
+**The consequence for how these plugins are written.** On Cursor headless no
+hook runs, so the skill is the only mechanism and executive still reaches 100%
+there. On Claude Code the message is the only mechanism. The same content
+therefore has to exist on both sides: whatever the scanner reads — field names,
+status tokens, reason tokens — belongs in the message, and the skill keeps the
+full protocol for the host that has nothing else.
+
+They are not a message and its documentation. They are two deliveries of one
+protocol to two hosts that each ignore the other one's.
+
+**Scope.** Headless `-p` only. Interactive Claude Code presents skills
+differently and was not measured; nothing here says what an interactive session
+does. Nor does it say *why* the agent does not reach for a skill it has — only
+that it does not.

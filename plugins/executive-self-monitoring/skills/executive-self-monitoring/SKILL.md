@@ -1,6 +1,6 @@
 ---
 name: executive-self-monitoring
-description: "Lightweight self-assessment to avoid investing effort outside the active plan. Not a gate and not a blocker - a periodic prompt to re-ground in the canonical plan/gate so work stays plan-defined. Triggers - long task, agent loop, multi-step reasoning, keep focus, avoid drift, stay on track, iterative process, ReAct, Reflexion, long reasoning session."
+description: "Keeps work inside the plan that defines it, by re-opening that artifact rather than recalling it. Writes a [PLAN CHECK] naming the plan, the gate quoted from it, any drift, and a decision. Not a gate and not a blocker. Triggers - an agreed plan or ticket or spec, ship this branch narrow, out of scope, scope creep, a bug noticed while doing something else, should I fix this too, while I was in there, unrelated problem spotted, what are you going to do first, stay on track, avoid drift, long task, agent loop, multi-step reasoning, iterative process."
 ---
 
 # Executive Self-Monitoring Skill

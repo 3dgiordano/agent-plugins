@@ -22,17 +22,29 @@ const SKILL = 'persistence-self-monitoring';
  * than once. It holds whichever way the next move goes, which is the point -
  * persisting and switching both need the reasoning written down.
  */
+// The field names are here, not only in the skill - see the note in coverage's
+// lib/messages.js for what was measured.
 const LOAD =
-  `[persistence self-monitoring] This session counts two things you cannot feel: repeating the same ` +
-  'attempt, and effort out of proportion to the request. When something has already failed more than ' +
-  `once - whichever way you go next, another attempt or a stop - load the ${SKILL} skill if it is ` +
-  'not already loaded: it carries the persist-or-quit protocol and the exact block format the hooks ' +
-  'read. Not a blocker - a signal.';
+  `[persistence self-monitoring] This session counts what you cannot feel: repeating an attempt, and ` +
+  'effort out of proportion to the request. When something has already failed more than once - ' +
+  'whichever way you go next - write the [PERSISTENCE CHECK] markdown list: Attempts, Hypothesis ' +
+  `held, Rival approach, Proportion, Decision. Load the ${SKILL} skill if it is not already loaded ` +
+  'for the rules. Not a blocker - a signal.';
 
+/*
+ * This asked for the block's contents as three prose questions and never named
+ * a single field. That is the shape measured on handoff: the wording of the
+ * question becomes the field name, and the scanner refuses the result - three
+ * runs of three produced `Next action:`, `What:` and `Files:` where `Situation`
+ * and `Next` were wanted. Naming them took the same case from 0 of 3 to 3 of 3.
+ *
+ * So: the field names, as a list. The reasoning behind them is in the skill's
+ * "Core Protocol" and is named rather than copied.
+ */
 const TAIL =
-  ' Before the next attempt: what hypothesis are you holding, what changed between attempts, and what ' +
-  'approach would you take if that hypothesis were wrong? If nothing new, say so to the user instead of ' +
-  'trying again. (persistence-self-monitoring skill)';
+  ' Before the next attempt, write the [PERSISTENCE CHECK] as a markdown list: Attempts, Hypothesis held, ' +
+  'Rival approach, Proportion, Decision. If nothing about the next attempt is new, say so to the user ' +
+  'instead of trying again. (persistence-self-monitoring skill, "Core Protocol")';
 
 function nudge(signals) {
   const lines = signals.map((s) => {

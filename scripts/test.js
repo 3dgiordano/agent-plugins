@@ -575,6 +575,15 @@ test('handoff scanner: offer / fork / closing question / returned part, stripped
   assert.equal(scan(goodHand).violations.length, 0, 'needs-decision with a list of options and a Default field passes');
   assert.equal(scan(doneHand).violations.length, 0, 'done + Next: nothing passes');
   assert.equal(scan('```\n[HANDOFF]\n- Status: done\n- Situation: the parser no longer drops the last record\n- Next: nothing\n```').violations.length, 0, 'a fenced handoff still parses');
+  // Measured: one transcript in 51 opened its close with `- [HANDOFF]` and hung
+  // the fields off it as sub-bullets. A complete block, and it parsed as none -
+  // silently, because nothing parsed means nothing to complain about.
+  const bulleted = goodHand.replace('[HANDOFF]', '- [HANDOFF]').replace(/^- (Status|Situation|Options|Default|Next):/gm, '  - $1:');
+  assert.equal(scan(bulleted).blocks, 1, 'a marker written as a list item is still a block');
+  assert.equal(scan(bulleted).violations.length, 0, 'and its indented fields still parse');
+  assert.equal(scan(bulleted).status, 'needs-decision');
+  assert.equal(scan(goodHand.replace('[HANDOFF]', '* [HANDOFF]')).blocks, 1, 'any bullet character');
+  assert.equal(scan(goodHand.replace('[HANDOFF]', '**[HANDOFF]**')).blocks, 1, 'the bullet branch does not eat emphasis');
   assert.equal(scan(goodHand).status, 'needs-decision');
   assert.ok(!kinds(goodHand.replace('answer A or B', 'A or B?')).includes('question'), 'a question inside the block is not a trailing question');
   assert.equal(scan(inlineHand).violations.length, 0, 'inline Options still accepted');
@@ -1098,19 +1107,27 @@ test('every load message points at its skill instead of restating it', () => {
       : require(path.join(plugin(name), 'lib/messages.js')).LOAD;
 
     assert.ok(load, `${name}: no load message`);
-    assert.match(load, new RegExp(`load the ${name} skill if it is not already loaded`),
+    // Sentence-initial capitalisation is legitimate - the invariant here is the
+    // conditional ("if it is not already loaded") and the verb, not the case.
+    assert.match(load, new RegExp(`[Ll]oad the ${name} skill if it is not already loaded`),
       `${name}: the message must name its skill and say when to load it - "run the skill" reads as ` +
       'executing something, and an unconditional "load" asks again on every cadence injection');
 
     /*
-     * A pointer, not a paraphrase. The message carries what the skill cannot
-     * know - that this session is measuring, and the trigger to watch for -
-     * and leaves the protocol to the skill. When it restated the protocol
-     * instead, loading the skill looked redundant and the block came out in
-     * whatever shape the agent chose, which the scanner then refused.
+     * The message names the block's FIELDS and points at the skill for the
+     * rules behind them. It was a pure pointer until that was measured: under
+     * `claude -p` the skill loaded 0 times in 28 runs - announced, permitted,
+     * and with a description rewritten to match the situation - while naming
+     * the fields took executive's case from 0 of 6 to 6 of 6. A pointer only
+     * works when what it points at is what the reader lacks.
+     *
+     * So the field names are in every message, and the ceiling is what that
+     * costs plus a little: the five range 395-497 today. It is still a ceiling,
+     * because the rules behind the fields belong in the skill - which is the
+     * only mechanism Cursor has, where no hook runs at all.
      */
-    assert.ok(load.length <= 450,
-      `${name}: the load message is ${load.length} chars; a pointer should not need more than 450`);
+    assert.ok(load.length <= 520,
+      `${name}: the load message is ${load.length} chars; the fields fit in 520, the rules belong in the skill`);
   }
 });
 
@@ -1132,6 +1149,20 @@ test('executive: the [PLAN CHECK] scanner reads a well-formed block and names wh
   // Drift and Decision have to agree: nothing pulling away, nothing to correct.
   assert.match(scan('[PLAN CHECK]\n- Plan: x.md\n- Gate: "y"\n- Drift: none\n- Decision: refocus\n').violations[0],
     /Drift is none but Decision is "refocus"/);
+
+  /*
+   * A marker that opened a line and produced no block has to say so. Measured:
+   * a run wrote every field correctly on ONE line, which parsed as nothing and
+   * complained about nothing, so the eval read it as the plugin never firing.
+   * No block at all stays silent - that is the checkpoint working as designed.
+   */
+  const inline = '[PLAN CHECK] Plan: x.md. Gate: "y". Drift: none. Decision: continue.';
+  assert.equal(scan(inline).blocks, 0);
+  assert.match(scan(inline).violations[0], /not a block/, 'a botched block is not silence');
+  assert.deepEqual(scan('An ordinary turn with no checkpoint in it.').violations, [],
+    'no marker stays silent - most turns are not checkpoints');
+  assert.deepEqual(scan('I will write a [PLAN CHECK] block once the plan is settled.').violations, [],
+    'the marker named mid-sentence is prose, not an attempt at a block');
 
   // A memory is not an artifact, and a placeholder is not an answer.
   assert.match(scan('[PLAN CHECK]\n- Plan: <artifact>\n- Gate: "y"\n- Drift: none\n- Decision: continue\n').violations[0],
@@ -1192,8 +1223,17 @@ test('the eval scores a quiet case on absence, and never lets it borrow a block 
 
 test('a run that never reached the model is dropped, not scored - especially on a quiet case', () => {
   const lib = require(path.join(ROOT, 'scripts/evallib.js'));
+  /*
+   * Both notices this repository has actually been hit by are here, verbatim.
+   * The first version of the guard matched the literal `spend limit` - written
+   * from the only sample there was - and the next outage said `session limit`,
+   * so 77 of 78 transcripts went unnoticed and the run reported six perfect
+   * precision scores. A third wording will come; add it beside these.
+   */
   const DEAD = [
     "You've hit your individual spend limit \u00b7 run /usage-credits to ask your admin for a higher limit",
+    "You've hit your session limit \u00b7 resets 1:10am (America/Montevideo)",
+    "You've reached your weekly limit \u00b7 resets Monday",
     'Usage limit reached. Your limit will reset at 7pm.',
     'Error: Not logged in. Run `claude auth login`.',
     'API Error: 429 rate limited, please retry',
@@ -1312,4 +1352,46 @@ test('a bolded field name is the same field: **Status:** parses like Status:', (
   const han = S(HAN, 'handoff.js');
   const r = han('[HANDOFF]\n- Status: done\n- Situation: the **critical** path is clear\n- Next: ship\n');
   assert.deepEqual(r.violations, []);
+});
+
+test('a migrated message keeps what the scanner reads and names the section for the rest', () => {
+  const msg = require(path.join(plugin(HAN), 'lib/messages.js'));
+  const preclose = msg.preclose({ what: 'gate', label: 'npm test' });
+  const retro = msg.retrospective(['a decision named without a handoff']);
+  const block = msg.blockReason(['Status must be one of done | needs-decision | blocked']);
+
+  /*
+   * The split these three now follow: the FIELD NAMES stay in the message,
+   * the rules behind them move to the skill and are named rather than copied.
+   *
+   * Not an aesthetic choice. A skill load costs more than every injected
+   * message in this collection put together - handoff's SKILL.md is 9.5k
+   * characters against 6.2k for all eighteen - so a message that drops the
+   * fields and points at the skill is only cheaper when the skill was going to
+   * be loaded anyway. Keeping the names means a turn that needs nothing beyond
+   * the shape does not have to pay for the load.
+   */
+  for (const [name, text] of [['preclose', preclose], ['blockReason', block]]) {
+    for (const f of ['Status', 'Situation', 'Options', 'Default', 'Next']) {
+      // Not a template literal with `\b`: that is a backspace character, not a
+      // word boundary, and the assertion silently looks for U+0008.
+      assert.match(text, new RegExp('\\b' + f + '\\b'), `${name}: dropped the field name ${f}`);
+    }
+  }
+  for (const [name, text] of [['preclose', preclose], ['retrospective', retro], ['blockReason', block]]) {
+    assert.match(text, /\[HANDOFF\]/, `${name}: dropped the marker the scanner reads`);
+    assert.match(text, /"Core Protocol"/, `${name}: must name the skill section that carries the rules`);
+    assert.match(text, new RegExp(HAN), `${name}: must name the skill`);
+  }
+
+  // The prose the skill already carries is gone: these used to explain what a
+  // fork is and what the reader's terms are.
+  for (const [name, text] of [['preclose', preclose], ['retrospective', retro], ['blockReason', block]]) {
+    assert.ok(text.length <= 350, `${name} is ${text.length} chars; a message that names a section should not need more`);
+  }
+
+  // "Core Protocol" has to exist in the skill, or the pointer is a dead link.
+  const skill = fs.readFileSync(
+    path.join(plugin(HAN), 'skills', HAN, 'SKILL.md'), 'utf8');
+  assert.match(skill, /^## Core Protocol$/m, 'the section the messages point at must exist');
 });
