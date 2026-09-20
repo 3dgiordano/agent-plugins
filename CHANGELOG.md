@@ -7,6 +7,52 @@ release.
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-09-20
+
+One fix, for a defect that had been live through every release that shipped a
+decorated marker. A bolded field name — `- **Status:** done` — parsed as a
+field that was present and empty, so a correct close was graded as a block with
+nothing in it. Worse than writing no block at all, because it produces a
+retrospective accusing the close of leaving every field blank, and under a
+strict gate it would block the stop.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.4.1 |
+| epistemic-self-monitoring | 0.1.10 |
+| persistence-self-monitoring | 0.1.10 |
+| termination-self-monitoring | 0.1.10 |
+| coverage-self-monitoring | 0.1.10 |
+| handoff-self-monitoring | 0.1.9 |
+
+### Fixed
+- **epistemic 0.1.10, handoff 0.1.9, termination 0.1.10, executive 1.4.1** — a
+  bolded field name is the same field. The MARKER learned to accept decoration
+  in 0.4.0; the field names never did, so `- **Status:** done` parsed as a field
+  that was present and **empty**. That is a worse outcome than writing no block
+  at all: a correct close drew a retrospective accusing it of leaving every
+  field blank, and under a strict gate it would have blocked the stop.
+
+  Found by writing one. The twelve eval cases reached 100% on both hosts
+  without touching this, because those agents happened to write their fields
+  plain — and this session's own closes, which bold them, had been drawing
+  retrospectives all along. Emphasis is now allowed around the name with the
+  colon inside it or outside, and stripped from a value that is wholly
+  emphasised; emphasis *inside* a value is left alone.
+
+  Three sites per scanner, not one, and the third was found by a corpus line
+  rather than by the fix: `__Options__:` has no word boundary after `Options`
+  because `_` is a word character, so the `**` form parsed and the `__` form
+  did not, and the sub-items under a decorated `Options` were never collected —
+  a correct fork read as *"fewer than two alternatives"*.
+
+  coverage is untouched and stays at 0.1.10: its block's list items are part
+  names rather than fixed labels, so there was no label to decorate.
+
+  This is the fourth defect of one shape — the scanner refusing the discipline
+  over formatting, after the coverage em-dash, the executive comma and the
+  decorated marker. The pattern is now in `evals/PROTOCOL.md`.
+
 ## [0.5.0] — 2026-09-20
 
 Every trigger in the collection was wrong, and in the same way. A load message
@@ -688,7 +734,8 @@ First public release.
   backticks was scanned as a closure block; the marker must now stand alone
   on its line.
 
-[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.5.1
 [0.5.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.5.0
 [0.4.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.4.0
 [0.3.1]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.3.1

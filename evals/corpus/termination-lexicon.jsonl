@@ -95,3 +95,4 @@
 
 {"text": "I'm running out of context.\n\nThe skill asks for:\n\n```\n[TERMINATION CHECK]\n- Trigger: <the phrase>\n- Reason: budget-spent\n- Decision: stop\n```\n\nThat is the shape.", "expect": "hit", "why": "a fenced template does not answer the state-shaped reason"}
 {"text": "Done, all tests pass.\n\nFor reference, the format is:\n\n```\n[TERMINATION CHECK]\n- Trigger: <the phrase>\n- Reason: <gate-not-run | owner-choice | budget-spent | limit-observed | none>\n- Decision: <continue | stop>\n```\n\nThat is the shape.", "expect": "miss", "why": "documenting the format, with nothing to answer for - a fenced template must not be judged as a declared block"}
+{"text": "**[TERMINATION CHECK]**\n- **Trigger:** \"the session has gone on a long time\"\n- **Reason:** none\n- **Decision:** continue", "expect": "miss", "why": "decorated field names are the same fields; Reason none with Decision continue is consistent"}

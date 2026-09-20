@@ -26,11 +26,18 @@
  */
 const BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[EPISTEMIC CLOSE\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[EPISTEMIC CLOSE\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$|(?![\s\S]))/gm;
 
+// Emphasis around the field name, with the colon inside it or outside - see
+// the note in handoff's lib/handoff.js. `- **Status:** verified` parsed as a
+// field that was present and empty, so a closed block drew a retrospective
+// saying it had no Status.
+const EM = '(?:\\*\\*|__|\\*|_)?';
+const unemphasise = (s) => s.replace(/^(\*\*|__|\*|_)([\s\S]*)\1$/, '$2').trim();
+
 function field(block, name) {
-  const re = new RegExp('^[ 	]*[-*]?[ 	]*' + name + '[ 	]*:[ 	]*(.*)$', 'im');
+  const re = new RegExp('^[ 	]*[-*]?[ 	]*' + EM + name + EM + '[ 	]*:' + EM + '[ 	]*(.*)$', 'im');
   const m = block.match(re);
   if (!m) return null;
-  const v = m[1].trim();
+  const v = unemphasise(m[1].trim());
   // Treat placeholders left from the template as empty.
   if (!v || /^<.*>$/.test(v) || /^(n\/a|none|tbd|-|\?)$/i.test(v)) return '';
   return v;

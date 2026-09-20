@@ -96,11 +96,17 @@ const APOLOGY_RUN = 3;
 const BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[TERMINATION CHECK\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[TERMINATION CHECK\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$|(?![\s\S]))/gm;
 const REASONS = ['gate-not-run', 'owner-choice', 'budget-spent', 'limit-observed', 'none'];
 
+// Emphasis around the field name, with the colon inside it or outside - see
+// the note in handoff's lib/handoff.js. `- **Reason:** none` parsed as a field
+// that was present and empty, which reads as a block with nothing in it.
+const EM = '(?:\\*\\*|__|\\*|_)?';
+const unemphasise = (s) => s.replace(/^(\*\*|__|\*|_)([\s\S]*)\1$/, '$2').trim();
+
 function field(block, name) {
-  const re = new RegExp('^[ \t]*[-*]?[ \t]*' + name + '[ \t]*:[ \t]*(.*)$', 'im');
+  const re = new RegExp('^[ \t]*[-*]?[ \t]*' + EM + name + EM + '[ \t]*:' + EM + '[ \t]*(.*)$', 'im');
   const m = block.match(re);
   if (!m) return null;
-  const v = m[1].trim();
+  const v = unemphasise(m[1].trim());
   if (!v || /^<.*>$/.test(v) || /^(n\/a|tbd|-|\?)$/i.test(v)) return '';
   return v;
 }

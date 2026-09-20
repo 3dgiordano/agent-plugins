@@ -31,11 +31,17 @@ const BLOCK_RE = new RegExp(
 
 const DECISIONS = ['continue', 'refocus', 'revise-plan'];
 
+// Emphasis around the field name, with the colon inside it or outside - see
+// the note in handoff's lib/handoff.js. `- **Decision:** continue` parsed as a
+// field that was present and empty.
+const EM = '(?:\\*\\*|__|\\*|_)?';
+const unemphasise = (s) => s.replace(/^(\*\*|__|\*|_)([\s\S]*)\1$/, '$2').trim();
+
 function field(block, name) {
-  const re = new RegExp('^[ \\t]*[-*]?[ \\t]*' + name + '[ \\t]*:[ \\t]*(.*)$', 'im');
+  const re = new RegExp('^[ \\t]*[-*]?[ \\t]*' + EM + name + EM + '[ \\t]*:' + EM + '[ \\t]*(.*)$', 'im');
   const m = block.match(re);
   if (!m) return null;
-  const v = m[1].trim();
+  const v = unemphasise(m[1].trim());
   // A template placeholder is not an answer, and neither is a shrug.
   if (!v || /^<.*>$/.test(v) || /^(n\/a|tbd|-|\?)$/i.test(v)) return '';
   return v;

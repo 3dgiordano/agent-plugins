@@ -36,3 +36,4 @@
 {"text": "## [EPISTEMIC CLOSE]\n- Claim: the leak is in the pool\n- Status: conjecture\n- Scope: staging", "expect": "hit", "why": "heading marker, missing Falsifier"}
 {"text": "**[EPISTEMIC CLOSE]**\n- Claim: the parser drops the last chunk\n- Status: verified\n- Verified by: node scripts/test.js, the 'chunked input' case\n- Scope: src/parser.js", "expect": "miss", "why": "bolded and complete"}
 {"text": "Write a `**[EPISTEMIC CLOSE]**` when you close a diagnosis.", "expect": "miss", "why": "a decorated marker inside inline code is documentation"}
+{"text": "**[EPISTEMIC CLOSE]**\n- **Claim:** the installed trees match the repo\n- **Status:** verified\n- **Verified by:** diff -rq of all six\n- **Scope:** Claude Code only; Cursor not checked", "expect": "miss", "why": "decorated field names are the same fields"}

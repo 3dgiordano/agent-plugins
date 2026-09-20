@@ -81,15 +81,39 @@ function placeholder(v) {
   return !v || /^<.*>$/.test(v) || /^(n\/a|tbd|-|\?)$/i.test(v);
 }
 
+/*
+ * The MARKER learned to accept decoration two releases ago; the field names
+ * never did. `- **Status:** done` is simply what an agent writing markdown
+ * produces, and it parsed as a field that was present and empty - which is a
+ * worse outcome than writing no block at all: a retrospective accusing the
+ * close of leaving every field blank, and under HANDMON_STRICT, a blocked stop.
+ *
+ * Found by writing it, not by the eval. The eval's agents happened to write
+ * their fields plain, so twelve cases at 100% said nothing about this shape.
+ *
+ * Emphasis is allowed around the name with the colon inside it or outside,
+ * and stripped from a value that is wholly emphasised.
+ */
+const EM = '(?:\\*\\*|__|\\*|_)?';
+const unemphasise = (s) => s.replace(/^(\*\*|__|\*|_)([\s\S]*)\1$/, '$2').trim();
+
 function field(block, name) {
-  const re = new RegExp('^[ \t]*[-*]?[ \t]*' + escapeRe(name) + '[ \t]*:[ \t]*(.*)$', 'im');
+  const re = new RegExp('^[ \t]*[-*]?[ \t]*' + EM + escapeRe(name) + EM + '[ \t]*:' + EM + '[ \t]*(.*)$', 'im');
   const m = block.match(re);
   if (!m) return null;
-  const v = m[1].trim();
+  const v = unemphasise(m[1].trim());
   return placeholder(v) ? '' : v;
 }
 
-const FIELD_RE = /^(Status|Situation|Options|Default|Blocked-by|Next)\b/i;
+/*
+ * Emphasis on BOTH sides, and the closing marks have to be consumed rather
+ * than left to `\b`: `_` is a word character, so `__Options__` has no word
+ * boundary after `Options` and the line was not recognised as a field at all -
+ * its sub-items were then collected as if Options had never been declared.
+ * The `**` form worked and the `__` form did not, which is the kind of split a
+ * corpus line catches and a hand-written test does not.
+ */
+const FIELD_RE = /^(?:\*\*|__|\*|_)?(Status|Situation|Options|Default|Blocked-by|Next)(?:\*\*|__|\*|_)?\b/i;
 const OPTION_ITEM_RE = /^[ \t]*[-*][ \t]+(\S.*)$/;
 
 // Options as a list (the form to write): indented under Options, or sibling
@@ -97,9 +121,13 @@ const OPTION_ITEM_RE = /^[ \t]*[-*][ \t]+(\S.*)$/;
 // accepted so an older close is not a finding; it is not the form to write.
 function optionsOf(block) {
   const lines = block.split(/\r?\n/);
-  const i = lines.findIndex((l) => /^[ \t]*[-*]?[ \t]*Options[ \t]*:/i.test(l));
+  // The third place a field name is matched, and the one the other two fixes
+  // missed: `__Options__:` was not found here, so the sub-items below it were
+  // never collected and a correct fork read as "fewer than two alternatives".
+  const OPTIONS_RE = new RegExp('^[ \t]*[-*]?[ \t]*' + EM + 'Options' + EM + '[ \t]*:', 'i');
+  const i = lines.findIndex((l) => OPTIONS_RE.test(l));
   if (i < 0) return null;
-  const inline = lines[i].replace(/^[ \t]*[-*]?[ \t]*Options[ \t]*:[ \t]*/i, '').trim();
+  const inline = lines[i].replace(new RegExp('^[ \t]*[-*]?[ \t]*' + EM + 'Options' + EM + '[ \t]*:' + EM + '[ \t]*', 'i'), '').trim();
   const subs = [];
   for (let j = i + 1; j < lines.length; j++) {
     const line = lines[j];

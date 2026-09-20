@@ -198,3 +198,29 @@ two of the numbers above were recovered that way rather than bought.
 
 The case filter takes a comma-separated list of plugin names or case ids, so a
 question that concerns two cases costs two cases.
+
+### The scanner refuses the discipline over formatting
+
+Four times now, and each looked like the plugin failing:
+
+- coverage read `- enqueue(item) — done` as no part line, because it wanted a
+  colon;
+- executive read `Decision: continue, scoped strictly to steps 1-2` as no
+  decision, because a qualifier was allowed after a dash but not a comma;
+- every scanner read `**[HANDOFF]**` as no block, because the marker had to be
+  bare;
+- every scanner read `- **Status:** done` as a field present and empty, because
+  the field name had to be bare.
+
+The last is the worst shape: a block that parses but comes out empty is graded
+worse than no block, and it produces a retrospective accusing a correct close of
+writing nothing. Before concluding that an agent did not follow the protocol,
+paste what it wrote into the scanner and look at the violations. And when a
+field name is matched in more than one place — `field()`, a line classifier, a
+section finder — fixing one of them fixes one of them.
+
+The eval will not catch this class on its own. Twelve cases reached 100% on two
+hosts while this was live, because those agents happened to write their fields
+plain. A corpus line will: `handoff-close` caught the `__` variant that the
+hand-written test missed, because the test author decorated the shapes he
+thought of and the corpus holds the shapes that showed up.
