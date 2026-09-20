@@ -1,0 +1,5 @@
+{
+  "intent": "answer",
+  "expect": "quiet",
+  "why": "Nothing is being decided. A Status/Situation/Next block on a definition is the ceremony this collection is supposed to avoid."
+}

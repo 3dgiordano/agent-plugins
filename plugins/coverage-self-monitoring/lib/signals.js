@@ -198,8 +198,26 @@ const DEFERRAL_RES = [
   /\b(?:would|will)\s+(?:need|require)\s+(?:a\s+|further\s+|more\s+|additional\s+)?(?:separate|follow[- ]?up|additional|deeper|further)\s+(?:work|pass|change|PR|effort|investigation|task)\b/i,
 ];
 
-const BLOCK_RE = /^[ \t]*\[COVERAGE CHECK\][ \t]*$([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*\[COVERAGE CHECK\][ \t]*$|(?![\s\S]))/gm;
-const PART_LINE_RE = /^[ \t]*[-*][ \t]*(.+?)[ \t]*:[ \t]*(done|blocked|returned)\b[ \t]*[-:(]?[ \t]*(.*)$/i;
+/*
+ * The marker owns its line, but an agent writing markdown decorates it -
+ * `**[X]**`, `## [X]`, a trailing colon. Those are the same block, and
+ * refusing them meant a correctly closed turn read as no block at all:
+ * a retrospective for a ledger that was written, and under a strict gate,
+ * a blocked stop. Backticks stay out of the allowed set, so an inline-code
+ * mention is still documentation rather than a closure.
+ */
+const BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[COVERAGE CHECK\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[COVERAGE CHECK\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$|(?![\s\S]))/gm;
+/*
+ * `- <part>: done`, and the separator is the agent's choice.
+ *
+ * Every run of the coverage eval case enumerated all three parts and closed
+ * each one; the runs that were rejected differed from the run that passed only
+ * in writing `- enqueue(item) — done` where the pattern wanted a colon. The
+ * status word after the separator is what carries the meaning, so an em- or
+ * en-dash is the same line. What does NOT loosen: `blocked` and `returned`
+ * still have to be followed by their reason.
+ */
+const PART_LINE_RE = /^[ \t]*[-*][ \t]*(.+?)[ \t]*[:—–][ \t]*(done|blocked|returned)\b[ \t]*[-—–:(]?[ \t]*(.*)$/i;
 
 function prose(text) {
   return text
@@ -211,6 +229,21 @@ function prose(text) {
 /*
  * scanClose(text) -> { deferrals: [phrase], blocks: n, parts: n, violations: [string] }
  */
+/*
+ * What BLOCK_RE must not read: a fenced example of the block. Showing the
+ * format is what documentation and an instruction that teaches it both do, and
+ * counting that as a declared block produced violations about a template - a
+ * blocked stop, under a strict gate, for explaining the format.
+ *
+ * Fenced content is blanked character by character with the newlines kept, so
+ * the line-anchored pattern below still sees lines and the markers on them are
+ * gone. prose() above already does this for the phrase-level scan; this is the
+ * same rule applied to the block scan.
+ */
+function unfenced(text) {
+  return text.replace(/```[\s\S]*?```/g, (f) => f.replace(/[^\n]/g, ' '));
+}
+
 function scanClose(text) {
   const out = { deferrals: [], blocks: 0, parts: 0, violations: [] };
   if (typeof text !== 'string' || !text) return out;
@@ -222,7 +255,7 @@ function scanClose(text) {
   }
 
   let m;
-  while ((m = BLOCK_RE.exec(text)) !== null) {
+  while ((m = BLOCK_RE.exec(unfenced(text))) !== null) {
     out.blocks += 1;
     let blockParts = 0;
     for (const line of m[1].split(/\r?\n/)) {

@@ -3,13 +3,32 @@
 
 const SKILL = 'handoff-self-monitoring';
 
+// A pointer, not a paraphrase - see the note in coverage's messages.js.
+/*
+ * Three triggers have missed here, and the third one is what explains the
+ * other two: this message is injected at UserPromptSubmit, so a trigger the
+ * agent cannot evaluate until the answer is written cannot fire.
+ *
+ * "Before you close a turn" and then "when your close would leave them a
+ * choice" both failed, and "when your close carries a decision" scored 1 of 4 -
+ * the runs read well, recommended a transport, one even ended on a question,
+ * and none wrote the block. All three ask about the close, which does not
+ * exist yet at the moment the message arrives.
+ *
+ * The four triggers in this collection that hold at 2-of-3 or better are all
+ * decidable from the prompt as it lands: a multi-part task, a diagnosis, an
+ * attempt that already failed, an instruction to stop. So this one is too -
+ * the shape of the ASK, not the shape of the answer.
+ *
+ * Which means the first diagnosis in this comment ("always true, so it singles
+ * out nothing") is no longer the best explanation of the original failure, and
+ * is kept here only because it was measured alongside the rest.
+ */
 const LOAD =
-  `[handoff self-monitoring] The reader of your final message has the message, not your trace. Before ` +
-  `you close a turn, run the ${SKILL} skill: write the [HANDOFF] block as a markdown list, not a fenced ` +
-  'code block - Status (done | needs-decision | blocked), Situation in the reader\'s terms, Options as a ' +
-  'list with Default on its own line when there is a fork, Next as one action - and keep paths, identifiers ' +
-  'and what you ran below it. An offer, a fork named but not decided, or a question to the reader is not a ' +
-  'decision (in English an offer often looks like "let me know", "if you want", "should I"). Not a blocker.';
+  `[handoff self-monitoring] The reader of your final message has the message, not your trace. When the ` +
+  'ask is one they will act on rather than just read - which of these, is this ready, look at this ' +
+  `before I run it, what should we do - load the ${SKILL} skill if it is not already loaded: it carries ` +
+  'the handoff protocol and the exact block format the hooks read. Not a blocker.';
 
 function preclose(signal) {
   const seen = signal.what === 'commit' ? `\`${signal.label}\` ran` : `\`${signal.label}\` passed`;

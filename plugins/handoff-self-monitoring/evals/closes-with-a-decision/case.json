@@ -1,0 +1,5 @@
+{
+  "intent": "answer",
+  "expect": "block",
+  "why": "A review task with the decision buried inside it - take the booked window, or do it online in batches - rather than an explicit A-or-B question. The first version asked 'Redis or SQS?' and handed the decision over on a platter: on Cursor the unaided baseline answered it with a well-formed [HANDOFF] block, Status and Options and Default and Next, 2 runs of 3, because that is simply the shape of an answer to a which-of-these question. A case whose baseline already passes measures the question, not the plugin. Here the natural unguarded answer is prose about locking and backfill with the choice mentioned in passing, which is the failure this plugin exists for: a decision named and not handed off."
+}

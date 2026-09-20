@@ -40,3 +40,14 @@
 {"text": "Which transport to use depends on whether you need durability.", "expect": "hit", "why": "a fork with a choice-shaped object and no default named"}
 {"text": "Whether to batch depends on what your p99 target is.", "expect": "hit", "why": "choice-shaped object"}
 {"text": "Which transport to use depends on whether you need durability.\n\n[HANDOFF]\n- Status: needs-decision\n- Situation: the queue is written, either transport drops in\n- Options:\n  - SQS: durable, +40ms\n  - Redis: in-stack, loses on restart\n  - Default: SQS - the replay log does not cover a cold start\n- Next: confirm SQS and I will wire it", "expect": "miss", "why": "the same fork WITH options and a default is what the skill asks for"}
+
+// --- a block the agent decorated (bold or heading) is still a block ---
+
+{"text": "Both transports work - let me know which you prefer.\n\n**[HANDOFF]**\n- Status: needs-decision\n- Situation: the queue is written, either transport drops in\n- Options:\n  - SQS: durable, +40ms\n  - Redis: in-stack, loses on restart\n  - Default: SQS - the replay log does not cover a cold start\n- Next: confirm SQS and I will wire it", "expect": "miss", "why": "a bolded marker is the same block"}
+{"text": "Done, though it depends on whether you need ordering.\n\n## [HANDOFF]\n- Status: done\n- Situation: the writer no longer deadlocks\n- Next: nothing", "expect": "miss", "why": "heading marker"}
+{"text": "Should I also bump the dependency? The format is `**[HANDOFF]**` followed by the fields.", "expect": "hit", "why": "a decorated marker in inline code is documentation - the offer stands unhanded"}
+
+// --- a FENCED example of the block is documentation, not a handoff ---
+
+{"text": "Should I also bump the dependency?\n\nThe format is:\n\n```\n[HANDOFF]\n- Status: done\n- Situation: <one sentence>\n- Next: nothing\n```\n\nThat is the shape.", "expect": "hit", "why": "a fenced template does not hand off the offer"}
+{"text": "Done. All tests pass.\n\nFor reference, the format is:\n\n```\n[HANDOFF]\n- Status: <done | needs-decision | blocked>\n- Situation: <one sentence in the reader's terms>\n- Next: <one action, or nothing>\n```\n\nThat is the shape.", "expect": "miss", "why": "documenting the format, with no offer and no fork - a fenced template must not be judged as a declared block"}

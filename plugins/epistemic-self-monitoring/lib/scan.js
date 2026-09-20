@@ -16,7 +16,15 @@
 
 // A block starts with the marker alone on its line. Mentioning the marker in
 // prose or inside backticks (as documentation does) is not a closure.
-const BLOCK_RE = /^[ \t]*\[EPISTEMIC CLOSE\][ \t]*$([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*\[EPISTEMIC CLOSE\][ \t]*$|(?![\s\S]))/gm;
+/*
+ * The marker owns its line, but an agent writing markdown decorates it -
+ * `**[X]**`, `## [X]`, a trailing colon. Those are the same block, and
+ * refusing them meant a correctly closed turn read as no block at all:
+ * a retrospective for a ledger that was written, and under a strict gate,
+ * a blocked stop. Backticks stay out of the allowed set, so an inline-code
+ * mention is still documentation rather than a closure.
+ */
+const BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[EPISTEMIC CLOSE\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[EPISTEMIC CLOSE\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$|(?![\s\S]))/gm;
 
 function field(block, name) {
   const re = new RegExp('^[ 	]*[-*]?[ 	]*' + name + '[ 	]*:[ 	]*(.*)$', 'im');

@@ -3,12 +3,12 @@
 
 const SKILL = 'epistemic-self-monitoring';
 
+// A pointer, not a paraphrase - see the note in coverage's messages.js.
 const LOAD =
-  `[epistemic self-monitoring] For diagnosis and closure this session, use the ${SKILL} skill: ` +
-  'assume the premise and your first explanation may be false; read the authority (plan/gate, docs, ' +
-  'prior attempts, the actual code) before deriving; keep [observed] apart from [conjecture]; name the ' +
-  'falsifier and the strongest rival before testing; record a fact, defect or closure only as ' +
-  '[verified - by: ...] inside an [EPISTEMIC CLOSE] markdown list, not a fenced code block. Not a blocker - a way of writing.';
+  `[epistemic self-monitoring] This session keeps what you observed apart from what you concluded. ` +
+  `Before a diagnosis, a root cause or a closure, load the ${SKILL} skill if it is not already loaded: ` +
+  'it carries the falsifier rule and the exact block format the hooks read. ' +
+  'Not a blocker - a way of writing.';
 
 const OBSERVE =
   '[epistemic self-monitoring] You just received an observation. Before interpreting it: did it match ' +

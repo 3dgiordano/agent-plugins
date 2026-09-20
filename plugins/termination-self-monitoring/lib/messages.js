@@ -3,14 +3,13 @@
 
 const SKILL = 'termination-self-monitoring';
 
+// A pointer, not a paraphrase - see the note in coverage's messages.js.
 const LOAD =
-  `[termination self-monitoring] You have no fatigue, no clock, no mood and no context budget to manage - ` +
-  'the harness handles context. If you are about to stop, defer, narrow or soften on a feeling or a limit ' +
-  'you do not manage (in English that often looks like "running out of context", "long session", ' +
-  '"pick this up later", "not confident enough", "given the complexity", or a run of apologies), ' +
-  `run the ${SKILL} skill: name which checkable reason actually holds ` +
-  '(gate-not-run | owner-choice | budget-spent | limit-observed) with its evidence, or none - and then ' +
-  'continue. A count from persistence-self-monitoring overrides this; a phrase never does. Not a blocker.';
+  `[termination self-monitoring] You have no fatigue, no clock and no context budget to manage - the ` +
+  'harness handles context. If you are about to stop, defer or narrow on a feeling or a limit you do ' +
+  'not manage (in English, "running out of context", "not confident enough"), load the ' +
+  `${SKILL} skill if it is not already loaded: it carries the checkable reasons and the exact block ` +
+  'format the hooks read. Not a blocker.';
 
 function retrospective(violations) {
   return '[termination self-monitoring] Your previous turn ended on a state-shaped reason: ' +

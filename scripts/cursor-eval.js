@@ -85,55 +85,7 @@ const ROOT = path.resolve(__dirname, '..');
 const PLUGINS = path.join(ROOT, 'plugins');
 const GLOBAL_PLUGINS = path.join(os.homedir(), '.cursor', 'plugins', 'local');
 
-/*
- * Grading: a WELL-FORMED block, judged by the plugin's own scanner.
- *
- * The first version of this only looked for the bracket, which is weaker than
- * it sounds - an agent can open `[HANDOFF]` and leave the fork undecided, and
- * the eval would score it. Where a plugin ships a close scanner, that scanner
- * is the grader: a block plus zero violations means the discipline was carried
- * out by the plugin's own rules, not merely announced. persistence has no
- * close scanner, so it keeps a marker.
- *
- * What this does NOT do is invent a pattern that happens to separate the arms
- * on the transcripts at hand. Candidates were measured for the epistemic case -
- * an explicit rivals heading, enumerated falsifier items, the plugin's own
- * violation count - and none separated them; the only things that did were
- * word-choice coincidences (the plural "falsifiers") on four transcripts.
- * Fitting a grader to those would measure vocabulary, not discipline. That
- * case needs a different PROMPT, not a cleverer regex - see its NOTES.md.
- */
-const MARKER = {
-  'coverage-self-monitoring': /\[COVERAGE (?:LEDGER|CHECK)\]/,
-  'epistemic-self-monitoring': /\[EPISTEMIC CLOSE\]/,
-  'handoff-self-monitoring': /\[HANDOFF\]/,
-  'persistence-self-monitoring': /\[PERSISTENCE CHECK\]/,
-  'termination-self-monitoring': /\[TERMINATION CHECK\]/,
-  // The executive nudge asks the agent to re-read the active plan. There is no
-  // block, so a deterministic grader would be invented rather than observed.
-  'executive-self-monitoring': null,
-};
-
-/*
- * scanner(plugin) -> (text) -> true when the response carries a well-formed
- * block, using the plugin's own lib. Falls back to the marker when the plugin
- * has no close scanner.
- */
-const SCANNER = {
-  'coverage-self-monitoring': ['signals.js', (m, t) => { const r = m.scanClose(t); return r.blocks >= 1 && r.violations.length === 0; }],
-  'epistemic-self-monitoring': ['scan.js', (m, t) => { const r = m.scan(t); return r.blocks >= 1 && r.violations.length === 0; }],
-  'handoff-self-monitoring': ['handoff.js', (m, t) => { const r = m.scan(t); return r.blocks >= 1 && r.violations.length === 0; }],
-  'termination-self-monitoring': ['lexicon.js', (m, t) => { const r = m.scan(t); return r.blocks >= 1 && r.violations.length === 0; }],
-};
-
-function graderFor(plugin) {
-  const marker = MARKER[plugin];
-  if (!marker) return null;
-  const s = SCANNER[plugin];
-  if (!s) return { how: `marker ${marker}`, test: (t) => marker.test(t) };
-  const mod = require(path.join(PLUGINS, plugin, 'lib', s[0]));
-  return { how: `well-formed block per lib/${s[0]}`, test: (t) => marker.test(t) && s[1](mod, t) };
-}
+const { PLUGINS: PLUGINS_DIR, cases, graderFor, gradingOf, usable, verdict, reportLine, summaryLines, scratchWorkspace, isolatedHome, quote } = require('./evallib.js');
 
 // ---------------------------------------------------------------------------
 // The CLI
@@ -185,13 +137,25 @@ function findCli() {
  * whole run scored two plugins at 0% for a discipline they were never asked to
  * exercise. stdin sidesteps shell quoting entirely.
  */
-function run(bin, args, env, input) {
+/*
+ * `cwd` defaults to the temp directory, and never to the repository.
+ *
+ * On Windows this CLI is a .cmd shim, so the child is a shell and, through it,
+ * PowerShell - which rebuilds its data paths from the environment. Under
+ * --isolate, HOME and USERPROFILE point at a scratch directory, and a path
+ * that then resolves relative lands in whatever the working directory happens
+ * to be. It happened: `Microsoft/Windows/PowerShell/ModuleAnalysisCache`
+ * appeared in the repository root fifteen seconds into the first isolated run.
+ * Harmless in itself, and it would have gone into a commit.
+ */
+function run(bin, args, env, input, cwd) {
   return spawnSync(bin, args, {
     encoding: 'utf8',
     timeout: 300000,
     shell: /\.cmd$/i.test(bin),
     env: Object.assign({}, process.env, env || {}),
     input: typeof input === 'string' ? input : undefined,
+    cwd: cwd || os.tmpdir(),
   });
 }
 
@@ -207,27 +171,6 @@ const globalInstalls = () => {
   try { return fs.readdirSync(GLOBAL_PLUGINS).filter((d) => d.endsWith('-self-monitoring')); } catch (_) { return []; }
 };
 
-// ---------------------------------------------------------------------------
-// Cases, reused from the `claude plugin eval` suites
-// ---------------------------------------------------------------------------
-
-function cases(filter) {
-  const out = [];
-  for (const name of fs.readdirSync(PLUGINS).sort()) {
-    if (filter && name.indexOf(filter) === -1) continue;
-    const evalDir = path.join(PLUGINS, name, 'evals');
-    if (!fs.existsSync(evalDir)) continue;
-    for (const c of fs.readdirSync(evalDir)) {
-      const dir = path.join(evalDir, c);
-      if (!fs.statSync(dir).isDirectory() || c === 'results') continue;
-      const prompt = path.join(dir, 'prompt.md');
-      if (!fs.existsSync(prompt)) continue;
-      out.push({ plugin: name, id: c, prompt: fs.readFileSync(prompt, 'utf8').trim(), grader: graderFor(name) });
-    }
-  }
-  return out;
-}
-
 /*
  * `--mode ask` keeps the run read-only: these cases want a written answer, not
  * edits. `--trust` is required because the CLI refuses a directory it has not
@@ -235,35 +178,29 @@ function cases(filter) {
  * the repository.
  */
 function argsFor(c, withPlugin, model, workspace) {
-  const a = ['-p', '--output-format', 'text', '--mode', 'ask', '--trust', '--workspace', workspace];
+  /*
+   * --mode takes only `plan` and `ask`; omitting it IS agent mode, which is
+   * what a case that asks the agent to DO the work needs - the failure it
+   * targets is in what gets delivered, not in an assessment. (Debug and
+   * Multitask are not CLI modes: --help lists the two choices above.)
+   *
+   * --sandbox holds file and network access to approved paths, which is what a
+   * `-p` run needs given the docs say it has "access to all tools, including
+   * write and shell". It is passed ONLY on macOS and Linux: on Windows the CLI
+   * refuses to start with it - "Sandbox mode is enabled but not available on
+   * this system. Sandbox requires macOS or Linux." - so passing it there fails
+   * every run rather than protecting it.
+   *
+   * On Windows the guard is what is NOT passed: without --force / --yolo the
+   * CLI rejects shell commands anyway, so an agent-mode case can write inside
+   * its throwaway workspace and not run anything. Neither flag is ever passed.
+   */
+  const a = ['-p', '--output-format', 'text', '--trust', '--workspace', workspace];
+  if (process.platform === 'darwin' || process.platform === 'linux') a.push('--sandbox', 'enabled');
+  if (c.intent !== 'work') a.push('--mode', 'ask');
   if (model) a.push('--model', model);
   if (withPlugin) a.push('--plugin-dir', path.join(PLUGINS, c.plugin));
   return a; // the prompt is NOT here - it goes on stdin, see run()
-}
-
-const quote = (s) => (/[\s"]/.test(s) ? `"${s.replace(/"/g, '\\"')}"` : s);
-
-/*
- * A FRESH workspace per invocation, not one shared by the whole run.
- *
- * The CLI keeps session state per workspace, so reusing one directory leaks the
- * WITH arm into the WITHOUT arm that follows it: the first measured baseline
- * scored 100% on a block it had no skill for, purely because the plugin arm had
- * just run in the same directory. A fresh directory each time is the only thing
- * that makes the two arms independent.
- */
-let wsSeq = 0;
-function scratchWorkspace() {
-  const d = path.join(os.tmpdir(), `cursor-eval-${process.pid}-${Date.now()}-${wsSeq++}`);
-  fs.mkdirSync(d, { recursive: true });
-  return d;
-}
-
-// A HOME whose .cursor has no plugins, so the baseline arm really is bare.
-function isolatedHome() {
-  const h = path.join(os.tmpdir(), `cursor-eval-home-${process.pid}-${Date.now()}`);
-  fs.mkdirSync(path.join(h, '.cursor', 'plugins'), { recursive: true });
-  return { HOME: h, USERPROFILE: h };
 }
 
 // ---------------------------------------------------------------------------
@@ -318,7 +255,7 @@ function main() {
     console.log(`${found.length} case(s):\n`);
     for (const c of found) {
       console.log(`  ${c.plugin}/${c.id}`);
-      console.log(`    grading: ${c.grader ? c.grader.how : 'SKIPPED - no protocol block, needs a judge model'}`);
+      console.log(`    grading: ${gradingOf(c)}`);
     }
     return;
   }
@@ -364,7 +301,7 @@ function main() {
    * session really did not come along. (An earlier version demanded the key up
    * front, on the assumption that isolation would break auth. It does not.)
    */
-  const env = isolate ? isolatedHome() : {};
+  const env = isolate ? isolatedHome('.cursor') : {};
   let auth = authState(cli.bin, env);
   if (!auth.ok && isolate && !process.env.CURSOR_API_KEY) {
     console.error('--isolate points HOME at a scratch directory and the session did not follow.');
@@ -386,32 +323,44 @@ function main() {
   console.log(`skill layer only - hooks do not run in headless mode (see --probe)\n`);
 
   const rows = [];
+  const incomplete = { cases: 0, dead: 0 };
   for (const c of found) {
     if (!c.grader) { console.log(`${c.plugin}/${c.id}: skipped - needs a judge model`); continue; }
     const score = { with: 0, without: 0 };
+    const valid = { with: 0, without: 0 };
+    let dead = 0;
     for (const withPlugin of [true, false]) {
+      const arm = withPlugin ? 'with' : 'without';
       for (let i = 0; i < runs; i++) {
-        const r = run(cli.bin, argsFor(c, withPlugin, model, scratchWorkspace()), env, c.prompt);
+        const ws = scratchWorkspace();
+        const r = run(cli.bin, argsFor(c, withPlugin, model, ws), env, c.prompt, ws);
         const text = `${r.stdout || ''}`;
-        fs.writeFileSync(path.join(outDir, `${c.plugin}__${c.id}__${withPlugin ? 'with' : 'without'}__${i + 1}.txt`), text);
-        if (c.grader.test(text)) score[withPlugin ? 'with' : 'without'] += 1;
+        fs.writeFileSync(path.join(outDir, `${c.plugin}__${c.id}__${arm}__${i + 1}.txt`), text);
+        // See usable() - a CLI error on stdout is not an answer, and for a
+        // quiet case it would otherwise score as a pass.
+        if (!usable(text)) { dead += 1; continue; }
+        valid[arm] += 1;
+        if (verdict(c, text)) score[arm] += 1;
       }
     }
-    const w = score.with / runs;
-    const wo = score.without / runs;
+    incomplete.dead += dead;
     console.log(`${c.plugin}/${c.id}`);
-    console.log(`  with: ${(w * 100).toFixed(0)}%   without: ${(wo * 100).toFixed(0)}%   delta: ${((w - wo) * 100).toFixed(0)} pts`);
-    rows.push({ c, with: w, without: wo });
+    if (!valid.with || !valid.without) {
+      incomplete.cases += 1;
+      console.log(`  NOT SCORED - ${dead} of ${runs * 2} run(s) never reached the model; an arm has nothing left`);
+      continue;
+    }
+    const w = score.with / valid.with;
+    const wo = score.without / valid.without;
+    console.log(reportLine(c, w, wo, dead));
+    rows.push({ c, with: w, without: wo, dead });
   }
 
-  const proved = rows.filter((r) => r.with > r.without);
-  console.log(`\n${proved.length}/${rows.length} case(s) show the skill changing the output on Cursor.`);
+  console.log('');
+  for (const line of summaryLines(rows, 'the skill on Cursor', incomplete)) console.log(line);
   console.log(`transcripts: ${outDir}`);
-  if (rows.length && proved.length < rows.length) {
-    console.log('A case both arms score the same on proves nothing - rewrite its prompt so the');
-    console.log('failure it targets is the likely answer without the plugin.');
-  }
+  if (incomplete.cases) process.exitCode = 1;
 }
 
 if (require.main === module) main();
-module.exports = { findCli, authState, cases, argsFor, globalInstalls, graderFor, MARKER, SCANNER };
+module.exports = { findCli, authState, argsFor, globalInstalls };

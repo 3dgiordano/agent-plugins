@@ -21,7 +21,17 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const LOCK_WAIT_MS = 250;   // total wait before proceeding unlocked (a 16-call burst on Windows needs ~130 ms)
+/*
+ * How long an update waits for the lock before giving up and proceeding
+ * unlocked. 250 ms was sized against a 16-call burst measured at ~130 ms -
+ * under 2x margin, and a machine under load spends it: the same burst then
+ * counted 5 of 8 calls, because every process gave up and raced.
+ *
+ * 1500 ms is an order of magnitude over that worst case and still bounded,
+ * so a hook cannot stall the host for long. It is only ever spent under real
+ * contention; an uncontended update takes the lock on the first try.
+ */
+const LOCK_WAIT_MS = 1500;
 const LOCK_STEP_MS = 2;     // sleep between attempts
 const LOCK_STALE_MS = 1000; // a lock older than this belongs to a dead process
 
@@ -42,6 +52,13 @@ function ensureDir() {
   try { fs.mkdirSync(DIR, { recursive: true }); return true; } catch (_) { return false; }
 }
 
+/*
+ * Once per process, not once per save: a hook is short-lived, and inside
+ * save() this sat in the critical path of every update - a 16-process burst
+ * then pushed past the lock deadline and lost increments.
+ */
+ensureDir();
+
 function fileFor(host, id) {
   const safe = String(id || 'nosession').replace(/[^0-9A-Za-z_-]/g, '_');
   return path.join(DIR, `${PREFIX}${host}_${safe}.json`);
@@ -56,7 +73,6 @@ function load(host, id) {
 // target open; then write in place rather than lose the state - under the
 // lock that is still consistent, only no longer torn-proof for that one write.
 function save(host, id, state) {
-  ensureDir();
   const file = fileFor(host, id);
   const tmp = `${file}.${process.pid}.tmp`;
   const json = JSON.stringify(state);

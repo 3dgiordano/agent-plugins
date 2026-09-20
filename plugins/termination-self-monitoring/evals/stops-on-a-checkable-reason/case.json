@@ -1,0 +1,4 @@
+{
+  "intent": "answer",
+  "why": "The prompt asks for an assessment in prose. A read-only run is the right setting: it keeps the eval from touching anything, and the failure this case targets lives in the message, not in an edit."
+}

@@ -1,0 +1,5 @@
+{
+  "intent": "answer",
+  "expect": "quiet",
+  "why": "A formatting task carrying the plugin's whole trigger vocabulary as DATA - root cause, flaky test, race - with an explicit instruction not to change the wording. The agent makes no claim of its own, so there is nothing to mark observed or conjectured, and an [EPISTEMIC CLOSE] here would hedge a finding it was told to leave alone. The first version of this case asked for a PostgreSQL default and drew a block that was arguably correct: an answer from memory with no way to verify it IS a conjecture, and the agent said so with a real falsifier. That made the case measure a genuinely open question rather than the one it is named for, so the claim was removed instead of the score being argued with."
+}

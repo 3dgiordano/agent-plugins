@@ -33,10 +33,10 @@ user instead of trying again. (persistence-self-monitoring skill)
 On the first turn of a session, and every fifth after that:
 
 ```
-[executive self-monitoring] Checkpoint for long/iterative work: invoke the
-executive-self-monitoring skill (the source of truth) before substantive steps
-- name the active plan/gate and confirm this step serves it. Not a blocker;
-skip if this turn is trivial.
+[executive self-monitoring] Checkpoint for long/iterative work: load the
+executive-self-monitoring skill if it is not already loaded, then re-open the
+artifact that defines this work and write its [PLAN CHECK] block. Not a
+blocker; skip if this turn is trivial.
 ```
 
 And when it is about to declare "the cause is X", the epistemic skill asks it to

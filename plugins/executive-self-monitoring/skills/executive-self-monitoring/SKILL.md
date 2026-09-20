@@ -69,10 +69,22 @@ Insert naturally — a brief internal executive voice, not a mechanical
 checklist. Write it as a markdown list in the message, **not inside a fenced
 code block**. Fences do not wrap. No blank line inside the block.
 
-[EXECUTIVE SELF-MONITORING]
-- Active plan/gate: <artifact + one-sentence objective + gate>
-- Aligned? <yes / drifting because …>
-- Decision: <continue / refocus / revise plan>
+**Write the block. Do not announce writing it.** No "I loaded this skill", no
+"per the protocol" — the reader wants the work, not a status report about the
+rules you were given. And the `[PLAN CHECK]` line opens the block, always: four
+fields with no marker above them are prose, and they read as a turn that never
+re-opened the plan.
+
+[PLAN CHECK]
+- Plan: <the artifact that defines the active work, named>
+- Gate: <the line from it that defines success, quoted>
+- Drift: none | <what is pulling away from that gate>
+- Decision: continue | refocus | revise-plan
+
+`Plan` names an artifact, not a memory — if you cannot name one, that is the
+finding, and the decision is to go find it. `Gate` is quoted from that artifact
+rather than paraphrased. `Drift: none` and `Decision: continue` go together: if
+nothing is pulling away, there is nothing to correct.
 
 Then continue normal work. Keep it short and honest — the value is the re-read,
 not the ritual. If you find yourself writing "✓ still aligned" without opening

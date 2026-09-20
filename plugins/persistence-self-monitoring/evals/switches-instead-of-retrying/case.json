@@ -1,0 +1,4 @@
+{
+  "intent": "work",
+  "why": "The prompt asks the agent to DO something, not to write an assessment. A read-only run cannot exhibit the failure this case targets: in Claude Code's plan mode the agent writes a plan and stops, so the part it would have stubbed never gets written at all."
+}

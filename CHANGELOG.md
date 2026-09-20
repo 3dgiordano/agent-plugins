@@ -7,6 +7,307 @@ release.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-20
+
+Every trigger in the collection was wrong, and in the same way. A load message
+fires only when its condition can be read off the prompt as it arrives — not
+off a close that does not exist yet, and not off the act a well-behaved agent
+never performs. Five of the six were rewritten; one of them five times before
+it held.
+
+Underneath that, the eval grew the half it was missing. It asked only whether
+the block appears when it is due, so six plugins injecting a reminder every
+turn could reach perfect recall and still be unusable. Each plugin now also has
+a turn where the block must stay away. And the runner refuses to score a run
+that never reached the model, after an account limit turned forty dead
+transcripts into results — reported, in the dangerous direction, as six perfect
+precision scores.
+
+All six plugins now reach 100% on both axes, on Claude Code and on Cursor. The
+two hosts do not measure the same thing: Claude Code runs the hooks, Cursor
+headless does not, so there the skill carries the discipline alone. Both reach
+it.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.4.0 |
+| epistemic-self-monitoring | 0.1.9 |
+| persistence-self-monitoring | 0.1.10 |
+| termination-self-monitoring | 0.1.9 |
+| coverage-self-monitoring | 0.1.10 |
+| handoff-self-monitoring | 0.1.8 |
+
+### Changed
+- **all six plugins** — the injected load message is a pointer to the skill, not
+  a paraphrase of it. It used to restate the protocol — write the ledger,
+  hardest first, close each part — which made loading the skill look redundant
+  while dropping the one thing the hooks actually read: the `- <part>: done`
+  line shape. The agent did the discipline and wrote the block in whatever form
+  came naturally, and the scanner refused it.
+
+  Now the message carries only what the skill cannot know — that this session is
+  measuring, and the trigger to watch for — and says
+  **"load the <name> skill if it is not already loaded"**. `load` rather than
+  `run`, because an agent loads instructions rather than executing them; the
+  condition keeps a cadence injection from asking for the same load every turn.
+
+  What is measured: the message is 38% shorter (3140 → 1959 characters across
+  the five shared ones), and the agent does load the skill from the pointer —
+  a stream trace shows the Skill tool invoked with the short name.
+
+  What is NOT measured: any change in how often the block comes out. The same
+  case, same n=3 and same configuration produced 100% and then 33% on
+  consecutive runs, and a 95% interval at n=3 spans [6%, 79%] for a 1-of-3 —
+  every rate here overlaps every other. The ablation itself is unaffected:
+  the no-plugin arm scored 0 in every case of every run.
+
+  The English example phrases stay: they are how an agent working in another
+  language recognises the trigger, and they are what lets it decide whether the
+  skill is worth loading.
+- **three eval cases were replaced, because they were not measuring what they
+  are named for.** Two of them only showed it on Cursor, where the CLI runs no
+  hooks and the WITH arm is the skill alone:
+
+  `epistemic/separates-observed-from-conjectured` scored 100% in **both** arms.
+  Its `NOTES.md` had diagnosed this a while back and prescribed the fix: a
+  deploy seven minutes before a latency jump is a textbook correlation trap, so
+  well represented that a competent model reaches for the hedge unaided. It is
+  now six flat days against three weeks of a daily leak, with the owner asking
+  for a closing comment that confirms the fix — evidence that reads as proof,
+  and a request to close the question rather than open it.
+
+  `handoff/closes-with-a-decision` asked "Redis or SQS?", and the unaided
+  baseline answered it with a well-formed `[HANDOFF]` block — Status, Options,
+  `Default: A, because …`, `Next: Reply A or B` — in 2 runs of 3. That is
+  simply the shape of a good answer to a which-of-these question. It is now a
+  migration review with the decision buried inside it: take the booked window,
+  or do it online in batches. The unguarded answer is prose about locking and
+  backfill with the choice mentioned in passing, which is the failure this
+  plugin exists for.
+
+  `epistemic/stays-quiet-on-a-lookup` cost 33 points of precision, and reading
+  the block showed the plugin was right and the case was wrong: asked for a
+  PostgreSQL default with no way to verify it, the agent answered, marked the
+  claim `Status: conjecture`, and gave a real falsifier. An unverified recall
+  claim **is** a conjecture. The case now asks for a changelog entry to be
+  reformatted, carrying the trigger vocabulary — root cause, flaky test, race —
+  as data the agent is told not to change.
+
+  Rewriting a case after it fails is how a measurement gets fitted to its
+  desired answer, so the argument for each replacement is in its `case.json`
+  and holds independently of the score.
+- **handoff 0.1.8** — the trigger also covers a review of work the owner is
+  about to run. On the harder prompt above it fell to 1 of 3, and this time the
+  skill was checked first: its conditions already covered the turn (*a risk you
+  did not take*, *the close is an offer*), so the gap was the message's, not the
+  authority's. Adding *"look at this before I run it"* took it to 5 of 5.
+
+  Five rewrites of one trigger, and they divide cleanly: four failed on the
+  SHAPE of the condition (always true, self-excluding, not decidable on
+  arrival) and this one on its COVERAGE.
+- **the behavioural eval measures precision, not only recall.** Every case so
+  far asked the same question — when the block is due, does it appear? Nothing
+  asked the opposite, and six plugins each injecting a reminder every turn can
+  reach perfect recall and still be unusable, because the cost lands on the
+  turns that needed none of it. Executive's own message says "skip if this turn
+  is trivial"; that sentence had never been measured.
+
+  Each plugin now has a second case, `expect: "quiet"`, holding a turn that sits
+  near its trigger without meeting it: one part rather than several, a lookup
+  rather than a diagnosis, a first failure rather than a fourth, a turn that
+  ends because it finished. A quiet case is graded on the MARKER and not on the
+  scanner — a malformed block on a turn that needed no block is still noise —
+  and it reports `cost` rather than `delta`, because it cannot beat a baseline
+  that is silent for free.
+- **the eval refuses to score a run that never reached the model.** The CLI
+  writes its own failures to stdout in the same channel as a reply. A twelve-
+  case run hit an account spend limit part way through: 40 of its 72
+  transcripts were `You've hit your individual spend limit`, and all 40 were
+  scored. Three plugins appeared to regress to zero, and — the dangerous half —
+  every quiet case reported a pass, because an error message contains no block
+  and a dead run cannot fail a silence test.
+
+  `usable()` now drops those runs from the denominator instead, and a case
+  whose arm has nothing left is printed as `NOT SCORED` rather than as a
+  result. Its patterns match the shape of a CLI failure rather than its topic:
+  a first draft matched a bare `rate limit` and the test caught it rejecting a
+  real answer about backing off on a 429.
+- **the Cursor runner no longer runs its child in the repository.** It passed no
+  `cwd`, so the CLI - a `.cmd` shim on Windows, and a shell and PowerShell
+  behind it - inherited whatever directory the runner was started from. Under
+  `--isolate`, `HOME` and `USERPROFILE` point at a scratch directory, PowerShell
+  rebuilt its data paths from that environment, and one of them resolved
+  relative: `Microsoft/Windows/PowerShell/ModuleAnalysisCache` appeared in the
+  repository root fifteen seconds into the first isolated run. The file is a
+  regenerable cache and harmless; being untracked and not ignored, it was one
+  `git add -A` away from a commit. The child now runs in its own workspace, and
+  every other invocation in the temp directory.
+- **`--rescore <dir>`** re-grades transcripts already on disk, with no calls and
+  no cost. The grading core keeps changing — a scanner learns a separator, a
+  guard learns to drop a dead run — and each change puts the previous numbers in
+  question. This answers that for free, and has already paid for itself twice:
+  the coverage case went from 1-of-3 to 3-of-3 on transcripts that were sitting
+  there the whole time, and the spend-limit outage above was found by re-scoring
+  rather than by re-running.
+- **the case filter takes a comma-separated list**, and each term matches a
+  plugin name or a case id, so a run can be narrowed to exactly the cases whose
+  answer is still open.
+- **executive 1.4.0** — the check block is `[PLAN CHECK]`, with named fields and
+  a scanner that reads them. It was `[EXECUTIVE SELF-MONITORING]`, a marker no
+  hook and no scanner ever read, and its three fields ran the answer into the
+  label: `Active plan/gate` asked for an artifact, an objective and a gate on
+  one line, and `Aligned?` invited a tick. The fields are now `Plan` (an
+  artifact, named), `Gate` (quoted from it), `Drift` (`none`, or what is pulling
+  away) and `Decision` (`continue | refocus | revise-plan`), which is the same
+  five-step protocol with one answer per line.
+
+  `lib/plan.js` checks that block the way the other four scanners check theirs:
+  an artifact rather than a placeholder, a gate that is present, and `Drift` and
+  `Decision` agreeing — nothing pulling away means the decision is `continue`.
+  It matches no phrases, because drift is not a lexicon: *"while I was in there
+  I also fixed the header parsing"* is drift in a branch scoped narrow and the
+  right thing to say in one that is not, and only the plan tells them apart.
+
+  Nothing gates on this. Executive has no `Stop` hook by design — it is the one
+  plugin in the set that never blocks — so the block is written for the reader,
+  and the scanner exists so the behavioural eval can score this plugin the way
+  it scores the other five instead of skipping it for want of a judge model.
+
+### Fixed
+- **all five skills** — one rule above the block template: write the block, do
+  not announce writing it. Observed once and precisely: a termination run opened
+  with *"I loaded the termination-self-monitoring skill because …"* and then
+  wrote the block's fields with no `[TERMINATION CHECK]` line at all — the
+  narration had taken the marker's place, and a block whose marker is missing is
+  not a block. One transcript of fifteen, so this is a rule for a named failure
+  rather than a widespread one. It lives in the skills rather than the messages:
+  it is static protocol content, and the messages are being kept to a trigger
+  and a pointer.
+- **coverage 0.1.10** — a part line may separate its name from its status with
+  an em- or en-dash, not only a colon. Every run of the coverage eval case
+  enumerated all three parts and closed each one; the runs the scanner rejected
+  differed from the run it accepted only in writing `- enqueue(item) — done`
+  where it wanted `- enqueue(item): done`. Re-scoring the three transcripts
+  already on disk turns 1 of 3 into 3 of 3, with no new run. `blocked` and
+  `returned` still require the reason after them.
+- **persistence 0.1.9 and handoff 0.1.8** — both load messages triggered on the
+  act that goes wrong, and so excluded the agent that does not commit it. This
+  took two passes to see, because the first rewrite of each looked like a fix
+  and reproduced the same error one level down.
+
+  Persistence first triggered on *"when a nudge arrives with a count"* — the
+  counts are 4 edits, 3 failed runs or 30 tool calls, so a turn reaching none of
+  them is told the skill does not apply. Rewritten to *"before trying again
+  after something already failed"*, it still scored 0 of 3: every run read the
+  four failed attempts, named the layer they shared, and **decided not to try
+  again**, which is the behaviour the plugin exists to produce. There was no
+  trying again, so the trigger never fired.
+
+  Handoff first triggered on *"before you close a turn"*, which is every turn
+  and singles out nothing. Rewritten to *"when your close would leave them a
+  choice"*, it also stayed at 0 of 3: two runs closed by deciding — *"I'd stay
+  on Redis"* — leaving no choice, on the case named `closes-with-a-decision`.
+
+  Both triggers now name the situation the turn arrives in, which holds whether
+  or not the agent goes wrong: for persistence, something has already failed
+  more than once, whichever way the next move goes; for handoff, a close that
+  carries a decision, one made for the reader or left to them.
+
+  Handoff needed a third pass, and it is the one that explains the other two.
+  *"When your close carries a decision"* scored 1 of 4: the runs recommended a
+  transport, one ended on a question to the reader, and still no block. Every
+  version of this trigger asked about **the close** — and the message is
+  injected at `UserPromptSubmit`, when the close does not exist yet. A trigger
+  the agent cannot evaluate at the moment it arrives cannot fire.
+
+  That is what the four working triggers have in common, and it was not visible
+  until this one failed three ways: a multi-part task, a diagnosis, an attempt
+  that already failed, an instruction to stop — each is readable off the prompt
+  as it lands. Handoff now asks the same kind of question: is this an ask they
+  will act on rather than just read. It also means the first diagnosis here
+  — *always true, so it singles out nothing* — is no longer the best
+  explanation of the original failure.
+
+  Scope, in both cases: the load message is the only lever the eval exercises.
+  Handoff's `Stop` gate is opt-in and off (`HANDMON_STRICT`) and its pre-close
+  needs a green gate or a commit; persistence has no gate at all — its `Stop`
+  only records — and its nudge needs counts a single-answer turn never reaches.
+- **persistence 0.1.10** — the skill excluded the situation it exists for. Its
+  four activation conditions were a hook count, *you* about to retry, *your*
+  quick fix growing, *you* fighting the tooling — every one about the agent's
+  own loop. None covered the commonest shape of all: the owner arrives already
+  in the loop, pastes four attempts that failed the same way, and asks what is
+  next. The agent loaded the skill, read that this was not about it, and
+  correctly wrote no block. Measured at 0 of 3 with answers that were otherwise
+  exactly right — one of them literally answering *"why this is different from
+  the other four"*, which is the protocol's own question. Adding the owner's
+  loop to the conditions, and saying that `Attempts` counts attempts made
+  rather than attempts the agent made, took it to 2 of 3.
+
+  Worth naming plainly: this trigger was rewritten twice **in the message**
+  before anyone opened the skill. The message is a pointer now, so the skill is
+  the authority, and the authority was the copy that said "not you".
+
+  The remaining run opened with *"I can't reach the web from here"* and went
+  straight to the answer. A caveat about the environment is worth making - it
+  tells the reader what could not be verified - but placed first it takes the
+  block's position, so the skill now says it goes below.
+- **executive 1.4.0, handoff 0.1.8, termination 0.1.9** — a block field may
+  carry a qualifier after a comma, not only after a dash, colon or bracket.
+  Executive wrote `Decision: continue, scoped strictly to steps 1-2` and
+  `Decision: continue, explicitly excluding the noticed but out-of-scope
+  fixes` - two correct blocks of three, scored as malformed for their
+  punctuation. Same shape as the coverage em-dash defect. Handoff's `Status`
+  and termination's `Reason` had the identical rule and are fixed with it,
+  before it reaches them.
+
+  This is the second time a scanner has rejected the discipline over a
+  separator, so the general form is worth stating: the token is checked by
+  what FOLLOWS it being punctuation rather than more letters, which is what
+  keeps `revise-plan` from matching as a qualified `revise`.
+- **`evals/corpus/plan-close.jsonl`** — `lib/plan.js` was the only close scanner
+  with no corpus, which is how it shipped with the separator defect above and
+  full unit tests at the same time. Sixteen lines, several transcribed from the
+  eval transcripts rather than invented — including the two comma-qualified
+  decisions, so the next widening of that rule cannot quietly undo this one.
+  A corpus is where the shapes agents actually write accumulate; a unit test is
+  only where the shapes their author thought of do.
+- **termination 0.1.9** — the skill now says the `[TERMINATION CHECK]` line
+  opens the block, always. The no-narration rule below cut the announced-load
+  variant, and the failure came back without the announcement: a run wrote a
+  paragraph of analysis and then started the list straight at `- Trigger:`, with
+  all four fields correct and no marker above them. Four fields with no marker
+  are prose, and the scanner and hooks read that turn as one that never ran the
+  check. Measured at 2 of 3 with the rule as it stood.
+- **coverage 0.1.8, epistemic 0.1.8, termination 0.1.8, handoff 0.1.6** — the
+  four close scanners now recognise a block whose marker the agent decorated:
+  `**[COVERAGE CHECK]**`, `## [HANDOFF]`, `**[TERMINATION CHECK]:**`. They
+  required the marker bare on its line, and an agent writing markdown reaches
+  for `**` on its own — so a correctly closed turn read as no block at all.
+  The cost was not cosmetic: a closed ledger still drew a retrospective
+  accusing the agent of not closing it, and under `EPIMON_STRICT`,
+  `TERMMON_STRICT` or `HANDMON_STRICT` a well-formed block could still block
+  the stop. Backticks stay out of the allowed decorations, so a marker quoted
+  in inline code remains documentation rather than a closure.
+
+  Found by the Claude Code behavioural eval, not by review: the agent wrote
+  `**[COVERAGE LEDGER]**` unprompted and the case scored 0, which looked like
+  the plugin doing nothing until the transcript showed otherwise.
+- **coverage 0.1.9, termination 0.1.9, handoff 0.1.7** — a FENCED example of a
+  protocol block is no longer read as a declared block. epistemic got this
+  earlier and the other three were left behind, so documenting the format —
+  which is what an instruction that teaches it does — produced violations about
+  a template: two for termination, three for handoff, and under a strict gate a
+  blocked stop for explaining the format. It fired on this repository's own
+  messages while the fix was being written.
+- **all five stateful plugins** — `LOCK_WAIT_MS` goes from 250 ms to 1500 ms.
+  250 was sized against a 16-call burst measured at ~130 ms, under 2x margin,
+  and a loaded machine spends it: the same burst counted **5 of 8** parallel
+  tool calls, because every process gave up on the lock and raced. The deadline
+  is only ever spent under real contention, so an uncontended update is
+  unaffected. Measured, not guessed — 250 ms lost increments repeatedly, 3000 ms
+  did not, and 1500 ms held 8/8 across five bursts.
+
 ## [0.4.0] — 2026-09-17
 
 Five layers of checking instead of one, and the defects the new ones found.
@@ -32,9 +333,11 @@ changes what the model does. Four of five scored cases say it does.
   detectors against 238 labelled lines, with per-detector floors.
 - `scripts/hosts.js` — drives all 44 declared adapters with host-shaped
   payloads and requires every Claude Code / Cursor asymmetry to be declared.
-- a CHANGELOG check in the suite: the newest release table must match every
-  plugin's manifests, and every version named inside its entries must match
-  that table. Those labels drifted three times while this release was being
+- a CHANGELOG check in the suite: every version named inside a release's
+  entries must match that release's version table, and while nothing is queued
+  under *Unreleased* the table must match the manifests too (once something is
+  queued, the manifests are ahead on purpose, and a manifest may only never
+  fall behind). Those labels drifted three times while this release was being
   assembled - a bump lands and the prose above it keeps the old number.
 - `plugins/*/evals/` — one behavioural case per plugin for
   `claude plugin eval --ablation with-without`.
@@ -385,7 +688,8 @@ First public release.
   backticks was scanned as a closure block; the marker must now stand alone
   on its line.
 
-[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.5.0
 [0.4.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.4.0
 [0.3.1]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.3.1
 [0.3.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.3.0

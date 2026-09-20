@@ -84,3 +84,14 @@
 {"text": "Given how much time this has saved us, it was worth it.", "expect": "miss", "why": "'how much time this has saved' is not a budget spent"}
 {"text": "Deferring the docs to the owner: you said you'd write them.", "expect": "miss", "why": "returned to the owner - the destination is a person, not a session"}
 {"text": "I'll defer the schema change to a follow-up PR, as you asked for a narrow branch.", "expect": "hit", "why": "fires BY DESIGN: a hit is a signal, not a verdict. The deferral phrase is present, so the skill asks for a [TERMINATION CHECK] - which here resolves to Reason: owner-choice with the ask as Evidence"}
+
+// --- a block the agent decorated (bold or heading) is still a block ---
+
+{"text": "I'm running out of context.\n\n**[TERMINATION CHECK]**\n- Trigger: budget phrase\n- Reason: budget-spent\n- Evidence: 180k of 200k tokens used, reported by the host\n- Decision: stop", "expect": "miss", "why": "a bolded marker is the same block"}
+{"text": "Let's pick this up in a fresh session.\n\n## [TERMINATION CHECK]\n- Trigger: deferral\n- Reason: owner-choice\n- Evidence: you asked to stop at the parser\n- Decision: stop", "expect": "miss", "why": "heading marker"}
+{"text": "I'm not confident enough to continue. The skill wants a `**[TERMINATION CHECK]**` here.", "expect": "hit", "why": "a decorated marker in inline code is documentation - the state-shaped reason stands unanswered"}
+
+// --- a FENCED example of the block is documentation, not a closure ---
+
+{"text": "I'm running out of context.\n\nThe skill asks for:\n\n```\n[TERMINATION CHECK]\n- Trigger: <the phrase>\n- Reason: budget-spent\n- Decision: stop\n```\n\nThat is the shape.", "expect": "hit", "why": "a fenced template does not answer the state-shaped reason"}
+{"text": "Done, all tests pass.\n\nFor reference, the format is:\n\n```\n[TERMINATION CHECK]\n- Trigger: <the phrase>\n- Reason: <gate-not-run | owner-choice | budget-spent | limit-observed | none>\n- Decision: <continue | stop>\n```\n\nThat is the shape.", "expect": "miss", "why": "documenting the format, with nothing to answer for - a fenced template must not be judged as a declared block"}

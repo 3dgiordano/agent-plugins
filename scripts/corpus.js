@@ -127,6 +127,20 @@ const DETECTORS = [
     // a fenced example must be ignored, and a real block after one must not be.
     floors: { recall: 1.0, precision: 1.0 },
   },
+  {
+    id: 'plan-close',
+    file: 'plan-close.jsonl',
+    what: 'a [PLAN CHECK] block with no artifact, no gate, or a decision that contradicts its drift',
+    plugin: 'executive-self-monitoring',
+    fire: (t) => lib('executive', 'plan.js').scan(t).violations.length > 0,
+    // Seeded from real eval transcripts rather than from imagination, because
+    // the defect this file was written for was one nobody would have imagined:
+    // the scanner took a qualifier after a dash, a colon or a bracket, and the
+    // agent wrote `Decision: continue, scoped strictly to steps 1-2`. Two
+    // correct blocks of three, refused over a comma. The comma lines are in
+    // the corpus now, so the next widening cannot quietly undo this one.
+    floors: { recall: 1.0, precision: 1.0 },
+  },
 ];
 
 function loadCorpus(file) {

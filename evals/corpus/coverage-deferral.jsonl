@@ -41,3 +41,29 @@
 {"text": "We leave the socket open for the duration of the stream.", "expect": "miss", "why": "ordinary use of 'leave ... for'"}
 {"text": "I have not touched the payment module, as you asked.", "expect": "hit", "why": "fires by design, and newly so since the verb list was lemmatised: a part not done IS the ledger's business - this one closes as 'returned to the owner', which is what the nudge asks for"}
 {"text": "I did not test manually; the suite covers it.", "expect": "miss", "gap": true, "why": "KNOWN FALSE POSITIVE, pre-dates the lemmatisation (verified against HEAD): the part IS covered, by other means. Distinguishing 'not done' from 'done another way' needs more than a verb list"}
+
+// --- a block the agent decorated: markdown bold or a heading ---
+// An agent writing markdown reaches for ** around a marker on its own. The
+// scanner used to require the marker bare on its line, so a correctly closed
+// ledger read as no ledger at all - and with deferral language present that
+// produced a retrospective accusing the agent of not closing what it closed.
+
+{"text": "Added the parser. The streaming path will come in a follow-up PR.\n\n**[COVERAGE CHECK]**\n- parser: done\n- streaming: blocked - the upstream API has no chunked endpoint (404 from /v2/stream)\n- docs: returned - you said you would write them", "expect": "miss", "why": "a bolded marker is the same block; decoration is not absence"}
+{"text": "Shipped the schema. Left the migration as a TODO.\n\n## [COVERAGE CHECK]\n- schema: done\n- migration: blocked - the staging DB is read-only (permission denied on ALTER)", "expect": "miss", "why": "a heading marker is the same block"}
+{"text": "The retry policy still needs tuning.\n\n**[COVERAGE CHECK]:**\n- retries: returned - you wanted to pick the backoff curve", "expect": "miss", "why": "bold plus a trailing colon"}
+{"text": "Streaming comes in a follow-up PR. The skill asks for a `**[COVERAGE CHECK]**` at the end.", "expect": "hit", "why": "a decorated marker inside INLINE CODE is documentation, not a closure - the deferral stands unclosed"}
+
+// --- a FENCED example of the block is documentation, not a ledger ---
+// Showing the format is exactly what an instruction that teaches it must do,
+// and what a message explaining the skill looks like.
+
+{"text": "Streaming comes in a follow-up PR.\n\nThe format is:\n\n```\n[COVERAGE CHECK]\n- <part>: done - <check run>\n- <part>: blocked - <observed limit>\n```\n\nThat is the shape.", "expect": "hit", "why": "a fenced template is not a closed ledger - the deferral stands unclosed"}
+
+// --- the part line's separator: the agent picks the punctuation ---
+// Every run of the coverage eval case wrote the block and closed all three
+// parts; the ones that failed differed only in using an em-dash where the
+// scanner wanted a colon.
+
+{"text": "Added the parser. Streaming comes in a follow-up PR.\n\n[COVERAGE CHECK]\n- parser — done\n- streaming — blocked - the upstream API has no chunked endpoint (404 from /v2/stream)\n- docs — returned - you said you would write them", "expect": "miss", "why": "an em-dash separator closes the parts just as a colon does"}
+{"text": "Left the migration as a TODO.\n\n[COVERAGE CHECK]\n- schema – done\n- migration – blocked - the staging DB is read-only (permission denied on ALTER)", "expect": "miss", "why": "en-dash separator"}
+{"text": "Streaming comes in a follow-up PR.\n\n[COVERAGE CHECK]\n- parser — done\n- streaming — blocked", "expect": "hit", "why": "em-dash accepted, but `blocked` still requires its observed reason - loosening the separator must not loosen that"}

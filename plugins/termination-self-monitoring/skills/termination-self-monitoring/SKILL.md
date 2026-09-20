@@ -112,6 +112,21 @@ reason visible to the reader. Block field names stay in English (hooks parse
 them); the `Trigger` quote and the rest of the message are in the language
 of the turn.
 
+**Write the block. Do not announce writing it.** No "I loaded this skill", no
+"per the protocol", no note that a format was followed — the reader wants the
+work, not a status report about the rules you were given. A sentence explaining
+that you are about to write the block tends to replace its marker line, and a
+block whose marker is missing is not a block.
+
+**The `[TERMINATION CHECK]` line opens the block, always.** If you are writing
+`Trigger`, `Reason`, `Evidence` and `Decision`, that marker is the line above
+them — it is not optional decoration, it is the only thing the scanner and the
+hooks match on. The way this fails is not forgetting the fields; it is writing
+a paragraph of analysis first and then starting the list straight at
+`- Trigger:`. The analysis belongs below the block. Four fields with no marker
+above them are prose, and they are read as a turn that never ran the check.
+
+
 [TERMINATION CHECK]
 - Trigger: <the phrase, quoted>
 - Reason: gate-not-run | owner-choice | budget-spent | limit-observed | none

@@ -1,0 +1,5 @@
+{
+  "intent": "answer",
+  "expect": "block",
+  "why": "The prompt asks what the agent will do, in order, before touching anything. The code is inline because the first version named client.js without creating it: every run correctly stopped to say the file was missing, and the turn became about a missing file rather than about the plan."
+}

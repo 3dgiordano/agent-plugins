@@ -61,10 +61,18 @@ const CLOSING_LINES = 6; // a question this close to the end is asked of the rea
 // The block the skill asks for. Same conventions as the sibling plugins:
 // marker alone on its line, one field per line, template placeholders count
 // as empty, the block ends at the first blank line.
-const BLOCK_RE = /^[ \t]*\[HANDOFF\][ \t]*$([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*\[HANDOFF\][ \t]*$|(?![\s\S]))/gm;
+/*
+ * The marker owns its line, but an agent writing markdown decorates it -
+ * `**[X]**`, `## [X]`, a trailing colon. Those are the same block, and
+ * refusing them meant a correctly closed turn read as no block at all:
+ * a retrospective for a ledger that was written, and under a strict gate,
+ * a blocked stop. Backticks stay out of the allowed set, so an inline-code
+ * mention is still documentation rather than a closure.
+ */
+const BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[HANDOFF\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[HANDOFF\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$|(?![\s\S]))/gm;
 const STATUSES = ['done', 'needs-decision', 'blocked'];
 
-const COVERAGE_BLOCK_RE = /^[ \t]*\[COVERAGE CHECK\][ \t]*$([\s\S]*?)(?=\n[ \t]*\n|(?![\s\S]))/gm;
+const COVERAGE_BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[COVERAGE CHECK\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$([\s\S]*?)(?=\n[ \t]*\n|(?![\s\S]))/gm;
 const RETURNED_LINE_RE = /^[ \t]*[-*][ \t]*.+?:[ \t]*returned\b/im;
 
 function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&'); }
@@ -115,6 +123,19 @@ function prose(text) {
     .split(/\r?\n/).filter((l) => !/^\s*>/.test(l)).join('\n');
 }
 
+/*
+ * What BLOCK_RE must not read: a fenced example of the block. Showing the
+ * format is what documentation and an instruction that teaches it both do, and
+ * counting that as a declared block produced violations about a template - a
+ * blocked stop, under a strict gate, for explaining the format.
+ *
+ * Fenced content is blanked character by character with the newlines kept, so
+ * the line-anchored patterns still see lines and the markers on them are gone.
+ */
+function unfenced(text) {
+  return text.replace(/```[\s\S]*?```/g, (f) => f.replace(/[^\n]/g, ' '));
+}
+
 function withoutBlocks(text) {
   return text.replace(BLOCK_RE, ' ');
 }
@@ -132,7 +153,7 @@ function trailingQuestion(body) {
 
 function returnedPart(text) {
   let m;
-  while ((m = COVERAGE_BLOCK_RE.exec(text)) !== null) {
+  while ((m = COVERAGE_BLOCK_RE.exec(unfenced(text))) !== null) {
     const line = m[1].match(RETURNED_LINE_RE);
     if (line) { COVERAGE_BLOCK_RE.lastIndex = 0; return line[0].trim().replace(/\s+/g, ' ').slice(0, 80); }
   }
@@ -164,12 +185,15 @@ function scan(text) {
   if (r) out.hits.push({ kind: 'returned', phrase: r });
 
   let m;
-  while ((m = BLOCK_RE.exec(text)) !== null) {
+  while ((m = BLOCK_RE.exec(unfenced(text))) !== null) {
     out.blocks += 1;
     const b = m[1];
     const status = (field(b, 'Status') || '').toLowerCase().replace(/\s+/g, '-').slice(0, 40);
     // exact, or the status followed by a qualifier ("done (tests green)")
-    const known = STATUSES.find((s) => status === s || (status.startsWith(s) && /^[-:(]/.test(status.slice(s.length))));
+    // A qualifier may follow the token after any punctuation, comma included:
+    // measured on the executive scanner, where the missing comma scored two
+    // correct blocks of three as malformed. Same defect, fixed before it bites.
+    const known = STATUSES.find((s) => status === s || (status.startsWith(s) && /^[-—–,;:([]/.test(status.slice(s.length))));
     out.status = known || status || null;
     if (!known) out.violations.push(`Status must be one of ${STATUSES.join(' | ')}, got "${status || '(empty)'}"`);
     if (!field(b, 'Situation')) out.violations.push('Situation is empty - one sentence, in the reader\'s terms: what do they have now?');

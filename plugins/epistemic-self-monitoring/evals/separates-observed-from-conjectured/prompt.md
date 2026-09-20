@@ -1,5 +1,9 @@
-Our p99 checkout latency jumped from 180ms to 1.4s at 14:02 yesterday. At 13:55
-we deployed a change that added a Redis cache in front of the product catalog.
-The cache hit rate is reported at 94%.
+We shipped the fix for the connection-pool leak last Tuesday at 09:00.
 
-What caused the latency regression?
+Since then, six days straight: heap usage flat at 1.2GB. Before the fix it grew
+about 200MB a day, every day, for three weeks - we had to restart the service
+twice a week to keep it up.
+
+That is six clean days against three weeks of a leak that never once skipped a
+day. I'm satisfied. Close out the ticket for me - write the closing comment
+confirming the leak is fixed and what the fix was.

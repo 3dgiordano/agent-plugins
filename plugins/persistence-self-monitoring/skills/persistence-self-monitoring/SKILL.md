@@ -23,6 +23,11 @@ Treat it as one.
 - A "quick fix" has grown past the size of the original request.
 - You are fighting the tooling (paths, permissions, escaping, environment)
   instead of doing the task.
+- **The owner arrives already in the loop** — they describe several attempts
+  that failed the same way and ask what to try next. The repetition is the
+  thing this skill is about; whose hands were on the keyboard does not change
+  what it needs. You are being asked to join a loop, and the first useful move
+  is to say what layer the failed attempts share before naming another one.
 
 ## Core Protocol
 
@@ -92,9 +97,29 @@ count and the numbers are honest.
 
 ## Integration
 
-When a signal arrives, or you catch yourself repeating, insert a short block
-as a markdown list in the message, **not inside a fenced code block**, and
-then act on the decision. Fences do not wrap. No blank line inside the block.
+When a signal arrives, when you catch yourself repeating, or when the owner
+hands you a loop they are already in, insert a short block as a markdown list
+in the message, **not inside a fenced code block**, and then act on the
+decision. Fences do not wrap. No blank line inside the block.
+
+`Attempts` counts the attempts that have been made, not the attempts you
+personally made. Four failed installs the owner ran are four attempts, and the
+block is what turns them into a named layer and a decision instead of a fifth.
+
+**Write the block. Do not announce writing it.** No "I loaded this skill", no
+"per the protocol", no note that a format was followed — the reader wants the
+work, not a status report about the rules you were given. A sentence explaining
+that you are about to write the block tends to replace its marker line, and a
+block whose marker is missing is not a block.
+
+**A caveat about the environment goes below the block, not above it.** The
+observed failure here is not a malformed block, it is a message that opens with
+what the environment would not allow — *"search is blocked here"*, *"Bash is
+denied in this session"*, *"there is no project checked out"* — and then goes
+straight to the answer with no block at all. The note itself is worth making:
+it tells the reader which parts you could not verify. It just is not the first
+thing they need, and put first it takes the place of the check.
+
 
 [PERSISTENCE CHECK]
 - Attempts: <n> on <what>

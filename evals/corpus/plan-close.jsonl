@@ -1,0 +1,26 @@
+// Corpus for executive-self-monitoring/lib/plan.js - scan().
+// A [PLAN CHECK] block that does not hold up: a plan named from memory rather
+// than as an artifact, a missing gate, a decision that is not one of the three,
+// or a Drift and a Decision that contradict each other. A well-formed block, a
+// fenced example of one, and a turn with no block at all must all stay quiet.
+//
+// Several of these lines are transcribed from real eval runs. The comma ones
+// are why this file exists: the scanner accepted a qualifier after a dash, a
+// colon or a bracket and rejected the punctuation an agent actually reaches
+// for, scoring two correct blocks of three as malformed.
+{"text": "[PLAN CHECK]\n- Plan: PLAN-retry.md\n- Gate: \"retry.js covered by unit tests, nothing else\"\n- Drift: none\n- Decision: continue", "expect": "miss", "why": "well-formed, nothing to report"}
+{"text": "[PLAN CHECK]\n- Plan: the plan in your message\n- Gate: \"Nothing else - we ship this branch narrow\"\n- Drift: header parsing, the hard-coded timeout and the missing logging are all out of scope\n- Decision: continue, scoped strictly to steps 1-2", "expect": "miss", "why": "observed run: a qualifier after a comma is still the decision"}
+{"text": "[PLAN CHECK]\n- Plan: the agreed plan for this branch\n- Gate: \"we ship this branch narrow\"\n- Drift: three unrelated defects noticed while reading\n- Decision: continue, explicitly excluding the noticed but out-of-scope fixes", "expect": "miss", "why": "observed run: the same, with a longer qualifier"}
+{"text": "[PLAN CHECK]\n- Plan: PLAN-retry.md\n- Gate: \"step 2 is unit tests for retry.js\"\n- Drift: step 3 is creeping into step 2\n- Decision: refocus - back to step 2", "expect": "miss", "why": "a dash qualifier still works"}
+{"text": "[PLAN CHECK]\n- Plan: ISSUE-482\n- Gate: \"the importer finishes under 30s on the 1M-row fixture\"\n- Drift: none\n- Decision: continue (measured at 22s)", "expect": "miss", "why": "a bracketed qualifier still works"}
+{"text": "[PLAN CHECK]\n- Plan: <artifact>\n- Gate: \"y\"\n- Drift: none\n- Decision: continue", "expect": "hit", "why": "Plan is the template placeholder, not an artifact"}
+{"text": "[PLAN CHECK]\n- Plan: what we agreed earlier\n- Drift: none\n- Decision: continue", "expect": "hit", "why": "no Gate quoted from the artifact"}
+{"text": "[PLAN CHECK]\n- Plan: ROADMAP.md\n- Gate: \"ship the importer\"\n- Drift: none\n- Decision: refocus", "expect": "hit", "why": "Drift is none but the decision is not continue"}
+{"text": "[PLAN CHECK]\n- Plan: ROADMAP.md\n- Gate: \"ship the importer\"\n- Drift: none\n- Decision: ship it", "expect": "hit", "why": "Decision is not one of the three"}
+{"text": "[PLAN CHECK]\n- Plan: ROADMAP.md\n- Gate: \"ship the importer\"\n- Decision: continue", "expect": "hit", "why": "no Drift line at all"}
+{"text": "[PLAN CHECK]\n- Plan: ROADMAP.md\n- Gate: \"ship the importer\"\n- Drift: none\n- Decision: n/a", "expect": "hit", "why": "a shrug is not a decision"}
+{"text": "[PLAN CHECK]\n- Plan: PLAN.md\n- Gate: \"the migration runs clean on staging\"\n- Drift: I have been reading the ORM's source for an hour\n- Decision: revise-plan", "expect": "miss", "why": "revise-plan is a decision, and must not read as a qualified revise"}
+{"text": "## **[PLAN CHECK]**:\n- Plan: PLAN.md\n- Gate: \"green CI on the matrix build\"\n- Drift: none\n- Decision: continue", "expect": "miss", "why": "a decorated marker is the same block"}
+{"text": "Write it like this:\n\n```\n[PLAN CHECK]\n- Plan: <artifact>\n- Gate: <quoted>\n```\n\nThen carry on.", "expect": "miss", "why": "a fenced example is documentation, not a check"}
+{"text": "Extracted the retry logic into retry.js and added its tests. Both pass.", "expect": "miss", "why": "no block; most turns are not checkpoints and this plugin never gates"}
+{"text": "I re-read the plan and we are still on track, nothing has drifted.", "expect": "miss", "why": "prose about the plan is not a block - the scanner judges blocks, not intentions"}

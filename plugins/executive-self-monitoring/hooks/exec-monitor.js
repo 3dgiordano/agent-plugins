@@ -53,11 +53,21 @@ function main(raw) {
 
   if (!fire) return;
 
+  /*
+   * A pointer, not a paraphrase: "load ... if it is not already loaded" so the
+   * every-Nth-turn cadence does not ask for the same load again and again.
+   *
+   * The marker is named and the four fields are not. Naming the marker is what
+   * gets the block written at all - the observed failure across this set is an
+   * agent doing the discipline and writing it in some other shape - while the
+   * fields are static protocol and belong in the skill, which is also the only
+   * place they can be kept in one piece.
+   */
   process.stdout.write(
-    '[executive self-monitoring] Checkpoint for long/iterative work: invoke the ' +
-    'executive-self-monitoring skill (the source of truth) before substantive steps ' +
-    '- name the active plan/gate and confirm this step serves it. Not a blocker; ' +
-    'skip if this turn is trivial.'
+    '[executive self-monitoring] Checkpoint for long/iterative work: load the ' +
+    'executive-self-monitoring skill if it is not already loaded, then re-open the ' +
+    'artifact that defines this work and write its [PLAN CHECK] block. Not a ' +
+    'blocker; skip if this turn is trivial.'
   );
 }
 

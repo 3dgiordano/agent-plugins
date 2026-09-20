@@ -85,7 +85,15 @@ const APOLOGY_RUN = 3;
 // The block the skill asks for. Same conventions as the epistemic closure
 // block: marker alone on its line, one field per line, template placeholders
 // count as empty.
-const BLOCK_RE = /^[ \t]*\[TERMINATION CHECK\][ \t]*$([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*\[TERMINATION CHECK\][ \t]*$|(?![\s\S]))/gm;
+/*
+ * The marker owns its line, but an agent writing markdown decorates it -
+ * `**[X]**`, `## [X]`, a trailing colon. Those are the same block, and
+ * refusing them meant a correctly closed turn read as no block at all:
+ * a retrospective for a ledger that was written, and under a strict gate,
+ * a blocked stop. Backticks stay out of the allowed set, so an inline-code
+ * mention is still documentation rather than a closure.
+ */
+const BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[TERMINATION CHECK\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[TERMINATION CHECK\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$|(?![\s\S]))/gm;
 const REASONS = ['gate-not-run', 'owner-choice', 'budget-spent', 'limit-observed', 'none'];
 
 function field(block, name) {
@@ -113,6 +121,21 @@ function prose(text) {
  *   violations: [string]           what the skill asks for and did not get
  * }
  */
+/*
+ * What BLOCK_RE must not read: a fenced example of the block. Showing the
+ * format is what documentation and an instruction that teaches it both do, and
+ * counting that as a declared block produced violations about a template - a
+ * blocked stop, under a strict gate, for explaining the format.
+ *
+ * Fenced content is blanked character by character with the newlines kept, so
+ * the line-anchored pattern below still sees lines and the markers on them are
+ * gone. prose() above already does this for the phrase-level scan; this is the
+ * same rule applied to the block scan.
+ */
+function unfenced(text) {
+  return text.replace(/```[\s\S]*?```/g, (f) => f.replace(/[^\n]/g, ' '));
+}
+
 function scan(text) {
   const out = { hits: [], apologies: 0, blocks: 0, violations: [] };
   if (typeof text !== 'string' || !text) return out;
@@ -127,12 +150,15 @@ function scan(text) {
   out.apologies = (body.match(APOLOGY_RE) || []).length;
 
   let m;
-  while ((m = BLOCK_RE.exec(text)) !== null) {
+  while ((m = BLOCK_RE.exec(unfenced(text))) !== null) {
     out.blocks += 1;
     const b = m[1];
     const reason = (field(b, 'Reason') || '').toLowerCase().replace(/\s+/g, '-').slice(0, 80);
     // exact, or the reason followed by a qualifier ("gate-not-run (npm test)", "limit-observed: ENOSPC"); `none` takes none
-    const known = REASONS.find((r) => reason === r || (r !== 'none' && reason.startsWith(r) && /^[-:(]/.test(reason.slice(r.length))));
+    // A qualifier may follow the token after any punctuation, comma included:
+    // measured on the executive scanner, where the missing comma scored two
+    // correct blocks of three as malformed. Same defect, fixed before it bites.
+    const known = REASONS.find((r) => reason === r || (r !== 'none' && reason.startsWith(r) && /^[-—–,;:([]/.test(reason.slice(r.length))));
     const evidence = field(b, 'Evidence');
     const decision = (field(b, 'Decision') || '').toLowerCase().slice(0, 80);
     if (!known) out.violations.push(`Reason must be one of ${REASONS.join(' | ')}, got "${reason || '(empty)'}"`);

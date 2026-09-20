@@ -3,15 +3,24 @@
 
 const SKILL = 'coverage-self-monitoring';
 
+/*
+ * A pointer, not a paraphrase.
+ *
+ * This used to restate the protocol - write the ledger, hardest first, close
+ * each part - which made loading the skill look redundant while dropping the
+ * one thing the hooks actually read: the `- <part>: done` line shape. An agent
+ * that has the gist has no reason to fetch the detail, so it wrote the block
+ * in whatever form came naturally and the scanner refused it.
+ *
+ * So: say what this session is doing (the skill cannot know that), name the
+ * trigger, and point at the skill for the rest. "Load ... if it is not already
+ * loaded" keeps a cadence injection from asking for the same load every time.
+ */
 const LOAD =
-  `[coverage self-monitoring] This session tracks whether what you deliver covers every part of the ` +
-  'request, including the hard one - the tractable subset comes out with the same fluency as the whole. ' +
-  `For a multi-part task, run the ${SKILL} skill: write the ledger first (the parts, which is hardest and ` +
-  'why, the order - hardest first unless a dependency forbids), and close each part as done, blocked with ' +
-  'an observed reason, or returned to the owner - never silently dropped. A hole in the delivery ' +
-  '(a stub, a postponed or excluded part) is a part that is not done, in any language. Stub and TODO ' +
-  'markers you write are counted. Write the [COVERAGE LEDGER] and [COVERAGE CHECK] as markdown lists, ' +
-  'not fenced code blocks. Not a blocker.';
+  `[coverage self-monitoring] This session tracks whether you deliver every part of the request, ` +
+  'including the hard one: a hole in the delivery - a stub, a postponed or excluded part - is a part ' +
+  `that is not done, in any language. For a multi-part task, load the ${SKILL} skill if it is not ` +
+  'already loaded: it carries the ledger and the exact block format the hooks read. Not a blocker.';
 
 function ledger(parts) {
   return `[coverage self-monitoring] the request enumerates ${parts} parts. Before starting: write the ` +

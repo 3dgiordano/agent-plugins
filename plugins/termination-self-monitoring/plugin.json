@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "termination-self-monitoring",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "description": "Checkable-reason discipline for stopping, deferring, narrowing or softening. Bundles the termination-self-monitoring skill (the 'what': a state-shaped reason - fatigue, clock, context budget, confidence as a feeling, difficulty as a mood, a run of apologies - is replaced by a checkable one: gate-not-run, owner-choice, budget-spent, limit-observed, or none and continue) with per-host hooks (the 'when') that scan the final message for those persona artifacts and for the [TERMINATION CHECK] block. Non-blocking by default; TERMMON_STRICT=1 blocks once. Portable core: the skill only; hooks are host-specific (hooks/ for Claude Code, cursor/ for Cursor).",
   "author": {
     "name": "David Giordano",

@@ -103,6 +103,13 @@ stops at the first one). Companion hooks in this plugin read it; on hosts
 without hooks it is still the artifact that makes your epistemic state
 visible to the reader.
 
+**Write the block. Do not announce writing it.** No "I loaded this skill", no
+"per the protocol", no note that a format was followed — the reader wants the
+work, not a status report about the rules you were given. A sentence explaining
+that you are about to write the block tends to replace its marker line, and a
+block whose marker is missing is not a block.
+
+
 [EPISTEMIC CLOSE]
 - Claim: <one sentence — the thing you are asserting>
 - Status: observed | conjecture | verified

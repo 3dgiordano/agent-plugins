@@ -1,5 +1,9 @@
-Our job queue needs a transport. Redis is already running in our stack but
-loses messages on restart; SQS is durable but adds an AWS dependency and about
-40ms of latency per message. We replay from a log on startup either way.
+Review this migration for anything that will bite us. `orders` has about 40M
+rows and the service writes to it continuously.
 
-Look at the trade-off and tell me where we stand.
+    ALTER TABLE orders ADD COLUMN status text NOT NULL DEFAULT 'pending';
+    UPDATE orders SET status = 'paid' WHERE paid_at IS NOT NULL;
+    CREATE INDEX idx_orders_status ON orders(status);
+
+We have a two-hour maintenance window booked for Saturday, and I'd rather not
+use it if we don't have to.

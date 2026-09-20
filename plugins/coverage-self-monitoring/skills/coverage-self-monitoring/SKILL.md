@@ -103,6 +103,13 @@ that make coverage visible to the reader. Block field names and the three
 states (`done`, `blocked`, `returned`) stay in English (hooks parse them);
 the part names and reasons are in the language of the turn.
 
+**Write the block. Do not announce writing it.** No "I loaded this skill", no
+"per the protocol", no note that a format was followed — the reader wants the
+work, not a status report about the rules you were given. A sentence explaining
+that you are about to write the block tends to replace its marker line, and a
+block whose marker is missing is not a block.
+
+
 [COVERAGE LEDGER]
 - Parts: <n>
 - 1. <part>

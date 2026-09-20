@@ -603,9 +603,23 @@ test('handoff: English lexicon and LOAD unchanged; Spanish offers/forks are not 
   assert.equal(scan(esBlock).violations.length, 0, 'Situation/Options/Next may be in the language of the turn');
   assert.equal(scan(esBlock).status, 'needs-decision');
   assert.match(scan('[HANDOFF]\n- Status: listo\n- Situation: el parser quedó bien\n- Next: nothing\n').violations[0], /Status must be one of/, 'Status tokens stay English');
-  assert.match(msg.LOAD, /offer, a fork named but not decided/);
-  assert.match(msg.LOAD, /let me know/);
-  assert.match(msg.LOAD, /markdown list, not a fenced/);
+  /*
+   * The trigger must be decidable when the message ARRIVES, which is
+   * UserPromptSubmit - so it describes the ask, not the close. Three versions
+   * phrased around the close ("before you close a turn", "would leave them a
+   * choice", "carries a decision") scored 0, 0 and 1-of-4 on the behavioural
+   * eval, while the four triggers in this collection that hold are all
+   * readable off the prompt as it lands. A close that does not exist yet
+   * cannot be matched against.
+   */
+  assert.match(msg.LOAD, /the ask is one they will act on/);
+  assert.doesNotMatch(msg.LOAD, /when your close/i,
+    'a trigger about the close cannot be evaluated at the moment this message is injected');
+  // The block's shape used to be spelled out here. It moved into the skill on
+  // purpose: the message restating the protocol made loading the skill look
+  // redundant while dropping the one thing the scanner reads, so the agent
+  // wrote the block in whatever form came naturally. The pointer contract is
+  // locked below, across every plugin.
   assert.match(msg.preclose({ what: 'gate', label: 'npm test' }), /`npm test` passed - this turn looks close to its end/);
 });
 
@@ -850,7 +864,20 @@ test('every plugin ships a behavioural eval case: prompt.md + graders with a typ
         if (/^with_only:\s*true/m.test(fm[1])) withOnly += 1; else scored += 1;
       }
       assert.ok(scored >= 1, `${name}/${c}: every grader is with-only, so the case scores nothing`);
-      assert.ok(withOnly >= 1, `${name}/${c}: no with-only grader, so the ablation arm has no plugin-fired indicator`);
+      /*
+       * A quiet case scores the ABSENCE of the block, so "did the plugin fire"
+       * is context rather than an indicator that the arm worked: loading the
+       * skill and then correctly staying quiet is a pass. The requirement is
+       * kept for block cases, where a with-only grader is the only thing that
+       * separates "the plugin did nothing" from "the plugin is not installed".
+       */
+      const expect = (() => {
+        try { return JSON.parse(fs.readFileSync(path.join(dir, 'case.json'), 'utf8')).expect || 'block'; }
+        catch (_) { return 'block'; }
+      })();
+      if (expect !== 'quiet') {
+        assert.ok(withOnly >= 1, `${name}/${c}: no with-only grader, so the ablation arm has no plugin-fired indicator`);
+      }
     }
   }
 });
@@ -1023,14 +1050,33 @@ test('CHANGELOG: the newest release table matches the manifests, and its entries
   const block = md.slice(from, to);
   const release = heads[0][1];
 
-  // 1. the version table agrees with each plugin's manifests
   const table = new Map([...block.matchAll(/^\| ([a-z-]+-self-monitoring) \| (\d+\.\d+\.\d+) \|$/gm)].map((m) => [m[1], m[2]]));
   assert.equal(table.size, pluginNames.length,
     `${release}: the version table lists ${table.size} plugins, the repo has ${pluginNames.length}`);
+
+  /*
+   * 1. the table agrees with the manifests - but only while nothing is queued
+   * for the next release. Once Unreleased records a change, the manifests are
+   * ahead of the newest tag on purpose, and the first version of this check
+   * failed for exactly that reason the first time a fix landed after a tag.
+   * What still holds either way: a manifest may never fall BEHIND what the
+   * newest release shipped.
+   */
+  const unreleased = md.slice(md.indexOf('## [Unreleased]'), from);
+  const queued = /^- /m.test(unreleased);
+  const asNum = (v) => v.split('.').map(Number).reduce((a, n) => a * 1000 + n, 0);
+
   for (const name of pluginNames) {
     const shipped = readJson(path.join(plugin(name), 'plugin.json')).version;
-    assert.equal(table.get(name), shipped,
-      `${release}: the table says ${name} ${table.get(name)}, plugin.json says ${shipped}`);
+    const released = table.get(name);
+    if (queued) {
+      assert.ok(asNum(shipped) >= asNum(released),
+        `${name} is ${shipped}, behind the ${release} release table's ${released}`);
+    } else {
+      assert.equal(released, shipped,
+        `${release}: the table says ${name} ${released}, plugin.json says ${shipped} - ` +
+        'nothing is queued under Unreleased, so they should agree');
+    }
   }
 
   /*
@@ -1041,5 +1087,174 @@ test('CHANGELOG: the newest release table matches the manifests, and its entries
   for (const m of block.matchAll(/\*\*([a-z-]+-self-monitoring) (\d+\.\d+\.\d+)\*\*/g)) {
     assert.equal(m[2], table.get(m[1]),
       `${release}: an entry says ${m[1]} ${m[2]}, the version table says ${table.get(m[1])}`);
+  }
+});
+
+test('every load message points at its skill instead of restating it', () => {
+  for (const name of pluginNames) {
+    // executive writes its message inline in the hook; the rest share lib/messages.js
+    const load = name === 'executive-self-monitoring'
+      ? hook(name, 'hooks/exec-monitor.js', { session_id: uid('ptr'), hook_event_name: 'UserPromptSubmit', prompt: 'x' }).out
+      : require(path.join(plugin(name), 'lib/messages.js')).LOAD;
+
+    assert.ok(load, `${name}: no load message`);
+    assert.match(load, new RegExp(`load the ${name} skill if it is not already loaded`),
+      `${name}: the message must name its skill and say when to load it - "run the skill" reads as ` +
+      'executing something, and an unconditional "load" asks again on every cadence injection');
+
+    /*
+     * A pointer, not a paraphrase. The message carries what the skill cannot
+     * know - that this session is measuring, and the trigger to watch for -
+     * and leaves the protocol to the skill. When it restated the protocol
+     * instead, loading the skill looked redundant and the block came out in
+     * whatever shape the agent chose, which the scanner then refused.
+     */
+    assert.ok(load.length <= 450,
+      `${name}: the load message is ${load.length} chars; a pointer should not need more than 450`);
+  }
+});
+
+test('executive: the [PLAN CHECK] scanner reads a well-formed block and names what is missing', () => {
+  const { scan, DECISIONS } = require(path.join(plugin('executive-self-monitoring'), 'lib/plan.js'));
+
+  const ok = '[PLAN CHECK]\n- Plan: PLAN-retry.md\n- Gate: "retry.js covered by unit tests, nothing else"\n' +
+    '- Drift: none\n- Decision: continue\n';
+  assert.deepEqual(scan(ok).violations, []);
+  assert.equal(scan(ok).blocks, 1);
+  assert.equal(scan(ok).decision, 'continue');
+
+  // The case this plugin exists for: a tangent named, and the decision to leave it.
+  const drifting = '[PLAN CHECK]\n- Plan: PLAN-retry.md\n- Gate: "we ship this branch narrow"\n' +
+    '- Drift: the header-parsing bug and the missing logging are both out of scope\n- Decision: refocus\n';
+  assert.deepEqual(scan(drifting).violations, []);
+  assert.equal(scan(drifting).decision, 'refocus');
+
+  // Drift and Decision have to agree: nothing pulling away, nothing to correct.
+  assert.match(scan('[PLAN CHECK]\n- Plan: x.md\n- Gate: "y"\n- Drift: none\n- Decision: refocus\n').violations[0],
+    /Drift is none but Decision is "refocus"/);
+
+  // A memory is not an artifact, and a placeholder is not an answer.
+  assert.match(scan('[PLAN CHECK]\n- Plan: <artifact>\n- Gate: "y"\n- Drift: none\n- Decision: continue\n').violations[0],
+    /no Plan/);
+  assert.match(scan('[PLAN CHECK]\n- Plan: x.md\n- Drift: none\n- Decision: continue\n').violations[0], /no Gate/);
+  assert.match(scan('[PLAN CHECK]\n- Plan: x.md\n- Gate: "y"\n- Drift: none\n- Decision: ship it\n').violations[0],
+    new RegExp(`Decision must be one of ${DECISIONS.join(' \| ')}`));
+
+  // A qualifier after the decision is still that decision.
+  assert.deepEqual(scan('[PLAN CHECK]\n- Plan: x.md\n- Gate: "y"\n- Drift: step 3 is creeping\n- Decision: refocus - back to step 2\n').violations, []);
+
+  // Decorated markers are the same block; a fenced example is documentation.
+  assert.equal(scan('## **[PLAN CHECK]**:\n- Plan: x.md\n- Gate: "y"\n- Drift: none\n- Decision: continue\n').blocks, 1);
+  assert.equal(scan('Write it like this:\n\n```\n[PLAN CHECK]\n- Plan: <artifact>\n```\n').blocks, 0, 'a fenced template is not a check');
+
+  // No block is not a violation: most turns are not checkpoints, and this
+  // plugin nudges rather than gates.
+  assert.deepEqual(scan('Extracted the retry logic into retry.js.').violations, []);
+});
+
+test('the eval scores a quiet case on absence, and never lets it borrow a block case bar', () => {
+  const lib = require(path.join(ROOT, 'scripts/evallib.js'));
+  const all = lib.cases();
+
+  // Every plugin now carries both kinds: one turn where the block is due, one
+  // where it is not. Recall alone cannot tell a disciplined collection from a
+  // noisy one.
+  for (const name of pluginNames) {
+    const mine = all.filter((c) => c.plugin === name);
+    assert.ok(mine.some((c) => c.expect !== 'quiet'), `${name}: no case where the block is due`);
+    assert.ok(mine.some((c) => c.expect === 'quiet'), `${name}: no case where the block must stay away`);
+  }
+
+  const quiet = all.find((c) => c.plugin === TER && c.expect === 'quiet');
+  const due = all.find((c) => c.plugin === TER && c.expect !== 'quiet');
+  const block = '[TERMINATION CHECK]\n- Trigger: "x"\n- Reason: none\n- Decision: continue\n';
+
+  assert.equal(lib.verdict(quiet, 'Renamed it. Here is the function.'), true, 'silence passes a quiet case');
+  assert.equal(lib.verdict(quiet, block), false, 'a well-formed block still fails a quiet case');
+  // The asymmetry that matters: a MALFORMED block is noise too, so the quiet
+  // case must not consult the scanner and quietly pass it.
+  assert.equal(lib.verdict(quiet, '[TERMINATION CHECK]\n- Trigger: "x"\n'), false, 'a malformed block is noise, not silence');
+  assert.equal(lib.verdict(due, block), true);
+  assert.equal(lib.verdict(due, 'Stopping here, this session has gone long.'), false);
+
+  // A quiet case cannot beat a baseline that is silent for free, so it must not
+  // be counted under the delta bar - that would report it as a failure forever.
+  const rows = [{ c: quiet, with: 1, without: 1 }, { c: due, with: 1, without: 0 }];
+  const lines = lib.summaryLines(rows, 'the plugin').join('\n');
+  assert.match(lines, /1\/1 case\(s\) show the plugin changing the output/);
+  assert.match(lines, /1\/1 quiet case\(s\) cost nothing/);
+  assert.doesNotMatch(lines, /proves nothing/, 'a quiet case tying the baseline is a pass, not a flat case');
+
+  assert.match(lib.reportLine(quiet, 1, 1), /cost: 0 pts/);
+  assert.match(lib.reportLine(due, 1, 0), /delta: 100 pts/);
+  assert.match(lib.gradingOf(quiet), /no .* block at all/);
+});
+
+test('a run that never reached the model is dropped, not scored - especially on a quiet case', () => {
+  const lib = require(path.join(ROOT, 'scripts/evallib.js'));
+  const DEAD = [
+    "You've hit your individual spend limit \u00b7 run /usage-credits to ask your admin for a higher limit",
+    'Usage limit reached. Your limit will reset at 7pm.',
+    'Error: Not logged in. Run `claude auth login`.',
+    'API Error: 429 rate limited, please retry',
+    'Your credit balance is too low to access the Anthropic API.',
+    '',
+    'ok',
+  ];
+  for (const d of DEAD) assert.equal(lib.usable(d), false, `should not be scorable: ${JSON.stringify(d.slice(0, 40))}`);
+
+  // A real answer that merely MENTIONS a limit is still an answer: the guard
+  // must not silently drop transcripts about rate limiting, which is an
+  // ordinary engineering topic these prompts could reach.
+  assert.equal(lib.usable('Your retry loop should back off when the API returns 429; treat a rate limit as transient and re-enqueue.'), true);
+
+  /*
+   * The direction that matters. An error message contains no block, so on a
+   * quiet case verdict() calls it a pass - a dead run cannot fail a silence
+   * test. Measured: one suite hit a spend limit and reported 6/6 quiet cases
+   * costing nothing, on transcripts where nothing had run.
+   */
+  const quiet = lib.cases().find((c) => c.expect === 'quiet');
+  assert.ok(quiet, 'no quiet case found');
+  assert.equal(lib.verdict(quiet, DEAD[0]), true, 'this is exactly why usable() is checked first');
+  assert.equal(lib.usable(DEAD[0]), false, 'and this is what stops it being counted');
+
+  assert.match(lib.reportLine(quiet, 1, 1, 2), /2 run\(s\) never reached the model, excluded/);
+  assert.doesNotMatch(lib.reportLine(quiet, 1, 1, 0), /excluded/);
+});
+
+test('a degraded run says so before it says any rate, and the runner exits non-zero', () => {
+  const lib = require(path.join(ROOT, 'scripts/evallib.js'));
+  const all = lib.cases();
+  const due = all.find((c) => c.plugin === TER && c.expect !== 'quiet');
+  const quiet = all.find((c) => c.plugin === TER && c.expect === 'quiet');
+  const rows = [{ c: due, with: 1, without: 0 }, { c: quiet, with: 1, without: 1 }];
+
+  const clean = lib.summaryLines(rows, 'the plugin', { cases: 0, dead: 0 });
+  assert.doesNotMatch(clean.join('\n'), /INCOMPLETE/);
+
+  /*
+   * The outage printed "3/6 case(s) show the plugin changing the output" over
+   * the three that survived, which reads like a complete run that went badly.
+   * The shortfall has to be in the summary, not only in the per-case lines
+   * scrolled above it - a summary is the line people quote.
+   */
+  const degraded = lib.summaryLines(rows, 'the plugin', { cases: 6, dead: 40 });
+  assert.match(degraded[0], /^INCOMPLETE - 6 case\(s\) could not be scored\./);
+  assert.match(degraded.join('\n'), /40 run\(s\) never reached the model/);
+
+  // An empty arm with no dead runs is a directory being read while its run is
+  // still writing. Blaming an outage there sends the reader hunting for one.
+  const partial = lib.summaryLines(rows, 'the plugin', { cases: 1, dead: 0 }).join('\n');
+  assert.match(partial, /an arm simply has no transcripts/);
+  assert.doesNotMatch(partial, /never reached the model/);
+  assert.ok(degraded.indexOf(degraded.find((l) => /show the plugin changing/.test(l))) > 0,
+    'the warning must come before the rate, not after it');
+
+  // Both runners have to treat an unscorable case as a failed gate.
+  for (const f of ['scripts/claude-eval.js', 'scripts/cursor-eval.js']) {
+    const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
+    assert.match(src, /if \(incomplete\.cases\) process\.exitCode = 1;/,
+      `${f}: an incomplete measurement must not exit 0`);
   }
 });

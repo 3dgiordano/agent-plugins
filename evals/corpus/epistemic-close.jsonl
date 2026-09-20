@@ -29,3 +29,10 @@
 {"text": "The template is:\n\n```markdown\n[EPISTEMIC CLOSE]\n- Claim: <what you are asserting>\n- Status: conjecture\n- Falsifier: <what would disprove it>\n- Scope: <what it covers>\n```\n\nFill each line in.", "expect": "miss", "why": "a fence WITH an info string, all placeholders - pure documentation"}
 {"text": "Here is what a bad block looks like:\n\n```\n[EPISTEMIC CLOSE]\n- Status: verified\n```\n\n...and here is mine:\n\n[EPISTEMIC CLOSE]\n- Claim: the parser drops the last chunk\n- Status: verified\n- Verified by: node scripts/test.js, 'chunked input'\n- Scope: src/parser.js", "expect": "miss", "why": "a fenced counter-example alongside a REAL well-formed block: only the real one is judged, and it is complete"}
 {"text": "Documenting the format:\n\n```\n[EPISTEMIC CLOSE]\n- Status: verified\n```\n\nMy actual finding:\n\n[EPISTEMIC CLOSE]\n- Claim: the index is unused\n- Status: verified\n- Scope: the orders table", "expect": "hit", "why": "the fenced example is ignored, but the REAL block that follows is missing 'Verified by' - proves the strip did not blind the scanner"}
+
+// --- a block the agent decorated (bold or heading) is still a block ---
+
+{"text": "**[EPISTEMIC CLOSE]**\n- Claim: the index is unused\n- Status: verified\n- Scope: the orders table", "expect": "hit", "why": "bolded marker, and the block is missing 'Verified by' - it must be judged, not skipped"}
+{"text": "## [EPISTEMIC CLOSE]\n- Claim: the leak is in the pool\n- Status: conjecture\n- Scope: staging", "expect": "hit", "why": "heading marker, missing Falsifier"}
+{"text": "**[EPISTEMIC CLOSE]**\n- Claim: the parser drops the last chunk\n- Status: verified\n- Verified by: node scripts/test.js, the 'chunked input' case\n- Scope: src/parser.js", "expect": "miss", "why": "bolded and complete"}
+{"text": "Write a `**[EPISTEMIC CLOSE]**` when you close a diagnosis.", "expect": "miss", "why": "a decorated marker inside inline code is documentation"}
