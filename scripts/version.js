@@ -6,8 +6,9 @@
  *   node scripts/version.js <plugin> <version>    # set the same version in all manifests
  *   node scripts/version.js --check               # check every plugin under plugins/
  *
- * Manifests covered (whichever exist): plugin.json (Agent Plugins),
- * .claude-plugin/plugin.json (Claude Code), .cursor-plugin/plugin.json (Cursor).
+ * Manifests covered (whichever exist): .plugin/plugin.json (Agent Plugins, kept out of the
+ * root so Codex does not pick it over its own), .claude-plugin/plugin.json (Claude Code),
+ * .cursor-plugin/plugin.json (Cursor), .codex-plugin/plugin.json (Codex).
  */
 'use strict';
 
@@ -16,7 +17,7 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const PLUGINS_DIR = path.join(ROOT, 'plugins');
-const MANIFESTS = ['plugin.json', '.claude-plugin/plugin.json', '.cursor-plugin/plugin.json'];
+const MANIFESTS = ['.plugin/plugin.json', '.claude-plugin/plugin.json', '.cursor-plugin/plugin.json', '.codex-plugin/plugin.json'];
 const SEMVER = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
 
 function manifestsOf(plugin) {

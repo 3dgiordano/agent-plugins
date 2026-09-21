@@ -85,10 +85,10 @@ const CLOSING_LINES = 6; // a question this close to the end is asked of the rea
  * `[-*+][ \t]+` needs the whitespace: without it the `*` would eat the first
  * star of a `**[HANDOFF]**` and the emphasis branch below would never see it.
  */
-const BLOCK_RE = /^[ \t]*(?:[-*+][ \t]+)?(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[HANDOFF\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*(?:[-*+][ \t]+)?(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[HANDOFF\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$|(?![\s\S]))/gm;
+const BLOCK_RE = /^[ \t]*(?:[-*+][ \t]+)?(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[HANDOFF\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$(?:\n[ \t]*(?=\n))?([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*(?:[-*+][ \t]+)?(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[HANDOFF\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$|(?![\s\S]))/gm;
 const STATUSES = ['done', 'needs-decision', 'blocked'];
 
-const COVERAGE_BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[COVERAGE CHECK\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$([\s\S]*?)(?=\n[ \t]*\n|(?![\s\S]))/gm;
+const COVERAGE_BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[COVERAGE CHECK\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$(?:\n[ \t]*(?=\n))?([\s\S]*?)(?=\n[ \t]*\n|(?![\s\S]))/gm;
 const RETURNED_LINE_RE = /^[ \t]*[-*][ \t]*.+?:[ \t]*returned\b/im;
 
 function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&'); }
@@ -232,7 +232,9 @@ function scan(text) {
   while ((m = BLOCK_RE.exec(unfenced(text))) !== null) {
     out.blocks += 1;
     const b = m[1];
-    const status = (field(b, 'Status') || '').toLowerCase().replace(/\s+/g, '-').slice(0, 40);
+    // A full stop after the value is punctuation, not a qualifier: `Status: done.`
+    // is `done`. Measured on the termination scanner, on Codex; same rule here.
+    const status = (field(b, 'Status') || '').toLowerCase().replace(/\.$/, '').replace(/\s+/g, '-').slice(0, 40);
     // exact, or the status followed by a qualifier ("done (tests green)")
     // A qualifier may follow the token after any punctuation, comma included:
     // measured on the executive scanner, where the missing comma scored two

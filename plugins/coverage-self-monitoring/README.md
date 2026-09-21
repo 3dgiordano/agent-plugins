@@ -135,12 +135,13 @@ grep '"event":"stop"' .claude/logs/coverage-self-monitoring.jsonl | grep -vc '"v
 ## Layout
 
 ```
-plugin.json                        # Agent Plugins manifest (portable core: skill only)
+.plugin/plugin.json                # Agent Plugins manifest (portable core: skill only; not at the root - see the repository README)
 .claude-plugin/plugin.json         # Claude Code manifest
+.codex-plugin/plugin.json          # Codex manifest (skills: ./skills, hooks: ./hooks/hooks.json)
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/coverage-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code: UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
+hooks/hooks.json                   # Claude Code + Codex: UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/cov-prompt.js
 hooks/cov-observe.js
 hooks/cov-stop.js

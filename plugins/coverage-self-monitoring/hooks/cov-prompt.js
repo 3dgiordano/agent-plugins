@@ -17,7 +17,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const msg = require('../lib/messages.js');
-const { cwdOf } = require('../lib/host.js');
+const { cwdOf, context } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -40,7 +40,7 @@ function main(raw) {
   if (pending.length) out.push(msg.retrospective(pending));
 
   logEvent(cwdOf(data), { event: 'prompt', session: sid, turn: st.turns, parts: parts, ledger: parts >= signals.PARTS_MIN, retrospective: pending.length });
-  if (out.length) process.stdout.write(out.join('\n'));
+  if (out.length) process.stdout.write(context('UserPromptSubmit', out.join('\n')));
 }
 
 let buf = '';

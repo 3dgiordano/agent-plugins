@@ -48,7 +48,7 @@ Two pieces that install as one unit:
 
 | Host | Adapter | Cadence |
 |------|---------|---------|
-| Claude Code | `hooks/exec-monitor.js` (`UserPromptSubmit`) | first turn of a session, then every Nth turn (`EVERY_N_TURNS`, default 5) |
+| Claude Code, Codex | `hooks/exec-monitor.js` (`UserPromptSubmit`) | first turn of a session, then every Nth turn (`EVERY_N_TURNS`, default 5) |
 | Cursor | `cursor/exec-monitor-cursor.js` (`sessionStart`) | once per session |
 | Agent Plugins client | *(none)* | skill only — the agent decides when to apply it |
 
@@ -113,12 +113,13 @@ grep '"event":"skill"' .claude/logs/executive-self-monitoring.jsonl | grep execu
 ## Layout
 
 ```
-plugin.json                       # Agent Plugins manifest (portable core)
+.plugin/plugin.json               # Agent Plugins manifest (portable core; not at the root - see the repository README)
 .claude-plugin/plugin.json        # Claude Code manifest
+.codex-plugin/plugin.json         # Codex manifest (skills: ./skills, hooks: ./hooks/hooks.json)
 .cursor-plugin/plugin.json        # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/executive-self-monitoring/SKILL.md
-hooks/hooks.json                  # Claude Code: UserPromptSubmit + PreToolUse(Skill) + SessionEnd
+hooks/hooks.json                  # Claude Code + Codex: UserPromptSubmit + PreToolUse(Skill) + SessionEnd
 hooks/exec-monitor.js
 hooks/exec-log-skill.js
 hooks/exec-session-end.js

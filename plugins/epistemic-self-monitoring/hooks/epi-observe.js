@@ -16,7 +16,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const msg = require('../lib/messages.js');
 const { outputText, looksFailed } = require('../lib/fail.js');
-const { cwdOf } = require('../lib/host.js');
+const { cwdOf, context } = require('../lib/host.js');
 
 const EVERY_N_COMMANDS = 6;   // nudge on every Nth shell command
 const MIN_GAP_ON_ERROR = 3;   // and on error output, but not more often than this
@@ -45,9 +45,7 @@ function main(raw) {
   logEvent(cwdOf(data), { event: 'observe', session: sid, shell: st.shell, failed: failed, emitted: fire });
   if (!fire) return;
 
-  process.stdout.write(JSON.stringify({
-    hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: msg.OBSERVE }
-  }));
+  process.stdout.write(context('PostToolUse', msg.OBSERVE));
 }
 
 let buf = '';

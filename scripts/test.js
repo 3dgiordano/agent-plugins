@@ -4,7 +4,7 @@
  * (Node >= 18). Run with `node scripts/test.js`.
  *
  * Two layers:
- *   structure - every plugin has its three manifests, a skill with frontmatter,
+ *   structure - every plugin has its four manifests, a skill with frontmatter,
  *               is registered in both marketplaces, and its versions agree
  *   behaviour - each hook adapter is driven end-to-end as its host would drive
  *               it (JSON on stdin, output/exit code inspected), for Claude Code
@@ -24,7 +24,7 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const PLUGINS = path.join(ROOT, 'plugins');
-const MANIFESTS = ['plugin.json', '.claude-plugin/plugin.json', '.cursor-plugin/plugin.json'];
+const MANIFESTS = ['.plugin/plugin.json', '.claude-plugin/plugin.json', '.cursor-plugin/plugin.json', '.codex-plugin/plugin.json'];
 // Every plugin keeps its per-session state under one directory named after
 // the marketplace, so it can be listed and cleared as a group.
 const STATE_DIR = path.join(os.tmpdir(), '3dgiordano-agent-plugins');
@@ -40,7 +40,18 @@ function hook(pluginName, script, input, env) {
     env: Object.assign({}, process.env, { CLAUDECODE: '1' }, env || {}),
     cwd: plugin(pluginName)
   });
-  return { code: r.status, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
+  const out = (r.stdout || '').trim();
+  return { code: r.status, out, text: modelText(out), err: (r.stderr || '').trim() };
+}
+
+// What the model sees: the additionalContext inside the hookSpecificOutput
+// envelope every hooks/ script writes, or the raw stdout when it is not one.
+function modelText(out) {
+  try {
+    const j = JSON.parse(out);
+    if (j && j.hookSpecificOutput && typeof j.hookSpecificOutput.additionalContext === 'string') return j.hookSpecificOutput.additionalContext;
+  } catch (_) {}
+  return out;
 }
 
 function cleanupTemp(prefix) {
@@ -62,7 +73,7 @@ test('collection has plugins', () => {
 });
 
 for (const name of pluginNames) {
-  test(`${name}: three manifests exist, agree on name and version, and are valid JSON`, () => {
+  test(`${name}: four manifests exist, agree on name and version, and are valid JSON`, () => {
     const versions = new Set();
     for (const rel of MANIFESTS) {
       const f = path.join(plugin(name), rel);
@@ -76,10 +87,22 @@ for (const name of pluginNames) {
   });
 
   test(`${name}: Agent Plugins manifest declares the 1.0.0 schema and only allowed fields`, () => {
-    const j = readJson(path.join(plugin(name), 'plugin.json'));
+    const j = readJson(path.join(plugin(name), '.plugin/plugin.json'));
     assert.equal(j.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
     const allowed = new Set(['$schema', 'name', 'version', 'description', 'author', 'homepage', 'repository', 'license', 'keywords', 'extensions']);
     for (const k of Object.keys(j)) assert.ok(allowed.has(k), `unexpected field ${k}`);
+    // Codex 0.155 reads a root plugin.json through its Agent Plugins loader, which
+    // has no hooks slot, and then ignores .codex-plugin/ (openai/codex#39895).
+    assert.ok(!fs.existsSync(path.join(plugin(name), 'plugin.json')), 'plugin.json at the plugin root would disable every hook on Codex');
+  });
+
+  test(`${name}: Codex manifest points at the shared skill and the Claude Code hooks adapter`, () => {
+    const j = readJson(path.join(plugin(name), '.codex-plugin/plugin.json'));
+    assert.equal(j.name, name);
+    assert.equal(j.skills, './skills/');
+    assert.equal(j.hooks, './hooks/hooks.json');
+    assert.ok(fs.existsSync(path.join(plugin(name), 'hooks/hooks.json')), 'hooks/hooks.json missing');
+    assert.match(j.description, /Codex: /, 'description names what Codex gets');
   });
 
   test(`${name}: skill exists with name/description frontmatter matching the plugin`, () => {
@@ -126,13 +149,19 @@ for (const name of pluginNames) {
   });
 }
 
-test('both marketplaces list every plugin, and only existing ones', () => {
+test('all three marketplaces list every plugin, and only existing ones', () => {
   for (const mp of ['.claude-plugin/marketplace.json', '.cursor-plugin/marketplace.json']) {
     const j = readJson(path.join(ROOT, mp));
     const listed = j.plugins.map((p) => p.name).sort();
     assert.deepEqual(listed, [...pluginNames].sort(), `${mp} plugin list differs from plugins/`);
     for (const p of j.plugins) assert.equal(p.source, `./plugins/${p.name}`, `${mp}: ${p.name} source`);
   }
+  // Codex: `codex plugin marketplace add <repo>` reads this one; each entry's source is an object.
+  const mp = '.agents/plugins/marketplace.json';
+  const j = readJson(path.join(ROOT, mp));
+  assert.equal(j.name, readJson(path.join(ROOT, '.claude-plugin/marketplace.json')).name, 'same marketplace name on every host');
+  assert.deepEqual(j.plugins.map((p) => p.name).sort(), [...pluginNames].sort(), `${mp} plugin list differs from plugins/`);
+  for (const p of j.plugins) assert.deepEqual(p.source, { source: 'local', path: `./plugins/${p.name}` }, `${mp}: ${p.name} source`);
 });
 
 test('scripts/version.js --check passes', () => {
@@ -771,7 +800,7 @@ test('progress (claude): a commitment in the final message comes back two prompt
   assert.equal(prompt().out, '', 'one turn later: the agent may be doing it');
   stop('Tests green.');
   const r = prompt();
-  assert.match(r.out, /^\[progress self-monitoring\] 2 turns ago you wrote: "I'll update the docs once the tests pass"\. What you said you would do is the one list you cannot re-read/);
+  assert.match(r.text, /^\[progress self-monitoring\] 2 turns ago you wrote: "I'll update the docs once the tests pass"\. What you said you would do is the one list you cannot re-read/);
   assert.ok(!r.out.includes('retries'), 'the offer is handoff\'s, not a commitment');
   stop('Docs updated.');
   assert.equal(prompt().out, '', 'asked once');
@@ -810,7 +839,7 @@ test('progress (claude): session start speaks only on a fresh ledger with open i
   const open = ledgerProject(t, '## Open\n- blocked: a\n- returned: b\n');
   const r = hook(PRO, 'hooks/prog-session-start.js', { session_id: sid, cwd: open, source: 'compact' });
   assert.equal(r.code, 0);
-  assert.match(r.out, /^\[progress self-monitoring\] `\.agent\/progress\.md` has 2 open items, updated 1 hour ago/);
+  assert.match(r.text, /^\[progress self-monitoring\] `\.agent\/progress\.md` has 2 open items, updated 1 hour ago/);
   assert.ok(!r.out.includes('blocked: a'), 'the ledger text never travels through a hook');
   const p1 = hook(PRO, 'hooks/prog-prompt.js', { session_id: sid, cwd: open, prompt: 'go' });
   assert.match(p1.out, /Load the progress-self-monitoring skill if it is not already loaded/, 'turn 1 loads');
@@ -850,7 +879,7 @@ test('progress (claude): a turn that edits files and leaves a ledger with open i
   edit('src/a.js'); edit('src/b.js');
   assert.equal(stop().out, '', 'stop itself never speaks');
   const r = prompt();
-  assert.match(r.out, /^\[progress self-monitoring\] Your previous turn made 2 file edits and left `\.agent\/progress\.md` untouched with 2 open items/);
+  assert.match(r.text, /^\[progress self-monitoring\] Your previous turn made 2 file edits and left `\.agent\/progress\.md` untouched with 2 open items/);
   // same ledger version, another editing turn -> silent (once per version)
   edit('src/c.js'); stop();
   assert.equal(prompt().out, '', 'already reported for this ledger version');
@@ -1288,9 +1317,11 @@ test('no CI step invokes an agent CLI, directly or through a script', () => {
    * this test first passed: the AGENT_CLI_DRIVER marker was in a header comment
    * and codeOf() strips comments before looking.
    */
-  assert.ok(drivers.includes('cursor-eval.js'),
-    `the driver detection found ${drivers.length ? drivers.join(', ') : 'nothing'} - ` +
-    'cursor-eval.js drives the Cursor CLI and must be detected, or this test guards nothing');
+  for (const d of ['cursor-eval.js', 'claude-eval.js', 'codex-eval.js']) {
+    assert.ok(drivers.includes(d),
+      `the driver detection found ${drivers.length ? drivers.join(', ') : 'nothing'} - ` +
+      `${d} drives an agent CLI and must be detected, or this test guards nothing`);
+  }
 });
 
 test('CHANGELOG: the newest release table matches the manifests, and its entries match the table', () => {
@@ -1331,7 +1362,7 @@ test('CHANGELOG: the newest release table matches the manifests, and its entries
   const asNum = (v) => v.split('.').map(Number).reduce((a, n) => a * 1000 + n, 0);
 
   for (const name of pluginNames) {
-    const shipped = readJson(path.join(plugin(name), 'plugin.json')).version;
+    const shipped = readJson(path.join(plugin(name), '.plugin/plugin.json')).version;
     const released = table.get(name);
     if (!released) continue; // queued as new, checked above
     if (queued) {
@@ -1608,6 +1639,42 @@ test('a bolded field name is the same field: **Status:** parses like Status:', (
   const han = S(HAN, 'handoff.js');
   const r = han('[HANDOFF]\n- Status: done\n- Situation: the **critical** path is clear\n- Next: ship\n');
   assert.deepEqual(r.violations, []);
+});
+
+test('a blank line after the marker, and a full stop after a value, are still the block', () => {
+  /*
+   * Found on Codex, first run: a correct [TERMINATION CHECK] scored as
+   * malformed twice over. The block scanners end a block at the first blank
+   * line, and the model had put one between the marker and the list - which
+   * is what markdown looks like when a heading precedes a list - so the
+   * captured block was empty: "Reason (empty)", "no Decision". And it wrote
+   * `Reason: none.` with a full stop, which the enum match read as a
+   * qualifier on a value that takes none. Punctuation is not disobedience.
+   */
+  const S = (p, f) => require(path.join(plugin(p), 'lib', f)).scan;
+  const BLOCKS = [
+    [S(HAN, 'handoff.js'), '[HANDOFF]\n- Status: done\n- Situation: the install matches the repo\n- Next: start the migration\n'],
+    [S(TER, 'lexicon.js'), '[TERMINATION CHECK]\n- Trigger: "long session"\n- Reason: none\n- Decision: continue\n'],
+    [S('executive-self-monitoring', 'plan.js'), '[PLAN CHECK]\n- Plan: PLAN.md\n- Gate: "ship it"\n- Drift: none\n- Decision: continue\n'],
+    [S('epistemic-self-monitoring', 'scan.js'), '[EPISTEMIC CLOSE]\n- Claim: it works\n- Status: verified\n- Verified by: the suite\n- Scope: this host\n'],
+    [require(path.join(plugin(COV), 'lib', 'signals.js')).scanClose, '[COVERAGE CHECK]\n- parser: done\n- docs: blocked - the CI image lacks pandoc\n'],
+  ];
+  for (const [scan, plain] of BLOCKS) {
+    assert.deepEqual(scan(plain).violations, [], 'the plain block must be clean to begin with');
+    const spaced = plain.replace(/\]\n/, ']\n\n');
+    assert.equal(scan(spaced).blocks, 1, `one block, blank line after the marker:\n${spaced}`);
+    assert.deepEqual(scan(spaced).violations, [], `a blank line after the marker must parse the same:\n${spaced}`);
+    // Two blank lines are still the end of the block, so what follows a real
+    // gap is not read as fields.
+    const gapped = plain.replace(/\]\n/, ']\n\n\n');
+    assert.equal(scan(gapped).blocks, 1);
+    const dotted = plain.replace(/^(- \w[\w -]*: [\w-]+)$/gm, '$1.');
+    assert.notEqual(dotted, plain, 'the full stops did not apply');
+    assert.deepEqual(scan(dotted).violations, [], `a full stop after a value must parse the same:\n${dotted}`);
+  }
+  // `none` still takes no qualifier: a different word after it is not `none`.
+  const term = S(TER, 'lexicon.js');
+  assert.equal(term('[TERMINATION CHECK]\n- Trigger: "x"\n- Reason: none whatsoever\n- Decision: continue\n').violations.length, 1);
 });
 
 test('a migrated message keeps what the scanner reads and names the section for the rest', () => {

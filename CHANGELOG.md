@@ -7,6 +7,121 @@ release.
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-09-21
+
+A third hooks host. OpenAI's Codex CLI turned out to expose the same six
+events as Claude Code, with the same payload and the same output envelope, so
+every plugin runs its `hooks/` adapter there unchanged - once two things
+were found by trying it: a root `plugin.json` silently disables every hook
+on Codex, and stdout that begins with `[` is dropped, which was every
+message in this collection. Both are fixed here, and the fixes hold on
+Claude Code (`test.js`, and a live `claude -p` either side of the change).
+
+Measured on Codex before it was written down, as far as a Free plan allowed:
+termination **3 of 3 with, 0 of 3 without**, the quiet case costing nothing,
+through a new `scripts/codex-eval.js` that needs nothing installed. The
+first run also caught the five close scanners rejecting a correct block for a
+blank line and a full stop - fixed, with a test. The other fifteen cases are
+on the plan's monthly limit; the hook wiring behind them is the one already
+measured on Claude Code, and the same file.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.6.0 |
+| epistemic-self-monitoring | 0.2.0 |
+| persistence-self-monitoring | 0.2.0 |
+| termination-self-monitoring | 0.2.0 |
+| coverage-self-monitoring | 0.2.0 |
+| handoff-self-monitoring | 0.2.0 |
+| progress-self-monitoring | 0.3.0 |
+
+Every plugin moves a minor: each gained a host, and all seven changed the
+shape of what their hooks write.
+
+### Added
+- **Codex as a third hooks host.** OpenAI's Codex CLI exposes the same six
+  events as Claude Code - `SessionStart` (with `source`), `UserPromptSubmit`,
+  `PostToolUse`, `Stop`, `SubagentStop`, `SessionEnd` - with the same
+  stdin payload, the same `hooks.json` nesting, `${CLAUDE_PLUGIN_ROOT}`
+  expanded as an alias of its own `${PLUGIN_ROOT}`, and the same output
+  envelope. So every plugin runs its `hooks/` adapter on Codex unchanged; what
+  it needed was a manifest (`.codex-plugin/plugin.json`, pointing at
+  `skills/` and `hooks/hooks.json`) and a marketplace index
+  (`.agents/plugins/marketplace.json`, read by
+  `codex plugin marketplace add`). Checked on codex-cli 0.155.1 on Windows,
+  end to end: installed from the local marketplace, all four of
+  progress-self-monitoring's session events fired inside `codex exec`, and
+  the model repeated the session-start count and the load message back.
+  Plugin hooks run on Codex only after a one-time review in `/hooks`
+  (`codex exec --dangerously-bypass-hook-trust` for scripts); the README
+  says so.
+- **`scripts/codex-eval.js` - the Codex arm of the behaviour layer.** Same
+  cases, same graders, same transcript names as the other two runners, and
+  like the Claude Code one it measures hooks AND skill. How the WITH arm is
+  built was measured first, because the obvious way does not work: a plugin
+  installed with `codex plugin add` keeps its hooks off until someone trusts
+  them in the TUI, and the bypass flag does not reach them; a project
+  `.codex/hooks.json` needs the project trusted, and six spellings of a
+  `-c projects.…trust_level` override were all ignored. What works: the
+  skill copied into the workspace's `.agents/skills/` and the plugin's
+  `hooks/hooks.json` passed as session hooks (`-c 'hooks.<Event>=[…]'`)
+  under `--dangerously-bypass-hook-trust`; both arms under
+  `--ignore-user-config`, which drops installed plugins and keeps the login.
+  Nothing under `~/.codex` is written. On Windows the runner starts the
+  npm package's `bin/codex.js` with node rather than the `.cmd` shim, so
+  the quoted TOML survives, and it carries one value back out of the user's
+  config - `[windows] sandbox` - without which `workspace-write` silently
+  falls back to read-only and every "work" case answers that it cannot write
+  (the first batch lost progress and handoff to exactly that). A ChatGPT
+  plan's usage limit arrives on stderr with an empty stdout; the runner stops
+  at the first one and says so, instead of spending the rest of the batch on
+  dead runs. First numbers, codex-cli 0.155.1 on a Free plan: termination
+  **3 of 3 with, 0 of 3 without**, the quiet case costing nothing; the other
+  fifteen cases wait for the plan's monthly limit to reset.
+
+### Fixed
+- **A blank line after the marker, and a full stop after a value, are still
+  the block - in all five close scanners.** The first Codex run scored a
+  correct `[TERMINATION CHECK]` as malformed twice over. The scanners end a
+  block at the first blank line, and the model had put one between the
+  marker and the list - which is what markdown looks like when a heading
+  precedes a list - so the captured block was empty: "Reason (empty)", "no
+  Decision". And it wrote `Reason: none.`, which the enum match read as a
+  qualifier on the one value that takes none. Now one blank line right after
+  the marker is consumed before the fields are read (`[COVERAGE CHECK]`,
+  `[EPISTEMIC CLOSE]`, `[HANDOFF]`, `[PLAN CHECK]`, `[TERMINATION
+  CHECK]`; a second blank line still ends the block), and a trailing full
+  stop is stripped from `Reason`, `Decision` and `Status` before the
+  enum is checked. Re-scored, the same transcript passes. Twelve Claude Code
+  cases at 100% had said nothing about either, because that model writes the
+  list flush against the marker and its values bare.
+
+### Changed
+- **Every `hooks/` script writes the envelope, never plain text.** The
+  prompt and session-start hooks used to write their message bare, which
+  Claude Code adds as context; Codex reads stdout that begins with `[` as
+  JSON, fails to parse it, and drops it - and every message in this
+  collection begins with `[<plugin> self-monitoring]`. Found with three echo
+  hooks in one session (`TOKEN-A plain` seen, `[bracket] TOKEN-B` not,
+  the same text inside `hookSpecificOutput.additionalContext` seen). Now
+  all twelve output sites go through one `context(event, text)` in
+  `lib/host.js`, the envelope both hosts accept on the events that inject
+  context; the five observe hooks already wrote it inline. The text the
+  model reads is unchanged; `scripts/test.js` reads it back through the
+  envelope (`hook().text`) and `samples.js` quotes the inside.
+- **The Agent Plugins manifest moves from `plugin.json` to
+  `.plugin/plugin.json`.** Codex 0.155 reads a root `plugin.json` through
+  its Agent Plugins loader, which has no hooks slot, and then ignores
+  `.codex-plugin/plugin.json` - every hook silently off, no warning
+  ([openai/codex#39895](https://github.com/openai/codex/issues/39895), open;
+  the `extensions.com.openai.hooks` the docs describe is not implemented).
+  Four probe plugins in one marketplace settled it: hooks load from
+  `.codex-plugin/` alone, with or without an explicit `hooks` field, and
+  from nothing when a root `plugin.json` is present. The spec names only
+  the root, so the portable manifest is now a courtesy copy in the location
+  Copilot CLI and Goose also read, and `scripts/test.js` fails on a root
+  `plugin.json`. The README's host table says why.
+
 ## [0.8.0] — 2026-09-21
 
 The plugin that shipped a day ago, worked. progress-self-monitoring gains the
@@ -1066,7 +1181,8 @@ First public release.
   backticks was scanned as a closure block; the marker must now stand alone
   on its line.
 
-[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.9.0
 [0.8.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.8.0
 [0.7.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.7.0
 [0.6.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.6.0

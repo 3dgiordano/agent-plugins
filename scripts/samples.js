@@ -49,7 +49,8 @@ const SAMPLES = {
     try { fs.unlinkSync(path.join(require('os').tmpdir(), '3dgiordano-agent-plugins', `execmon_claude_${sid}.txt`)); } catch (_) {}
     const out = (r.stdout || '').trim();
     if (!out) throw new Error('executive: the hook emitted nothing on its first turn');
-    return out;
+    // The hook writes the hookSpecificOutput envelope; the README quotes the text inside it.
+    return JSON.parse(out).hookSpecificOutput.additionalContext;
   },
 
   termination: () => lib('termination', 'messages.js').retrospective(

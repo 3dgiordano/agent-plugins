@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="assets/social-preview.svg" width="90%" alt="agent-plugins — cognitive scaffolding for coding agents: self-monitoring plugins for Claude Code, Cursor and Agent Plugins hosts">
+  <img src="assets/social-preview.svg" width="90%" alt="agent-plugins — cognitive scaffolding for coding agents: self-monitoring plugins for Claude Code, Codex, Cursor and Agent Plugins hosts">
 </p>
 
 # agent-plugins
 
 [![CI](https://github.com/3dgiordano/agent-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/3dgiordano/agent-plugins/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-![Works with](https://img.shields.io/badge/works%20with-Claude%20Code%20%C2%B7%20Cursor%20%C2%B7%20Agent%20Plugins-informational)
+![Works with](https://img.shields.io/badge/works%20with-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20Agent%20Plugins-informational)
 
 Cognitive scaffolding for coding agents, by [3dgiordano](https://github.com/3dgiordano).
 
@@ -99,8 +99,8 @@ claude plugin marketplace add 3dgiordano/agent-plugins
 claude plugin install persistence-self-monitoring@3dgiordano-agent-plugins
 ```
 
-Swap in any of the other six, or install all seven. Cursor and other hosts: see
-[Install](#install).
+Swap in any of the other six, or install all seven. Codex, Cursor and other hosts:
+see [Install](#install).
 
 ## What the hooks do — and don't
 
@@ -172,8 +172,9 @@ one install, on every host it supports:
 | Host | How it loads the plugin |
 |------|-------------------------|
 | **Claude Code** | `.claude-plugin/plugin.json` + `hooks/hooks.json` — install from this repo as a marketplace |
+| **Codex** (CLI, ChatGPT desktop) | `.codex-plugin/plugin.json` + the same `hooks/hooks.json` — install from this repo as a marketplace, then trust the hooks once with `/hooks` |
 | **Cursor** | `.cursor-plugin/plugin.json` + `cursor/hooks.json` — install from this repo as a marketplace |
-| **Any [Agent Plugins](https://agent-plugins.org) client** | root `plugin.json` — portable core (skill only; no hooks) |
+| **Any [Agent Plugins](https://agent-plugins.org) client** | `.plugin/plugin.json` — portable core (skill only; no hooks). Kept out of the plugin root on purpose: Codex reads a root `plugin.json` through a loader that has no hooks slot and then ignores its own manifest ([openai/codex#39895](https://github.com/openai/codex/issues/39895)) |
 
 ## Plugins
 
@@ -190,11 +191,13 @@ one install, on every host it supports:
 ### What each host actually gets
 
 The skill is identical everywhere; the *when* depends on which events a host
-exposes. Cursor has no non-blocking per-prompt event and no way to inject
+exposes. Codex exposes the same six events as Claude Code, with the same
+payload and the same output envelope, so it runs the Claude Code adapter
+unchanged. Cursor has no non-blocking per-prompt event and no way to inject
 context after the agent's final message, so two layers degrade there:
 
-| Layer | Claude Code | Cursor |
-|-------|-------------|--------|
+| Layer | Claude Code · Codex | Cursor |
+|-------|---------------------|--------|
 | Load the skill | first prompt (+ periodic re-load) | session start |
 | Executive checkpoint cadence | every 5th prompt | once per session |
 | Persistence counters + nudges | ✓ | ✓ |
@@ -259,6 +262,28 @@ Both commands accept `--scope <user|project|local>`:
 > `.claude/hooks/` + `settings.json`), remove that wiring after installing the
 > plugin — otherwise it fires twice.
 
+### Codex
+
+Register this repo as a marketplace, install the plugin, then open `/hooks`
+once in an interactive `codex` session and trust the plugin's hooks. Codex
+skips a plugin's hooks until they are reviewed, and remembers the review per
+hook definition — a plugin update that changes a hook asks again.
+
+```
+codex plugin marketplace add 3dgiordano/agent-plugins
+codex plugin add executive-self-monitoring@3dgiordano-agent-plugins
+codex plugin add epistemic-self-monitoring@3dgiordano-agent-plugins
+codex plugin add persistence-self-monitoring@3dgiordano-agent-plugins
+codex plugin add termination-self-monitoring@3dgiordano-agent-plugins
+codex plugin add coverage-self-monitoring@3dgiordano-agent-plugins
+codex plugin add handoff-self-monitoring@3dgiordano-agent-plugins
+codex plugin add progress-self-monitoring@3dgiordano-agent-plugins
+```
+
+The skill loads on install; the hooks run after `/hooks`. For scripted runs
+(`codex exec`) that already vet their hook sources, `--dangerously-bypass-hook-trust`
+runs them without the review. Verified on codex-cli 0.155.1 on Windows.
+
 ### Cursor
 
 Add this repo as a marketplace (Dashboard → Plugins → Add Marketplace → *Import
@@ -269,20 +294,23 @@ from Repo*, `3dgiordano/agent-plugins`), then install the plugin from
 ### Local development
 
 To test changes from a checkout instead of GitHub, register the folder path as
-the marketplace (`claude plugin marketplace add /path/to/agent-plugins`) and
-install with the same `<plugin>@3dgiordano-agent-plugins` name.
+the marketplace (`claude plugin marketplace add /path/to/agent-plugins`, or
+`codex plugin marketplace add /path/to/agent-plugins`) and install with the
+same `<plugin>@3dgiordano-agent-plugins` name.
 
 ## Repository layout
 
 ```
 .claude-plugin/marketplace.json   # Claude Code marketplace index
 .cursor-plugin/marketplace.json   # Cursor marketplace index (same plugins)
+.agents/plugins/marketplace.json  # Codex marketplace index (same plugins)
 plugins/<name>/
-  plugin.json                     # Agent Plugins portable manifest
+  .plugin/plugin.json             # Agent Plugins portable manifest (not at the root: see the host table)
   .claude-plugin/plugin.json      # Claude Code manifest
+  .codex-plugin/plugin.json       # Codex manifest (points at skills/ and hooks/hooks.json)
   .cursor-plugin/plugin.json      # Cursor manifest (points hooks at cursor/)
   skills/<name>/SKILL.md          # shared core - the single source of truth
-  hooks/                          # Claude Code hook adapter
+  hooks/                          # Claude Code + Codex hook adapter
   cursor/                         # Cursor hook adapter
   lib/                            # code shared by the adapters
 ```
@@ -301,7 +329,7 @@ No dependencies; Node 18+ is all you need.
 
 ```
 node scripts/test.js            # structure checks + every hook adapter driven as its host would
-node scripts/version.js --check # each plugin's three manifests agree on the version
+node scripts/version.js --check # each plugin's four manifests agree on the version
 node scripts/calibrate.js <dir> # what-if nudge rates from the opt-in logs of real sessions
 ```
 
@@ -314,8 +342,8 @@ each candidate threshold — the number is the signal only if it stays rare.
 
 CI runs both on Ubuntu and Windows across Node 18/20/22 for every push and pull
 request. The tests drive each hook script with the JSON its host sends and
-inspect stdout, stderr and exit codes, so a change that breaks a Claude Code
-or Cursor contract fails before it ships.
+inspect stdout, stderr and exit codes, so a change that breaks a Claude Code,
+Codex or Cursor contract fails before it ships.
 
 ## License
 

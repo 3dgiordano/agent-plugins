@@ -17,7 +17,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const msg = require('../lib/messages.js');
-const { cwdOf } = require('../lib/host.js');
+const { cwdOf, context } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -36,9 +36,7 @@ function main(raw) {
 
   if (!fired.length) return;
   logEvent(cwdOf(data), { event: 'signal', session: sid, tools: st.turn.tools, signals: fired });
-  process.stdout.write(JSON.stringify({
-    hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: msg.preclose(fired[0]) }
-  }));
+  process.stdout.write(context('PostToolUse', msg.preclose(fired[0])));
 }
 
 let buf = '';

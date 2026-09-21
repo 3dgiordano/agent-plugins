@@ -183,12 +183,13 @@ afterwards, and score it by the rules in the case's `case.json`:
 ## Layout
 
 ```
-plugin.json                        # Agent Plugins manifest (portable core: skill only)
+.plugin/plugin.json                # Agent Plugins manifest (portable core: skill only; not at the root - see the repository README)
 .claude-plugin/plugin.json         # Claude Code manifest
+.codex-plugin/plugin.json          # Codex manifest (skills: ./skills, hooks: ./hooks/hooks.json)
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/progress-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code: SessionStart, UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
+hooks/hooks.json                   # Claude Code + Codex: SessionStart, UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/prog-session-start.js        # ledger status at the session boundary (and after compaction)
 hooks/prog-prompt.js               # turn start stamp, load on turn 1, status fallback, retrospective
 hooks/prog-observe.js              # edit counter; silent

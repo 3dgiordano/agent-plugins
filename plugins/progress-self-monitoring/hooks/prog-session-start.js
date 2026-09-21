@@ -25,7 +25,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const ledger = require('../lib/ledger.js');
 const msg = require('../lib/messages.js');
-const { cwdOf } = require('../lib/host.js');
+const { cwdOf, context } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -44,7 +44,7 @@ function main(raw) {
   state.update(HOST, sid, (st) => { if (speak) st.announced = ins.mtimeMs; });
 
   logEvent(cwd, { event: 'session_start', session: sid, source: data.source || null, exists: ins.exists, open: ins.open, lines: ins.lines, bytes: ins.bytes, bloated: ins.bloated, ageMs: ins.ageMs, emitted: speak });
-  if (speak) process.stdout.write(msg.status(ins));
+  if (speak) process.stdout.write(context('SessionStart', msg.status(ins)));
 }
 
 let buf = '';

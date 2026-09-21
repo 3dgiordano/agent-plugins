@@ -121,12 +121,13 @@ grep '"event":"turn"' .claude/logs/persistence-self-monitoring.jsonl | grep -o '
 ## Layout
 
 ```
-plugin.json                         # Agent Plugins manifest (portable core: skill only)
+.plugin/plugin.json                 # Agent Plugins manifest (portable core: skill only; not at the root - see the repository README)
 .claude-plugin/plugin.json          # Claude Code manifest
+.codex-plugin/plugin.json           # Codex manifest (skills: ./skills, hooks: ./hooks/hooks.json)
 .cursor-plugin/plugin.json          # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/persistence-self-monitoring/SKILL.md
-hooks/hooks.json                    # Claude Code: UserPromptSubmit, PostToolUse (all), Stop, SessionEnd
+hooks/hooks.json                    # Claude Code + Codex: UserPromptSubmit, PostToolUse (all), Stop, SessionEnd
 hooks/persist-prompt.js
 hooks/persist-observe.js
 hooks/persist-stop.js

@@ -1,0 +1,92 @@
+{
+  "name": "3dgiordano-agent-plugins",
+  "interface": {
+    "displayName": "3dgiordano agent-plugins"
+  },
+  "plugins": [
+    {
+      "name": "executive-self-monitoring",
+      "source": {
+        "source": "local",
+        "path": "./plugins/executive-self-monitoring"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "epistemic-self-monitoring",
+      "source": {
+        "source": "local",
+        "path": "./plugins/epistemic-self-monitoring"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "persistence-self-monitoring",
+      "source": {
+        "source": "local",
+        "path": "./plugins/persistence-self-monitoring"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "termination-self-monitoring",
+      "source": {
+        "source": "local",
+        "path": "./plugins/termination-self-monitoring"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "coverage-self-monitoring",
+      "source": {
+        "source": "local",
+        "path": "./plugins/coverage-self-monitoring"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "handoff-self-monitoring",
+      "source": {
+        "source": "local",
+        "path": "./plugins/handoff-self-monitoring"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "progress-self-monitoring",
+      "source": {
+        "source": "local",
+        "path": "./plugins/progress-self-monitoring"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

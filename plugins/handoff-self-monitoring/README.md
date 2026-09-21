@@ -212,12 +212,13 @@ other plugins'.
 ## Layout
 
 ```
-plugin.json                        # Agent Plugins manifest (portable core: skill only)
+.plugin/plugin.json                # Agent Plugins manifest (portable core: skill only; not at the root - see the repository README)
 .claude-plugin/plugin.json         # Claude Code manifest
+.codex-plugin/plugin.json          # Codex manifest (skills: ./skills, hooks: ./hooks/hooks.json)
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/handoff-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code: UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
+hooks/hooks.json                   # Claude Code + Codex: UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/hand-prompt.js
 hooks/hand-observe.js
 hooks/hand-stop.js

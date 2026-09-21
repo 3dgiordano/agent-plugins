@@ -25,7 +25,7 @@
  */
 const MARK = '(?:#{1,6}[ \\t]*)?(?:\\*\\*|__)?\\[PLAN CHECK\\](?:[ \\t]*:)?(?:\\*\\*|__)?(?:[ \\t]*:)?';
 const BLOCK_RE = new RegExp(
-  '^[ \\t]*' + MARK + '[ \\t]*$([\\s\\S]*?)(?=\\n[ \\t]*\\n|^[ \\t]*' + MARK + '[ \\t]*$|(?![\\s\\S]))',
+  '^[ \\t]*' + MARK + '[ \\t]*$(?:\\n[ \\t]*(?=\\n))?([\\s\\S]*?)(?=\\n[ \\t]*\\n|^[ \\t]*' + MARK + '[ \\t]*$|(?![\\s\\S]))',
   'gm'
 );
 
@@ -80,7 +80,9 @@ function scan(text) {
     const plan = field(b, 'Plan');
     const gate = field(b, 'Gate');
     const drift = (field(b, 'Drift') || '').toLowerCase();
-    const decision = (field(b, 'Decision') || '').toLowerCase().replace(/\s+/g, '-').slice(0, 80);
+    // A full stop after the value is punctuation, not a qualifier: `Decision:
+    // continue.` is `continue`. Measured on the termination scanner, on Codex.
+    const decision = (field(b, 'Decision') || '').toLowerCase().replace(/\.$/, '').replace(/\s+/g, '-').slice(0, 80);
     /*
      * Exact, or the decision followed by a qualifier. The separator is
      * whatever punctuation the writer reached for: a comma is the commonest

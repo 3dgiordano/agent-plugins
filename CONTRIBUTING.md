@@ -49,10 +49,17 @@ questions — so the design is agreed before code is written.
 - **Self-contained plugins.** Plugins install individually, so nothing under
   `plugins/<a>/` may `require` anything under `plugins/<b>/`. Shared
   behaviour (the logger, for instance) is a per-plugin copy, on purpose.
-- **Both hosts, or say why not.** A hook behaviour ships for Claude Code
-  (`hooks/`) and Cursor (`cursor/`) unless a host cannot express it — then
-  the README of the plugin explains the difference, as
+- **Both adapters, or say why not.** A hook behaviour ships for Claude Code
+  and Codex (`hooks/`, one adapter: Codex exposes the same events, payload
+  and output envelope) and for Cursor (`cursor/`) unless a host cannot
+  express it — then the README of the plugin explains the difference, as
   executive-self-monitoring does for Cursor's once-per-session cadence.
+- **Hooks write the envelope, never plain text.** Everything a `hooks/`
+  script says to the model goes out as
+  `{"hookSpecificOutput":{"hookEventName":…,"additionalContext":…}}`
+  (`context()` in `lib/host.js`). Claude Code also accepts plain stdout;
+  Codex reads stdout that starts with `[` as JSON and drops it when it is
+  not — and every message here starts with `[<plugin> self-monitoring]`.
 - **Text the agent will read is written for the agent.** Reminder messages and
   skills are short, concrete and honest; no exclamation marks, no
   motivational filler. A nudge carries a fact (a count, a rule) and one
@@ -63,20 +70,29 @@ questions — so the design is agreed before code is written.
 1. Create `plugins/<name>/` with:
 
    ```
-   plugin.json                     # Agent Plugins manifest ($schema 1.0.0, portable core)
+   .plugin/plugin.json             # Agent Plugins manifest ($schema 1.0.0, portable core) - never at the root, see below
    .claude-plugin/plugin.json      # Claude Code manifest
+   .codex-plugin/plugin.json       # Codex manifest (skills: ./skills/, hooks: ./hooks/hooks.json)
    .cursor-plugin/plugin.json      # Cursor manifest (skills: ./skills/, hooks: ./cursor/hooks.json, logo)
    skills/<name>/SKILL.md          # frontmatter: name: <name>, description: ...
-   hooks/hooks.json + *.js         # Claude Code adapter
+   hooks/hooks.json + *.js         # Claude Code + Codex adapter
    cursor/hooks.json + *.js        # Cursor adapter
    lib/                            # host-neutral logic; keep the counters/parsers here, testable in isolation
    assets/logo.svg                 # an open-loop mark like the others (see assets/README.md)
    README.md                       # what it does, why it works, host table, log events, layout
    ```
 
-2. Register it in **both** `.claude-plugin/marketplace.json` and
-   `.cursor-plugin/marketplace.json` with `source: "./plugins/<name>"`.
-3. Set its version once for all three manifests — never edit it by hand:
+   The portable manifest lives under `.plugin/` because Codex (0.155) loads a
+   root `plugin.json` through its Agent Plugins loader, which has no hooks
+   slot, and then ignores `.codex-plugin/` — every hook silently off
+   ([openai/codex#39895](https://github.com/openai/codex/issues/39895)).
+   `scripts/test.js` fails on a root `plugin.json` for that reason.
+
+2. Register it in all three marketplaces: `.claude-plugin/marketplace.json`
+   and `.cursor-plugin/marketplace.json` with `source: "./plugins/<name>"`,
+   and `.agents/plugins/marketplace.json` (Codex) with
+   `source: { "source": "local", "path": "./plugins/<name>" }`.
+3. Set its version once for all four manifests — never edit it by hand:
 
    ```
    node scripts/version.js <name> 0.1.0
@@ -107,12 +123,13 @@ or to a message.
 
 | Layer | Command | Answers |
 |---|---|---|
-| structure + adapters | `node scripts/test.js` | does every hook run, on both hosts, and emit the right shape? |
+| structure + adapters | `node scripts/test.js` | does every hook run, on both adapters, and emit the right shape? |
 | docs vs code | `node scripts/samples.js --check` | does the README still quote the message the code actually emits? |
 | detector quality | `node scripts/corpus.js --check` | does each detector still catch what it exists to catch, without firing on what it must leave alone? |
 | host parity | `node scripts/hosts.js --check` | does every declared adapter survive its host's payload, and is every Claude-Code/Cursor asymmetry a decision someone wrote down? |
 | behaviour (Claude Code) | `claude plugin eval plugins/<name> --ablation with-without` | does the plugin actually change what the model does — measured against a no-plugin baseline arm? |
 | behaviour (Cursor) | `node scripts/cursor-eval.js --probe`, then `… --isolate` | the same question through the Cursor Agent CLI — **skill layer only**, see below |
+| behaviour (Codex) | `node scripts/codex-eval.js --probe`, then `… <plugin>` | the same question through `codex exec` — hooks AND skill, like the Claude Code arm, see below |
 
 **Neither behaviour layer runs in CI, and that is enforced rather than assumed.**
 They cost API calls, need an authenticated account and are non-deterministic;
@@ -199,6 +216,32 @@ well run hooks — the finding is about the headless CLI only.
 The hook adapters are covered deterministically instead: `scripts/test.js` and
 `scripts/hosts.js` drive all of them with Cursor-shaped payloads, which is what
 catches a broken Cursor wiring.
+
+**`scripts/codex-eval.js`** is the Codex side, through `codex exec`, and it
+measures hooks AND skill like the Claude Code runner does — Codex runs the
+same `hooks/` adapter. How each arm is built was measured on codex-cli
+0.155.1 before the script existed, because the obvious routes do not work:
+
+- Installing the plugin for real (`codex plugin add`) writes to the user's
+  `config.toml` and cache, and its hooks stay off until someone trusts them
+  in the TUI (`/hooks`); `--dangerously-bypass-hook-trust` does not reach
+  plugin-bundled hooks. A project-level `.codex/hooks.json` needs the project
+  trusted, and no `-c projects.…trust_level` override was honoured.
+- What does work: the WITH arm copies the skill from the working copy into the
+  workspace's `.agents/skills/` (Codex lists it) and passes the plugin's
+  `hooks/hooks.json` as **session hooks** — one `-c 'hooks.<Event>=[…]'`
+  per event, script paths made absolute — under
+  `--dangerously-bypass-hook-trust`. Both arms run with
+  `--ignore-user-config`, which drops installed plugins, marketplaces and
+  user hooks but keeps the login. Nothing under `~/.codex` is written. One
+  value is read back out of it on Windows: `[windows] sandbox`, without which
+  `workspace-write` silently falls back to read-only and every "work" case
+  answers that it cannot write.
+
+On Windows the `codex` on PATH is a `.cmd` shim, and a shell would mangle
+the quoted TOML, so the runner starts the package's `bin/codex.js` with node
+directly. Transcripts use the same file names as the other runners, so
+`--rescore` works across all three.
 
 One more constraint worth knowing before you read a delta: these plugins are
 usually installed globally under `~/.cursor/plugins/local`, the CLI loads them

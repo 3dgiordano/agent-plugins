@@ -22,7 +22,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { logEvent } = require('../lib/execlog.js');
-const { cwdOf } = require('../lib/host.js');
+const { cwdOf, context } = require('../lib/host.js');
 
 const EVERY_N_TURNS = 5; // after the session-start fire, remind every N turns
 
@@ -69,13 +69,13 @@ function main(raw) {
    * pre-close message from 0 of 3 to 3 of 3. The rules behind them stay in the
    * skill and are referenced.
    */
-  process.stdout.write(
+  process.stdout.write(context('UserPromptSubmit',
     '[executive self-monitoring] Checkpoint for long/iterative work: re-open the artifact that ' +
     'defines it and write the [PLAN CHECK] markdown list - Plan (the artifact, named), Gate (quoted ' +
     'from it), Drift (none, or what pulls away), Decision (continue | refocus | revise-plan). Load ' +
     'the executive-self-monitoring skill if it is not already loaded for the rules behind them. ' +
     'Not a blocker; skip if this turn is trivial.'
-  );
+  ));
 }
 
 let buf = '';

@@ -33,7 +33,7 @@ const signals = require('../lib/signals.js');
 const ledger = require('../lib/ledger.js');
 const commitments = require('../lib/commitments.js');
 const msg = require('../lib/messages.js');
-const { cwdOf } = require('../lib/host.js');
+const { cwdOf, context } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -77,7 +77,7 @@ function main(raw) {
   if (sweep.length) out.push(msg.sweep(sweep, turns));
 
   logEvent(cwd, { event: 'prompt', session: sid, turn: turns, open: ins ? ins.open : undefined, retrospective: !!pending, spans, swept: sweep.length });
-  if (out.length) process.stdout.write(out.join('\n'));
+  if (out.length) process.stdout.write(context('UserPromptSubmit', out.join('\n')));
 }
 
 let buf = '';

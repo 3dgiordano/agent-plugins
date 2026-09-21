@@ -93,7 +93,7 @@ const APOLOGY_RUN = 3;
  * a blocked stop. Backticks stay out of the allowed set, so an inline-code
  * mention is still documentation rather than a closure.
  */
-const BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[TERMINATION CHECK\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[TERMINATION CHECK\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$|(?![\s\S]))/gm;
+const BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[TERMINATION CHECK\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$(?:\n[ \t]*(?=\n))?([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[TERMINATION CHECK\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$|(?![\s\S]))/gm;
 const REASONS = ['gate-not-run', 'owner-choice', 'budget-spent', 'limit-observed', 'none'];
 
 // Emphasis around the field name, with the colon inside it or outside - see
@@ -159,14 +159,16 @@ function scan(text) {
   while ((m = BLOCK_RE.exec(unfenced(text))) !== null) {
     out.blocks += 1;
     const b = m[1];
-    const reason = (field(b, 'Reason') || '').toLowerCase().replace(/\s+/g, '-').slice(0, 80);
+    // A full stop after the value is punctuation, not a qualifier: `Reason: none.`
+    // is `none`. Measured on Codex, where a correct block scored as malformed for it.
+    const reason = (field(b, 'Reason') || '').toLowerCase().replace(/\.$/, '').replace(/\s+/g, '-').slice(0, 80);
     // exact, or the reason followed by a qualifier ("gate-not-run (npm test)", "limit-observed: ENOSPC"); `none` takes none
     // A qualifier may follow the token after any punctuation, comma included:
     // measured on the executive scanner, where the missing comma scored two
     // correct blocks of three as malformed. Same defect, fixed before it bites.
     const known = REASONS.find((r) => reason === r || (r !== 'none' && reason.startsWith(r) && /^[-—–,;:([]/.test(reason.slice(r.length))));
     const evidence = field(b, 'Evidence');
-    const decision = (field(b, 'Decision') || '').toLowerCase().slice(0, 80);
+    const decision = (field(b, 'Decision') || '').toLowerCase().replace(/\.$/, '').slice(0, 80);
     if (!known) out.violations.push(`Reason must be one of ${REASONS.join(' | ')}, got "${reason || '(empty)'}"`);
     else if (known !== 'none' && !evidence) out.violations.push(`Reason is ${known} but Evidence is empty - what was observed, and by which tool/command?`);
     else if (known === 'none' && decision && !/^continue/.test(decision)) out.violations.push(`Reason is none but Decision is "${decision}" - with no checkable reason, the decision is continue`);
