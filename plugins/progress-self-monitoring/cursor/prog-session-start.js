@@ -25,11 +25,11 @@ const workspace = cwdOf({});
 // instead: drop any state file older than a week on the way past.
 try { state.sweep(); } catch (_) {}
 
-let ins = { exists: false, open: 0, ageMs: null, fresh: false };
+let ins = { exists: false, open: 0, lines: 0, bytes: 0, ageMs: null, fresh: false, bloated: [] };
 try { ins = ledger.inspect(workspace); } catch (_) {}
 const speak = ins.exists && ins.open > 0 && ins.fresh;
 
-try { logEvent(workspace, { event: 'session_start', host: 'cursor', exists: ins.exists, open: ins.open, ageMs: ins.ageMs, emitted: speak }); } catch (_) {}
+try { logEvent(workspace, { event: 'session_start', host: 'cursor', exists: ins.exists, open: ins.open, lines: ins.lines, bytes: ins.bytes, bloated: ins.bloated, ageMs: ins.ageMs, emitted: speak }); } catch (_) {}
 try {
   const text = speak ? msg.LOAD + '\n' + msg.status(ins) : msg.LOAD;
   process.stdout.write(JSON.stringify({ additional_context: text }));

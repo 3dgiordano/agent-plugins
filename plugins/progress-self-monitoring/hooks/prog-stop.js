@@ -8,10 +8,13 @@
  * left a ledger with open items untouched is the finding. It is parked for
  * the next prompt, once per ledger version - see lib/signals.js.
  *
- * Nothing is scanned in the final message. The phrases that say "work was
- * left open" belong to coverage, termination and handoff, which already read
- * the close; a fourth reader of the same sentence would fire four times on
- * it. The witness here is the file's mtime, which none of them has.
+ * The final message is not scanned for "work was left open" - those phrases
+ * belong to coverage, termination and handoff, which already read the close;
+ * a fourth reader of the same sentence would fire four times on it. The
+ * witness for the stale ledger is the file's mtime, which none of them has.
+ * What IS read off the message is the one thing none of them collects: what
+ * the agent said it would do later in this session (lib/commitments.js),
+ * kept so the prompt hook can hand it back two turns on.
  *
  * Never blocks: there is no strict mode. The last turn of a session is
  * unreachable for a retrospective, and that is measured at SessionEnd rather
@@ -27,6 +30,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const ledger = require('../lib/ledger.js');
+const commitments = require('../lib/commitments.js');
 const { cwdOf } = require('../lib/host.js');
 
 const HOST = 'claude';
@@ -42,6 +46,9 @@ function main(raw) {
   let res = { stale: false, fire: false };
   let turn = null;
   let turns = 0;
+  // What this message says the agent will do later: kept for the sweep, on
+  // main turns only - a subagent's promise is not the parent's.
+  const promised = subagent ? [] : commitments.scan(data.last_assistant_message || '');
   state.update(HOST, sid, (st) => {
     turn = st.turn || signals.freshTurn();
     turns = st.turns || 0;
@@ -53,11 +60,13 @@ function main(raw) {
       st.pending = { open: ins.open, edits: turn.edits };
       st.flagged = ins.mtimeMs;
     }
+    if (promised.length) st.commitments = commitments.remember(st.commitments, promised, turns);
   });
 
   logEvent(cwd, Object.assign({
     event: subagent ? 'subagent_stop' : 'stop', session: sid, agent: data.agent_type || null, turn: turns,
-    exists: ins.exists, open: ins.open, ageMs: ins.ageMs, stale: res.stale, fired: !subagent && res.fire
+    exists: ins.exists, open: ins.open, ageMs: ins.ageMs, stale: res.stale, fired: !subagent && res.fire,
+    commitments: promised.length
   }, signals.summary(turn)));
 }
 

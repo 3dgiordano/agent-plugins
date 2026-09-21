@@ -97,7 +97,11 @@ it with the real reason.
   complexity is a reason to work in smaller verified steps, not to stop.
 - **The soft handoff** — "I'd suggest a separate session for the rest": the
   rest is part of the request; if a real reason blocks it, name the reason
-  (the coverage-self-monitoring skill tracks which parts got done).
+  (the coverage-self-monitoring skill tracks which parts got done). A stop
+  that a later session is meant to pick up is only checkable if that
+  session can find what stopped it: the progress-self-monitoring skill's
+  `.agent/progress.md`, with the observed limit on a `blocked:` line. A
+  "next session" with no such line is the phrase again.
 - **Apology run** — three or more apologies or "I should have" in one
   message: the three-sentence record above, then continue.
 

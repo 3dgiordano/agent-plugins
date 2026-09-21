@@ -112,7 +112,7 @@ const ACCEPTED = {
     // reaches the agent. This plugin has no strict gate to deliver it through
     // either. The README's host table says so.
     note: "Never blocks on either host, so it wires no Cursor `stop` gate; the close " +
-      "finding is a retrospective on Claude Code and log-only on Cursor.",
+      "finding and the sweep are a retrospective on Claude Code and log-only on Cursor.",
     capabilities: {},
   },
 };

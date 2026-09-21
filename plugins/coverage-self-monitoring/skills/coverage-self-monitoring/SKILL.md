@@ -128,6 +128,11 @@ Rules the hooks check:
   ("follow-up", "left as", "still needs", "simplified version", "out of
   scope", "not yet implemented") as a backstop.
 - A `blocked` or `returned` line **requires** the reason after it.
+- A `blocked` or `returned` part that this session will not resolve is
+  residue the next session must not lose: the progress-self-monitoring
+  skill keeps it in `.agent/progress.md`, under the same two words, with
+  the same reason. The `[COVERAGE CHECK]` closes the turn; the ledger
+  outlives the session.
 - Stub / placeholder / `TODO` markers written during the turn are counted;
   at the threshold you are asked to implement them or list them.
 

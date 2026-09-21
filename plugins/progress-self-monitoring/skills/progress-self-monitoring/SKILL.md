@@ -33,6 +33,9 @@ erases.
   session. Write or update the ledger in that turn, not "at the end".
 - **A companion hook reports** that your previous turn edited files and
   left a ledger with open items untouched.
+- **A companion hook hands back something you wrote you would do** - "I'll
+  update the docs once the tests pass", two turns ago - and asks what became
+  of it.
 
 Not on every task. A one-turn answer, a change that ships inside the session
 with nothing left open, a project with no ledger and nothing to put in one:
@@ -67,10 +70,26 @@ silence is correct, and a ledger with nothing open is a file to leave alone.
    removed.
 
 5. **Keep it current, then keep it small.** Change `Updated` when you
-   change the file. Remove closed items rather than marking them — a
+   change the file. A closed item is **removed** — not ticked, not struck
+   through, not moved to a `## Done` or `## Closed` section. What was done
+   is in the code and in git; the ledger records only what is not. A
    checkbox is decoration the hook ignores; an item under `## Open` is open.
    `Next` is one line, in the imperative, for a reader who has only this
-   file.
+   file. A companion hook says when the file has outgrown a page — more than
+   eight open items, or more than forty lines — and the answer is to prune,
+   not to add a heading.
+
+6. **Answer the sweep with the quote, not with a feeling.** "Is there
+   anything I might be forgetting?" cannot be answered from inside the turn:
+   there is no memory to search, only the context already in view, and a
+   bare "no, that is everything" comes out as fluently as anything else. So
+   the question arrives with its inventory attached — the one list you cannot
+   re-read, the things you wrote you would do later in this session — quoted
+   back two turns on. For each: it is **done** (say what shows it), or it is
+   residue for a later session (put it under `## Open` as `blocked` or
+   `returned`, with the reason), or it is **dropped** (say why — "the tests
+   covered it", "the owner cut it"). What is not an answer: "I believe that
+   is covered." The quote is there so the answer is about that line.
 
 ## Progress failure signatures
 
@@ -82,12 +101,21 @@ silence is correct, and a ledger with nothing open is a file to leave alone.
   session of archaeology.
 - **The ledger as diary** — a session log with dates and paragraphs. The
   next session needs three things, not a story.
+- **The ledger as archive** — a `## Done` section that only ever grows. Every
+  closed item left in the file is a line the next session reads to learn
+  nothing; a ledger closed by marking instead of removing is unbounded by
+  construction. Remove it; git remembers.
 - **The stale ledger** — open items from a week ago next to a codebase that
   moved on. Once the ledger has been stale for a while, the hook stops
   announcing it — better to be silent than to keep pointing at an untended
   file — so a ledger you keep, you keep current.
 - **The ledger in the message** — a `[PROGRESS]` block in the reply and no
   file. The reply is what the boundary drops.
+- **The forgotten promise** — "I'll add the tests after this" in turn 3,
+  the session ends in turn 7 with no tests and no word about them. The
+  promise was in the one place the agent does not re-read: its own earlier
+  message. When the sweep hands it back, the answer is done, ledger, or
+  dropped with a reason — never "I think that was covered".
 
 ## Integration
 

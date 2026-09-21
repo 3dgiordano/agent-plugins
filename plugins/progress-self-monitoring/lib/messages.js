@@ -1,7 +1,7 @@
 'use strict';
 /* Reminder texts shared by the Claude Code and Cursor adapters. */
 
-const { LEDGER, ageText } = require('./ledger.js');
+const { LEDGER, MAX_OPEN_ITEMS, MAX_LINES, MAX_BYTES, ageText } = require('./ledger.js');
 
 const SKILL = 'progress-self-monitoring';
 const PROTOCOL = `(${SKILL} skill, "Core Protocol")`;
@@ -30,7 +30,23 @@ function status(ins) {
   return `[progress self-monitoring] \`${LEDGER}\` has ${n} open item${n === 1 ? '' : 's'}, updated ` +
     `${ageText(ins.ageMs)}. Re-open it before substantive work: it is the record of what the last ` +
     'session left blocked or returned. Carry each item into this session or close it, and keep ' +
-    `Updated and Next current. ${PROTOCOL}`;
+    `Updated and Next current.${bloat(ins)} ${PROTOCOL}`;
+}
+
+/*
+ * The ledger is closed by removal, and a ledger nobody prunes grows into the
+ * thing it was meant to replace: a history the next session reads around.
+ * One clause, with the number, when a cap is crossed.
+ */
+function bloat(ins) {
+  const b = ins.bloated || [];
+  if (!b.length) return '';
+  const what = [];
+  if (b.includes('open')) what.push(`${ins.open} open items (more than ${MAX_OPEN_ITEMS} is a backlog, not residue)`);
+  if (b.includes('lines')) what.push(`${ins.lines} lines (a ledger is a page: under ${MAX_LINES})`);
+  if (b.includes('bytes')) what.push(`${Math.round(ins.bytes / 1024)} KB (the hook reads the first ${MAX_BYTES / 1024})`);
+  return ` It has grown: ${what.join('; ')}. Closed items are removed, not marked - drop what is done, ` +
+    'fold what is stale into one line with its reason, and leave Updated, Plan, ## Open and Next.';
 }
 
 // Delivered on the prompt after a turn that edited files and left the ledger
@@ -55,4 +71,20 @@ function spanning() {
     `(## Open, Next, Updated) before you close: the reply is what that session will not have. ${PROTOCOL}`;
 }
 
-module.exports = { LOAD, status, retrospective, spanning };
+/*
+ * The sweep. The question a person asks themselves before closing - is there
+ * anything I am forgetting? - with the only inventory the agent cannot re-read
+ * attached to it: what it wrote it would do. Quoted, so the answer is about
+ * that line and not about the feeling of having covered everything.
+ */
+function sweep(items, turn) {
+  const lines = items.map((c) => {
+    const ago = turn - c.turn;
+    return `${ago} turn${ago === 1 ? '' : 's'} ago you wrote: "${c.text}"`;
+  });
+  return `[progress self-monitoring] ${lines.join('; ')}. What you said you would do is the one list you ` +
+    `cannot re-read: for each, say done, or put it in \`${LEDGER}\` as blocked or returned with the reason, ` +
+    `or drop it and say why. ${PROTOCOL}`;
+}
+
+module.exports = { LOAD, status, retrospective, spanning, sweep };

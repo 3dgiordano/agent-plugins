@@ -737,8 +737,67 @@ test('progress ledger parser: strict vocabulary, tolerant formatting, and the co
   assert.equal(openItems(null), 0);
   assert.ok(isLedgerPath('.agent/progress.md') && isLedgerPath('C:\\proj\\.agent\\progress.md') && isLedgerPath('/p/.agent/progress.md'));
   assert.ok(!isLedgerPath('agent/progress.md') && !isLedgerPath('.agent/progress.md.bak') && !isLedgerPath(''));
-  assert.deepEqual(inspect(null), { exists: false, open: 0, mtimeMs: null, ageMs: null, fresh: false });
+  assert.deepEqual(inspect(null), { exists: false, open: 0, lines: 0, bytes: 0, mtimeMs: null, ageMs: null, fresh: false, bloated: [] });
   assert.ok(MAX_AGE_MS > 0);
+});
+
+test('progress commitments: first person, deferred, later this session - and the corpus neighbours stay out', () => {
+  const { scan, remember, due, MAX_KEPT, SWEEP_AFTER_TURNS } = require(path.join(plugin(PRO), 'lib/commitments.js'));
+  const rows = fs.readFileSync(path.join(ROOT, 'evals/corpus/progress-commitments.jsonl'), 'utf8').split(/\r?\n/)
+    .filter((l) => l.trim() && !l.startsWith('//')).map((l) => JSON.parse(l));
+  for (const r of rows) assert.equal(scan(r.text).length > 0, r.expect === 'hit', r.why);
+  // the quote is the sentence, trimmed, without its final stop
+  assert.deepEqual(scan("Parser done. I'll update the docs once the tests pass. Then I will clean up the imports!"),
+    ["I'll update the docs once the tests pass", 'Then I will clean up the imports']);
+  // bounded, stamped, and due after SWEEP_AFTER_TURNS - once
+  let list = [];
+  for (let i = 1; i <= MAX_KEPT + 3; i++) list = remember(list, ['promise ' + i], i);
+  assert.equal(list.length, MAX_KEPT, 'oldest dropped first');
+  assert.equal(list[0].text, 'promise 4');
+  const d = due([{ text: 'a', turn: 3 }, { text: 'b', turn: 4 }], 3 + SWEEP_AFTER_TURNS);
+  assert.deepEqual(d.ask.map((c) => c.text), ['a']);
+  assert.deepEqual(d.keep.map((c) => c.text), ['b']);
+});
+
+test('progress (claude): a commitment in the final message comes back two prompts later, quoted, once; a subagent\'s does not', (t) => {
+  const sid = uid('prog-sweep');
+  t.after(() => cleanupTemp('progmon_claude_' + sid));
+  const dir = ledgerProject(t);
+  const cc = (x) => Object.assign({ session_id: sid, cwd: dir }, x);
+  const prompt = () => hook(PRO, 'hooks/prog-prompt.js', cc({ prompt: 'go' }));
+  const stop = (m, ev) => hook(PRO, 'hooks/prog-stop.js', cc({ hook_event_name: ev || 'Stop', last_assistant_message: m }));
+  prompt();
+  stop("Parser done. I'll update the docs once the tests pass. Let me know if you want retries too.");
+  assert.equal(prompt().out, '', 'one turn later: the agent may be doing it');
+  stop('Tests green.');
+  const r = prompt();
+  assert.match(r.out, /^\[progress self-monitoring\] 2 turns ago you wrote: "I'll update the docs once the tests pass"\. What you said you would do is the one list you cannot re-read/);
+  assert.ok(!r.out.includes('retries'), 'the offer is handoff\'s, not a commitment');
+  stop('Docs updated.');
+  assert.equal(prompt().out, '', 'asked once');
+  stop("Next I'll wire the CLI.", 'SubagentStop');
+  prompt(); stop('ok');
+  assert.equal(prompt().out, '', 'a subagent\'s promise is not the parent\'s');
+});
+
+test('progress (claude): a ledger that outgrew a page is said so, with the numbers, on the status line', (t) => {
+  const { MAX_OPEN_ITEMS, MAX_LINES } = require(path.join(plugin(PRO), 'lib/ledger.js'));
+  const sid = uid('prog-grown');
+  t.after(() => cleanupTemp('progmon_claude_' + sid));
+  // a ledger closed by marking instead of removing: a Done archive under the Open section's page
+  const open = Array.from({ length: MAX_OPEN_ITEMS + 1 }, (_, i) => '- blocked: item ' + i).join('\n');
+  const done = Array.from({ length: MAX_LINES }, (_, i) => '- done: old item ' + i).join('\n');
+  const dir = ledgerProject(t, '# Progress\nUpdated: 2026-09-01\n\n## Open\n' + open + '\n\n## Done\n' + done + '\n');
+  const r = hook(PRO, 'hooks/prog-session-start.js', { session_id: sid, cwd: dir, source: 'startup' }, { PROGRESSMON_LOG: '1' });
+  assert.match(r.out, new RegExp('has ' + (MAX_OPEN_ITEMS + 1) + ' open items'));
+  assert.match(r.out, /It has grown: 9 open items \(more than 8 is a backlog, not residue\); \d+ lines \(a ledger is a page: under 40\)\. Closed items are removed, not marked/);
+  const line = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'logs', 'progress-self-monitoring.jsonl'), 'utf8').trim().split('\n').pop());
+  assert.deepEqual(line.bloated, ['open', 'lines']);
+  assert.ok(line.lines > MAX_LINES && line.bytes > 0);
+  // a page-sized ledger gets no such clause
+  const small = ledgerProject(t, '## Open\n- blocked: a\n');
+  const s = hook(PRO, 'hooks/prog-session-start.js', { session_id: uid('prog-small'), cwd: small, source: 'startup' });
+  assert.ok(!s.out.includes('It has grown'), 'within a page: nothing to prune');
 });
 
 test('progress (claude): session start speaks only on a fresh ledger with open items; the first prompt does not repeat it', (t) => {
@@ -856,7 +915,6 @@ test('progress (cursor): sessionStart carries load + status, postToolUse counts 
   const st = require(path.join(plugin(PRO), 'lib/state.js')).load('cursor', cid);
   assert.equal(st.turn.edits, 0, 'turn reset after the response');
 });
-
 
 // ---------------------------------------------------------------------------
 // Logging (shared contract across plugins)

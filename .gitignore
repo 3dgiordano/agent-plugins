@@ -9,3 +9,6 @@ Thumbs.db
 # eval run artifacts (claude plugin eval writes here)
 evals/results/
 plugins/*/evals/results/
+
+# The progress ledger (progress-self-monitoring): per-checkout residue, not shared history
+.agent/progress.md

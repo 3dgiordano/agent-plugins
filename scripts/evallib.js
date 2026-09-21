@@ -200,14 +200,20 @@ const NOT_AN_ANSWER = [
 ];
 
 /*
- * 105 is measured, not chosen: across every transcript this repository has
- * collected, the shortest real answer is 105 characters - a quiet case where
- * the right reply is a short one. Both CLI notices seen so far sit near it
- * from either side (68 for "You've hit your session limit", ~160 for "You've
- * hit your individual spend limit"), which is why neither length alone nor a
- * literal alone is enough.
+ * Measured, not chosen - and re-measured. The floor was 105, the shortest
+ * real answer across every transcript then collected. Then a quiet case that
+ * asks a one-line question ("some() vs every() on an empty array - a short
+ * answer is fine") drew 79- and 82-character answers on the Cursor CLI, and
+ * the guard dropped two correct replies as dead runs - the same shape of
+ * defect as the first version's literal "spend limit", from the other side.
+ *
+ * So the floor is now well under the shortest real answer seen (79), and the
+ * CLI notices are caught by the patterns above rather than by length: the
+ * 68-character "You've hit your session limit" matches the first one. The
+ * floor's remaining job is the degenerate transcript - empty, "ok", a bare
+ * error code - not the short answer.
  */
-const SHORTEST_REAL_ANSWER = 105;
+const SHORTEST_REAL_ANSWER = 60;
 
 function usable(text) {
   const t = (text || '').trim();

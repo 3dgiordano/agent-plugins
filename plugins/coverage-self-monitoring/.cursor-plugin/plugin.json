@@ -1,7 +1,7 @@
 {
   "name": "coverage-self-monitoring",
   "displayName": "Coverage Self-Monitoring",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Parts-ledger discipline for multi-part or hard tasks. Bundles the coverage-self-monitoring skill (the 'what': write the ledger first - the parts, which is hardest and why, hardest first - and close each part as done, blocked with an observed reason, or returned to the owner) with per-host hooks (the 'when') that count the stub / placeholder / TODO markers written per turn, ask for a ledger when the prompt enumerates three or more items, and scan the final message for deferred work with no [COVERAGE CHECK]. Never blocks. Cursor: sessionStart load, postToolUse stub counter, afterAgentResponse scan + turn boundary (log only).",
   "author": {
     "name": "David Giordano"

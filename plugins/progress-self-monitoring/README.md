@@ -62,6 +62,7 @@ turn's edits touched it.
 | **Session boundary** — the ledger has open items: say how many and how old | `SessionStart` (startup, resume, clear, **and compact**) → text | `sessionStart` → `additional_context` |
 | **Turn boundary** — stamp the turn's start, reset the edit counter, load the skill on turn 1, carry the retrospective | `UserPromptSubmit` | `sessionStart` (load) + `afterAgentResponse` (reset) |
 | **Boundary named in the prompt** — the user says the work continues in a later session | `UserPromptSubmit` → names the ledger | — (no per-prompt event) |
+| **The sweep** — what the agent wrote it would do later, handed back two turns on, once each | `Stop` collects → `UserPromptSubmit` asks | `afterAgentResponse` collects → **log only** |
 | **Edit counter** — did this turn write files; did it write the ledger | `PostToolUse`, no matcher, silent | `postToolUse`, silent |
 | **Close** — edits this turn, ledger with open items not written this turn | `Stop` → finding parked; **next prompt** carries it, once per ledger version | `afterAgentResponse` → **log only** (no injection point after the response) |
 | **Session end** — how did it end: open items, stale or not | `SessionEnd` → log, then cleanup | — (no event; state is swept by age at the next `sessionStart`) |
@@ -77,12 +78,31 @@ other — and never repeats it when it did.
 | status | ledger exists, `open ≥ 1`, age ≤ `MAX_AGE_DAYS` (14) | at session start and after compaction; the count and the age, never the text |
 | stale | `open ≥ 1` **and** the turn made ≥ 1 file edit **and** the ledger was not written this turn (mtime before the turn's start, and no edit-tool call on its path) | reported on the next prompt, **once per ledger version** — a rewrite changes the mtime and re-arms it |
 | spans | the prompt says the work continues in a later session ("later session", "pick this up next week", "across sessions", ...) | fenced and inline code stripped; "session" as a cookie, a store, an id or "this session" is a labelled miss (`evals/corpus/progress-prompt.jsonl`) |
+| sweep | the agent's final message commits to a later act in this session — first person, deferred, with a "when": "I'll update the docs once the tests pass", "let me come back to X after Y", "next I'll ...", "noted for later" | kept in session state (at most 8), quoted back at the prompt `SWEEP_AFTER_TURNS` (2) turns later, once each. Offers ("if you want, I'll..."), deferrals out of the delivery ("for a follow-up PR"), the past, other agents' futures, code and quotes are labelled misses (`evals/corpus/progress-commitments.jsonl`) |
+| grown | `open > MAX_OPEN_ITEMS` (8), or non-blank `lines > MAX_LINES` (40), or `bytes > 64 KB` | one clause on the status message, with the numbers: closed items are removed, not marked — a ledger is bounded by pruning, and a `## Done` section grows forever |
 | silence | no ledger; `open = 0`; older than `MAX_AGE_DAYS`; a turn with no edits; a subagent's close | a ledger nobody keeps is left alone rather than announced forever |
 
 Why the stale signal needs the edit count: without it, ten turns of
 questions next to an old ledger would be ten reminders. With it, the signal
 is "the work moved and the record did not", which is rare and is the
 finding.
+
+Why the sweep quotes: "is there anything you might be forgetting?" works on
+a person because it starts a search over a memory. The agent has none to
+search beyond the context in view, and asked bare it answers as fluently as
+it answers anything — "no, that is everything". The question is only
+answerable with the inventory attached, and the one inventory the agent
+cannot re-read is what it wrote it would do. So the hook keeps those lines
+and hands each back once, quoted, with the turn count: the answer has to be
+about that line. It is the intra-session half of the same function the
+ledger serves across sessions — prospective memory — and what the sweep
+finds unfinished at the end is what goes under `## Open`.
+
+Whether the ledger is committed is the project's call. Tracked, it is shared
+history — a teammate's session picks up where yours stopped. Ignored
+(`.agent/progress.md` in `.gitignore`), it is a per-checkout notebook that
+no `git checkout` ever touches, which also keeps its mtime honest. The hooks
+do not care which; this repository ignores its own.
 
 What the hook reads: one fixed path, `<project>/.agent/progress.md`, at
 most 64 KB, for its mtime and its open-item count. It never writes the file
@@ -130,9 +150,9 @@ backup.
 
 | Event | Fields | Meaning |
 |-------|--------|---------|
-| `session_start` | `source`, `exists`, `open`, `ageMs`, `emitted` | a session opened or continued after compaction; was the status injected |
-| `prompt` | `turn`, `open` (turn 1 only), `retrospective`, `spans` | per user prompt: was a stale finding carried; did the prompt name a later session |
-| `stop` | `exists`, `open`, `ageMs`, `stale`, `fired`, `tools`, `edits`, `ledgerEdited` | per final message: did this turn leave the ledger stale; was it reported (Claude Code parks it for the next prompt; Cursor logs only) |
+| `session_start` | `source`, `exists`, `open`, `lines`, `bytes`, `bloated`, `ageMs`, `emitted` | a session opened or continued after compaction; was the status injected; had the ledger outgrown a page |
+| `prompt` | `turn`, `open` (turn 1 only), `retrospective`, `spans`, `swept` | per user prompt: was a stale finding carried; did the prompt name a later session; how many commitments were handed back |
+| `stop` | `exists`, `open`, `ageMs`, `stale`, `fired`, `commitments`, `tools`, `edits`, `ledgerEdited` | per final message: did this turn leave the ledger stale; was it reported (Claude Code parks it for the next prompt; Cursor logs only); how many forward commitments the message made |
 | `subagent_stop` | same as `stop`, plus `agent` | a subagent's close. Measured only — never parked: its edits are the parent's turn |
 | `session_end` | `reason`, `turns`, `exists`, `open`, `stale`, `edits` | how the session ended. `open > 0 && stale` is the case no retrospective can reach — the count a strict gate would be argued from |
 
@@ -156,6 +176,7 @@ afterwards, and score it by the rules in the case's `case.json`:
 | Case | Seeds | Scores |
 |------|-------|--------|
 | `keeps-the-residue` | a changelog | a task with one part blocked by an observed limit and "we'll continue later": the ledger exists with that part under `## Open` |
+| `keeps-a-returned-decision` | the same package and ledger as below | a prompt that closes the blocked item and says nothing about the question returned to the owner: the ledger updated, the returned item still the owner's (exactly one open). Measured 3 of 3 with, 0 of 3 without, on both hosts |
 | `reopens-the-ledger` | a small package, a first session's scripts and a ledger with two open items: one `blocked`, one question `returned` to the owner | a prompt that never mentions a previous session, closes the first and asks to "sort out" the second: the ledger re-opened and updated, the publish item gone. Measured 3 of 3 with, 0 of 3 without - the baseline never opens a ledger nothing points at |
 | `stays-quiet-on-a-question` | nothing | a one-line question: no ledger written |
 
@@ -178,7 +199,8 @@ cursor/prog-session-start.js       # load + status; also sweeps aged state (no s
 cursor/prog-observe-cursor.js
 cursor/prog-response-cursor.js     # log only
 lib/ledger.js                      # the parser (openItems) and the one project read (inspect)
-lib/signals.js                     # per-turn counters and the stale rule
+lib/signals.js                     # per-turn counters, the stale rule, spansSessions()
+lib/commitments.js                 # the sweep: scan() the agent's message for later-this-session commitments; remember()/due()
 lib/messages.js                    # reminder texts shared by both adapters
 lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); remove()/sweep()
 lib/host.js                        # cwdOf(): the project dir from the event, else the host env var, else null

@@ -8,6 +8,11 @@
  * turn, and carry forward what the previous turn's close found - a turn that
  * edited files and left the ledger as it was - as a one-line retrospective.
  *
+ * The sweep: what the agent wrote it would do later, two turns ago, handed
+ * back as a question with the quote in it - once each. "Is there anything
+ * you might be forgetting?" is only answerable with the inventory attached,
+ * and this is the one inventory the agent cannot re-read.
+ *
  * When the user's message says the work continues in a later session - the
  * one signal about residue that is decidable on arrival - it names the
  * ledger, so what this turn leaves open is written where that session will
@@ -26,6 +31,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const ledger = require('../lib/ledger.js');
+const commitments = require('../lib/commitments.js');
 const msg = require('../lib/messages.js');
 const { cwdOf } = require('../lib/host.js');
 
@@ -40,6 +46,7 @@ function main(raw) {
   let turns = 0;
   let pending = null;
   let announced = null;
+  let sweep = [];
   state.update(HOST, sid, (st) => {
     st.turns = (st.turns || 0) + 1;
     st.turn = signals.freshTurn();
@@ -48,6 +55,10 @@ function main(raw) {
     pending = st.pending || null;
     announced = st.announced === undefined ? null : st.announced;
     st.pending = null;
+    // the sweep: commitments old enough to be handed back, once each
+    const d = commitments.due(st.commitments, st.turns);
+    sweep = d.ask;
+    st.commitments = d.keep;
   });
 
   const out = [];
@@ -63,8 +74,9 @@ function main(raw) {
   if (pending) out.push(msg.retrospective(pending));
   const spans = signals.spansSessions(data.prompt);
   if (spans) out.push(msg.spanning());
+  if (sweep.length) out.push(msg.sweep(sweep, turns));
 
-  logEvent(cwd, { event: 'prompt', session: sid, turn: turns, open: ins ? ins.open : undefined, retrospective: !!pending, spans });
+  logEvent(cwd, { event: 'prompt', session: sid, turn: turns, open: ins ? ins.open : undefined, retrospective: !!pending, spans, swept: sweep.length });
   if (out.length) process.stdout.write(out.join('\n'));
 }
 

@@ -104,6 +104,9 @@ const PLUGINS = {
     // announced no more. Its distribution at session start is what tunes it.
     prompts: { filter: (e) => e.event === 'session_start' && e.exists && typeof e.ageMs === 'number', name: 'ledger age in days at session start (MAX_AGE_DAYS)', current: 14, value: (e) => Math.floor(e.ageMs / 86400000), candidates: [3, 7, 14, 30, 60] },
     rates: [
+      { name: 'sessions opening on a ledger that outgrew a page (MAX_OPEN_ITEMS 8 / MAX_LINES 40)', filter: (e) => e.event === 'session_start' && e.exists, hit: (e) => (e.bloated || []).length > 0 },
+      { name: 'final messages committing to a later act this session (the sweep collects)', filter: (e) => e.event === 'stop', hit: (e) => (e.commitments || 0) > 0 },
+      { name: 'prompts that handed a commitment back (SWEEP_AFTER_TURNS 2)', filter: (e) => e.event === 'prompt', hit: (e) => (e.swept || 0) > 0 },
       { name: 'sessions opening on a ledger with open items (announced)', filter: (e) => e.event === 'session_start', hit: (e) => !!e.emitted },
       { name: 'sessions opening in a project with a ledger at all', filter: (e) => e.event === 'session_start', hit: (e) => !!e.exists },
       { name: 'turns that edited files next to a ledger with open items', filter: (e) => e.event === 'stop' && e.exists && e.open > 0, hit: (e) => e.edits > 0 },
@@ -173,7 +176,7 @@ function crossPlugin(dirs) {
     'termination-self-monitoring': (e) => (e.load ? 1 : 0) + (e.retrospective ? 1 : 0),
     'coverage-self-monitoring': (e) => (e.turn === 1 ? 1 : 0) + (e.ledger ? 1 : 0) + (e.retrospective ? 1 : 0),
     'handoff-self-monitoring': (e) => (e.load ? 1 : 0) + (e.retrospective ? 1 : 0),
-    'progress-self-monitoring': (e) => (e.turn === 1 ? 1 : 0) + (e.retrospective ? 1 : 0),
+    'progress-self-monitoring': (e) => (e.turn === 1 ? 1 : 0) + (e.retrospective ? 1 : 0) + (e.spans ? 1 : 0) + (e.swept ? 1 : 0),
   };
   const midTurn = {
     'epistemic-self-monitoring': (e) => e.event === 'observe' && !!e.emitted,

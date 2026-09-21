@@ -162,6 +162,17 @@ const DETECTORS = [
     // "session" in any other sense is a labelled miss; precision stays 1.0.
     floors: { recall: 1.0, precision: 1.0 },
   },
+  {
+    id: 'progress-commitments',
+    file: 'progress-commitments.jsonl',
+    what: "a forward commitment in the agent's own final message - first person, deferred, later this session",
+    plugin: 'progress-self-monitoring',
+    fire: (t) => lib('progress', 'commitments.js').scan(t).length > 0,
+    // Handed back as a question two turns later, once each. A false hit is a
+    // question about a promise never made; the misses carry the neighbours
+    // (offers, deferrals, the past) so precision stays the guard rail.
+    floors: { recall: 1.0, precision: 1.0 },
+  },
 ];
 
 function loadCorpus(file) {

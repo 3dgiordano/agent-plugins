@@ -148,6 +148,45 @@ session"* or *"there is no project checked out"* tends to go straight to the
 answer with no block at all. The caveat is worth making — it tells the reader
 what could not be verified — but placed first it takes the block's position.
 
+## The baseline, 2026-09-20 — progress added (0.7.0)
+
+Three more cases, one plugin, Claude Code only. `n=3` per arm. The first
+plugin graded on a **file** rather than a block: the runner seeds the case's
+`files/` into the workspace and reads `.agent/progress.md` after the run.
+
+| plugin | Claude Code: due | Claude Code: not due | Cursor: due | Cursor: not due |
+|---|---|---|---|---|
+| progress | 100% (3 cases) | cost 0 | 100% (3 cases) | cost 0 |
+
+Two numbers behind that line. `keeps-the-residue` read 1 of 3 until the
+prompt hook learned to read "later session" off the owner's message and
+answer with the file's name — then 3 of 3. `reopens-the-ledger` read 0 of 3
+in both arms twice, and both times every run was right and the grader was
+wrong: the prompt asked for something the runner's sandbox forbids (a token it
+never sets, an `rm` it denies), the agents kept the item blocked with the
+observed reason, and `open_max: 0` failed them for it. The third prompt says
+nothing about a previous session, and that is where the number came from: a
+baseline never opens a ledger the prompt does not point at (0 of 3), the
+plugin arm re-opened and updated it (3 of 3). Not measured: whether an agent
+that re-opens the ledger leaves a `returned` decision to the owner — one of
+the three runs closed one with "per your confirmation" over a confirmation
+the prompt never gave. That became the fourth case, `keeps-a-returned-decision`:
+the prompt closes the blocked item and says nothing about the question, and
+the grader asks for exactly one item still open - **3 of 3 with, 0 of 3
+without** on its first run.
+
+Cursor, skill layer only (`cursor-eval.js --isolate`, a scratch HOME, no
+API key needed on this install): `keeps-the-residue`, `reopens-the-ledger`
+and `keeps-a-returned-decision` **3 of 3 with, 0 of 3 without**; the quiet
+case cost 0.
+So on Cursor the skill alone carries the discipline - the same fact the first
+baseline found for the other six. The run also caught the dead-run guard
+dropping two correct 79- and 82-character answers to the quiet case's
+one-line question: the length floor was 105, measured from the transcripts
+then on hand, and this prompt asks for "a short answer". The floor is 60 now
+and the notices are the patterns' job; the two runs were recovered by
+`--rescore`, not bought again.
+
 ## The baseline, 2026-09-20
 
 Twelve cases, six plugins, two axes, both hosts. `n=3` per arm except where

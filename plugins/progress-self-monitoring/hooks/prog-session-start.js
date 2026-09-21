@@ -43,7 +43,7 @@ function main(raw) {
   // did not run, not a second announcement.
   state.update(HOST, sid, (st) => { if (speak) st.announced = ins.mtimeMs; });
 
-  logEvent(cwd, { event: 'session_start', session: sid, source: data.source || null, exists: ins.exists, open: ins.open, ageMs: ins.ageMs, emitted: speak });
+  logEvent(cwd, { event: 'session_start', session: sid, source: data.source || null, exists: ins.exists, open: ins.open, lines: ins.lines, bytes: ins.bytes, bloated: ins.bloated, ageMs: ins.ageMs, emitted: speak });
   if (speak) process.stdout.write(msg.status(ins));
 }
 

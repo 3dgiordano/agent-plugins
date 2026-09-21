@@ -1,0 +1,11 @@
+{
+  "name": "@example/release-tooling-sample",
+  "version": "0.2.0",
+  "private": false,
+  "bin": { "stats": "src/cli.js" },
+  "scripts": {
+    "test": "node --test test/",
+    "changelog": "node scripts/changelog.js",
+    "publish:npm": "node scripts/publish.js"
+  }
+}

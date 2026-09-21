@@ -8,8 +8,9 @@
  *
  * Cursor also has no non-blocking injection point after this, so the finding
  * is logged only - there is no retrospective on this host, and this plugin
- * has no strict gate to deliver one through. Observe-only; emits nothing.
- * Fails silent.
+ * has no strict gate to deliver one through. The same goes for the sweep:
+ * the commitments in the response are counted into the log and nothing
+ * hands them back. Observe-only; emits nothing. Fails silent.
  */
 'use strict';
 
@@ -17,6 +18,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const ledger = require('../lib/ledger.js');
+const commitments = require('../lib/commitments.js');
 const { cwdOf } = require('../lib/host.js');
 
 const HOST = 'cursor';
@@ -28,6 +30,7 @@ function main(raw) {
   const cwd = cwdOf(data);
 
   const ins = ledger.inspect(cwd);
+  const promised = commitments.scan(data.text || '');
   let res = { stale: false, fire: false };
   let turn = null;
   let turns = 0;
@@ -43,7 +46,8 @@ function main(raw) {
 
   logEvent(cwd, Object.assign({
     event: 'stop', host: 'cursor', conversation: cid, turn: turns,
-    exists: ins.exists, open: ins.open, ageMs: ins.ageMs, stale: res.stale, fired: res.fire
+    exists: ins.exists, open: ins.open, ageMs: ins.ageMs, stale: res.stale, fired: res.fire,
+    commitments: promised.length
   }, signals.summary(turn)));
 }
 

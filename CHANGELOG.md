@@ -7,6 +7,101 @@ release.
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-09-21
+
+The plugin that shipped a day ago, worked. progress-self-monitoring gains the
+question this collection had no inventory for — *is there anything I might be
+forgetting?* — asked the only way an agent can answer it: with the list
+attached. What it wrote it would do later in this session is collected off
+each final message and handed back two turns on, quoted, once. And the ledger
+is now bounded the way it was always meant to be — by removal — with the hooks
+counting lines and open items so a file that outgrew a page is said so.
+
+Measured on both hosts before it was written down: four block cases at
+**100% with the plugin and 0% without**, on Claude Code (hooks and skill) and
+on Cursor (skill alone), the quiet case costing nothing on either. Two of the
+prompts had to be rewritten before the number meant anything, and the run
+found the dead-run guard dropping correct 79-character answers — the same
+family of defect as 0.6.0's literal "spend limit", from the other side.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.5.0 |
+| epistemic-self-monitoring | 0.1.11 |
+| persistence-self-monitoring | 0.1.11 |
+| termination-self-monitoring | 0.1.12 |
+| coverage-self-monitoring | 0.1.12 |
+| handoff-self-monitoring | 0.1.10 |
+| progress-self-monitoring | 0.2.0 |
+
+### Added
+- **progress-self-monitoring 0.2.0 — the sweep.** "Is there anything you
+  might be forgetting?" works on a person because it starts a search over a
+  memory; the agent has none to search beyond the context in view, and asked
+  bare it answers as fluently as it answers anything. So the question now
+  arrives with its inventory attached: what the agent wrote it would do later
+  in this session - "I'll update the docs once the tests pass", "let me come
+  back to the retry path after the parser" - collected off each final message
+  by `Stop` (`lib/commitments.js`, corpus
+  `evals/corpus/progress-commitments.jsonl`, 26 rows, **1.0 / 1.0**), kept in
+  session state (at most 8), and handed back by the prompt hook two turns
+  later, quoted, once each: done, in the ledger as blocked or returned with
+  the reason, or dropped and say why. Offers ("if you want, I'll...") are
+  handoff's fork and deferrals out of the delivery ("for a follow-up PR") are
+  coverage's; both are labelled misses. A subagent's promise is not the
+  parent's. On Cursor the commitments are counted into the log and nothing
+  hands them back - the host has no injection point after the response.
+
+  It is the intra-session half of the function the ledger serves across
+  sessions, and what the sweep finds unfinished at the end is what goes under
+  `## Open`. Not measured by the eval runner, which is one prompt; the
+  `stop.commitments` and `prompt.swept` log fields are what `calibrate.js`
+  reads.
+- **progress: a fourth eval case, `keeps-a-returned-decision`.** The failure
+  seen in `reopens-the-ledger`'s third round - a run that re-opened the
+  ledger and then closed a `returned` question with "per your confirmation"
+  over a confirmation the prompt never gave. The prompt closes the blocked
+  item and says nothing about the question; the grader asks for exactly one
+  item still open. **3 of 3 with, 0 of 3 without**, first run, on both hosts.
+
+### Changed
+- **progress-self-monitoring 0.2.0 — a ledger is bounded by pruning, and
+  nothing said so.** The skill asked for closed items to be removed; one eval
+  run answered with a `## Done` section instead, which the parser ignores
+  and which grows forever. Now the skill says it in so many words - removed,
+  not ticked, struck through or archived; git remembers - and the hooks
+  count: `inspect()` reports non-blank lines and bytes alongside the open
+  items, and the session-start status gains one clause, with the numbers,
+  when the ledger passes `MAX_OPEN_ITEMS` (8), `MAX_LINES` (40) or the 64 KB
+  the hook reads. Reasoned, not measured; `calibrate.js` prints how often a
+  session opens on a ledger that outgrew a page.
+- **progress: whether the ledger is committed is the project's call**, and the
+  README says so - tracked, it is shared history; ignored, a per-checkout
+  notebook no `git checkout` touches. This repository ignores its own.
+- **coverage-self-monitoring 0.1.12, termination-self-monitoring 0.1.12** —
+  each skill names the ledger once, where its own discipline hands off to
+  it. Coverage: a `blocked` or `returned` part the session will not resolve
+  is what `.agent/progress.md` keeps, under the same two words. Termination:
+  a stop a later session is meant to pick up is checkable only if that
+  session can find the `blocked:` line that stopped it; "next session" with
+  no such line is the phrase again. The READMEs carried the boundary since
+  0.7.0; the skills are what the agent reads on Cursor, where no hook runs.
+- **evals/PROTOCOL.md** records the progress baseline: four cases on Claude
+  Code and four on Cursor (skill layer, `--isolate`), every block case 100%
+  with and 0% without on both hosts, and how two of the prompts had to be
+  rewritten before the number meant anything.
+
+### Fixed
+- **the dead-run guard dropped two real answers.** Its length floor was 105
+  characters - the shortest real answer across every transcript then
+  collected - and progress's quiet case asks a one-line question that the
+  Cursor CLI answered in 79 and 82. Both were reported as runs that never
+  reached the model. The floor is 60 now, under the shortest real answer
+  seen, and the CLI notices it was standing in for are the patterns' job
+  (the 68-character "session limit" notice matches the first of them). Same
+  family as the literal "spend limit" of 0.6.0, from the other side: a guard
+  measured from one set of transcripts is a guard for that set.
+
 ## [0.7.0] — 2026-09-20
 
 A seventh plugin, and the first whose artifact is on disk. Six plugins anchor
@@ -971,7 +1066,8 @@ First public release.
   backticks was scanned as a closure block; the marker must now stand alone
   on its line.
 
-[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.8.0
 [0.7.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.7.0
 [0.6.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.6.0
 [0.5.1]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.5.1

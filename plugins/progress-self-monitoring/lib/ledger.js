@@ -32,6 +32,16 @@ const LEDGER = '.agent/progress.md';
 const MAX_BYTES = 64 * 1024;                // a ledger is a page, not a log
 const MAX_AGE_DAYS = 14;                    // older than this, the reminder is wallpaper
 const MAX_AGE_MS = MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+/*
+ * A ledger holds residue, and residue is closed by being removed. Left to
+ * itself it grows the other way: closed items marked instead of dropped, a
+ * "## Done" section as a diary, and a file the next session has to read
+ * around. Two counts say when that has happened - more open items than a
+ * session can carry, or more lines than a page - and the status message
+ * says so. Reasoned, not measured; calibrate.js prints the distributions.
+ */
+const MAX_OPEN_ITEMS = 8;
+const MAX_LINES = 40;
 
 // `## Open`, exactly level two, trailing whitespace allowed. `### Open` and
 // `**Open**` are not the section: the level is part of the contract.
@@ -67,9 +77,12 @@ function ledgerPath(cwd) {
  * inspect(cwd, now) -> {
  *   exists:  boolean
  *   open:    n            open items, 0 when absent
+ *   lines:   n            non-blank lines (of the first MAX_BYTES)
+ *   bytes:   n            file size
  *   mtimeMs: number|null  last write, per the filesystem
  *   ageMs:   number|null  now - mtime
  *   fresh:   boolean      exists and younger than MAX_AGE_MS
+ *   bloated: [string]     what is over its cap: 'open' | 'lines' | 'bytes'
  * }
  *
  * The only project file any hook in this plugin reads. Everything about it
@@ -77,13 +90,14 @@ function ledgerPath(cwd) {
  * all come back as `exists: false` or as the numbers that could be read.
  */
 function inspect(cwd, now) {
-  const out = { exists: false, open: 0, mtimeMs: null, ageMs: null, fresh: false };
+  const out = { exists: false, open: 0, lines: 0, bytes: 0, mtimeMs: null, ageMs: null, fresh: false, bloated: [] };
   const file = ledgerPath(cwd);
   if (!file) return out;
   let st;
   try { st = fs.statSync(file); } catch (_) { return out; }
   if (!st.isFile()) return out;
   out.exists = true;
+  out.bytes = st.size;
   out.mtimeMs = st.mtimeMs;
   const t = typeof now === 'number' ? now : Date.now();
   out.ageMs = Math.max(0, t - st.mtimeMs);
@@ -93,9 +107,14 @@ function inspect(cwd, now) {
     try {
       const buf = Buffer.alloc(Math.min(st.size, MAX_BYTES));
       const read = fs.readSync(fd, buf, 0, buf.length, 0);
-      out.open = openItems(buf.toString('utf8', 0, read));
+      const text = buf.toString('utf8', 0, read);
+      out.open = openItems(text);
+      out.lines = text.split(/\r?\n/).filter((l) => l.trim()).length;
     } finally { fs.closeSync(fd); }
   } catch (_) { /* unreadable: exists, open stays 0 */ }
+  if (out.open > MAX_OPEN_ITEMS) out.bloated.push('open');
+  if (out.lines > MAX_LINES) out.bloated.push('lines');
+  if (out.bytes > MAX_BYTES) out.bloated.push('bytes');
   return out;
 }
 
@@ -116,4 +135,4 @@ function isLedgerPath(p) {
   return /(^|[\\/])\.agent[\\/]progress\.md$/.test(p.trim());
 }
 
-module.exports = { LEDGER, MAX_BYTES, MAX_AGE_DAYS, MAX_AGE_MS, openItems, inspect, ledgerPath, ageText, isLedgerPath };
+module.exports = { LEDGER, MAX_BYTES, MAX_AGE_DAYS, MAX_AGE_MS, MAX_OPEN_ITEMS, MAX_LINES, openItems, inspect, ledgerPath, ageText, isLedgerPath };
