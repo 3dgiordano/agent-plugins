@@ -7,6 +7,18 @@ release.
 
 ## [Unreleased]
 
+### Changed
+- **README: the first screen is for any host, and says what the reader gets.**
+  "What your agent sees — and what you see" separates the two: the line a
+  hook puts in front of the agent (a count, a file's age, a phrase it just
+  wrote) and the block the agent writes back, which is what the user reads.
+  One message and one answer in full, then a seven-row table - what the hook
+  shows, the question, the block you read; the other five messages, still
+  quoted verbatim and still checked by `samples.js`, fold under a details
+  block. Quick start gives the
+  install line for Claude Code, Codex and Cursor instead of assuming the
+  first. The social preview names Codex.
+
 ## [0.9.0] — 2026-09-21
 
 A third hooks host. OpenAI's Codex CLI turned out to expose the same six

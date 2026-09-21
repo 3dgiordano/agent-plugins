@@ -17,10 +17,18 @@ part?*, *can the reader act on what I wrote?*, *can the next session pick this
 up?* — delivered as a nudge at the moment it is needed. They never block. They have no dependencies, make no network calls, and send
 nothing anywhere.
 
-## What your agent sees
+## What your agent sees — and what you see
 
-Four edits to the same file and three failed test runs into a turn, the agent
-gets this — from a hook, not from its own (absent) sense of frustration:
+A coding agent attends to what is in front of it: the file, the error, the
+next step. It does not keep count of how many times it has edited the same
+file, does not notice that its reason to stop is a phrase rather than a fact,
+does not know that the last session left two things open. These plugins put
+exactly those facts in front of it, one line at the moment they matter, and
+ask for one named block in return. The line is what the agent sees; the
+block is what you see.
+
+**What the agent sees.** Four edits to the same file and three failed test
+runs into a turn, a hook adds this to its context:
 
 ```
 [persistence self-monitoring] you have edited `src/parser.js` 4 times this
@@ -30,6 +38,34 @@ approach, Proportion, Decision. If nothing about the next attempt is new, say
 so to the user instead of trying again. (persistence-self-monitoring skill,
 "Core Protocol")
 ```
+
+**What you see.** The agent answers in its next message with the block the
+line asked for, and keeps working — or stops, with a reason you can check:
+
+```
+[PERSISTENCE CHECK]
+- Attempts: src/parser.js edited 4 times; `npm test` red 3 times, same assertion
+- Hypothesis held: the tokenizer drops the last field on CRLF input
+- Rival approach: normalise line endings before the split, not inside the tokenizer
+- Proportion: the request was a one-line fix; this is the third rewrite
+- Decision: switch — one try at the normalisation, then report
+```
+
+Seven such moments, one plugin each. Every one is anchored to something
+countable or on disk, never to "reflect harder":
+
+| What the hook puts in front of the agent | The question | What you read |
+|------|--------------|---------------|
+| the same file edited 4 times, a command failed 3 times | *is it worth another try?* | `[PERSISTENCE CHECK]` — [persistence](plugins/persistence-self-monitoring/) |
+| the first prompt, then every fifth | *am I still on the plan?* | `[PLAN CHECK]` — [executive](plugins/executive-self-monitoring/) |
+| a claim about to become a fact, a cause or a closure | *observed, or guessed?* | `[EPISTEMIC CLOSE]` — [epistemic](plugins/epistemic-self-monitoring/) |
+| a turn that ended on "I'm running out of context" | *a reason, or a phrase?* | `[TERMINATION CHECK]` — [termination](plugins/termination-self-monitoring/) |
+| three `TODO`s written this turn | *did I do the hard part?* | `[COVERAGE CHECK]` — [coverage](plugins/coverage-self-monitoring/) |
+| the tests just went green | *can the reader act on this?* | `[HANDOFF]` — [handoff](plugins/handoff-self-monitoring/) |
+| a session opening on a ledger with open items | *what did the last session leave?* | `.agent/progress.md` — [progress](plugins/progress-self-monitoring/) |
+
+<details>
+<summary>The other lines the agent sees, verbatim</summary>
 
 On the first turn of a session, and every fifth after that:
 
@@ -41,10 +77,6 @@ Decision (continue | refocus | revise-plan). Load the
 executive-self-monitoring skill if it is not already loaded for the rules
 behind them. Not a blocker; skip if this turn is trivial.
 ```
-
-And when it is about to declare "the cause is X", the epistemic skill asks it to
-write the claim with its evidence, its falsifier and its scope — so you can tell
-*observed* from *guessed* without asking.
 
 When a turn ends on "I'm running out of context, let's pick this up in a fresh
 session" — a reason the agent has read a thousand times and cannot actually
@@ -60,7 +92,7 @@ none), Evidence, Decision - or pick the work back up now.
 (termination-self-monitoring skill, "Core Protocol")
 ```
 
-And three `TODO`s into a turn:
+Three `TODO`s into a turn:
 
 ```
 [coverage self-monitoring] you have written 3 stub / placeholder / TODO
@@ -70,8 +102,8 @@ CHECK] as blocked or returned, with the reason. (coverage-self-monitoring
 skill, "Core Protocol")
 ```
 
-And when a session opens — or continues after a compaction — in a project
-whose ledger has something in it:
+When a session opens — or continues after a compaction — in a project whose
+ledger has something in it:
 
 ```
 [progress self-monitoring] `.agent/progress.md` has 2 open items, updated 2
@@ -81,8 +113,8 @@ close it, and keep Updated and Next current. (progress-self-monitoring skill,
 "Core Protocol")
 ```
 
-And when the tests go green after a run of edits — the moment the final
-message is about to be written:
+When the tests go green after a run of edits — the moment the final message is
+about to be written:
 
 ```
 [handoff self-monitoring] `npm test` passed - this turn looks close to its
@@ -92,15 +124,38 @@ with Default on its own line, Next. Trace detail below it.
 (handoff-self-monitoring skill, "Core Protocol")
 ```
 
+The epistemic line arrives when a claim is about to be closed on, and asks for
+the claim with its evidence, its falsifier and its scope — so you can tell
+*observed* from *guessed* without asking.
+
+</details>
+
 ## Quick start
+
+Pick your host. It is the same plugin folder on each; only the install
+command differs.
+
+**Claude Code**
 
 ```
 claude plugin marketplace add 3dgiordano/agent-plugins
 claude plugin install persistence-self-monitoring@3dgiordano-agent-plugins
 ```
 
-Swap in any of the other six, or install all seven. Codex, Cursor and other hosts:
-see [Install](#install).
+**Codex**
+
+```
+codex plugin marketplace add 3dgiordano/agent-plugins
+codex plugin add persistence-self-monitoring@3dgiordano-agent-plugins
+```
+
+then `/hooks` once in a `codex` session to trust the plugin's hooks.
+
+**Cursor** — Dashboard → Plugins → Add Marketplace → *Import from Repo*,
+`3dgiordano/agent-plugins`, then install from Customize → Plugins.
+
+Swap in any of the other six, or install all seven: [Install](#install) has
+the full lists and the per-host notes.
 
 ## What the hooks do — and don't
 
