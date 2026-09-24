@@ -87,7 +87,10 @@ const DETECTORS = [
     // test manually; the suite covers it". The corpus line is tagged "gap".
     // Telling "not done" from "done another way" needs more than a verb list,
     // so it is recorded rather than papered over.
-    floors: { recall: 1.0, precision: 0.94 },
+    //
+    // Raised to 0.97 when the Spanish lines landed: the same single gap over
+    // a larger corpus (36 of 37), not a fix - the floor follows the number.
+    floors: { recall: 1.0, precision: 0.97 },
   },
   {
     id: 'coverage-stubs',

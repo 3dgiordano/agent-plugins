@@ -1,6 +1,6 @@
 {
   "name": "progress-self-monitoring",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Cross-session ledger discipline for work that outlives the session. Bundles the progress-self-monitoring skill (the 'what': one file in the project, .agent/progress.md, that holds what the next session cannot recover from the code - the parts still blocked or returned with their observed reason, and the next action - written by the agent and re-opened before substantive work) with per-host hooks (the 'when') that announce the ledger's open-item count and age when a session opens or continues after a compaction, and notice a turn that edited files and left a ledger with open items untouched. The hooks read that one file's metadata and count, never its text, and never write it. Never blocks. Claude Code: SessionStart status (startup, resume, clear, compact), UserPromptSubmit load + retrospective, PostToolUse edit counter, Stop comparison of the turn's edits against the ledger's mtime (log + retrospective only), SessionEnd measurement.",
   "author": {
     "name": "David Giordano",

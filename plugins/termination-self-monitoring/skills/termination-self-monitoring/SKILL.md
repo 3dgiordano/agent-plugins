@@ -155,7 +155,7 @@ Rules the hooks check:
   is nothing to stop for.
 - The act (a stop, deferral, narrowing or softening on a feeling or unmanaged
   limit) with no block at all is the finding. Companion hooks also scan an
-  English lexicon for those acts as a backstop.
+  English and Spanish lexicon for those acts as a backstop.
 
 Keep it short. The value is in the substitution — a checkable reason where a
 feeling was — not in the ceremony.

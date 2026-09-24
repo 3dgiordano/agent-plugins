@@ -174,7 +174,7 @@ Rules the hooks check:
 - No blank line inside the block — the scanner stops at the first one.
 - The act — an offer, a fork, a question to the reader, or a `returned` part
   in a `[COVERAGE CHECK]` — with no `[HANDOFF]` block is the finding.
-  Companion hooks also scan an English lexicon for offer/fork language as a
+  Companion hooks also scan an English and Spanish lexicon for offer/fork language as a
   backstop.
 
 Keep it short. The value is in the reader being able to act — status,

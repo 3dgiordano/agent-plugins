@@ -74,7 +74,7 @@ function main(raw) {
     'defines it and write the [PLAN CHECK] markdown list - Plan (the artifact, named), Gate (quoted ' +
     'from it), Drift (none, or what pulls away), Decision (continue | refocus | revise-plan). Load ' +
     'the executive-self-monitoring skill if it is not already loaded for the rules behind them. ' +
-    'Not a blocker; skip if this turn is trivial.'
+    'Markers, field names and status words stay in English, whatever language you write in. Not a blocker; skip if this turn is trivial.'
   ));
 }
 

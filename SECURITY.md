@@ -25,7 +25,8 @@ Every hook in this repository, on every host:
   seven days old. That one directory is the only one a hook enumerates, it
   never deletes a path outside it, and it never touches the log files;
 - prints a short, fixed text (or JSON wrapping it) to stdout for the host to
-  inject as context, or nothing;
+  inject as context, and on a finding one line for the host to show the user
+  (`systemMessage`), or nothing;
 - makes **no network calls**, spawns **no processes**, loads **no
   dependencies** (only Node built-ins: `fs`, `os`, `path`), and reads no files
   other than its own state — with one exception, stated here so it can be
@@ -93,7 +94,8 @@ plugin (see each `plugin.json`); the repository release lists them.
   of a coverage block, the offer / fork / question phrase (≤80 chars) and the
   `Status` value of a handoff block. From the user's prompt only a number is derived (how
   many enumerated items it has); no user prompt text and no file contents are
-  ever echoed back.
+  ever echoed back. The one-line notice to the user is cut from the same
+  message and carries no value that message does not.
 - **Third-party hosts.** How Claude Code, Cursor or another client executes
   hooks, sandboxes them, or prompts for permission is that host's
   responsibility; this policy covers only what these scripts do once run.

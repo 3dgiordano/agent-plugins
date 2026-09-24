@@ -124,6 +124,26 @@ how that choice is put to them — options with consequences, a default, one
 action asked, in the reader's register — is
 [handoff-self-monitoring](../handoff-self-monitoring/)'s `[HANDOFF]` block.
 
+## What the user sees
+
+The hooks speak to the model; without a notice the user sees nothing unless
+the agent writes the block. So when the stop scan finds a state-shaped reason
+with no `[TERMINATION CHECK]`, an incomplete block, or an apology run, the
+hook also returns one line for the user - top-level `systemMessage`, which
+Claude Code and Codex show in the transcript and do not add to the model's
+context:
+
+```
+[termination self-monitoring] <the finding> - <what the agent is asked to do>
+```
+
+The load message and the cadence reminders carry no news and stay silent; a
+subagent's close is not the user's and stays silent; in strict mode the block
+speaks through the host's own stderr path instead. Cursor has no user-visible
+field on the events this plugin uses (`sessionStart`, `afterAgentResponse`,
+`stop` - `user_message` exists only on permission hooks), so nothing shows
+there. Off with `TERMMON_NOTICE=0`.
+
 ## Debug log (opt-in, off by default)
 
 Off unless `TERMMON_LOG` is set (`1`/`true`/`yes`/`on`); with it unset the hooks

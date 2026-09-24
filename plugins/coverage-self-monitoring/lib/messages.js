@@ -2,6 +2,7 @@
 /* Reminder texts shared by the Claude Code and Cursor adapters. */
 
 const SKILL = 'coverage-self-monitoring';
+const host = require('./host.js');
 
 /*
  * A pointer, not a paraphrase.
@@ -34,7 +35,7 @@ const LOAD =
   'the hard one included: a stub, a fallback or invented data, a postponed or excluded part is a part ' +
   'that is not done, in any language. For a multi-part task write the [COVERAGE LEDGER] first - the ' +
   'parts, which is hardest, the order - and close each one in a [COVERAGE CHECK]: done | blocked | ' +
-  `returned. Load the ${SKILL} skill if it is not already loaded for the rules. Not a blocker.`;
+  `returned. Load the ${SKILL} skill if it is not already loaded for the rules. Markers, field names and status words stay in English, whatever language you write in. Not a blocker.`;
 
 const PROTOCOL = `Load the ${SKILL} skill if it is not already loaded ("Core Protocol").`;
 
@@ -74,4 +75,15 @@ function retrospective(violations) {
     `returned, with the reason - and do the ones that are none of those. ${PROTOCOL}`;
 }
 
-module.exports = { LOAD, ledger, nudge, retrospective };
+// The one line the user sees when the stop scan finds something (lib/host.js):
+// the finding, without the instruction written for the agent.
+function notice(violations) {
+  return host.notice('coverage self-monitoring', violations, 'the agent is reminded on your next message');
+}
+function stubNotice(signals) {
+  const s = signals.find((x) => x.kind === 'stubs');
+  return host.notice('coverage self-monitoring', [`${s.count} stub / placeholder / TODO markers written this turn`],
+    'the agent is asked to implement them or close them in a [COVERAGE CHECK]');
+}
+
+module.exports = { LOAD, ledger, nudge, retrospective, notice, stubNotice };

@@ -89,6 +89,25 @@ either depending on the other.
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 prompt, a tool call, or a stop.
 
+## What the user sees
+
+The hooks speak to the model; without a notice the user sees nothing unless
+the agent writes the block. So when a counter crosses its threshold - edits to
+one file, a failing command, a recurring error, tool calls since the last
+prompt, the hook also returns one line for the user - top-level
+`systemMessage`, which Claude Code and Codex show in the transcript and do not
+add to the model's context:
+
+```
+[persistence self-monitoring] <the finding> - <what the agent is asked to do>
+```
+
+The load message and the cadence reminders carry no news and stay silent.
+Cursor has no user-visible field on the events this plugin uses
+(`sessionStart`, `postToolUse`, `afterAgentResponse` - `user_message` exists
+only on permission hooks), so nothing shows there. Off with
+`PERSISTMON_NOTICE=0`.
+
 ## Debug log (opt-in, off by default)
 
 Off unless `PERSISTMON_LOG` is set (`1`/`true`/`yes`/`on`); with it unset the

@@ -27,7 +27,7 @@
  */
 'use strict';
 
-const { logEvent } = require('../lib/log.js');
+const { logEvent, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const ledger = require('../lib/ledger.js');
@@ -62,22 +62,24 @@ function main(raw) {
   });
 
   const out = [];
+  const notes = []; // what the user sees: the ledger status and the sweep, not the load or the reminders
   let ins = null;
   if (turns === 1) {
     out.push(msg.LOAD);
     ins = ledger.inspect(cwd);
     if (ins.exists && ins.open > 0 && ins.fresh && announced !== ins.mtimeMs) {
       out.push(msg.status(ins));
+      notes.push(msg.statusNotice(ins));
       state.update(HOST, sid, (st) => { st.announced = ins.mtimeMs; });
     }
   }
   if (pending) out.push(msg.retrospective(pending));
   const spans = signals.spansSessions(data.prompt);
   if (spans) out.push(msg.spanning());
-  if (sweep.length) out.push(msg.sweep(sweep, turns));
+  if (sweep.length) { out.push(msg.sweep(sweep, turns)); notes.push(msg.sweepNotice(sweep)); }
 
   logEvent(cwd, { event: 'prompt', session: sid, turn: turns, open: ins ? ins.open : undefined, retrospective: !!pending, spans, swept: sweep.length });
-  if (out.length) process.stdout.write(context('UserPromptSubmit', out.join('\n')));
+  if (out.length) process.stdout.write(context('UserPromptSubmit', out.join('\n'), notices() && notes.join('\n')));
 }
 
 let buf = '';

@@ -60,6 +60,12 @@ questions — so the design is agreed before code is written.
   (`context()` in `lib/host.js`). Claude Code also accepts plain stdout;
   Codex reads stdout that starts with `[` as JSON and drops it when it is
   not — and every message here starts with `[<plugin> self-monitoring]`.
+- **A finding also tells the user, in one line.** The same envelope carries
+  a top-level `systemMessage` (`context(event, text, note)` and `notice()` in
+  `lib/host.js`), which Claude Code and Codex show to the user and do not
+  give the model. Only on a finding - never on the load message or a cadence
+  reminder - and off with the plugin's `*_NOTICE=0`. Cursor has no
+  user-visible field on the events these plugins use.
 - **Text the agent will read is written for the agent.** Reminder messages and
   skills are short, concrete and honest; no exclamation marks, no
   motivational filler. A nudge carries a fact (a count, a rule) and one

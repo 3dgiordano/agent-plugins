@@ -26,3 +26,21 @@
 {"text": "Implement the three parts and run the tests.", "expect": "miss", "why": "a task, no boundary"}
 {"text": "The training session for new hires is on Friday; add it to the calendar page.", "expect": "miss", "why": "training session"}
 {"text": "Pick the fastest option later in the pipeline, after the cache warms.", "expect": "miss", "why": "later, no session"}
+
+// --- Spanish: the boundary said out loud, and "sesión" in every other sense ---
+{"text":"Hacé lo que se pueda ahora; seguimos en otra sesión.","expect":"hit","why":"otra sesión"}
+{"text":"Armá el script; el token lo configuro en una próxima sesión.","expect":"hit","why":"próxima sesión"}
+{"text":"Terminemos el parser hoy y lo retomamos mañana.","expect":"hit","why":"retomamos mañana"}
+{"text":"Esto lleva varias sesiones; hoy solo el esquema.","expect":"hit","why":"varias sesiones"}
+{"text":"Seguí desde donde quedamos en la sesión anterior.","expect":"hit","why":"sesión anterior"}
+{"text":"Mismo proyecto que la última sesión: continuá desde el ledger.","expect":"hit","why":"última sesión"}
+{"text":"La próxima vez hacemos el deploy.","expect":"hit","why":"la próxima vez"}
+{"text":"Es un trabajo multi-sesión.","expect":"hit","why":"multi-sesión"}
+{"text":"Agregá una cookie de sesión al login y que expire en una hora.","expect":"miss","why":"session cookie"}
+{"text":"El id de sesión se filtra en los logs; ocultalo.","expect":"miss","why":"session id"}
+{"text":"En esta sesión, arreglá solo el test flaky.","expect":"miss","why":"this session"}
+{"text":"Abrí una sesión de tmux y corré el watcher ahí.","expect":"miss","why":"tmux session"}
+{"text":"Al hacer login hay que crear una nueva sesión de usuario.","expect":"miss","why":"a user session is data"}
+{"text":"La sesión de capacitación es el viernes.","expect":"miss","why":"training session"}
+{"text":"Continuá con el siguiente archivo de la lista.","expect":"miss","why":"continue, no session"}
+{"text":"La sesión del usuario expira a los 30 minutos; la próxima petición debe renovarla.","expect":"miss","why":"la próxima petición, not la próxima vez"}

@@ -24,11 +24,43 @@ function cwdOf(data) {
   if (data && Array.isArray(data.workspace_roots) && typeof data.workspace_roots[0] === 'string' && data.workspace_roots[0]) return data.workspace_roots[0];
   return process.env.CLAUDE_PROJECT_DIR || process.env.CURSOR_PROJECT_DIR || null;
 }
+/*
+ * A notice is for the person, not the model: one line the host shows in the
+ * transcript and does not add to the model's context - top-level
+ * `systemMessage`. Without it the hooks are invisible to the user; the only
+ * trace of a finding is the block the agent writes, or does not.
+ *
+ * It rides beside the context, never instead of it, and only on a finding -
+ * never on the load message or a cadence reminder, which carry no news.
+ * Off with the plugin's *_NOTICE=0 (`notices()` in lib/log.js).
+ */
+const NOTICE_MAX = 280;
 
-// The stdout envelope for `text` on `event` (a hook event name as the host
-// spells it). Callers write nothing when they have nothing to say.
-function context(event, text) {
-  return JSON.stringify({ hookSpecificOutput: { hookEventName: event, additionalContext: text } });
+// The part of a finding a person reads: up to the first " - " outside double
+// quotes. After it comes the instruction written for the agent.
+function finding(v) {
+  let q = false;
+  for (let i = 0; i < v.length; i++) {
+    if (v[i] === '"') q = !q;
+    else if (!q && v.startsWith(' - ', i)) return v.slice(0, i);
+  }
+  return v;
 }
 
-module.exports = { cwdOf, context };
+function notice(label, findings, tail) {
+  let s = `[${label}] ` + findings.map(finding).join('; ');
+  if (s.length > NOTICE_MAX) s = s.slice(0, NOTICE_MAX - 3) + '...';
+  return tail ? `${s} - ${tail}` : s;
+}
+
+// The stdout envelope for `text` on `event` (a hook event name as the host
+// spells it), and for `note`, the notice. Either may be empty; callers write
+// nothing when both are.
+function context(event, text, note) {
+  const out = {};
+  if (text) out.hookSpecificOutput = { hookEventName: event, additionalContext: text };
+  if (note) out.systemMessage = note;
+  return JSON.stringify(out);
+}
+
+module.exports = { cwdOf, context, notice, finding };

@@ -54,6 +54,31 @@ const CATEGORIES = [
       // A clock the agent does not have. Scoped to this|it so that "the build
       // is taking too long" - an observation about a process - stays out.
       /\b(?:this|it)\s+(?:is|has been|'s)\s+(?:been\s+)?taking\s+(?:too\s+long|far\s+too\s+long|longer\s+than\s+(?:expected|I\s+expected|it\s+should))\b/i,
+
+      // Spanish, first-person anchored like the English. JS word characters are
+      // ASCII, so a trailing \b fails after an accented letter: these are
+      // bounded with (?<!\p{L}) / (?!\p{L}) instead, under the u flag.
+      /(?<!\p{L})(?:me|nos)\s+(?:estoy\s+|estamos\s+|voy\s+a\s+|vamos\s+a\s+)?qued(?:ando|o|amos|ar)\s+sin\s+(?:contexto|tokens?|tiempo|presupuesto|espacio|margen)(?!\p{L})/iu,
+      /(?<!\p{L})(?:estoy|estamos)\s+qued[aá]ndo(?:me|nos)\s+sin\s+(?:contexto|tokens?|tiempo|presupuesto|espacio|margen)(?!\p{L})/iu,
+      // "se me acaba el contexto" - not "se me acabó la paciencia", which is no budget
+      /(?<!\p{L})se\s+(?:me|nos)\s+(?:est[aá]\s+|va\s+a\s+)?(?:acaba|acab[oó]|acabando|acabar|termina|terminando|agota|agot[oó]|agotando|agotar)\s+(?:el\s+|la\s+|mi\s+)?(?:contexto|tokens?|tiempo|presupuesto|margen)(?!\p{L})/iu,
+      /(?<!\p{L})(?:mi|el|la)\s+(?:ventana\s+de\s+)?contexto\s+(?:est[aá]|se\s+est[aá])\s+(?:casi\s+|pr[aá]cticamente\s+|bastante\s+|muy\s+)?(?:llen[oa]|agotad[oa]|agot[aá]ndose|acab[aá]ndose|terminando|por\s+agotarse|al\s+l[ií]mite)(?!\p{L})/iu,
+      // duration of the exchange, not the size of the work
+      /(?<!\p{L})(?:esta|la)\s+(?:sesi[oó]n|conversaci[oó]n|jornada)\s+(?:ya\s+)?(?:es|est[aá]\s+siendo|fue|ha\s+sido|viene\s+siendo|se\s+hizo)\s+(?:muy\s+|bastante\s+|demasiado\s+)?(?:larga|extensa)(?!\p{L})/iu,
+      /(?<!\p{L})(?:al\s+final|a\s+esta\s+altura)\s+de\s+(?:una|esta|la)\s+(?:larga\s+)?(?:sesi[oó]n|conversaci[oó]n|jornada)(?!\p{L})/iu,
+      /(?<!\p{L})llevo\s+(?:un\s+buen\s+rato|mucho\s+tiempo|horas|demasiado(?:\s+tiempo)?)\s+(?:con|en)\s+esto(?!\p{L})/iu,
+      // pick this up later - "el usuario pidió seguir mañana" is the owner's choice and stays out
+      /(?<!\p{L})(?:sigamos|retomemos|continuemos|terminemos|(?:podemos|podr[ií]amos|puedo|podr[ií]a|conviene|sugiero)\s+(?:seguir|retomar|continuar|terminar|ver(?:lo)?|hacer(?:lo)?)|(?:lo\s+)?(?:seguir|retomar|continuar|terminar)[eé]|lo\s+(?:seguimos|retomamos|continuamos|terminamos|vemos|sigo|retomo|contin[uú]o|termino))\s+(?:[^.!?\n]{0,40}?\s)?(?:m[aá]s\s+tarde|m[aá]s\s+adelante|ma[ñn]ana|otro\s+d[ií]a|la\s+pr[oó]xima(?:\s+vez)?|en\s+(?:otra|una\s+nueva|una\s+pr[oó]xima|la\s+pr[oó]xima|una\s+futura)\s+(?:sesi[oó]n|conversaci[oó]n|ventana))(?!\p{L})/iu,
+      // deferring the work to a session-shaped destination; "para la próxima corrida del CI" stays out
+      /(?<!\p{L})(?:(?:voy|vamos)\s+a\s+(?:dejar|posponer|postergar|guardar)|dejo|dejar[eé]|pospongo|posponer[eé]|postergo|postergar[eé]|guardo)\s+(?:[^.!?\n]{0,40}?\s+)?(?:para|hasta)\s+(?:(?:una|la|el|un)\s+(?:pr[oó]xim[oa]|nuev[oa]|futur[oa]|siguiente|posterior)|otra|otro)\s+(?:sesi[oó]n|conversaci[oó]n|pasada|ronda|vez|PR|cambio)(?!\p{L})/iu,
+      /(?<!\p{L})(?:por|debido\s+a|dad[ao]s?|ante)\s+(?:las?\s+|los\s+)?(?:limitaciones|restricciones|l[ií]mites?)\s+de\s+(?:tiempo|contexto|tokens|longitud|espacio)(?!\p{L})/iu,
+      /(?<!\p{L})por\s+falta\s+de\s+(?:tiempo|contexto|espacio|tokens)(?!\p{L})/iu,
+      /(?<!\p{L})(?:estoy|estamos|me\s+estoy|nos\s+estamos|me|nos)\s+(?:cerca\s+del?|llegando\s+al?|acerc[aá]ndo(?:me|nos)\s+al?|acercando\s+al?|acerco\s+al?|acercamos\s+al?|por\s+llegar\s+al?)\s+(?:l[ií]mite|tope|m[aá]ximo)\s+(?:del?\s+)?(?:contexto|tokens?|tiempo|presupuesto)(?!\p{L})/iu,
+      // the agent's own budget, not "to save context for the reader"
+      /(?<!\p{L})para\s+(?:ahorrar|conservar|no\s+gastar|no\s+consumir|cuidar|preservar)\s+(?:el\s+|mi\s+)?(?:contexto|tokens?)(?!\p{L})(?!\s+(?:del\s+lector|al\s+lector|para\s+el\s+lector|para\s+vos|para\s+ti|para\s+usted|del\s+usuario))/iu,
+      /(?<!\p{L})(?:ya\s+)?(?:us[eé]|consum[ií]|gast[eé]|llevo\s+(?:usad[oa]|consumid[oa]|gastad[oa])|he\s+(?:usado|consumido|gastado))\s+(?:mucho|gran\s+parte|la\s+mayor\s+parte|buena\s+parte|bastante|casi\s+todo)\s+(?:del|de\s+mi|de)?\s*(?:contexto|tokens?)(?!\p{L})/iu,
+      // scoped to esto|eso like the English this|it: "el build está tardando" is an observation
+      /(?<!\p{L})(?:esto|eso)\s+(?:me\s+)?(?:est[aá]\s+)?(?:llevando|tomando|demorando|tardando|lleva|toma|tarda|demora)\s+(?:demasiado|m[aá]s\s+de\s+lo\s+(?:esperado|previsto|que\s+deber[ií]a))(?!\p{L})/iu,
     ],
   },
   {
@@ -66,6 +91,16 @@ const CATEGORIES = [
       // "I'd rather not try the same flag again" is the switch decision persistence asks for
       /\bI(?:'d| would)\s+(?:rather|prefer)\s+not\s+(?:to\s+)?(?:risk|touch|change|modify)\b/i,
       /\b(?:without|lacking)\s+(?:more|enough|sufficient)\s+confidence\b/i,
+
+      // Spanish. "No estoy seguro de que X; lo verifico" is uncertainty with a
+      // check, so plain "no estoy seguro" stays out, as "not sure" does.
+      /(?<!\p{L})no\s+estoy\s+(?:lo\s+)?(?:suficientemente|bastante|tan)\s+(?:segur[oa]|confiad[oa])(?!\p{L})/iu,
+      /(?<!\p{L})no\s+estoy\s+(?:del\s+todo\s+|totalmente\s+|completamente\s+)?segur[oa]\s+como\s+para(?!\p{L})/iu,
+      /(?<!\p{L})no\s+me\s+siento\s+(?:del\s+todo\s+|muy\s+|lo\s+suficientemente\s+)?(?:segur[oa]|c[oó]mod[oa]|confiad[oa]|tranquil[oa])(?!\p{L})/iu,
+      /(?<!\p{L})(?:me\s+da\s+(?:miedo|reparo|cosa)|tengo\s+(?:miedo|reparos?)\s+de|(?:soy|estoy|me\s+siento)\s+reaci[oa]\s+a)(?!\p{L})/iu,
+      // about the code, not about an attempt: "prefiero no reintentar" is persistence's switch
+      /(?<!\p{L})(?:prefiero|preferir[ií]a)\s+no\s+(?:arriesgar(?:me)?|tocar|cambiar|modificar)(?!\p{L})/iu,
+      /(?<!\p{L})sin\s+(?:m[aá]s|suficiente|mayor)\s+confianza(?!\p{L})/iu,
     ],
   },
   {
@@ -74,12 +109,21 @@ const CATEGORIES = [
       /\b(?:given|due to|because of|considering)\s+(?:the|its|their|this)\s+(?:sheer\s+)?(?:complexity|scale|size|scope|difficulty)\b/i,
       /\b(?:this|that|it)\s+(?:is|would be|seems|looks|feels)\s+(?:too|quite|very|rather|pretty)\s+(?:complex|complicated|large|big|involved|risky|ambitious|hard|difficult)\s+(?:to|for)\s+(?:do|tackle|handle|address|attempt|take on|cover|finish)\s+(?:now|here|in this|in one|right now|at this point|in a single)\b/i,
       /\b(?:beyond|outside|out of)\s+(?:the\s+)?scope\s+(?:of|for)\s+(?:this|the current|a single|one)\s+(?:turn|response|session|pass|message|conversation)\b/i,
+
+      // Spanish. "por" only with complejidad | dificultad | magnitud: "por el
+      // tamaño del archivo, lo dividí" is a design reason, not a stop.
+      /(?<!\p{L})(?:dad[ao]|debido\s+a|considerando|teniendo\s+en\s+cuenta)\s+(?:la|el|su|esta|este)\s+(?:gran\s+)?(?:complejidad|magnitud|escala|dificultad|tama[ñn]o|alcance|envergadura)(?!\p{L})/iu,
+      /(?<!\p{L})por\s+(?:la|su)\s+(?:gran\s+)?(?:complejidad|dificultad|magnitud)(?!\p{L})/iu,
+      /(?<!\p{L})(?:esto|eso)\s+(?:es|ser[ií]a|parece|resulta)\s+(?:demasiado|muy|bastante)\s+(?:complej[oa]|complicad[oa]|grande|riesgos[oa]|arriesgad[oa]|ambicios[oa]|dif[ií]cil)\s+(?:como\s+)?para\s+(?:[^.!?\n]{0,30}?\s)?(?:ahora|ac[aá]|aqu[ií]|en\s+este\s+(?:turno|momento|mensaje)|en\s+una\s+sola|en\s+un\s+solo|de\s+una\s+vez)(?!\p{L})/iu,
+      /(?<!\p{L})fuera\s+del?\s+alcance\s+de\s+(?:este|esta|un|una)\s+(?:turno|respuesta|sesi[oó]n|pasada|mensaje|conversaci[oó]n)(?!\p{L})/iu,
     ],
   },
 ];
 
 // Apologies and self-criticism: one is a sentence, a run is a mood.
 const APOLOGY_RE = /\b(?:I\s+apologi[sz]e|my\s+apologies|(?:I(?:'m| am)\s+)?(?:so\s+|very\s+|really\s+|terribly\s+)?sorry|my\s+(?:mistake|bad|error)|I\s+should\s+have|I\s+was\s+wrong|I\s+messed\s+up|I\s+failed\s+to)\b/gi;
+// The same run in Spanish. Not "debería haber": that is also "there should be".
+const APOLOGY_ES_RE = /(?<!\p{L})(?:(?:te\s+|le\s+)?pido\s+disculpas|mil\s+disculpas|disculp[aá]me|perd[oó]n|perdon[aá]me|lo\s+siento|me\s+equivoqu[eé]|(?:fue\s+)?(?:un\s+)?error\s+m[ií]o|culpa\s+m[ií]a|deb[ií]\s+haber|me\s+confund[ií])(?!\p{L})/giu;
 const APOLOGY_RUN = 3;
 
 // The block the skill asks for. Same conventions as the epistemic closure
@@ -111,11 +155,16 @@ function field(block, name) {
   return v;
 }
 
-// Remove what must not be judged: fenced code, inline code, quoted lines.
+// Remove what must not be judged: fenced code, inline code, quoted lines, and
+// phrases in double quotes (straight, curly or guillemets) - a quoted phrase is
+// cited, not said. See the note on prose() in handoff's lib/handoff.js.
+const QUOTED_RE = /"[^"\n]{0,200}"|“[^”\n]{0,200}”|«[^»\n]{0,200}»/g;
+
 function prose(text) {
   return text
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/`[^`\n]*`/g, ' ')
+    .replace(QUOTED_RE, ' ')
     .split(/\r?\n/).filter((l) => !/^\s*>/.test(l)).join('\n');
 }
 
@@ -153,7 +202,7 @@ function scan(text) {
       if (m) { out.hits.push({ kind: cat.kind, phrase: m[0].replace(/\s+/g, ' ').slice(0, 80) }); break; }
     }
   }
-  out.apologies = (body.match(APOLOGY_RE) || []).length;
+  out.apologies = (body.match(APOLOGY_RE) || []).length + (body.match(APOLOGY_ES_RE) || []).length;
 
   let m;
   while ((m = BLOCK_RE.exec(unfenced(text))) !== null) {

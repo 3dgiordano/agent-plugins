@@ -24,6 +24,8 @@ function truthy(v) {
 }
 
 function enabled() { return truthy(process.env.EPIMON_LOG); }
+// On unless EPIMON_NOTICE is 0/false/no/off: the one line the user sees (lib/host.js).
+function notices() { const v = (process.env.EPIMON_NOTICE || '').toLowerCase(); return !(v === '0' || v === 'false' || v === 'no' || v === 'off'); }
 
 // Strict mode: the closure gate blocks instead of only logging. Off by default.
 function strict() { return truthy(process.env.EPIMON_STRICT); }
@@ -53,4 +55,4 @@ function logEvent(cwd, obj) {
   } catch (_) { /* logging must never block a prompt or tool call */ }
 }
 
-module.exports = { logEvent, enabled, strict, hostBaseDir };
+module.exports = { logEvent, enabled, notices, strict, hostBaseDir };

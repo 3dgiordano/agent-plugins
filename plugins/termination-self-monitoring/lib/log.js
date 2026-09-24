@@ -24,6 +24,8 @@ function truthy(v) {
 }
 
 function enabled() { return truthy(process.env.TERMMON_LOG); }
+// On unless TERMMON_NOTICE is 0/false/no/off: the one line the user sees (lib/host.js).
+function notices() { const v = (process.env.TERMMON_NOTICE || '').toLowerCase(); return !(v === '0' || v === 'false' || v === 'no' || v === 'off'); }
 function strict() { return truthy(process.env.TERMMON_STRICT); }
 
 // Claude Code exports CLAUDECODE / CLAUDE_PLUGIN_ROOT; the Cursor adapter does
@@ -51,4 +53,4 @@ function logEvent(cwd, obj) {
   } catch (_) { /* logging must never block a prompt or tool call */ }
 }
 
-module.exports = { logEvent, enabled, strict, hostBaseDir };
+module.exports = { logEvent, enabled, notices, strict, hostBaseDir };

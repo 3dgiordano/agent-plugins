@@ -133,6 +133,25 @@ and by what. The ledger records a checkable reason; it does not supply one.
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 session start, a prompt, a tool call, or a stop.
 
+## What the user sees
+
+The hooks speak to the model; without a notice the user sees nothing unless
+the agent writes the block. So when a session starts next to a ledger with
+open items, a turn edits files and leaves the ledger untouched, and the sweep
+hands back a commitment, the hook also returns one line for the user -
+top-level `systemMessage`, which Claude Code and Codex show in the transcript
+and do not add to the model's context:
+
+```
+[progress self-monitoring] <the finding> - <what the agent is asked to do>
+```
+
+The load message and the cadence reminders carry no news and stay silent; a
+subagent's close is not the user's and stays silent. Cursor has no
+user-visible field on the events this plugin uses (`sessionStart`,
+`postToolUse`, `afterAgentResponse` - `user_message` exists only on permission
+hooks), so nothing shows there. Off with `PROGRESSMON_NOTICE=0`.
+
 ## Debug log (opt-in, off by default)
 
 Off unless `PROGRESSMON_LOG` is set (`1`/`true`/`yes`/`on`); with it unset

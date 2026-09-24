@@ -6,7 +6,8 @@
  * did it write the ledger) and the ledger on disk (does it exist, how many
  * items are open, when was it last written). A turn that moved the work and
  * left a ledger with open items untouched is the finding. It is parked for
- * the next prompt, once per ledger version - see lib/signals.js.
+ * the next prompt, once per ledger version - see lib/signals.js - and shown
+ * to the user now as a one-line notice.
  *
  * The final message is not scanned for "work was left open" - those phrases
  * belong to coverage, termination and handoff, which already read the close;
@@ -26,12 +27,13 @@
  */
 'use strict';
 
-const { logEvent } = require('../lib/log.js');
+const { logEvent, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const ledger = require('../lib/ledger.js');
 const commitments = require('../lib/commitments.js');
-const { cwdOf } = require('../lib/host.js');
+const msg = require('../lib/messages.js');
+const { cwdOf, context } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -44,6 +46,7 @@ function main(raw) {
 
   const ins = ledger.inspect(cwd);
   let res = { stale: false, fire: false };
+  let parked = null;
   let turn = null;
   let turns = 0;
   // What this message says the agent will do later: kept for the sweep, on
@@ -57,7 +60,7 @@ function main(raw) {
     // `flagged` holds the mtime of the ledger version already reported; a
     // rewrite changes the mtime and so re-arms the signal by itself.
     if (res.fire) {
-      st.pending = { open: ins.open, edits: turn.edits };
+      st.pending = parked = { open: ins.open, edits: turn.edits };
       st.flagged = ins.mtimeMs;
     }
     if (promised.length) st.commitments = commitments.remember(st.commitments, promised, turns);
@@ -68,6 +71,9 @@ function main(raw) {
     exists: ins.exists, open: ins.open, ageMs: ins.ageMs, stale: res.stale, fired: !subagent && res.fire,
     commitments: promised.length
   }, signals.summary(turn)));
+
+  // The finding reaches the user now, the model on the next prompt (lib/host.js).
+  if (parked && notices()) process.stdout.write(context('Stop', '', msg.staleNotice(parked)));
 }
 
 let buf = '';

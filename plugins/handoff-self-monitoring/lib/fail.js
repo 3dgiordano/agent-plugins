@@ -23,7 +23,8 @@ const FAIL_LINE_RES = [
   /\b[1-9]\d*\s+(?:failed|failures?|errors?)\b/i,                      // "1 failed", "3 errors" - not "0 failed"
   /^\s*(?:npm\s+)?ERR!/,                                               // npm
   /^\s*make(?:\[\d+\])?:\s+\*\*\*/,                                    // "make: *** [all] Error 2"
-  /^\s*(?:FAIL(?:ED|URE)?)\b/,                                         // pytest "FAILED test_x", Jest/Go "FAIL src/x"
+  // pytest "FAILED test_x", Jest/Go "FAIL src/x" - not a grader rubric's "FAIL if ..."
+  /^\s*(?:FAIL(?:ED|URE)?)\b(?!\s+(?:if|when|unless|otherwise)\b)/,
   // "TypeError: x", "java.lang.NullPointerException: y", and the same with a
   // file:line[:col] prefix - "a.js:12: TypeError: x", "src/a.js:3:9: SyntaxError: y" -
   // which is the commonest JS/TS shape and the one the bare line-start rule missed.
@@ -38,7 +39,9 @@ const FAIL_LINE_RES = [
   // a real panic carries, so prose naming the phrase does not match.
   /\bpanicked\s+at\s+(?:['"]|[\w./\\-]+[:.]\d)/i,
   /^\s*error(?:\[[A-Z0-9]+\])?(?:\s+TS\d+)?:/i,                        // "error: x", "error TS2345:", "error[E0308]:"
-  /\b(?:error|errors|ERROR)(?:\s+TS\d+)?:\s+\S/,                       // "gcc: error: expected ';'", "a.ts(3,5): error TS2345: x", "ERROR: build failed" (mid-line, but needs the colon)
+  // "gcc: error: expected ';'", "a.ts(3,5): error TS2345: x", "ERROR: build failed"
+  // (mid-line, but needs the colon) - not an object key: `{ error: 'x' }`, `, error: true`
+  /(?<![{,]\s*)\b(?:error|errors|ERROR)(?:\s+TS\d+)?:\s+\S/,
   /\bAssertionError\b|\bassert(?:ion)? failed\b/i,
   /\bcommand not found\b|\bno such file or directory\b|\bpermission denied\b/i,
 ];
@@ -59,11 +62,30 @@ function outputText(o) {
   return '';
 }
 
+/*
+ * A failure shape inside double quotes or backticks is data, not a failure: a
+ * source file that documents the rules ("Exit code 1" in a comment), a JSON or
+ * corpus line whose string value is an error, a template literal, markdown
+ * inline code. Measured: listing this very file fired the epistemic nudge, and
+ * 29 of the repo's 1308 files read as failed when listed. Single quotes are
+ * left alone - they are how real errors name things (`cannot access 'foo'`),
+ * and apostrophes would pair up across a line of prose.
+ */
+function unquoted(line) {
+  return line.replace(/"(?:[^"\\\n]|\\.)*"|`[^`\n]*`/g, (s) => ' '.repeat(s.length));
+}
+
+// A source comment - `//`, `/*`, a JSDoc `*`, `# `, `<!--` - is prose about the
+// code. `#8 ERROR:` (a BuildKit step) is not one: the hash needs a space.
+const COMMENT_LINE_RE = /^\s*(?:\/\/|\/\*|\*(?=\s|\/|$)|#(?=\s)|<!--)/;
+
 // The first line that matches a failure rule, or null.
 function failureLine(text) {
   if (typeof text !== 'string' || !text) return null;
   for (const line of text.split(/\r?\n/)) {
-    if (FAIL_LINE_RES.some((re) => re.test(line))) return line;
+    if (COMMENT_LINE_RE.test(line)) continue;
+    const bare = unquoted(line);
+    if (FAIL_LINE_RES.some((re) => re.test(bare))) return line;
   }
   return null;
 }

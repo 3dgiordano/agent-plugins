@@ -113,7 +113,9 @@ closure block — a markdown list in the message, **not inside a fenced code
 block**. Fences do not wrap. No blank line inside the block (the scanner
 stops at the first one). Companion hooks in this plugin read it; on hosts
 without hooks it is still the artifact that makes your epistemic state
-visible to the reader.
+visible to the reader. The marker, field names and status stay in English
+(hooks parse them); the claim, evidence and scope are in the language of the
+turn.
 
 **Write the block. Do not announce writing it.** No "I loaded this skill", no
 "per the protocol", no note that a format was followed — the reader wants the

@@ -143,7 +143,7 @@ block whose marker is missing is not a block.
 
 Rules the hooks check:
 - A part not delivered, treated as closed, with no `[COVERAGE CHECK]` block
-  is the finding. Companion hooks also scan an English deferral lexicon
+  is the finding. Companion hooks also scan an English and Spanish deferral lexicon
   ("follow-up", "left as", "still needs", "simplified version", "out of
   scope", "not yet implemented") as a backstop.
 - A `blocked` or `returned` line **requires** the reason after it.

@@ -8,8 +8,9 @@
  * a `returned` coverage part) and for the [HANDOFF] block the skill asks for.
  * No hit and no block = nothing to judge.
  *
- * Default (non-strict): only records the result -- to the opt-in log and to
- * session state, so the next prompt carries a one-line retrospective. Run
+ * Default (non-strict): records the result -- to the opt-in log and to
+ * session state, so the next prompt carries a one-line retrospective -- and
+ * shows the user the finding as a one-line notice (systemMessage). Run
  * this mode first: it measures how often a close names a decision without
  * formulating it before anyone decides a blocking gate is worth its cost.
  *
@@ -21,12 +22,12 @@
  */
 'use strict';
 
-const { logEvent, strict } = require('../lib/log.js');
+const { logEvent, strict, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const { scan } = require('../lib/handoff.js');
 const msg = require('../lib/messages.js');
-const { cwdOf } = require('../lib/host.js');
+const { cwdOf, context } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -57,6 +58,8 @@ function main(raw) {
     st.pending = res.violations;
     state.save(HOST, sid, st);
   }
+  // The finding reaches the user now, the model on the next prompt (lib/host.js).
+  if (res.violations.length && !blocking && !subagent && notices()) process.stdout.write(context('Stop', '', msg.notice(res.violations)));
 
   if (blocking) {
     process.stderr.write(msg.blockReason(res.violations));

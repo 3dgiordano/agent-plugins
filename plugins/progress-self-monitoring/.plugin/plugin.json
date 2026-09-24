@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "progress-self-monitoring",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Cross-session ledger discipline for work that outlives the session. Bundles the progress-self-monitoring skill (the 'what': one file in the project, .agent/progress.md, that holds what the next session cannot recover from the code - the parts still blocked or returned with their observed reason, and the next action - written by the agent and re-opened before substantive work) with per-host hooks (the 'when') that announce the ledger's open-item count and age when a session opens or continues after a compaction, and notice a turn that edited files and left a ledger with open items untouched. The hooks read that one file's metadata and count, never its text, and never write it. Never blocks. Portable core: the skill only; hooks are host-specific (hooks/ for Claude Code and Codex, cursor/ for Cursor).",
   "author": {
     "name": "David Giordano",

@@ -11,7 +11,7 @@
  */
 'use strict';
 
-const { logEvent } = require('../lib/log.js');
+const { logEvent, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const msg = require('../lib/messages.js');
@@ -34,7 +34,7 @@ function main(raw) {
 
   if (!fired.length) return;
   logEvent(cwdOf(data), { event: 'signal', session: sid, tools: st.turn.tools, signals: fired });
-  process.stdout.write(context('PostToolUse', msg.nudge(fired)));
+  process.stdout.write(context('PostToolUse', msg.nudge(fired), notices() && msg.notice(fired)));
 }
 
 let buf = '';

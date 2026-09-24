@@ -155,7 +155,9 @@ Next: once AUTH_SECRET is set, run `npm run smoke` and close the auth item.
   it are open items; `done` lines, prose and bullets elsewhere are not
   counted. Bullet style, a checkbox, bold on the field name, capitalisation
   and indentation are all read as the same line — the vocabulary is
-  strict, the formatting is not.
+  strict, the formatting is not. The headings, field names and `blocked` /
+  `returned` stay in English (hooks parse them); the reasons are in the
+  language of the turn.
 - `Next:` — one line.
 
 **Write it with your ordinary file tools.** No hook writes this file, and no

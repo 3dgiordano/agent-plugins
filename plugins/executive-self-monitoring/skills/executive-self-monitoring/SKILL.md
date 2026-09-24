@@ -78,7 +78,9 @@ note or a project rule is a good place).
 
 Insert naturally — a brief internal executive voice, not a mechanical
 checklist. Write it as a markdown list in the message, **not inside a fenced
-code block**. Fences do not wrap. No blank line inside the block.
+code block**. Fences do not wrap. No blank line inside the block. The marker,
+field names and decision stay in English (hooks parse them); the rest is in
+the language of the turn.
 
 **Write the block. Do not announce writing it.** No "I loaded this skill", no
 "per the protocol" — the reader wants the work, not a status report about the

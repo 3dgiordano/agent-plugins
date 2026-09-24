@@ -2,6 +2,7 @@
 /* Reminder texts shared by the Claude Code and Cursor adapters. */
 
 const SKILL = 'persistence-self-monitoring';
+const host = require('./host.js');
 
 // A pointer, not a paraphrase - see the note in coverage's messages.js.
 /*
@@ -39,7 +40,7 @@ const LOAD =
   'you go next - write the [PERSISTENCE CHECK] markdown list: Attempts, Hypothesis held, Rival ' +
   'approach, Proportion, Decision. If the checks contradict each other or the spec, that is the ' +
   'finding: fix what can be fixed honestly, report the rest, and never pass them by a trick. ' +
-  `Load the ${SKILL} skill if it is not already loaded for the rules. Not a blocker - a signal.`;
+  `Load the ${SKILL} skill if it is not already loaded for the rules. Markers, field names and status words stay in English, whatever language you write in. Not a blocker - a signal.`;
 
 /*
  * This asked for the block's contents as three prose questions and never named
@@ -56,17 +57,25 @@ const TAIL =
   'Rival approach, Proportion, Decision. If nothing about the next attempt is new, say so to the user ' +
   'instead of trying again. Load the persistence-self-monitoring skill if it is not already loaded ("Core Protocol").';
 
-function nudge(signals) {
-  const lines = signals.map((s) => {
+// `toUser`: the same facts, addressed to the person instead of the agent.
+function said(signals, toUser) {
+  return signals.map((s) => {
     switch (s.kind) {
-      case 'edits': return `you have edited \`${s.key}\` ${s.count} times this turn`;
+      case 'edits': return `${toUser ? 'the agent has' : 'you have'} edited \`${s.key}\` ${s.count} times this turn`;
       case 'cmds': return `\`${s.key}\` has failed ${s.count} times this turn`;
       case 'errs': return `the same error has come back ${s.count} times this turn (${s.key})`;
-      case 'effort': return `${s.count} tool calls since the user's last message - is this effort proportional to what was asked?`;
+      case 'effort': return `${s.count} tool calls since ${toUser ? 'your' : "the user's"} last message - is this effort proportional to what was asked?`;
       default: return '';
     }
   }).filter(Boolean);
-  return '[persistence self-monitoring] ' + lines.join('; ') + '.' + TAIL;
+}
+function nudge(signals) {
+  return '[persistence self-monitoring] ' + said(signals).join('; ') + '.' + TAIL;
 }
 
-module.exports = { LOAD, nudge };
+// The one line the user sees when a count crosses its threshold (lib/host.js).
+function notice(signals) {
+  return host.notice('persistence self-monitoring', said(signals, true), 'the agent is asked for a [PERSISTENCE CHECK]');
+}
+
+module.exports = { LOAD, nudge, notice };

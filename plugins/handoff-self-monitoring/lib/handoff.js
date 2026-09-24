@@ -29,6 +29,20 @@ const CATEGORIES = [
       /\bup\s+to\s+you\b/i,
       /\byour\s+call\b/i,
       /\bhappy\s+to\s+(?:add|change|switch|do|implement|extend|adjust|revert|remove|rename|move|split)\b/i,
+
+      // Spanish - voseo, tuteo and usted. JS word characters are ASCII, so a
+      // trailing \b fails after an accented letter: these are bounded with
+      // (?<!\p{L}) / (?!\p{L}) instead, under the u flag.
+      /(?<!\p{L})si\s+(?:quer[eé]s|quieres|quiere|prefer[ií]s|prefieres|prefiere|te\s+parece|le\s+parece|te\s+sirve|le\s+sirve)(?!\p{L})/iu,
+      /¿\s*(?:quer[eé]s|quieres|quiere|prefer[ií]s|prefieres|prefiere)\s+que(?!\p{L})/iu,
+      /(?<!\p{L})(?:av[ií]same|av[ií]seme|dec[ií]me|d[ií]game|cont[aá]me|cu[eé]ntame|confirm[aá]me|conf[ií]rmame)(?!\p{L})/iu,
+      /(?<!\p{L})dime\s+(?:si|qu[eé]|cu[aá]l|c[oó]mo)(?!\p{L})/iu,
+      // "should I" is a question in Spanish: "¿Debería...?", "¿Sigo?" - not the
+      // statement "debería funcionar", which is an expectation.
+      /¿\s*(?:deber[ií]a|debo|sigo|contin[uú]o|procedo|avanzo)(?!\p{L})/iu,
+      /(?<!\p{L})como\s+(?:prefieras|prefiera|prefieran|quieras|quiera|quieran|te\s+parezca|le\s+parezca)(?!\p{L})/iu,
+      /(?<!\p{L})a\s+(?:tu|su)\s+(?:criterio|elecci[oó]n|decisi[oó]n)(?!\p{L})/iu,
+      /(?<!\p{L})(?:vos\s+decid[ií]s|t[uú]\s+decides|usted\s+decide|decid[ií]\s+vos|decide\s+t[uú])(?!\p{L})/iu,
     ],
   },
   {
@@ -52,6 +66,18 @@ const CATEGORIES = [
       /\btrade-?offs?\b/i,
       /\b(?:we|you|I)\s+(?:could|can)\s+(?:either|also|instead)\b/i,
       /\b(?:which|what)\s+(?:would\s+you|do\s+you)\s+(?:prefer|want|like)\b/i,
+
+      // Spanish. "depende de" is anchored on a choice-shaped object, like the
+      // English: "el scheduler depende de lodash" is a dependency.
+      /(?<!\p{L})depende\s+de\s+(?:si|cu[aá]l|cu[aá]les|qu[eé])(?!\p{L})/iu,
+      /(?<!\p{L})dependiendo\s+de\s+(?:si|cu[aá]l|qu[eé]|c[oó]mo|tu|tus|su|sus|la|el|los|las)(?!\p{L})/iu,
+      /(?<!\p{L})(?:alternativamente|como\s+alternativa)(?!\p{L})/iu,
+      /(?<!\p{L})(?:otra|segunda)\s+(?:opci[oó]n|alternativa|v[ií]a)(?!\p{L})|(?<!\p{L})(?:otro|segundo)\s+(?:enfoque|camino)(?!\p{L})/iu,
+      /(?<!\p{L})(?:dos|tres|varias|algunas|m[uú]ltiples|un\s+par\s+de)\s+(?:opciones|alternativas|caminos|enfoques|formas|maneras|v[ií]as)(?!\p{L})/iu,
+      /(?<!\p{L})(?:[Oo]pci[oó]n|[Ee]nfoque|[Cc]amino|[Aa]lternativa)\s+(?:A|B|C|1|2|3)(?![\p{L}\p{N}])/u,
+      /(?<!\p{L})(?:pros\s+y\s+contras|ventajas\s+y\s+desventajas)(?!\p{L})/iu,
+      /(?<!\p{L})(?:(?:tambi[eé]n|adem[aá]s)\s+(?:puedo|podr[ií]a|podemos|podr[ií]amos|pod[eé]s|puedes|podr[ií]as)|(?:puedo|podr[ií]a|podemos|podr[ií]amos|pod[eé]s|puedes|podr[ií]as)\s+(?:tambi[eé]n|adem[aá]s|en\s+cambio|en\s+su\s+lugar))(?!\p{L})/iu,
+      /(?<!\p{L})(?:cu[aá]l|qu[eé])\s+(?:prefer[ií]s|prefieres|prefiere|eleg[ií]s|eliges|elige|te\s+parece|le\s+parece)(?!\p{L})/iu,
     ],
   },
 ];
@@ -159,11 +185,20 @@ function optionsOf(block) {
   return { count, hasDefault };
 }
 
-// Remove what must not be judged: fenced code, inline code, quoted lines.
+/*
+ * Remove what must not be judged: fenced code, inline code, quoted lines, and
+ * phrases in double quotes (straight, curly or guillemets). A quoted phrase is
+ * cited, not said: measured in a session whose A/B table quoted the detectors'
+ * own trigger phrases and drew a retrospective for each one. Same rule as
+ * progress's commitments scanner.
+ */
+const QUOTED_RE = /"[^"\n]{0,200}"|“[^”\n]{0,200}”|«[^»\n]{0,200}»/g;
+
 function prose(text) {
   return text
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/`[^`\n]*`/g, ' ')
+    .replace(QUOTED_RE, ' ')
     .split(/\r?\n/).filter((l) => !/^\s*>/.test(l)).join('\n');
 }
 

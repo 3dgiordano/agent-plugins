@@ -2,6 +2,7 @@
 /* Reminder texts shared by the Claude Code and Cursor adapters. */
 
 const SKILL = 'termination-self-monitoring';
+const host = require('./host.js');
 
 // Declared before LOAD, which names them: the scanner matches on these tokens,
 // so they are the part of the protocol a message cannot delegate to the skill.
@@ -16,7 +17,7 @@ const LOAD =
   'harness does. If you are about to stop, defer or narrow on a feeling or a limit you do not manage ' +
   '(in English, "running out of context", "not confident enough"), write the [TERMINATION CHECK] ' +
   `markdown list: Trigger, Reason (${REASONS}), Evidence, Decision. Load the ${SKILL} skill if it is ` +
-  'not already loaded. Not a blocker.';
+  'not already loaded. Markers, field names and status words stay in English, whatever language you write in. Not a blocker.';
 
 /*
  * The field names, as a list, and the rules named rather than copied - see the
@@ -42,4 +43,10 @@ function blockReason(violations) {
     `holds, continue the work instead of stopping. Then finish. ${PROTOCOL}`;
 }
 
-module.exports = { LOAD, retrospective, blockReason };
+// The one line the user sees when the stop scan finds something (lib/host.js):
+// the finding, without the instruction written for the agent.
+function notice(violations) {
+  return host.notice('termination self-monitoring', violations, 'the agent is reminded on your next message');
+}
+
+module.exports = { LOAD, retrospective, blockReason, notice };

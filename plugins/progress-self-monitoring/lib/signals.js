@@ -88,8 +88,8 @@ function summary(turn) {
  * where they put it. The owner had said "later session" in the prompt; nothing
  * read it. This does, and the prompt hook answers with the file's name.
  *
- * English only, like the other detectors; the phrases are the boundary said
- * out loud, and "session" in every other sense (a cookie, a store, an id,
+ * English and Spanish, like the other detectors; the phrases are the boundary
+ * said out loud, and "session" in every other sense (a cookie, a store, an id,
  * "this session") is a corpus miss. Fenced and inline code are stripped so
  * a prompt quoting `sessionStorage` is not a hit.
  */
@@ -100,6 +100,16 @@ const SPANS_RE = [
   /\bwe(?:'ll| will) (?:continue|pick (?:this|it) (?:back )?up|resume|carry on)\b[^.!?\n]{0,30}\b(?:later|tomorrow|next (?:time|week|session)|another (?:day|time))\b/i,
   /\bpick (?:this|it) (?:back )?up (?:later|tomorrow|next (?:time|week|session))\b/i,
   /\bnext time\b/i,
+
+  // Spanish. JS word characters are ASCII, so a trailing \b fails after an
+  // accented letter: bounded with (?<!\p{L}) / (?!\p{L}), under the u flag.
+  // "una nueva sesión de usuario" is data, so a "sesión de ..." is refused.
+  /(?<!\p{L})(?:otras?|pr[oó]ximas?|nuevas?|futuras?|siguientes?|anterior(?:es)?|[uú]ltima|previas?|varias|m[uú]ltiples)\s+sesi(?:[oó]n|ones)(?!\p{L})(?!\s+del?\s)/iu,
+  /(?<!\p{L})sesi(?:[oó]n|ones)\s+(?:anterior(?:es)?|siguiente|previa|pasada|futura)(?!\p{L})/iu,
+  /(?<!\p{L})(?:entre|a\s+lo\s+largo\s+de)\s+(?:varias\s+|m[uú]ltiples\s+|dos\s+|\d+\s+)?sesiones(?!\p{L})/iu,
+  /(?<!\p{L})multi-?sesi[oó]n(?!\p{L})/iu,
+  /(?<!\p{L})(?:seguimos|continuamos|retomamos|terminamos)\s+(?:[^.!?\n]{0,30}?\s)?(?:ma[ñn]ana|otro\s+d[ií]a|la\s+semana\s+que\s+viene|la\s+pr[oó]xima\s+(?:vez|semana))(?!\p{L})/iu,
+  /(?<!\p{L})la\s+pr[oó]xima\s+vez(?!\p{L})/iu,
 ];
 
 function spansSessions(prompt) {

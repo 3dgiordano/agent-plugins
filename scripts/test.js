@@ -419,14 +419,17 @@ test('termination scanner: first-person triggers, stripped code/quotes, apology 
   assert.match(withReason('nonexistent')[0], /Reason must be one of/);
 });
 
-test('termination: English lexicon and LOAD unchanged; Spanish acts are not hook hits; Spanish values in an English-keyed block pass', () => {
+// The contract changed in 0.3.0 - see the note above the handoff test below.
+test('termination: English and Spanish lexicon, LOAD unchanged; Spanish acts are hits, their neighbours are not; Spanish values in an English-keyed block pass', () => {
   const { scan } = require(path.join(plugin(TER), 'lib/lexicon.js'));
   const msg = require(path.join(plugin(TER), 'lib/messages.js'));
   const kinds = (s) => scan(s).hits.map((h) => h.kind);
   assert.deepEqual(kinds("I'm running out of context, so let's pick this up in a fresh session."), ['budget']);
-  assert.deepEqual(kinds('Se me acaba el contexto, lo retomo mañana en otra sesión.'), [], 'Spanish budget-act is not a lexicon hit');
-  assert.deepEqual(kinds('No estoy lo suficientemente seguro de tocar el scheduler.'), [], 'Spanish confidence-act is not a lexicon hit');
-  assert.deepEqual(kinds('Dada la complejidad de la migración, sugeriría otra sesión.'), [], 'Spanish complexity-act is not a lexicon hit');
+  assert.deepEqual(kinds('Se me acaba el contexto, lo retomo mañana en otra sesión.'), ['budget'], 'Spanish budget-act is a lexicon hit');
+  assert.deepEqual(kinds('No estoy lo suficientemente seguro de tocar el scheduler.'), ['confidence'], 'Spanish confidence-act is a lexicon hit');
+  assert.deepEqual(kinds('Dada la complejidad de la migración, sugeriría otra sesión.'), ['complexity'], 'Spanish complexity-act is a lexicon hit');
+  assert.deepEqual(kinds('El usuario pidió seguir mañana con el deploy.'), [], "the owner's choice is not the agent's reason");
+  assert.deepEqual(kinds('No estoy seguro de que devuelva 404; lo verifico con curl.'), [], 'uncertainty with a check is not "enough"');
   const esBlock = 'Se me acaba el contexto.\n\n[TERMINATION CHECK]\n- Trigger: se me acaba el contexto\n- Reason: none\n- Decision: continue\n';
   assert.equal(scan(esBlock).violations.length, 0, 'Trigger may quote the phrase in the language of the turn');
   assert.match(scan('[TERMINATION CHECK]\n- Trigger: x\n- Reason: ninguno\n- Decision: continue\n').violations[0], /Reason must be one of/, 'Reason tokens stay English');
@@ -542,12 +545,14 @@ test('coverage signals: stub markers net of replaced text, per line, per turn; p
   assert.match(S.scanClose('[COVERAGE CHECK]\nnothing here\n\n[COVERAGE CHECK]\n- parser: done - x\n').violations[0], /no part lines/, 'first block empty');
 });
 
-test('coverage: English deferral lexicon and LOAD unchanged; Spanish acts are not hook hits; Spanish values in an English-keyed block pass', () => {
+// The contract changed in 0.3.0 - see the note above the handoff test below.
+test('coverage: English and Spanish deferral lexicon, LOAD unchanged; Spanish acts are hits, their neighbours are not; Spanish values in an English-keyed block pass', () => {
   const S = require(path.join(plugin(COV), 'lib/signals.js'));
   const msg = require(path.join(plugin(COV), 'lib/messages.js'));
   assert.ok(S.scanClose(deferMsg).deferrals.length > 0);
-  assert.equal(S.scanClose('Parser y CLI listos. El streaming se puede agregar después en un PR aparte.').deferrals.length, 0, 'Spanish postpone-act is not a lexicon hit');
-  assert.equal(S.scanClose('Dejé una versión simplificada; el resto queda pendiente.').deferrals.length, 0, 'Spanish hole-in-delivery is not a lexicon hit');
+  assert.ok(S.scanClose('Parser y CLI listos. El streaming se puede agregar después en un PR aparte.').deferrals.length > 0, 'Spanish postpone-act is a lexicon hit');
+  assert.ok(S.scanClose('Dejé una versión simplificada; el resto queda pendiente.').deferrals.length > 0, 'Spanish hole-in-delivery is a lexicon hit');
+  assert.equal(S.scanClose('Hice los cambios en un commit. No queda nada pendiente.').deferrals.length, 0, 'done work and a negation are not deferrals');
   assert.equal(S.partsOf('hacé:\n- sumar a\n- corregir b\n- testear c\n'), 3, 'enumerated parts are language-neutral');
   assert.equal(S.countStubs('// TODO: cablear\nthrow new Error("not implemented");\n'), 2, 'code markers stay counted');
   const esBlock = 'El streaming queda para después.\n\n[COVERAGE CHECK]\n- parser: done - npm test verde\n- cli: done - smoke\n- streaming: blocked - ws no instalado (npm ls ws: vacío)\n';
@@ -572,7 +577,9 @@ test('coverage (claude): load on turn 1, ledger prompt at 3+ parts, stub nudge, 
   assert.match(JSON.parse(write('// TODO three').out).hookSpecificOutput.additionalContext, /written 3 stub .* markers this turn \(src\/x\.js\)/);
   assert.equal(write('clean code').out, '');
   const stop = hook(COV, 'hooks/cov-stop.js', cc({ last_assistant_message: deferMsg }));
-  assert.equal(stop.code, 0); assert.equal(stop.out, '', 'stop is measurement only');
+  assert.equal(stop.code, 0);
+  assert.match(JSON.parse(stop.out).systemMessage, /^\[coverage self-monitoring\] work deferred/, 'the stop tells the user');
+  assert.equal(JSON.parse(stop.out).hookSpecificOutput, undefined, 'and nothing to the model at the stop: that is the next prompt');
   const next = hook(COV, 'hooks/cov-prompt.js', cc({ prompt: 'ok' })).out;
   assert.match(next, /deferred work without closing the ledger/);
   assert.equal(hook(COV, 'hooks/cov-prompt.js', cc({ prompt: 'ok' })).out, '', 'retrospective consumed once');
@@ -647,14 +654,26 @@ test('handoff scanner: offer / fork / closing question / returned part, stripped
   assert.equal(scan('[HANDOFF]\n- Status: blocked\n- Situation: x\n- Blocked-by: Write denied on .env (permission prompt declined)\n- Next: grant access or say no').violations.length, 0);
 });
 
-test('handoff: English lexicon and LOAD unchanged; Spanish offers/forks are not hook hits; Spanish values in an English-keyed block pass', () => {
+/*
+ * The contract these three tests lock changed in handoff 0.3.0 / coverage 0.3.0 /
+ * termination 0.3.0. It used to be "English lexicon; Spanish semantic
+ * equivalents do not fire" - the skill named the act, and the lexicon was an
+ * English backstop. Measured in a Spanish session, that meant a Spanish turn
+ * almost never drew a response-scan reminder at all, so the lexicons now carry
+ * Spanish too, and each Spanish hit keeps an adversarial neighbour here and in
+ * evals/corpus. What did not change: block markers, field names and status
+ * tokens stay English, and Spanish values under English keys pass.
+ */
+test('handoff: English and Spanish lexicon, LOAD unchanged; Spanish offers/forks are hits, their neighbours are not; Spanish values in an English-keyed block pass', () => {
   const { scan } = require(path.join(plugin(HAN), 'lib/handoff.js'));
   const msg = require(path.join(plugin(HAN), 'lib/messages.js'));
   const kinds = (s) => scan(s).hits.map((h) => h.kind);
   assert.deepEqual(kinds(offerMsg), ['offer']);
-  assert.deepEqual(kinds('Avísame si querés retries también.'), [], 'Spanish offer is not a lexicon hit');
-  assert.deepEqual(kinds('Depende de si la API es idempotente.'), [], 'Spanish fork is not a lexicon hit');
-  assert.deepEqual(kinds('Hay dos caminos: dejar el cache o sacarlo.'), [], 'Spanish "two paths" is not a lexicon hit');
+  assert.deepEqual(kinds('Avísame si querés retries también.'), ['offer'], 'Spanish offer is a lexicon hit');
+  assert.deepEqual(kinds('Depende de si la API es idempotente.'), ['fork'], 'Spanish fork is a lexicon hit');
+  assert.deepEqual(kinds('Hay dos caminos: dejar el cache o sacarlo.'), ['fork'], 'Spanish "two paths" is a lexicon hit');
+  assert.deepEqual(kinds('El scheduler depende de lodash; lo dejé fijo.'), [], 'a Spanish dependency is not a fork');
+  assert.deepEqual(kinds('Debería funcionar en Windows; lo probé en CI.'), [], 'debería as expectation is not an offer');
   assert.deepEqual(kinds('Cambié el resolver.\n\n¿Te parece bien?'), ['question'], 'a closing ? is language-neutral');
   const esBlock = 'Avísame si querés retries.\n\n[HANDOFF]\n- Status: needs-decision\n- Situation: el parser ya no pierde el último registro; el test está verde\n' +
     '- Options:\n  - A: sin retries — hoy nada reintenta\n  - B: con backoff — los callers sobreviven un blip\n- Default: A, because hoy nada reintenta\n- Next: respondé A o B\n';
@@ -897,11 +916,11 @@ test('progress (claude): a turn that edits files and leaves a ledger with open i
   assert.equal(prompt().out, '', 'a turn with no edits is not a stale turn');
   // edits, ledger untouched -> retrospective
   edit('src/a.js'); edit('src/b.js');
-  assert.equal(stop().out, '', 'stop itself never speaks');
+  assert.equal(JSON.parse(stop().out).systemMessage, '[progress self-monitoring] 2 file edits this turn, .agent/progress.md untouched with 2 open items - the agent is reminded on your next message', 'the stop tells the user, not the model');
   const r = prompt();
   assert.match(r.text, /^\[progress self-monitoring\] Your previous turn made 2 file edits and left `\.agent\/progress\.md` untouched with 2 open items/);
   // same ledger version, another editing turn -> silent (once per version)
-  edit('src/c.js'); stop();
+  edit('src/c.js'); assert.equal(stop().out, '', 'nor the user, for the same ledger version');
   assert.equal(prompt().out, '', 'already reported for this ledger version');
   // the ledger is written this turn (mtime moves) -> silent, and the signal re-arms
   edit('src/d.js');
@@ -1104,6 +1123,88 @@ test('every plugin README documents the env vars its logger actually reads, and 
     const inDoc = new Set((doc.match(/[A-Z]{3,}MON_[A-Z_]+/g) || []));
     for (const v of inCode) assert.ok(inDoc.has(v), `${name}: ${v} is read by the code but not documented in its README`);
     for (const v of inDoc) assert.ok(inCode.has(v), `${name}: ${v} is documented but nothing reads it`);
+  }
+});
+
+/*
+ * The notice: one line for the person - top-level `systemMessage`, which
+ * Claude Code and Codex show to the user and do not give the model - beside
+ * what the model reads, and only on a finding. Without it every hook is
+ * invisible to the user: measured in a session where all seven fired and the
+ * owner saw nothing, because the agent had not written the blocks.
+ */
+test('notices: a finding reaches the user as one systemMessage line; the load, a clean close, a strict block, a subagent and *_NOTICE=0 do not', (t) => {
+  const stamp = uid('notice');
+  t.after(() => { for (const p of ['handmon', 'termmon', 'covmon', 'epimon', 'persistmon', 'progmon']) cleanupTemp(`${p}_claude_${stamp}`); });
+  const H = require(path.join(plugin(HAN), 'lib/host.js'));
+  for (const name of pluginNames) {
+    assert.equal(fs.readFileSync(path.join(plugin(name), 'lib/host.js'), 'utf8'), fs.readFileSync(path.join(plugin(HAN), 'lib/host.js'), 'utf8'), `${name}: the host.js copies must not diverge`);
+  }
+  assert.equal(H.finding('work deferred ("a - b") with no [COVERAGE CHECK] block - close each part'), 'work deferred ("a - b") with no [COVERAGE CHECK] block', 'cut at the first " - " outside quotes');
+  assert.equal(H.finding('"x": no Scope (what it covers, what it does not)'), '"x": no Scope (what it covers, what it does not)', 'nothing to cut');
+  assert.ok(H.notice('x', ['a'.repeat(1000)], 'tail').length <= 280 + ' - tail'.length, 'capped');
+
+  const STOPS = [
+    [HAN, 'hooks/hand-stop.js', 'HANDMON', offerMsg, /^\[handoff self-monitoring\] a decision named without a handoff \(offer: "Let me know"\) with no \[HANDOFF\] block - the agent is reminded on your next message$/],
+    [TER, 'hooks/term-stop.js', 'TERMMON', budgetMsg, /^\[termination self-monitoring\] a state-shaped reason \(budget: .*\) with no \[TERMINATION CHECK\] block - the agent is reminded/],
+    [COV, 'hooks/cov-stop.js', 'COVMON', deferMsg, /^\[coverage self-monitoring\] work deferred \(.*\) with no \[COVERAGE CHECK\] block - the agent is reminded/],
+    [EPI, 'hooks/epi-stop.js', 'EPIMON', badBlock, /^\[epistemic self-monitoring\] "x is dead code": Status is verified but "Verified by" is empty - the agent is reminded/],
+  ];
+  for (const [name, script, pre, message, re] of STOPS) {
+    const sid = `${stamp}-${pre}`;
+    const cc = (x) => Object.assign({ session_id: sid, cwd: os.tmpdir(), hook_event_name: 'Stop', stop_hook_active: false }, x);
+    const r = hook(name, script, cc({ last_assistant_message: message }));
+    assert.equal(r.code, 0, `${name}: a notice never blocks`);
+    const j = JSON.parse(r.out);
+    assert.match(j.systemMessage, re, name);
+    assert.equal(j.hookSpecificOutput, undefined, `${name}: nothing for the model at the stop`);
+    assert.equal(hook(name, script, cc({ last_assistant_message: 'Done.' })).out, '', `${name}: a clean close says nothing`);
+    assert.equal(hook(name, script, cc({ hook_event_name: 'SubagentStop', last_assistant_message: message })).out, '', `${name}: a subagent's close is not the user's`);
+    const off = {}; off[`${pre}_NOTICE`] = '0';
+    assert.equal(hook(name, script, cc({ last_assistant_message: message }), off).out, '', `${name}: ${pre}_NOTICE=0 silences it`);
+    if (name !== COV) {
+      const strict = {}; strict[`${pre}_STRICT`] = '1';
+      const b = hook(name, script, cc({ last_assistant_message: message }), strict);
+      assert.equal(b.code, 2);
+      assert.equal(b.out, '', `${name}: a strict block speaks through stderr, to the model`);
+    }
+  }
+  // the notice off does not take the retrospective with it
+  {
+    const sid = `${stamp}-off`;
+    const cc = (x) => Object.assign({ session_id: sid, cwd: os.tmpdir() }, x);
+    hook(HAN, 'hooks/hand-prompt.js', cc({}));
+    hook(HAN, 'hooks/hand-stop.js', cc({ hook_event_name: 'Stop', last_assistant_message: offerMsg }), { HANDMON_NOTICE: 'off' });
+    assert.match(hook(HAN, 'hooks/hand-prompt.js', cc({})).text, /left the reader without a handoff/);
+  }
+  // the load message is routine: context, no notice
+  const load = JSON.parse(hook(HAN, 'hooks/hand-prompt.js', { session_id: `${stamp}-load`, cwd: os.tmpdir() }).out);
+  assert.match(load.hookSpecificOutput.additionalContext, /handoff/);
+  assert.equal(load.systemMessage, undefined, 'the load message is not news');
+
+  // PostToolUse counters: the notice rides beside the nudge, the nudge unchanged
+  {
+    const cc = (x) => Object.assign({ session_id: `${stamp}-per`, cwd: os.tmpdir() }, x);
+    let last;
+    for (let i = 0; i < 4; i++) last = hook(PER, 'hooks/persist-observe.js', cc({ tool_name: 'Edit', tool_input: { file_path: 'src/a.js' }, tool_response: '' }));
+    const j = JSON.parse(last.out);
+    assert.match(j.hookSpecificOutput.additionalContext, /^\[persistence self-monitoring\] you have edited `src\/a\.js` 4 times this turn/);
+    assert.equal(j.systemMessage, '[persistence self-monitoring] the agent has edited `src/a.js` 4 times this turn - the agent is asked for a [PERSISTENCE CHECK]');
+  }
+  {
+    const cc = (x) => Object.assign({ session_id: `${stamp}-cov`, cwd: os.tmpdir() }, x);
+    const write = (content) => hook(COV, 'hooks/cov-observe.js', cc({ tool_name: 'Write', tool_input: { file_path: 'src/x.js', content }, tool_response: { type: 'create', filePath: 'src/x.js', content, structuredPatch: [], originalFile: null } }), { COVMON_NOTICE: '' });
+    write('// TODO one'); write('// TODO two');
+    const j = JSON.parse(write('// TODO three').out);
+    assert.match(j.hookSpecificOutput.additionalContext, /written 3 stub/);
+    assert.match(j.systemMessage, /^\[coverage self-monitoring\] 3 stub \/ placeholder \/ TODO markers written this turn - /);
+  }
+  // progress: the ledger at session start
+  {
+    const dir = ledgerProject(t, '## Open\n- blocked: a\n');
+    const j = JSON.parse(hook(PRO, 'hooks/prog-session-start.js', { session_id: `${stamp}-pro`, cwd: dir, source: 'startup' }).out);
+    assert.match(j.hookSpecificOutput.additionalContext, /has 1 open item/);
+    assert.equal(j.systemMessage, '[progress self-monitoring] .agent/progress.md has 1 open item, updated 1 hour ago - the agent is asked to re-open it');
   }
 });
 
@@ -1432,9 +1533,17 @@ test('every load message points at its skill instead of restating it', () => {
      * costs plus a little: the five range 395-497 today. It is still a ceiling,
      * because the rules behind the fields belong in the skill - which is the
      * only mechanism Cursor has, where no hook runs at all.
+     *
+     * Raised from 520 to 600 for one sentence: "Markers, field names and status
+     * words stay in English, whatever language you write in." Measured in a
+     * Spanish session: with that rule only in the skill, the agent translated
+     * the markers and fields ("Estado:", "Opciones:") from the first turn - a
+     * block no scanner can read and the reader does not recognise. It is the
+     * same kind of content as the field names themselves - what the scanner
+     * reads - so it goes where they are. The largest message is 584 today.
      */
-    assert.ok(load.length <= 520,
-      `${name}: the load message is ${load.length} chars; the fields fit in 520, the rules belong in the skill`);
+    assert.ok(load.length <= 600,
+      `${name}: the load message is ${load.length} chars; the fields and the English-markers sentence fit in 600, the rules belong in the skill`);
 
     const skill = fs.readFileSync(path.join(plugin(name), 'skills', name, 'SKILL.md'), 'utf8');
     const desc = skill.slice(skill.indexOf('description: "') + 'description: "'.length);

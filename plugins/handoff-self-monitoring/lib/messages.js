@@ -2,6 +2,7 @@
 /* Reminder texts shared by the Claude Code and Cursor adapters. */
 
 const SKILL = 'handoff-self-monitoring';
+const host = require('./host.js');
 
 // A pointer, not a paraphrase - see the note in coverage's messages.js.
 /*
@@ -43,7 +44,7 @@ const LOAD =
   'ask is one they will act on - which of these, is this ready, look at this before I run it - close ' +
   'with a [HANDOFF] markdown list: Status (done | needs-decision | blocked), Situation in the ' +
   'reader\'s terms, Options with Default on ' +
-  `its own line, Next. Load the ${SKILL} skill if it is not already loaded for the rules. Not a blocker.`;
+  `its own line, Next. Load the ${SKILL} skill if it is not already loaded for the rules. Markers, field names and status words stay in English, whatever language you write in. Not a blocker.`;
 
 /*
  * These three used to restate the protocol they point at. What stays is what
@@ -89,4 +90,10 @@ function blockReason(violations) {
     `Keep paths, identifiers and what you ran below it. Then finish. ${PROTOCOL}`;
 }
 
-module.exports = { LOAD, preclose, retrospective, blockReason };
+// The one line the user sees when the stop scan finds something (lib/host.js):
+// the finding, without the instruction written for the agent.
+function notice(violations) {
+  return host.notice('handoff self-monitoring', violations, 'the agent is reminded on your next message');
+}
+
+module.exports = { LOAD, preclose, retrospective, blockReason, notice };

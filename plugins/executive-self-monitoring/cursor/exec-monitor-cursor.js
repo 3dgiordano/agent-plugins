@@ -35,7 +35,7 @@ const MSG =
   'it and write the [PLAN CHECK] markdown list: Plan (the artifact, named), Gate (quoted from ' +
   'it), Drift (none, or what pulls away), Decision (continue | refocus | revise-plan). Load the ' +
   'executive-self-monitoring skill if it is not already loaded for the rules behind them. Skip ' +
-  'this when the turn is trivial. Not a blocker - the plan defines the work.';
+  'this when the turn is trivial. Markers, field names and status words stay in English, whatever language you write in. Not a blocker - the plan defines the work.';
 
 const workspace = cwdOf({});
 

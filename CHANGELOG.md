@@ -7,6 +7,40 @@ release.
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-09-24
+
+Spanish, and a line the user can see. Everything here was found in one real
+Spanish session: the hooks ran, but every phrase detector was English-only,
+so a Spanish turn almost never drew a response-scan reminder; the reminders
+that did fire were about phrases the agent had only quoted, or about source
+code it had listed; and none of it was visible to the owner, who saw no
+block and concluded the plugins were not running. The detectors now read
+Spanish, the markers stay English, cited text is not read as said, and a
+finding shows the user one line in the transcript.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.6.2 |
+| epistemic-self-monitoring | 0.3.0 |
+| persistence-self-monitoring | 0.3.0 |
+| termination-self-monitoring | 0.3.0 |
+| coverage-self-monitoring | 0.3.0 |
+| handoff-self-monitoring | 0.3.0 |
+| progress-self-monitoring | 0.4.0 |
+
+### Added
+- **Spanish lexicons** (voseo, tuteo and usted) for handoff's offer/fork scan, every termination category and the apology run, coverage's deferral scan, and progress's later-session prompt and commitment sweep. Each hit shape has its adversarial neighbour in the corpus ("depende de lodash", "debería funcionar", "una versión mínima de Node", "una nueva sesión de usuario", "voy a explicar qué pasa cuando"). JS word characters are ASCII, so a trailing `\b` fails after an accented letter; the Spanish patterns are bounded with `(?<!\p{L})` / `(?!\p{L})` under the `u` flag.
+- **Markers stay in English, said where the agent reads it.** All seven load messages end with "Markers, field names and status words stay in English, whatever language you write in." (progress: headings, field names and `blocked | returned`), and the skills that did not say it yet (executive, epistemic, progress) say it too. Measured in a Spanish session: with the rule only in the skills, the agent translated markers and fields ("Estado:", "Opciones:") from the first turn - a close no scanner reads and the reader does not recognise. The load-message ceiling in `scripts/test.js` rises from 520 to 600 for that one sentence; the largest message is 584.
+- **A finding shows the user one line** (`systemMessage`, beside the model's context, never instead of it). The Stop scans of handoff, termination, coverage and epistemic, progress's stale-ledger check, the persistence and coverage counters, and progress's ledger status and commitment sweep each return `[<plugin> self-monitoring] <the finding> - <what the agent is asked to do>`; the load message and cadence reminders stay silent, and so do a clean close, a subagent's close and a strict block (which already speaks through stderr). `context(event, text, note)` and `notice()` in `lib/host.js`, the same copy in all seven plugins; off with `*_NOTICE=0`. Measured: in a Spanish session every hook fired and the owner saw nothing, because hook context is not shown and the agent wrote no block. Checked in Claude Code 2.1.259 with `claude -p --include-hook-events`: the Stop notice arrives as `Stop says: [handoff self-monitoring] …` and the turn ends normally. Codex documents `systemMessage` as a user warning on the same four events (not run here: the Free plan limit). Cursor has no user-visible field on `sessionStart`, `postToolUse`, `afterAgentResponse` or `stop`, so nothing shows there.
+
+### Changed
+- **The language contract of release 0.3.0 is reversed for the lexicons.** Release 0.3.0 (2026-09-16) locked "English lexicon hits still fire, Spanish semantic equivalents do not" in `scripts/test.js`; those three tests now assert that Spanish acts ARE hits, each with a Spanish neighbour that is not. The rest of that contract stands: block markers, field names and status tokens stay English, and Spanish values under English keys pass.
+
+### Fixed
+- **A phrase in double quotes is cited, not said.** Handoff, termination and coverage now blank `"…"`, `“…”` and `«…»` spans before the phrase scan, as progress's commitments scanner already did for straight quotes (it now takes curly quotes and guillemets too). Measured: an A/B table that quoted the detectors' own trigger phrases drew handoff, termination and coverage retrospectives for a close that offered, stopped and deferred nothing.
+- **Listing source is not a failure** (`lib/fail.js`, identical in persistence, epistemic and handoff). Double-quoted and backticked spans are blanked, source comment lines (`//`, `/*`, a JSDoc `*`, `# `, `<!--`) are skipped, `{ error: 'x' }` / `, error: true` object keys no longer match the mid-line `error:` rule, and a grader's `FAIL if …` is not pytest's `FAIL`. Measured: `cat lib/fail.js` fired the epistemic nudge on the comment documenting the exit-code rule, and 29 of the repo's 1308 files read as failed when listed; 6 do now, each recorded (single quotes are left alone on purpose, a prose count such as "3 failed runs" is indistinguishable from Jest's summary).
+- Corpus: 143 lines added across six files; coverage-deferral's precision floor raised from 0.94 to 0.97 (the same single pre-existing gap over a larger corpus).
+
 ## [0.10.0] — 2026-09-24
 
 An outcome bench, and plugins that move it. Each plugin gets one canonical
@@ -1282,7 +1316,8 @@ First public release.
   backticks was scanned as a closure block; the marker must now stand alone
   on its line.
 
-[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.11.0
 [0.10.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.10.0
 [0.9.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.9.0
 [0.8.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.8.0

@@ -196,6 +196,27 @@ const DEFERRAL_RES = [
   /\bstill\s+(?:needs?|need\s+to|to\s+do|to\s+be\s+done|pending|outstanding|open)\b/i,
   /\bcan\s+(?:be|get)\s+(?:added|done|handled|addressed|implemented|wired|finished|completed)\s+(?:later|separately|afterwards|in\s+a)\b/i,
   /\b(?:would|will)\s+(?:need|require)\s+(?:a\s+|further\s+|more\s+|additional\s+)?(?:separate|follow[- ]?up|additional|deeper|further)\s+(?:work|pass|change|PR|effort|investigation|task)\b/i,
+
+  // Spanish. JS word characters are ASCII, so a trailing \b fails after an
+  // accented letter: these are bounded with (?<!\p{L}) / (?!\p{L}), under the
+  // u flag. The destination needs a qualifier, as in English: "hice los
+  // cambios en un commit" is done work.
+  /(?<!\p{L})(?:en|para)\s+(?:(?:un|una|el|la)\s+(?:pr[oó]xim[oa]|futur[oa]|siguiente|posterior)|otro|otra)\s+(?:PR|pull\s+request|commit|pasada|cambio|tarea|paso|iteraci[oó]n|turno|sesi[oó]n|ticket|issue)(?!\p{L})/iu,
+  /(?<!\p{L})(?:en|para)\s+(?:un|una)\s+(?:PR|pull\s+request|commit|pasada|cambio|tarea|ticket|issue)\s+(?:aparte|separad[oa]|posterior|de\s+seguimiento)(?!\p{L})/iu,
+  /(?<!\p{L})(?:como|para)\s+(?:un\s+)?(?:seguimiento|trabajo\s+futuro|mejora\s+futura|tarea\s+pendiente)(?!\p{L})/iu,
+  /(?<!\p{L})(?:dej[eé]|dejo|dejando|queda|qued[oó]|quedan)\s+(?:[^.!?\n]{0,30}?\s+)?(?:como|para)\s+(?:un\s+|una\s+)?(?:TODO|pendiente|m[aá]s\s+adelante|despu[eé]s|seguimiento|ejercicio|el\s+futuro|luego)(?!\p{L})/iu,
+  /(?<!\p{L})(?:dej[eé]|agregu[eé]|agrego|dejando|con)\s+(?:un\s+|unos\s+|algunos\s+|\d+\s+)?TODOs?(?!\p{L})/iu,
+  /(?<!\p{L})(?:todav[ií]a|a[uú]n)\s+no\s+(?:est[aá]n?\s+)?(?:implementad|hech|cubiert|resuelt|probad|testead|conectad|manejad)[oa]s?(?!\p{L})/iu,
+  /(?<!\p{L})sin\s+(?:implementar|probar|testear|terminar|conectar|cubrir)(?!\p{L})/iu,
+  /(?<!\p{L})no\s+(?:implement[eé]|abord[eé]|cubr[ií]|manej[eé]|toqu[eé]|termin[eé]|conect[eé]|prob[eé]|teste[eé]|llegu[eé]\s+a|alcanc[eé]\s+a)(?!\p{L})/iu,
+  // Not "versión mínima": "exige una versión mínima de Node" is a requirement.
+  /(?<!\p{L})(?:versi[oó]n|implementaci[oó]n|soluci[oó]n|aproximaci[oó]n)\s+(?:simplificada|b[aá]sica|inicial|parcial|ingenua|preliminar|reducida)(?!\p{L})|(?<!\p{L})(?:primera\s+(?:versi[oó]n|implementaci[oó]n|pasada)|prueba\s+de\s+concepto|(?:un|el)\s+(?:MVP|esqueleto))(?!\p{L})/iu,
+  /(?<!\p{L})fuera\s+del?\s+alcance(?!\p{L})(?!\s+de\s+(?:este|esta|un|una)\s+(?:turno|respuesta|sesi[oó]n|pasada|mensaje|conversaci[oó]n))/iu,
+  /(?<!\p{L})(?:trabajo|[ií]tems|tareas|partes|pasos|piezas|cosas)\s+(?:restantes?|pendientes?|que\s+faltan?|por\s+hacer)(?!\p{L})|(?<!\p{L})lo\s+que\s+(?:falta|queda)(?:\s+por\s+hacer)?(?!\p{L})/iu,
+  // "no falta nada" and "no queda nada pendiente" are negated, and stay out
+  /(?<!\p{L}|no\s)(?:todav[ií]a\s+|a[uú]n\s+)?(?:falta|faltan|queda|quedan|sigue|siguen)\s+(?:todav[ií]a\s+|a[uú]n\s+)?(?:pendientes?|por\s+hacer|agregar|implementar|probar|testear|conectar|cubrir|manejar|terminar|resolver|documentar|migrar)(?!\p{L})/iu,
+  /(?<!\p{L})(?:se\s+)?(?:puede|pueden|podr[ií]a|podr[ií]an)\s+(?:agregar|hacer|manejar|abordar|implementar|conectar|terminar|completar|sumar)(?:se)?\s+(?:m[aá]s\s+tarde|despu[eé]s|luego|m[aá]s\s+adelante|por\s+separado|aparte)(?!\p{L})/iu,
+  /(?<!\p{L})(?:requerir[ií]a|necesitar[ií]a|har[ií]a\s+falta|llevar[ií]a)\s+(?:un\s+|una\s+|m[aá]s\s+|otro\s+|otra\s+)?(?:trabajo|pasada|cambio|PR|esfuerzo|investigaci[oó]n|tarea)\s+(?:aparte|adicional|separad[oa]|m[aá]s\s+profund[oa]|de\s+seguimiento|extra)(?!\p{L})/iu,
 ];
 
 /*
@@ -219,10 +240,15 @@ const BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[COVERAGE CHECK\](?:[ \t]
  */
 const PART_LINE_RE = /^[ \t]*[-*][ \t]*(.+?)[ \t]*[:—–][ \t]*(done|blocked|returned)\b[ \t]*[-—–:(]?[ \t]*(.*)$/i;
 
+// Phrases in double quotes (straight, curly or guillemets) are cited, not
+// said - see the note on prose() in handoff's lib/handoff.js.
+const QUOTED_RE = /"[^"\n]{0,200}"|“[^”\n]{0,200}”|«[^»\n]{0,200}»/g;
+
 function prose(text) {
   return text
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/`[^`\n]*`/g, ' ')
+    .replace(QUOTED_RE, ' ')
     .split(/\r?\n/).filter((l) => !/^\s*>/.test(l)).join('\n');
 }
 

@@ -75,7 +75,8 @@ artifact that defines it and write the [PLAN CHECK] markdown list - Plan (the
 artifact, named), Gate (quoted from it), Drift (none, or what pulls away),
 Decision (continue | refocus | revise-plan). Load the
 executive-self-monitoring skill if it is not already loaded for the rules
-behind them. Not a blocker; skip if this turn is trivial.
+behind them. Markers, field names and status words stay in English, whatever
+language you write in. Not a blocker; skip if this turn is trivial.
 ```
 
 When a turn ends on "I'm running out of context, let's pick this up in a fresh
@@ -179,6 +180,12 @@ here is exactly what they are:
   state-shaped reason to stop with no checkable one) and `HANDMON_STRICT` (a
   decision named with no handoff) — and each blocks once, never in a loop.
   The other four plugins have no blocking mode at all.
+- **Visible when it finds something.** The hooks talk to the agent, so a
+  working plugin used to be invisible unless the agent wrote the block. A
+  finding - a close without its block, a counter over its threshold, open
+  items in the ledger - now also shows you one line in the transcript
+  (Claude Code and Codex; Cursor has no field for it). Off per plugin with
+  `*_NOTICE=0`.
 - **Tested as the host runs them.** CI drives every adapter with the JSON its
   host sends, on Ubuntu and Windows, Node 18/20/22.
 

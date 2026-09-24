@@ -2,6 +2,7 @@
 /* Reminder texts shared by the Claude Code and Cursor adapters. */
 
 const SKILL = 'epistemic-self-monitoring';
+const host = require('./host.js');
 
 // A pointer, not a paraphrase - see the note in coverage's messages.js.
 // The field names are here, not only in the skill - see the note in coverage's
@@ -10,7 +11,7 @@ const LOAD =
   `[epistemic self-monitoring] This session keeps what you observed apart from what you concluded. ` +
   'Before a diagnosis, a root cause or a closure, write the [EPISTEMIC CLOSE] markdown list - Claim, ' +
   'Status (observed | conjecture | verified), Evidence, Falsifier, Verified by, Scope. Load the ' +
-  `${SKILL} skill if it is not already loaded for the rules. Not a blocker - a way of writing.`;
+  `${SKILL} skill if it is not already loaded for the rules. Markers, field names and status words stay in English, whatever language you write in. Not a blocker - a way of writing.`;
 
 const PROTOCOL = `Load the ${SKILL} skill if it is not already loaded ("Core Protocol").`;
 
@@ -45,4 +46,10 @@ function blockReason(violations) {
     `verified, Scope - or downgrade the claim to a conjecture. Then finish. ${PROTOCOL}`;
 }
 
-module.exports = { LOAD, OBSERVE, retrospective, blockReason };
+// The one line the user sees when the stop scan finds something (lib/host.js):
+// the finding, without the instruction written for the agent.
+function notice(violations) {
+  return host.notice('epistemic self-monitoring', violations, 'the agent is reminded on your next message');
+}
+
+module.exports = { LOAD, OBSERVE, retrospective, blockReason, notice };

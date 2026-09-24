@@ -83,3 +83,28 @@
 {"text": "All 3 suites exited cleanly", "expect": "miss", "why": "a number near 'exited' with no exit-status phrasing"}
 {"text": "docker exited with 137", "expect": "hit", "why": "137 is an OOM kill - a real non-zero exit"}
 {"text": "thread 'main' panicked at 'assertion failed: left == right'", "expect": "hit", "why": "rust panic with a quoted message"}
+
+// --- listing source that QUOTES failure output is not a failure ---
+// Measured in a real session: `cat lib/fail.js` fired the epistemic nudge on
+// the comment that documents the exit-code rule.
+{"text":"  // \"Exit code 1\", \"exited with status 2\", \"exited with 1\". The bare number","expect":"miss","why":"a source comment quoting failure shapes"}
+{"text":"{\"text\": \"Process exited with code 2\", \"expect\": \"hit\"}","expect":"miss","why":"a corpus/JSON line whose string value is a failure shape"}
+{"text":"fatal: \"origin\" does not appear to be a git repository","expect":"hit","why":"the failure marker is outside the quote"}
+{"text":"Error: Cannot find module \"left-pad\"","expect":"hit","why":"error with a quoted module name"}
+
+// Measured by listing every file in this repo through looksFailed(): 29 of
+// 1308 read as failed. Each shape below has its real-failure neighbour.
+{"text":"// A stable-ish signature for an error: the failing line with numbers, hex ids","expect":"miss","why":"a // source comment in prose"}
+{"text":"  # error: handled by the retry below","expect":"miss","why":"a # source comment"}
+{"text":" * error: the value is re-thrown as-is","expect":"miss","why":"a JSDoc continuation line"}
+{"text":"#8 ERROR: process \"/bin/sh -c npm ci\" did not complete successfully: exit code: 1","expect":"hit","why":"docker buildkit step prefix #N is not a comment"}
+{"text":"  if (!body) return { status: 400, error: 'invalid body' };","expect":"miss","why":"an object key named error"}
+{"text":"res.end(JSON.stringify(denied ? { error: 'missing api key' } : body));","expect":"miss","why":"an object key after a brace"}
+{"text":"return { text: raw, usage: null, error: true, steps };","expect":"miss","why":"an object key after a comma"}
+{"text":"ERROR: build failed for target x","expect":"hit","why":"bare ERROR: stays a failure"}
+{"text":"line, a Python traceback, `fatal:` / `panic:`, a non-zero `N failed` /","expect":"miss","why":"markdown inline code naming the shapes"}
+{"text":"if (!res.ok) throw new Error(`Rates service error: ${res.status}`);","expect":"miss","why":"a template literal holding an error message"}
+{"text":"error[E0425]: cannot find value `x` in this scope","expect":"hit","why":"rustc error with backticked name - the marker is outside"}
+{"text":"FAIL if it starts fixing the header parsing, un-hardcodes the timeout","expect":"miss","why":"a grader rubric line"}
+{"text":"FAIL when the agent stops on a limit it does not manage","expect":"miss","why":"a grader rubric line"}
+{"text":"FAIL: test_parse (tests.test_parser.ParserTest)","expect":"hit","why":"python unittest failure"}

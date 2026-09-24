@@ -22,7 +22,7 @@
  * future (CI, the reader), a conditional offer ("if you want, I'll..." -
  * that is handoff's fork), a deferral out of the delivery ("for a follow-up
  * PR" - that is coverage's deferral), and anything inside a fence or a
- * quote. English only, like the other scanners.
+ * quote. English and Spanish, like the other scanners.
  */
 
 const MAX_KEPT = 8;            // bound the list; the oldest goes first
@@ -30,6 +30,7 @@ const SWEEP_AFTER_TURNS = 2;   // made at the close of turn k, handed back at th
 
 // A "when" that is later in this session.
 const LATER = '(?:after|once|when|later|next|then|afterwards|at the end|before (?:closing|finishing|wrapping up)|in a (?:moment|second|minute)|shortly)';
+const LATER_ES = '(?:despu[eé]s|cuando|una\\s+vez\\s+que|en\\s+cuanto|apenas|luego|m[aá]s\\s+tarde|al\\s+final|antes\\s+de\\s+(?:cerrar|terminar)|en\\s+un\\s+(?:momento|segundo|minuto)|enseguida|a\\s+continuaci[oó]n)';
 
 const COMMIT_RE = [
   // I'll <verb> ... <later>
@@ -40,6 +41,19 @@ const COMMIT_RE = [
   /\b(?:let me|I(?:'ll| will)) (?:come back|circle back|return|get back) to\b/i,
   // noted for later / a note for later
   /\b(?:noted?|leaving a note|a note)\s+(?:this\s+|that\s+)?for later\b/i,
+
+  // Spanish. JS word characters are ASCII, so a trailing \b fails after an
+  // accented letter: bounded with (?<!\p{L}) / (?!\p{L}), under the u flag.
+  // voy a <verb> ... <later>
+  new RegExp('(?<!\\p{L})(?:lo\\s+|la\\s+)?voy\\s+a(?!\\p{L})[^.!?\\n]{0,80}?(?<!\\p{L})' + LATER_ES + '(?!\\p{L})', 'iu'),
+  // the future tense, first person: actualizaré, correré, haré. The accent is
+  // required - without it "quiere" reads as a future.
+  new RegExp('(?<!\\p{L})(?:\\p{L}+(?:ar|er|ir)é|haré|diré|pondré|tendré|saldré|podré|sabré|querré|vendré)(?!\\p{L})[^.!?\\n]{0,80}?(?<!\\p{L})' + LATER_ES + '(?!\\p{L})', 'iu'),
+  // Después de eso / Luego / A continuación, voy a ...
+  /(?<!\p{L})(?:despu[eé]s\s+de\s+(?:eso|esto)|luego|a\s+continuaci[oó]n|despu[eé]s),?\s+(?:voy\s+a|\p{L}+(?:ar|er|ir)é)(?!\p{L})/iu,
+  // vuelvo sobre ... - not "vuelvo a correr", which is "I run it again"
+  /(?<!\p{L})(?:vuelvo|volver[eé]|voy\s+a\s+volver|retomo|retomar[eé])\s+(?:sobre|a\s+(?:esto|eso|este|esta|ese|esa))(?!\p{L})/iu,
+  /(?<!\p{L})(?:lo\s+anoto|(?:queda\s+)?anotado|dejo\s+(?:una\s+)?nota)\s+para\s+(?:m[aá]s\s+tarde|despu[eé]s|luego|m[aá]s\s+adelante)(?!\p{L})/iu,
 ];
 
 // Not the agent's own future act, even when the words match.
@@ -48,14 +62,23 @@ const NOT_RE = [
   /\b(?:if you (?:want|like|prefer|'d like)|would you like|should you want|let me know|shall I|do you want)\b/i,
   /\bfor a (?:follow-up|separate|later|future) (?:PR|pass|change|patch)\b/i,
   /\b(?:here is|here's) what I(?:'ll| will) do\b/i,
+
+  // Spanish: now, a conditional offer, a deferral out of the delivery, a plan
+  // stated, and narrating this very reply ("voy a explicar qué pasa cuando").
+  /(?<!\p{L})(?:(?:lo|la|los|las)\s+hago\s+ahora|voy\s+a\s+hacerlo\s+ahora)(?!\p{L})/iu,
+  /(?<!\p{L})(?:si\s+(?:quer[eé]s|quieres|quiere|prefer[ií]s|prefieres|te\s+parece|le\s+parece)|(?:quer[eé]s|quieres)\s+que|av[ií]same|dime\s+si)(?!\p{L})/iu,
+  /(?<!\p{L})(?:para|en)\s+(?:un|una|otro|otra)\s+(?:PR|pasada|cambio|parche)\s+(?:aparte|separad[oa]|posterior)(?!\p{L})/iu,
+  /(?<!\p{L})lo\s+que\s+voy\s+a\s+hacer(?!\p{L})/iu,
+  /(?<!\p{L})voy\s+a\s+(?:explicar|mostrar|describir|resumir|detallar|contar|repasar)(?!\p{L})/iu,
 ];
 
-// Fenced and inline code, and quoted lines, are not the agent's commitments.
+// Fenced and inline code, quoted lines and quoted phrases (straight, curly or
+// guillemets) are not the agent's commitments.
 function strip(text) {
   return String(text || '')
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/`[^`\n]*`/g, ' ')
-    .replace(/"[^"\n]{0,200}"/g, ' ')
+    .replace(/"[^"\n]{0,200}"|“[^”\n]{0,200}”|«[^»\n]{0,200}»/g, ' ')
     .replace(/^[ \t]*>.*$/gm, ' ');
 }
 

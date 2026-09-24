@@ -53,3 +53,38 @@
 {"text": "Done. All tests pass.\n\nFor reference, the format is:\n\n```\n[HANDOFF]\n- Status: <done | needs-decision | blocked>\n- Situation: <one sentence in the reader's terms>\n- Next: <one action, or nothing>\n```\n\nThat is the shape.", "expect": "miss", "why": "documenting the format, with no offer and no fork - a fenced template must not be judged as a declared block"}
 {"text": "**[HANDOFF]**\n- **Status:** done\n- **Situation:** the installed trees match the repo\n- **Next:** start the migration", "expect": "miss", "why": "decorated field names are the same fields - found by writing one, not by the eval"}
 {"text": "[HANDOFF]\n- __Status__: needs-decision\n- __Situation__: two transports are viable\n- __Options__:\n  - A: Redis - already running\n  - B: SQS - managed durability\n- __Default__: A, because the log already covers restart loss\n- __Next__: reply A or B", "expect": "miss", "why": "underscore emphasis, and Options sub-items still parse under a decorated Options line"}
+
+// --- a phrase in double quotes is cited, not said ---
+// Measured in a real session: an A/B table quoting the detector's own trigger
+// phrases drew a retrospective for a close that offered nothing.
+{"text":"| Case | Result |\n|---|---|\n| handoff EN: \"If you want, I can also... Should I proceed?\" | detects offer and fork |\n| handoff ES | detects only the question |\n\nThe detectors are English-only.","expect":"miss","why":"the offer is quoted inside a table cell - a citation, not a handoff"}
+{"text":"The corpus now covers “let me know” and “should I”, both as hits.","expect":"miss","why":"curly-quoted phrases are citations"}
+{"text":"I renamed the flag. Should I also rename it to \"maxRetries\" in the docs?","expect":"hit","why":"the quote holds a name, the offer is outside it"}
+
+// --- Spanish (voseo, tuteo, usted): the same acts, the same neighbours ---
+{"text":"Listo el parser. Si querés, también puedo agregar el modo streaming.","expect":"hit","why":"offer: si querés"}
+{"text":"Los tests pasan. Si quieres, puedo conectar los reintentos.","expect":"hit","why":"offer: si quieres"}
+{"text":"Si le parece, lo despliego después del release.","expect":"hit","why":"offer: si le parece (usted)"}
+{"text":"Migración escrita. ¿Querés que la corra contra staging? Tengo los permisos.","expect":"hit","why":"offer: querés que"}
+{"text":"Arreglé la fuga. ¿Quieres que también actualice la dependencia? Es menor.","expect":"hit","why":"offer: quieres que"}
+{"text":"Avisame si preferís el otro formato.","expect":"hit","why":"offer: avisame"}
+{"text":"Dime si te sirve así.","expect":"hit","why":"offer: dime si"}
+{"text":"Como prefieras: puedo dejarlo así o migrarlo.","expect":"hit","why":"offer: como prefieras"}
+{"text":"Queda a tu criterio si lo mergeamos hoy.","expect":"hit","why":"offer: a tu criterio"}
+{"text":"Listo. ¿Debería también borrar la rama vieja? No la usa nadie.","expect":"hit","why":"offer: debería (question)"}
+{"text":"Depende de si necesitás soporte para Windows.","expect":"hit","why":"fork: depende de si"}
+{"text":"Dependiendo de tu presupuesto, conviene Redis o SQS.","expect":"hit","why":"fork: dependiendo de tu"}
+{"text":"Alternativamente, podemos cachear en memoria.","expect":"hit","why":"fork: alternativamente"}
+{"text":"Hay dos opciones: migrar ahora o esperar al release.","expect":"hit","why":"fork: dos opciones"}
+{"text":"La opción B es más barata pero menos durable.","expect":"hit","why":"fork: opción B"}
+{"text":"Tiene sus pros y contras.","expect":"hit","why":"fork: pros y contras"}
+{"text":"El cache quedó listo. También podríamos usar un worker aparte.","expect":"hit","why":"fork: también podríamos"}
+{"text":"¿Cuál preferís, la cola o el cron? Las dos andan.","expect":"hit","why":"fork: cuál preferís"}
+{"text":"El parser está listo y los tests pasan.","expect":"miss","why":"nothing handed off"}
+{"text":"El scheduler depende de lodash, así que lo dejé fijo en la 4.17.","expect":"miss","why":"a dependency, not a fork"}
+{"text":"Debería funcionar en Windows también; lo probé en CI.","expect":"miss","why":"debería as expectation, not a question to the reader"}
+{"text":"La opción --force no hace falta acá.","expect":"miss","why":"an option flag, not option A/B"}
+{"text":"Revisé las dos ramas y ambas compilan.","expect":"miss","why":"two branches, not two options"}
+{"text":"Decidí usar Redis porque ya corre en el cluster.","expect":"miss","why":"a decision taken and stated"}
+{"text":"El usuario quiere que el botón sea azul; ya lo cambié.","expect":"miss","why":"quiere que in the third person"}
+{"text":"Hay dos opciones.\n\n[HANDOFF]\n- Status: needs-decision\n- Situation: hay dos transportes viables\n- Options:\n  - A: Redis - ya corre\n  - B: SQS - durabilidad gestionada\n- Default: A, porque el log cubre los reinicios\n- Next: respondé A o B","expect":"miss","why":"Spanish content under English field names is a well-formed block"}

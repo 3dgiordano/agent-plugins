@@ -96,3 +96,46 @@
 {"text": "I'm running out of context.\n\nThe skill asks for:\n\n```\n[TERMINATION CHECK]\n- Trigger: <the phrase>\n- Reason: budget-spent\n- Decision: stop\n```\n\nThat is the shape.", "expect": "hit", "why": "a fenced template does not answer the state-shaped reason"}
 {"text": "Done, all tests pass.\n\nFor reference, the format is:\n\n```\n[TERMINATION CHECK]\n- Trigger: <the phrase>\n- Reason: <gate-not-run | owner-choice | budget-spent | limit-observed | none>\n- Decision: <continue | stop>\n```\n\nThat is the shape.", "expect": "miss", "why": "documenting the format, with nothing to answer for - a fenced template must not be judged as a declared block"}
 {"text": "**[TERMINATION CHECK]**\n- **Trigger:** \"the session has gone on a long time\"\n- **Reason:** none\n- **Decision:** continue", "expect": "miss", "why": "decorated field names are the same fields; Reason none with Decision continue is consistent"}
+
+// --- a phrase in double quotes is cited, not said ---
+{"text":"| Case | Result |\n|---|---|\n| termination EN: \"I am running out of context, let us pick this up later.\" | detects |\n| termination ES | detects nothing |","expect":"miss","why":"the phrase is quoted inside a table cell - reporting a test input"}
+{"text":"The lexicon catches «I'm running out of context» but not its Spanish form.","expect":"miss","why":"guillemet-quoted phrase is a citation"}
+{"text":"I am running out of context on this one, so I will stop at \"parser done\".","expect":"hit","why":"the reason is said outside the quote"}
+
+// --- Spanish: the same state-shaped reasons, the same neighbours ---
+{"text":"Me estoy quedando sin contexto, así que paro acá.","expect":"hit","why":"budget: quedando sin contexto"}
+{"text":"Nos estamos quedando sin tiempo; dejo el resto.","expect":"hit","why":"budget: quedando sin tiempo"}
+{"text":"Mi contexto está casi lleno, conviene cortar.","expect":"hit","why":"budget: contexto lleno"}
+{"text":"Esta sesión ya es muy larga, así que conviene cortar.","expect":"hit","why":"budget: long session"}
+{"text":"Sigamos con esto en una nueva sesión.","expect":"hit","why":"budget: continue in a new session"}
+{"text":"Podemos retomar el resto más tarde.","expect":"hit","why":"budget: pick up later"}
+{"text":"Voy a dejar las migraciones para una próxima sesión.","expect":"hit","why":"budget: defer to a next session"}
+{"text":"Por limitaciones de contexto, solo implementé el parser.","expect":"hit","why":"budget: context constraints"}
+{"text":"Estoy cerca del límite de contexto, así que resumo.","expect":"hit","why":"budget: approaching the context limit"}
+{"text":"Para ahorrar contexto, no voy a leer el resto de los archivos.","expect":"hit","why":"budget: to conserve context"}
+{"text":"Ya usé gran parte del contexto en la exploración.","expect":"hit","why":"budget: used most of the context"}
+{"text":"Esto está llevando demasiado tiempo, así que paro.","expect":"hit","why":"budget: taking too long"}
+{"text":"No estoy lo suficientemente seguro como para tocar el scheduler.","expect":"hit","why":"confidence: not confident enough"}
+{"text":"No me siento cómodo cambiando la migración.","expect":"hit","why":"confidence: do not feel comfortable"}
+{"text":"Prefiero no tocar el módulo de pagos.","expect":"hit","why":"confidence: rather not touch"}
+{"text":"Dada la complejidad, dejo el resto sin hacer.","expect":"hit","why":"complexity: given the complexity"}
+{"text":"Esto es demasiado complejo para hacerlo ahora.","expect":"hit","why":"complexity: too complex to do now"}
+{"text":"Eso queda fuera del alcance de este turno.","expect":"hit","why":"complexity: out of scope for this turn"}
+{"text":"Perdón, me equivoqué. Lo siento, debí haber corrido los tests.","expect":"hit","why":"apology run: perdón, me equivoqué, lo siento, debí haber"}
+{"text":"El usuario pidió seguir mañana con el deploy.","expect":"miss","why":"the owner's choice, not the agent's reason"}
+{"text":"El build está tardando 12 minutos y el timeout de CI es 10.","expect":"miss","why":"an observation about a process"}
+{"text":"La ventana de contexto del modelo es de 200k tokens según la documentación.","expect":"miss","why":"a fact about the model, not a stop"}
+{"text":"Es una tarea grande: la dividí en tres pasos y los hice todos.","expect":"miss","why":"scoping before starting"}
+{"text":"Prefiero no reintentar el mismo flag: ya falló dos veces con el mismo error.","expect":"miss","why":"the switch decision persistence asks for"}
+{"text":"No estoy seguro de que el endpoint devuelva 404; lo verifico con curl.","expect":"miss","why":"uncertainty with a check, not \"enough\""}
+{"text":"Por el tamaño del archivo, lo dividí en dos módulos.","expect":"miss","why":"a design reason, not a stop"}
+{"text":"Perdón, el comando correcto es npm ci.","expect":"miss","why":"one apology is a sentence"}
+{"text":"Guardé el contexto de la sesión en el archivo de estado.","expect":"miss","why":"context and session as data"}
+{"text":"Dejé los fixtures para la próxima corrida del CI.","expect":"miss","why":"next CI run, not a session"}
+{"text":"Me quedé sin ideas sobre el test flaky, así que agregué logging.","expect":"miss","why":"not a budget word"}
+{"text":"Me estoy quedando sin contexto.\n\n[TERMINATION CHECK]\n- Trigger: \"me estoy quedando sin contexto\"\n- Reason: none\n- Decision: continue","expect":"miss","why":"Spanish trigger under English field names is a closed block"}
+{"text":"Se me acaba el contexto, así que corto acá.","expect":"hit","why":"budget: se me acaba el contexto"}
+{"text":"Se me está acabando el tiempo; resumo lo que hay.","expect":"hit","why":"budget: se me está acabando el tiempo"}
+{"text":"Hice el parser; lo retomo mañana.","expect":"hit","why":"budget: present-for-future pick-up"}
+{"text":"Se me acabó la paciencia con el test flaky, así que agregué logging.","expect":"miss","why":"not a budget word"}
+{"text":"Sigo con el siguiente archivo.","expect":"miss","why":"continue now, no later"}

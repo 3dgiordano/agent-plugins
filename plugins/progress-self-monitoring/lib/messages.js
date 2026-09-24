@@ -4,6 +4,7 @@
 const { LEDGER, MAX_OPEN_ITEMS, MAX_LINES, MAX_BYTES, ageText } = require('./ledger.js');
 
 const SKILL = 'progress-self-monitoring';
+const host = require('./host.js');
 const PROTOCOL = `Load the ${SKILL} skill if it is not already loaded ("Core Protocol").`;
 
 /*
@@ -21,7 +22,7 @@ const LOAD =
   'the next session re-opens: Updated, Plan, ## Open (blocked | returned, each with its reason), Next. ' +
   'When a turn leaves work blocked or returned that a later session must not lose, write or update it; ' +
   'when it has open items, re-open it before substantive work. ' +
-  `Load the ${SKILL} skill if it is not already loaded for the rules. Not a blocker.`;
+  `Load the ${SKILL} skill if it is not already loaded for the rules. Headings, field names and blocked | returned stay in English, whatever language you write in. Not a blocker.`;
 
 // What a session opens on when the ledger has something in it. Counts, the
 // path, and the Next line (see ledger.js nextLine); no other text of the file.
@@ -92,4 +93,19 @@ function sweep(items, turn) {
     `or drop it and say why. ${PROTOCOL}`;
 }
 
-module.exports = { LOAD, status, retrospective, spanning, sweep };
+// The one line the user sees for each of the three findings (lib/host.js).
+const LABEL = 'progress self-monitoring';
+const items = (n) => `${n} open item${n === 1 ? '' : 's'}`;
+function statusNotice(ins) {
+  return host.notice(LABEL, [`${LEDGER} has ${items(ins.open)}, updated ${ageText(ins.ageMs)}`], 'the agent is asked to re-open it');
+}
+function staleNotice(p) {
+  return host.notice(LABEL, [`${p.edits} file edit${p.edits === 1 ? '' : 's'} this turn, ${LEDGER} untouched with ${items(p.open)}`],
+    'the agent is reminded on your next message');
+}
+function sweepNotice(items) {
+  return host.notice(LABEL, [`${items.length} commitment${items.length === 1 ? '' : 's'} from earlier turns handed back: ${items.map((c) => `"${c.text}"`).join('; ')}`],
+    'the agent is asked to close each one');
+}
+
+module.exports = { LOAD, status, retrospective, spanning, sweep, statusNotice, staleNotice, sweepNotice };

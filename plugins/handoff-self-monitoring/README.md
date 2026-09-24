@@ -106,8 +106,9 @@ rules are:
 - `blocked` needs `Blocked-by`
 - `Situation` and `Next` are required; a template placeholder counts as empty
 
-The lexicon is English, like the sibling plugins'; the question and
-`returned` signals are language-neutral. Write the block as a **markdown
+The lexicon is English and Spanish, like the sibling plugins'; the question
+and `returned` signals are language-neutral, and the block's marker, field
+names and status stay in English whatever language the turn is in. Write the block as a **markdown
 list in the message, not inside a fenced code block** — fences do not wrap,
 and a long `Options` line becomes a horizontal scroll. One option per line;
 `Default` on its own line. The rules check the *form* of the block — that
@@ -175,6 +176,25 @@ them from firing twice.
 - **epistemic-self-monitoring** is the knowing side; this is the
   transmitting side. A `done` in the block carries the same evidence rule as
   a `[verified]` line.
+
+## What the user sees
+
+The hooks speak to the model; without a notice the user sees nothing unless
+the agent writes the block. So when the stop scan finds a close that named a
+decision without a complete `[HANDOFF]` block, the hook also returns one line
+for the user - top-level `systemMessage`, which Claude Code and Codex show in
+the transcript and do not add to the model's context:
+
+```
+[handoff self-monitoring] <the finding> - <what the agent is asked to do>
+```
+
+The load message and the cadence reminders carry no news and stay silent; a
+subagent's close is not the user's and stays silent; in strict mode the block
+speaks through the host's own stderr path instead. Cursor has no user-visible
+field on the events this plugin uses (`sessionStart`, `postToolUse`,
+`afterAgentResponse`, `stop` - `user_message` exists only on permission
+hooks), so nothing shows there. Off with `HANDMON_NOTICE=0`.
 
 ## Debug log (opt-in, off by default)
 

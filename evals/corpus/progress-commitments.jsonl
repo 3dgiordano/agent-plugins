@@ -30,3 +30,22 @@
 {"text": "The user said \"I'll come back to this later\" in the ticket.", "expect": "miss", "why": "quoted, not the agent's"}
 {"text": "Fixed the parser; the tests are green and the README is current.", "expect": "miss", "why": "nothing deferred"}
 {"text": "I came back to the retry path and it now backs off correctly.", "expect": "miss", "why": "past"}
+
+// --- curly and guillemet quotes are citations too ---
+{"text":"The corpus line “I will update the docs once the tests pass” is a hit.","expect":"miss","why":"curly-quoted commitment is a citation"}
+{"text":"The Spanish form «I will run it again after the build» is not detected yet.","expect":"miss","why":"guillemet-quoted commitment is a citation"}
+
+// --- Spanish: first person, deferred, later this session - and the neighbours ---
+{"text":"Voy a actualizar la documentación cuando pasen los tests.","expect":"hit","why":"voy a ... cuando"}
+{"text":"Después de eso, voy a correr la suite completa.","expect":"hit","why":"después de eso, voy a"}
+{"text":"Actualizaré el changelog una vez que se mergee.","expect":"hit","why":"future tense ... una vez que"}
+{"text":"Vuelvo sobre el manejo de errores después del refactor.","expect":"hit","why":"vuelvo sobre"}
+{"text":"Lo anoto para más tarde: el timeout de la cola.","expect":"hit","why":"lo anoto para más tarde"}
+{"text":"Correré los benchmarks al final.","expect":"hit","why":"future tense ... al final"}
+{"text":"Lo hago ahora: agrego el test.","expect":"miss","why":"now"}
+{"text":"Si querés, voy a agregar los reintentos después.","expect":"miss","why":"a conditional offer is handoff's"}
+{"text":"Lo dejo para un PR aparte.","expect":"miss","why":"a deferral out of the delivery is coverage's"}
+{"text":"Actualicé la documentación después de que pasaron los tests.","expect":"miss","why":"past"}
+{"text":"El CI va a correr la suite cuando se mergee.","expect":"miss","why":"another agent's future"}
+{"text":"Esto es lo que voy a hacer: primero el parser, después el cache.","expect":"miss","why":"a plan stated, not a promise to sweep"}
+{"text":"Voy a explicar qué pasa cuando el cache expira.","expect":"miss","why":"narrating this reply, not a deferred act"}

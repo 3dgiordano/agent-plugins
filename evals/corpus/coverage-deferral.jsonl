@@ -67,3 +67,33 @@
 {"text": "Added the parser. Streaming comes in a follow-up PR.\n\n[COVERAGE CHECK]\n- parser — done\n- streaming — blocked - the upstream API has no chunked endpoint (404 from /v2/stream)\n- docs — returned - you said you would write them", "expect": "miss", "why": "an em-dash separator closes the parts just as a colon does"}
 {"text": "Left the migration as a TODO.\n\n[COVERAGE CHECK]\n- schema – done\n- migration – blocked - the staging DB is read-only (permission denied on ALTER)", "expect": "miss", "why": "en-dash separator"}
 {"text": "Streaming comes in a follow-up PR.\n\n[COVERAGE CHECK]\n- parser — done\n- streaming — blocked", "expect": "hit", "why": "em-dash accepted, but `blocked` still requires its observed reason - loosening the separator must not loosen that"}
+
+// --- a phrase in double quotes is cited, not said ---
+{"text":"| Plugin | Detects |\n|---|---|\n| coverage | deferred work in the close (\"follow-up PR\", \"simplified version\") |\n| persistence | counters |","expect":"miss","why":"the deferral phrases are quoted as examples of what the detector reads"}
+{"text":"Wrote the parser. The streaming path comes in a follow-up PR named \"stream-v2\".","expect":"hit","why":"the deferral is outside the quote"}
+
+// --- Spanish: the same deferrals, the same neighbours ---
+{"text":"El parser está hecho; el streaming va en un PR aparte.","expect":"hit","why":"in a separate PR"}
+{"text":"Lo del cache queda para un próximo PR.","expect":"hit","why":"for a next PR"}
+{"text":"Dejé la migración como TODO.","expect":"hit","why":"left as TODO"}
+{"text":"Agregué un TODO para la validación.","expect":"hit","why":"added a TODO"}
+{"text":"La validación todavía no está implementada.","expect":"hit","why":"not yet implemented"}
+{"text":"No implementé el modo offline.","expect":"hit","why":"I did not implement"}
+{"text":"No llegué a conectar los reintentos.","expect":"hit","why":"did not get to"}
+{"text":"Es una versión simplificada del algoritmo.","expect":"hit","why":"simplified version"}
+{"text":"Esto está fuera de alcance.","expect":"hit","why":"out of scope"}
+{"text":"Trabajo pendiente: tests de integración.","expect":"hit","why":"remaining work"}
+{"text":"Todavía falta agregar los tests de Windows.","expect":"hit","why":"still needs"}
+{"text":"El resto se puede agregar más adelante.","expect":"hit","why":"can be added later"}
+{"text":"Requeriría un trabajo aparte para soportar IPv6.","expect":"hit","why":"would need separate work"}
+{"text":"Lo dejo como trabajo futuro.","expect":"hit","why":"as future work"}
+{"text":"El parser está listo.\n\n[COVERAGE CHECK]\n- parser: hecho\n- streaming: bloqueado - falta el token","expect":"hit","why":"status words stay in English: a Spanish-state block has no part lines"}
+{"text":"Todo está implementado y probado.","expect":"miss","why":"nothing deferred"}
+{"text":"Hice los cambios en un commit.","expect":"miss","why":"a commit, not a later one"}
+{"text":"No queda nada pendiente.","expect":"miss","why":"negated"}
+{"text":"No falta nada: los tres puntos están hechos.","expect":"miss","why":"negated"}
+{"text":"La lista de TODOs del README estaba desactualizada; la limpié.","expect":"miss","why":"TODOs as a noun about the README"}
+{"text":"Probé en Windows y en Linux; en macOS lo corre el CI.","expect":"miss","why":"covered by other means"}
+{"text":"La librería exige una versión mínima de Node (18).","expect":"miss","why":"minimum version is a requirement, not a partial delivery"}
+{"text":"Dejé el archivo como estaba.","expect":"miss","why":"left as it was, not as a TODO"}
+{"text":"El streaming va en un PR aparte.\n\n[COVERAGE CHECK]\n- parser: done\n- streaming: returned - el dueño decide si entra en esta versión","expect":"miss","why":"Spanish reasons under English states close the ledger"}

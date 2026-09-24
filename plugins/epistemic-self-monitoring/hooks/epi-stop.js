@@ -6,8 +6,9 @@
  * checks the closure rules (conjecture needs a falsifier, verified needs
  * "Verified by", every block needs a scope). No block = nothing to judge.
  *
- * Default (non-strict): only records the result -- to the opt-in log and to
- * session state, so the next prompt carries a one-line retrospective. This is
+ * Default (non-strict): records the result -- to the opt-in log and to
+ * session state, so the next prompt carries a one-line retrospective -- and
+ * shows the user the finding as a one-line notice (systemMessage). This is
  * the mode to run first: it measures how often closures come out unverified
  * before anyone decides a blocking gate is worth its cost.
  *
@@ -19,11 +20,11 @@
  */
 'use strict';
 
-const { logEvent, strict } = require('../lib/log.js');
+const { logEvent, strict, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const { scan } = require('../lib/scan.js');
 const msg = require('../lib/messages.js');
-const { cwdOf } = require('../lib/host.js');
+const { cwdOf, context } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -54,6 +55,8 @@ function main(raw) {
     st.pending = res.violations;
     state.save(HOST, sid, st);
   }
+  // The finding reaches the user now, the model on the next prompt (lib/host.js).
+  if (res.violations.length && !blocking && !subagent && notices()) process.stdout.write(context('Stop', '', msg.notice(res.violations)));
 
   if (blocking) {
     process.stderr.write(msg.blockReason(res.violations));

@@ -6,7 +6,7 @@
  * follow-up", "left as a TODO", "simplified version", "still needs") and for
  * the [COVERAGE CHECK] block that should close each part. Findings go to the
  * opt-in log and to session state, so the next prompt carries a one-line
- * retrospective. Also logs the turn's stub count for threshold tuning.
+ * retrospective; the user sees them now, as a one-line notice. Also logs the turn's stub count for threshold tuning.
  *
  * There is no strict mode: a wrong "you deferred X" is cheap to ignore on the
  * next prompt and expensive as a blocked stop.
@@ -15,10 +15,11 @@
  */
 'use strict';
 
-const { logEvent } = require('../lib/log.js');
+const { logEvent, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
-const { cwdOf } = require('../lib/host.js');
+const msg = require('../lib/messages.js');
+const { cwdOf, context } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -48,6 +49,8 @@ function main(raw) {
     st.pending = res.violations;
     state.save(HOST, sid, st);
   }
+  // The finding reaches the user now, the model on the next prompt (lib/host.js).
+  if (res.violations.length && !subagent && notices()) process.stdout.write(context('Stop', '', msg.notice(res.violations)));
 }
 
 let buf = '';

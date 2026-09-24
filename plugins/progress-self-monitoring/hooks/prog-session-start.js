@@ -21,7 +21,7 @@
  */
 'use strict';
 
-const { logEvent } = require('../lib/log.js');
+const { logEvent, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const ledger = require('../lib/ledger.js');
 const msg = require('../lib/messages.js');
@@ -44,7 +44,7 @@ function main(raw) {
   state.update(HOST, sid, (st) => { if (speak) st.announced = ins.mtimeMs; });
 
   logEvent(cwd, { event: 'session_start', session: sid, source: data.source || null, exists: ins.exists, open: ins.open, lines: ins.lines, bytes: ins.bytes, bloated: ins.bloated, ageMs: ins.ageMs, emitted: speak });
-  if (speak) process.stdout.write(context('SessionStart', msg.status(ins)));
+  if (speak) process.stdout.write(context('SessionStart', msg.status(ins), notices() && msg.statusNotice(ins)));
 }
 
 let buf = '';
