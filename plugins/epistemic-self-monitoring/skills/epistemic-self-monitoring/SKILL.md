@@ -1,9 +1,21 @@
 ---
 name: epistemic-self-monitoring
-description: "Observation-vs-conjecture discipline for diagnosis and closure. Every claim carries its evidence and a named falsifier; only a verified claim may become a fact, a defect entry or a closure. Not a blocker - a way of writing that keeps what you saw apart from what you think it means. Triggers - debugging, root cause, diagnose, investigate, why does this happen, regression, metric moved, flaky test, 'this is the cause', 'this is a defect', closing an issue, declaring done, verify, confirm."
+description: "Observation-vs-conjecture discipline for diagnosis and closure. Every claim carries its evidence and a named falsifier; only a verified claim may become a fact, a defect entry or a closure. Not a blocker - a way of writing that keeps what you saw apart from what you think it means. Triggers - debugging, root cause, diagnose, investigate, why does this happen, regression, metric moved, flaky test, 'this is the cause', 'this is a defect', closing an issue, declaring done, verify, confirm. Load the epistemic-self-monitoring skill if it is not already loaded."
 ---
 
 # Epistemic Self-Monitoring Skill
+
+## In short
+
+- A cause, a fix, "confirmed", "resolved": state it as fact only when a check
+  ran that would have come out differently if it were wrong. Timing, a
+  correlation, or "it stopped after X" is not that check.
+- Anything short of that is a conjecture. Say so in the same sentence, name the
+  rival explanations you found, and the check that would settle it.
+- This applies to every file you write for someone else - a tracker comment, a
+  CAUSE.md, a changelog, a status note - as much as to your reply. The owner
+  believing it does not verify it.
+- Close with the `[EPISTEMIC CLOSE]` block below.
 
 **Purpose:** Keep what you **observed** apart from what you **think it means**, and
 make the difference visible in what you write. Drift in *goals* is covered by the

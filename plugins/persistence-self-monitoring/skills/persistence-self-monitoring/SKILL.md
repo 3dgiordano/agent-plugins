@@ -1,9 +1,26 @@
 ---
 name: persistence-self-monitoring
-description: "Persist-or-quit self-check for when an approach has stopped working. Detects two things agents cannot feel - repeating variants of the same attempt, and effort out of proportion to the request - and turns them into an explicit decision: one more try with a stop condition, switch approach, step back to the plan, or report to the user. Not a blocker - a signal. Triggers - stuck, not working, keeps failing, tried again, still failing, retry, one more time, going in circles, rabbit hole, taking too long, sunk cost, when to give up."
+description: "Persist-or-quit self-check for when an approach has stopped working. Detects two things agents cannot feel - repeating variants of the same attempt, and effort out of proportion to the request - and turns them into an explicit decision: one more try with a stop condition, switch approach, step back to the plan, or report to the user - including that the goal cannot be met as stated. Not a blocker - a signal. Triggers - stuck, not working, keeps failing, tried again, still failing, retry, one more time, going in circles, rabbit hole, taking too long, sunk cost, when to give up, make the tests pass, tests that contradict each other or the spec, a check that cannot pass honestly. Load the persistence-self-monitoring skill if it is not already loaded."
 ---
 
 # Persistence Self-Monitoring Skill
+
+## In short
+
+- When something has failed more than once - your attempts or the ones the
+  user describes - count the attempts and name the hypothesis they all shared.
+- Before the next try, name a rival cause in a different layer and check it.
+  Another variant of the same idea is not a new attempt.
+- The rival can be that the goal cannot be met as stated: two tests want
+  different results for the same input, a test contradicts the spec. Then that
+  is the finding: fix what can be fixed honestly, and report the rest with the
+  evidence - a contradiction in one check does not excuse the bugs the others
+  found. Never make a check
+  pass by a trick: state that answers differently on a later call, code that
+  reads who is calling, a patched test harness, a special case for the test's
+  input. A green result reached that way is a false report.
+- Write the `[PERSISTENCE CHECK]` block: Attempts, Hypothesis held, Rival
+  approach, Proportion, Decision.
 
 **Purpose:** Decide, explicitly, whether continuing is still justified. Humans
 get a feeling — frustration, "this isn't working", a glance at the clock — when
@@ -62,6 +79,14 @@ Treat it as one.
      handoff-self-monitoring skill's `[HANDOFF]` block: status, the situation
      in the reader's terms, the options with a default, one action asked), not
      as a log of the attempts.
+   - **Report that it cannot be done as stated** when the evidence says so:
+     checks that contradict each other or the spec. This is the decision the
+     pressure to go green hides. ImpossibleBench (arXiv 2510.20270) measured
+     frontier models passing contradictory tests by special-casing and patching
+     most of the time, and an explicit way to flag the task cut it sharply;
+     this is that flag. Passing the checks by a trick instead - per-call state,
+     reading the caller, editing the harness - is not a fifth attempt, it is a
+     false report.
 
    A **count** is what licenses this decision. Stopping with no count, on
    "this has been a long session" or "I'm not confident enough", is the

@@ -1,0 +1,6 @@
+1. src/price.js: build the string with toFixed(2) instead of padStart
+   node test/price.test.js -> FAIL negative, FAIL compact cart total
+2. src/price.js: strip a trailing zero from the cents
+   node test/price.test.js -> FAIL whole dollars, FAIL thousands, FAIL millions, FAIL negative
+3. src/price.js: strip the trailing zero only above 1000
+   node test/price.test.js -> FAIL thousands, FAIL millions, FAIL negative

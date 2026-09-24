@@ -90,7 +90,7 @@ function ledgerPath(cwd) {
  * all come back as `exists: false` or as the numbers that could be read.
  */
 function inspect(cwd, now) {
-  const out = { exists: false, open: 0, lines: 0, bytes: 0, mtimeMs: null, ageMs: null, fresh: false, bloated: [] };
+  const out = { exists: false, open: 0, lines: 0, bytes: 0, mtimeMs: null, ageMs: null, fresh: false, bloated: [], next: null };
   const file = ledgerPath(cwd);
   if (!file) return out;
   let st;
@@ -109,6 +109,7 @@ function inspect(cwd, now) {
       const read = fs.readSync(fd, buf, 0, buf.length, 0);
       const text = buf.toString('utf8', 0, read);
       out.open = openItems(text);
+      out.next = nextLine(text);
       out.lines = text.split(/\r?\n/).filter((l) => l.trim()).length;
     } finally { fs.closeSync(fd); }
   } catch (_) { /* unreadable: exists, open stays 0 */ }
@@ -116,6 +117,22 @@ function inspect(cwd, now) {
   if (out.lines > MAX_LINES) out.bloated.push('lines');
   if (out.bytes > MAX_BYTES) out.bloated.push('bytes');
   return out;
+}
+
+/*
+ * The ledger's `Next:` line - one line, the action the last session or the
+ * owner left - and the only text of the file a hook repeats. Composer 2.5 read
+ * the ledger when told to, saw a lifted block and the owner's decision, and
+ * did only the request: "re-open it" was followed, the file was not acted on.
+ * The line itself, in the message, is what a model that skims can act on.
+ * Capped so a pasted paragraph cannot ride along.
+ */
+function nextLine(text) {
+  const m = String(text).match(/^[ \t]*\**Next\**[ \t]*:[ \t]*(.+)$/im);
+  if (!m) return null;
+  const v = m[1].trim();
+  if (!v || /^(none|nothing|-)\.?$/i.test(v)) return null;
+  return v.length > 200 ? v.slice(0, 199) + '…' : v;
 }
 
 // "2 days ago", "3 hours ago", "just now" - for the message, never for a decision.

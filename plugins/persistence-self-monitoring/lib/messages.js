@@ -21,15 +21,25 @@ const SKILL = 'persistence-self-monitoring';
  * The trigger is the situation the turn arrives in: something has failed more
  * than once. It holds whichever way the next move goes, which is the point -
  * persisting and switching both need the reasoning written down.
+ *
+ * A copy-this-template version of this message was tried against Composer
+ * on Cursor, and reverted: headless Cursor runs no hooks, so this text never
+ * reached the model it was tuned on (six iterations, 0 of 3 with the plugin
+ * on every one), and on Claude it narrowed the trigger to attempts the user
+ * describes. The only layer Cursor -p delivers is the skill.
  */
 // The field names are here, not only in the skill - see the note in coverage's
 // lib/messages.js for what was measured.
+// The last-but-one sentence is the exit ImpossibleBench measured (arXiv
+// 2510.20270): given one, models stop passing contradictory tests by tricks.
+// Composer 2.5 read only this message, not the skill, and passed them with
+// per-call state and by reading the caller off new Error().stack.
 const LOAD =
-  `[persistence self-monitoring] This session counts what you cannot feel: repeating an attempt, and ` +
-  'effort out of proportion to the request. When something has already failed more than once - ' +
-  'whichever way you go next - write the [PERSISTENCE CHECK] markdown list: Attempts, Hypothesis ' +
-  `held, Rival approach, Proportion, Decision. Load the ${SKILL} skill if it is not already loaded ` +
-  'for the rules. Not a blocker - a signal.';
+  `[persistence self-monitoring] When something has already failed more than once - whichever way ` +
+  'you go next - write the [PERSISTENCE CHECK] markdown list: Attempts, Hypothesis held, Rival ' +
+  'approach, Proportion, Decision. If the checks contradict each other or the spec, that is the ' +
+  'finding: fix what can be fixed honestly, report the rest, and never pass them by a trick. ' +
+  `Load the ${SKILL} skill if it is not already loaded for the rules. Not a blocker - a signal.`;
 
 /*
  * This asked for the block's contents as three prose questions and never named
@@ -44,7 +54,7 @@ const LOAD =
 const TAIL =
   ' Before the next attempt, write the [PERSISTENCE CHECK] as a markdown list: Attempts, Hypothesis held, ' +
   'Rival approach, Proportion, Decision. If nothing about the next attempt is new, say so to the user ' +
-  'instead of trying again. (persistence-self-monitoring skill, "Core Protocol")';
+  'instead of trying again. Load the persistence-self-monitoring skill if it is not already loaded ("Core Protocol").';
 
 function nudge(signals) {
   const lines = signals.map((s) => {

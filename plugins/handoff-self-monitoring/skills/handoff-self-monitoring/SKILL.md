@@ -1,9 +1,21 @@
 ---
 name: handoff-self-monitoring
-description: "Structured-handoff discipline for the final message of a turn. An agent that knows the state, the problem and the open decision writes its close in the register of its own trace - paths, identifiers, what it ran - and the reader, who has only the message, cannot tell what to decide or what to do next. This skill anchors the close to a [HANDOFF] block modelled on the SBAR and I-PASS handoff protocols: status first, the situation in the reader's terms, the fork as options with a default, one action asked of the reader. Not a blocker - a format. Triggers - offer to the reader, unnamed fork, closing question, reader cannot act, final message, closing the turn, wrapping up, summary, next steps, let me know, if you want, would you like me to, should I, up to you, your call, depends on, alternatively, two options, trade-off, what do you think, returned to the owner, handoff, report back."
+description: "Structured-handoff discipline for the final message of a turn. An agent that knows the state, the problem and the open decision writes its close in the register of its own trace - paths, identifiers, what it ran - and the reader, who has only the message, cannot tell what to decide or what to do next. This skill anchors the close to a [HANDOFF] block modelled on the SBAR and I-PASS handoff protocols: status first, the situation in the reader's terms, the fork as options with a default, one action asked of the reader. Not a blocker - a format. Triggers - offer to the reader, unnamed fork, closing question, reader cannot act, final message, closing the turn, wrapping up, summary, next steps, let me know, if you want, would you like me to, should I, up to you, your call, depends on, alternatively, two options, trade-off, what do you think, returned to the owner, handoff, report back. Load the handoff-self-monitoring skill if it is not already loaded."
 ---
 
 # Handoff Self-Monitoring Skill
+
+## In short
+
+- Whatever the reader will act on - your final message, or a file written for
+  someone who will not see this chat - opens with a status: done,
+  needs-decision or blocked.
+- A choice is written as a decision: the options, and a Default on its own
+  line, even when a fact is still unknown - the default is what to do if it
+  stays unknown. No "let me know", no "it depends" left for the reader.
+- End with one action for the reader.
+- In the reply, write the `[HANDOFF]` block: Status, Situation, Options with
+  Default, Next.
 
 **Purpose:** Make sure that when a turn ends, the reader can act on the
 message — see where the work stands, see what has to be decided, see what to

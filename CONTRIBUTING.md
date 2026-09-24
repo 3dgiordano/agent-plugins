@@ -128,7 +128,7 @@ or to a message.
 | detector quality | `node scripts/corpus.js --check` | does each detector still catch what it exists to catch, without firing on what it must leave alone? |
 | host parity | `node scripts/hosts.js --check` | does every declared adapter survive its host's payload, and is every Claude-Code/Cursor asymmetry a decision someone wrote down? |
 | behaviour (Claude Code) | `claude plugin eval plugins/<name> --ablation with-without` | does the plugin actually change what the model does — measured against a no-plugin baseline arm? |
-| behaviour (Cursor) | `node scripts/cursor-eval.js --probe`, then `… --isolate` | the same question through the Cursor Agent CLI — **skill layer only**, see below |
+| behaviour (Cursor) | `node scripts/cursor-eval.js --probe`, then `… --isolate --model <id>` | the same question through the Cursor Agent CLI — skill, `sessionStart` and `postToolUse`; not the response scan or the stop gate, see below |
 | behaviour (Codex) | `node scripts/codex-eval.js --probe`, then `… <plugin>` | the same question through `codex exec` — hooks AND skill, like the Claude Code arm, see below |
 
 **Neither behaviour layer runs in CI, and that is enforced rather than assumed.**
@@ -203,15 +203,25 @@ measured before it was written, and both limit what it may claim:
 - `--plugin-dir <path>` **does** load a local plugin's skills — verified with a
   synthetic plugin holding a uniquely named skill that the agent then listed.
   So the WITH arm is real.
-- The headless CLI **does not run hooks**. A probe hook wired at the project
-  level (`.cursor/hooks.json` → `sessionStart`) never fired under `-p`, so this
-  is not a `--plugin-dir` limitation: `hooks.json` is not executed in that mode.
+- Headless `-p` **runs hooks, depending on how it was started**. Measured on
+  `2026.09.18-9a7762b` (Windows), from PowerShell or cmd: `sessionStart`,
+  `preToolUse`, `postToolUse`, `beforeReadFile` and `sessionEnd` fire, from
+  `--plugin-dir` (the plugins' relative `node ./cursor/…` commands work) and
+  from a project `.cursor/hooks.json`, and the `additional_context` of
+  `sessionStart` and `postToolUse` reaches the model. `afterAgentResponse` and
+  `stop` do not fire. `afterAgentThought` fires and ends the turn in an error;
+  no plugin wires it.
+- **From a process tree under Git Bash no hook fires, and nothing says so.** It
+  held with `SHELL`, `MSYSTEM`, `PATH` and the whole environment reset, so it
+  is the ancestry, not a variable. An earlier revision of this section measured
+  only from Git Bash and concluded "no hooks".
 
-The second one is the important one. On Cursor these plugins deliver their nudge
-from hooks, so through the CLI a plugin reduces to its **skill**. That makes
-`cursor-eval.js` an honest eval of the skill layer and not of the wiring, and it
-says so in its own output. It also says nothing about Cursor the IDE, which may
-well run hooks — the finding is about the headless CLI only.
+The second one is the important one. A WITH arm may or may not have had the
+hooks, so every Cursor run loads a witness plugin in both arms
+(`evallib.js` `hookWitness`) and prints how many runs had hooks, per arm; a
+WITH arm with none is the skill alone and is flagged. `node
+scripts/cursor-eval.js --probe-hooks --model <id>` measures the whole split in
+one model call. None of this says anything about Cursor the IDE.
 
 The hook adapters are covered deterministically instead: `scripts/test.js` and
 `scripts/hosts.js` drive all of them with Cursor-shaped payloads, which is what

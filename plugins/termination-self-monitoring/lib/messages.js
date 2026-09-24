@@ -6,7 +6,7 @@ const SKILL = 'termination-self-monitoring';
 // Declared before LOAD, which names them: the scanner matches on these tokens,
 // so they are the part of the protocol a message cannot delegate to the skill.
 const REASONS = 'gate-not-run | owner-choice | budget-spent | limit-observed | none';
-const PROTOCOL = `(${SKILL} skill, "Core Protocol")`;
+const PROTOCOL = `Load the ${SKILL} skill if it is not already loaded ("Core Protocol").`;
 
 // A pointer, not a paraphrase - see the note in coverage's messages.js.
 // The field names are here, not only in the skill - see the note in coverage's

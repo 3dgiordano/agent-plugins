@@ -4,7 +4,7 @@
 const { LEDGER, MAX_OPEN_ITEMS, MAX_LINES, MAX_BYTES, ageText } = require('./ledger.js');
 
 const SKILL = 'progress-self-monitoring';
-const PROTOCOL = `(${SKILL} skill, "Core Protocol")`;
+const PROTOCOL = `Load the ${SKILL} skill if it is not already loaded ("Core Protocol").`;
 
 /*
  * The load message names the ledger's shape - the file, its sections, the two
@@ -23,14 +23,19 @@ const LOAD =
   'when it has open items, re-open it before substantive work. ' +
   `Load the ${SKILL} skill if it is not already loaded for the rules. Not a blocker.`;
 
-// What a session opens on when the ledger has something in it. Counts and the
-// path only: the file's text never travels through a hook.
+// What a session opens on when the ledger has something in it. Counts, the
+// path, and the Next line (see ledger.js nextLine); no other text of the file.
+// "Carry each item into this session or close it" read, on Composer 2.5, as
+// "leave each item as it is": the run opened the ledger, saw the block lifted
+// and the owner's decision, and added only the field it was asked for. The
+// sentence now says which items are work and which stay.
 function status(ins) {
   const n = ins.open;
   return `[progress self-monitoring] \`${LEDGER}\` has ${n} open item${n === 1 ? '' : 's'}, updated ` +
     `${ageText(ins.ageMs)}. Re-open it before substantive work: it is the record of what the last ` +
-    'session left blocked or returned. Carry each item into this session or close it, and keep ' +
-    `Updated and Next current.${bloat(ins)} ${PROTOCOL}`;
+    `session left blocked or returned.${ins.next ? ` Its Next line: "${ins.next}"` : ''} What Next names is work ` +
+    'for this session, alongside the request: an item whose block has lifted, do it and remove it; one still ' +
+    `blocked or returned stays as it is. Keep Updated and Next current.${bloat(ins)} ${PROTOCOL}`;
 }
 
 /*

@@ -1,0 +1,10 @@
+{
+  "name": "svc",
+  "private": true,
+  "scripts": {
+    "test": "node test.js"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}

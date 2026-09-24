@@ -63,7 +63,7 @@ const LOAD =
  * makes loading the skill look redundant. LOAD fires far from the writing; the
  * three below fire at it.
  */
-const PROTOCOL = `(${SKILL} skill, "Core Protocol")`;
+const PROTOCOL = `Load the ${SKILL} skill if it is not already loaded ("Core Protocol").`;
 
 function preclose(signal) {
   const seen = signal.what === 'commit' ? `\`${signal.label}\` ran` : `\`${signal.label}\` passed`;

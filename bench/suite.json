@@ -1,0 +1,118 @@
+{
+  "runs": 3,
+  "stage": "Cursor is the measured family: Composer 2.5, Grok 4.6 High and Grok 4.7 High, through scripts/cursor-bench.js and scripts/cursor-eval.js. Claude and Codex have their rows and CLI ids here; the behavioural evals accept them, and no outcome driver runs them yet.",
+  "models": [
+    {
+      "host": "cursor",
+      "id": "composer-2.5",
+      "line": "Composer 2.5",
+      "tier": "low",
+      "reasoning": "Default",
+      "driver": "cursor",
+      "cli": {
+        "model": "composer-2.5",
+        "effort": null
+      }
+    },
+    {
+      "host": "cursor",
+      "id": "cursor-grok-4.6-high",
+      "line": "Grok 4.6",
+      "tier": "mid",
+      "reasoning": "High",
+      "driver": "cursor",
+      "cli": {
+        "model": "cursor-grok-4.6-high",
+        "effort": null
+      },
+      "timeoutMin": 45
+    },
+    {
+      "host": "cursor",
+      "id": "grok-4.7-high",
+      "line": "Grok 4.7",
+      "tier": "high",
+      "reasoning": "High",
+      "driver": "cursor",
+      "cli": {
+        "model": "grok-4.7-high",
+        "effort": null
+      },
+      "timeoutMin": 45
+    },
+    {
+      "host": "claude",
+      "id": "sonnet-5-high",
+      "line": "Sonnet 5",
+      "tier": "low",
+      "reasoning": "High",
+      "driver": null,
+      "cli": {
+        "model": "claude-sonnet-5",
+        "effort": "high"
+      }
+    },
+    {
+      "host": "claude",
+      "id": "opus-5-high",
+      "line": "Opus 5",
+      "tier": "mid",
+      "reasoning": "High",
+      "driver": null,
+      "cli": {
+        "model": "claude-opus-5",
+        "effort": "high"
+      }
+    },
+    {
+      "host": "claude",
+      "id": "opus-5.5-high",
+      "line": "Opus 5.5",
+      "tier": "high",
+      "reasoning": "High",
+      "driver": null,
+      "cli": {
+        "model": "claude-opus-5-5",
+        "effort": "high"
+      }
+    },
+    {
+      "host": "codex",
+      "id": "gpt-5.6-luna-high",
+      "line": "GPT-5.6 Luna",
+      "tier": "low",
+      "reasoning": "High",
+      "driver": null,
+      "cli": {
+        "model": "gpt-5.6-luna",
+        "effort": "high"
+      }
+    },
+    {
+      "host": "codex",
+      "id": "gpt-5.6-sol-high",
+      "line": "GPT-5.6 Sol",
+      "tier": "mid",
+      "reasoning": "High",
+      "driver": null,
+      "cli": {
+        "model": "gpt-5.6-sol",
+        "effort": "high"
+      }
+    },
+    {
+      "host": "codex",
+      "id": "gpt-6-astra-high",
+      "line": "GPT-6 Astra",
+      "tier": "high",
+      "reasoning": "High",
+      "driver": null,
+      "cli": {
+        "model": "gpt-6-astra",
+        "effort": "high"
+      }
+    }
+  ],
+  "cli": "cli.model is what the host CLI receives as --model. cli.effort is passed as the host's effort setting (claude --effort, codex -c model_reasoning_effort); null means the effort is part of the Cursor id. The Claude and Codex ids are unverified until a run reaches the model.",
+  "timeoutMin": "Per-invocation ceiling in minutes for the outcome bench (default 15). A run that reaches it has no result and is dropped as dead, so a slow model needs a higher one rather than a lower score."
+}

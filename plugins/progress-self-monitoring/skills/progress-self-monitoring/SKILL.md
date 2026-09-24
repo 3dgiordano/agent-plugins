@@ -1,9 +1,20 @@
 ---
 name: progress-self-monitoring
-description: "Cross-session ledger discipline for work that outlives the session. A session boundary - a new chat, a resume that did not resume, a compaction - drops what the agent was holding: which parts are still blocked or returned and why, and what the next action was. The next session then re-does finished work, reopens a returned path, or declares done on a part nobody closed. This skill anchors that residue to one file in the project, .agent/progress.md, written by the agent and re-opened before substantive work. Not a blocker - a ledger on disk. Triggers - new session, resume, pick up where we left off, continue, where were we, what was I doing, previous session, last time, context lost, after compaction, unfinished work, leftover, still blocked, returned to the owner, next session, progress ledger, .agent/progress.md."
+description: "Cross-session ledger discipline for work that outlives the session. A session boundary - a new chat, a resume that did not resume, a compaction - drops what the agent was holding: which parts are still blocked or returned and why, and what the next action was. The next session then re-does finished work, reopens a returned path, or declares done on a part nobody closed. This skill anchors that residue to one file in the project, .agent/progress.md, written by the agent and re-opened before substantive work. Not a blocker - a ledger on disk. Triggers - new session, resume, pick up where we left off, continue, where were we, what was I doing, previous session, last time, context lost, after compaction, unfinished work, leftover, still blocked, returned to the owner, next session, progress ledger, .agent/progress.md. Load the progress-self-monitoring skill if it is not already loaded."
 ---
 
 # Progress Self-Monitoring Skill
+
+## In short
+
+- If `.agent/progress.md` exists, read it before other work.
+- An item whose block has lifted - the owner decided, the dependency arrived -
+  is work for this session, even when the request did not mention it: do it,
+  then remove the item.
+- An item still blocked, or returned and not yet answered by the owner, stays
+  as it is: do not act on it and do not close it.
+- Before you finish, update `Updated` and `Next`, and add anything this turn
+  leaves blocked or returned.
 
 **Purpose:** Make sure the work a session leaves open reaches the next
 session as a checkable record — what is still **blocked** and why, what was

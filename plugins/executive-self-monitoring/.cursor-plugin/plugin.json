@@ -1,7 +1,7 @@
 {
   "name": "executive-self-monitoring",
   "displayName": "Executive Self-Monitoring",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Plan-anchored drift self-check for coding agents. Bundles the executive-self-monitoring skill (the 'what': re-ground in the active plan/gate before substantive work) with a per-host cadence hook (the 'when'). Not a blocker - a periodic nudge to avoid investing effort outside the plan. Cursor: fires once per session at sessionStart.",
   "author": {
     "name": "David Giordano"

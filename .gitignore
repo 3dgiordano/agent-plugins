@@ -9,6 +9,19 @@ Thumbs.db
 # eval run artifacts (claude plugin eval writes here)
 evals/results/
 plugins/*/evals/results/
+# outcome bench runs and rendered reports (bench/README.md): local, not versioned
+bench/results/
+bench/report-*/
 
 # The progress ledger (progress-self-monitoring): per-checkout residue, not shared history
 .agent/progress.md
+
+# bench cases seed a node_modules on purpose (persistence: a stale installed copy)
+!bench/*/*/files/node_modules/
+!bench/*/*/fixtures/*/node_modules/
+
+# scratch directories the eval runners created in the temp dir (scripts/evallib.js)
+.scratch-dirs
+
+# editor settings (local)
+.vscode/settings.json

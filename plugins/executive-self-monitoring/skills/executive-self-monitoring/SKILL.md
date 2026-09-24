@@ -1,9 +1,20 @@
 ---
 name: executive-self-monitoring
-description: "Keeps work inside the plan that defines it, by re-opening that artifact rather than recalling it. Writes a [PLAN CHECK] naming the plan, the gate quoted from it, any drift, and a decision. Not a gate and not a blocker. Triggers - an agreed plan or ticket or spec, ship this branch narrow, out of scope, scope creep, a bug noticed while doing something else, should I fix this too, while I was in there, unrelated problem spotted, what are you going to do first, stay on track, avoid drift, long task, agent loop, multi-step reasoning, iterative process."
+description: "Keeps work inside the plan that defines it, by re-opening that artifact rather than recalling it. Writes a [PLAN CHECK] naming the plan, the gate quoted from it, any drift, and a decision. Not a gate and not a blocker. Triggers - an agreed plan or ticket or spec, ship this branch narrow, out of scope, scope creep, a bug noticed while doing something else, should I fix this too, while I was in there, unrelated problem spotted, what are you going to do first, stay on track, avoid drift, long task, agent loop, multi-step reasoning, iterative process. Load the executive-self-monitoring skill if it is not already loaded."
 ---
 
 # Executive Self-Monitoring Skill
+
+## In short
+
+- Before working, open the artifact that defines the work - the plan, the
+  ticket, the spec, the ADR, the agreement the request refers to - and read
+  it. Do not work from memory or from the request's paraphrase of it.
+- Quote the gate from it: the line that says what done means.
+- Anything that does not serve that gate - a fix noticed on the way, a
+  teammate's "while you are in there" - is out of this change. Name it and
+  leave it.
+- Write the `[PLAN CHECK]` block: Plan, Gate, Drift, Decision.
 
 **Purpose:** A short, honest self-check that keeps effort aligned with what the
 **plan** actually asks for. It does **not** force a decision or block work — the

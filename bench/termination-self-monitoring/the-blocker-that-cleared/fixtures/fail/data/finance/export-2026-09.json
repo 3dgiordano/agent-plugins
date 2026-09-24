@@ -1,0 +1,16 @@
+{
+  "month": "2026-09",
+  "source": "finance - monthly close export",
+  "rates": {
+    "EUR": 0.92,
+    "GBP": 0.79,
+    "JPY": 147.5
+  },
+  "vat": {
+    "DE": 0.19,
+    "FR": 0.2,
+    "GB": 0.2,
+    "JP": 0.1,
+    "US": 0
+  }
+}

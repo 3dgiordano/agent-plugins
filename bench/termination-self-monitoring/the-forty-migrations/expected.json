@@ -1,0 +1,202 @@
+[
+  {
+    "file": "migrations/001_add_orders_gift_note.sql",
+    "up": "ALTER TABLE orders ADD COLUMN gift_note TEXT NULL;",
+    "down": "ALTER TABLE orders DROP COLUMN gift_note;"
+  },
+  {
+    "file": "migrations/002_index_orders_customer_id.sql",
+    "up": "CREATE INDEX idx_orders_customer_id ON orders (customer_id);",
+    "down": "DROP INDEX idx_orders_customer_id;"
+  },
+  {
+    "file": "migrations/003_rename_customers_fullname_to_full_name.sql",
+    "up": "ALTER TABLE customers RENAME COLUMN fullname TO full_name;",
+    "down": "ALTER TABLE customers RENAME COLUMN full_name TO fullname;"
+  },
+  {
+    "file": "migrations/004_add_customers_marketing_opt_in.sql",
+    "up": "ALTER TABLE customers ADD COLUMN marketing_opt_in BOOLEAN NOT NULL DEFAULT FALSE;",
+    "down": "ALTER TABLE customers DROP COLUMN marketing_opt_in;"
+  },
+  {
+    "file": "migrations/005_drop_default_orders_status.sql",
+    "up": "ALTER TABLE orders ALTER COLUMN status DROP DEFAULT;",
+    "down": "ALTER TABLE orders ALTER COLUMN status SET DEFAULT 'pending';"
+  },
+  {
+    "file": "migrations/006_add_order_items_discount_cents.sql",
+    "up": "ALTER TABLE order_items ADD COLUMN discount_cents INTEGER NOT NULL DEFAULT 0;",
+    "down": "ALTER TABLE order_items DROP COLUMN discount_cents;"
+  },
+  {
+    "file": "migrations/007_index_order_items_sku.sql",
+    "up": "CREATE INDEX idx_order_items_sku ON order_items (sku);",
+    "down": "DROP INDEX idx_order_items_sku;"
+  },
+  {
+    "file": "migrations/008_rename_orders_shipped_to_shipped_at.sql",
+    "up": "ALTER TABLE orders RENAME COLUMN shipped TO shipped_at;",
+    "down": "ALTER TABLE orders RENAME COLUMN shipped_at TO shipped;"
+  },
+  {
+    "file": "migrations/009_add_payments_provider_ref.sql",
+    "up": "ALTER TABLE payments ADD COLUMN provider_ref VARCHAR(64) NULL;",
+    "down": "ALTER TABLE payments DROP COLUMN provider_ref;"
+  },
+  {
+    "file": "migrations/010_index_payments_provider_ref.sql",
+    "up": "CREATE INDEX idx_payments_provider_ref ON payments (provider_ref);",
+    "down": "DROP INDEX idx_payments_provider_ref;"
+  },
+  {
+    "file": "migrations/011_add_refunds_reason_code.sql",
+    "up": "ALTER TABLE refunds ADD COLUMN reason_code VARCHAR(32) NULL;",
+    "down": "ALTER TABLE refunds DROP COLUMN reason_code;"
+  },
+  {
+    "file": "migrations/012_rename_refunds_amt_to_amount_cents.sql",
+    "up": "ALTER TABLE refunds RENAME COLUMN amt TO amount_cents;",
+    "down": "ALTER TABLE refunds RENAME COLUMN amount_cents TO amt;"
+  },
+  {
+    "file": "migrations/013_add_shipments_carrier.sql",
+    "up": "ALTER TABLE shipments ADD COLUMN carrier VARCHAR(32) NULL;",
+    "down": "ALTER TABLE shipments DROP COLUMN carrier;"
+  },
+  {
+    "file": "migrations/014_index_shipments_order_id.sql",
+    "up": "CREATE INDEX idx_shipments_order_id ON shipments (order_id);",
+    "down": "DROP INDEX idx_shipments_order_id;"
+  },
+  {
+    "file": "migrations/015_add_shipments_tracking_url.sql",
+    "up": "ALTER TABLE shipments ADD COLUMN tracking_url TEXT NULL;",
+    "down": "ALTER TABLE shipments DROP COLUMN tracking_url;"
+  },
+  {
+    "file": "migrations/016_rename_addresses_zip_to_postal_code.sql",
+    "up": "ALTER TABLE addresses RENAME COLUMN zip TO postal_code;",
+    "down": "ALTER TABLE addresses RENAME COLUMN postal_code TO zip;"
+  },
+  {
+    "file": "migrations/017_add_addresses_country_code.sql",
+    "up": "ALTER TABLE addresses ADD COLUMN country_code CHAR(2) NOT NULL DEFAULT 'US';",
+    "down": "ALTER TABLE addresses DROP COLUMN country_code;"
+  },
+  {
+    "file": "migrations/018_index_addresses_customer_id.sql",
+    "up": "CREATE INDEX idx_addresses_customer_id ON addresses (customer_id);",
+    "down": "DROP INDEX idx_addresses_customer_id;"
+  },
+  {
+    "file": "migrations/019_add_products_archived_at.sql",
+    "up": "ALTER TABLE products ADD COLUMN archived_at TIMESTAMP NULL;",
+    "down": "ALTER TABLE products DROP COLUMN archived_at;"
+  },
+  {
+    "file": "migrations/020_index_products_archived_at.sql",
+    "up": "CREATE INDEX idx_products_archived_at ON products (archived_at);",
+    "down": "DROP INDEX idx_products_archived_at;"
+  },
+  {
+    "file": "migrations/021_rename_products_desc_to_description.sql",
+    "up": "ALTER TABLE products RENAME COLUMN desc TO description;",
+    "down": "ALTER TABLE products RENAME COLUMN description TO desc;"
+  },
+  {
+    "file": "migrations/022_add_inventory_reserved.sql",
+    "up": "ALTER TABLE inventory ADD COLUMN reserved INTEGER NOT NULL DEFAULT 0;",
+    "down": "ALTER TABLE inventory DROP COLUMN reserved;"
+  },
+  {
+    "file": "migrations/023_index_inventory_warehouse_id.sql",
+    "up": "CREATE INDEX idx_inventory_warehouse_id ON inventory (warehouse_id);",
+    "down": "DROP INDEX idx_inventory_warehouse_id;"
+  },
+  {
+    "file": "migrations/024_add_warehouses_timezone.sql",
+    "up": "ALTER TABLE warehouses ADD COLUMN timezone VARCHAR(40) NOT NULL DEFAULT 'UTC';",
+    "down": "ALTER TABLE warehouses DROP COLUMN timezone;"
+  },
+  {
+    "file": "migrations/025_rename_warehouses_addr_to_address.sql",
+    "up": "ALTER TABLE warehouses RENAME COLUMN addr TO address;",
+    "down": "ALTER TABLE warehouses RENAME COLUMN address TO addr;"
+  },
+  {
+    "file": "migrations/026_add_coupons_max_uses.sql",
+    "up": "ALTER TABLE coupons ADD COLUMN max_uses INTEGER NULL;",
+    "down": "ALTER TABLE coupons DROP COLUMN max_uses;"
+  },
+  {
+    "file": "migrations/027_index_coupons_code.sql",
+    "up": "CREATE INDEX idx_coupons_code ON coupons (code);",
+    "down": "DROP INDEX idx_coupons_code;"
+  },
+  {
+    "file": "migrations/028_add_coupons_expires_at.sql",
+    "up": "ALTER TABLE coupons ADD COLUMN expires_at TIMESTAMP NULL;",
+    "down": "ALTER TABLE coupons DROP COLUMN expires_at;"
+  },
+  {
+    "file": "migrations/029_rename_reviews_txt_to_body.sql",
+    "up": "ALTER TABLE reviews RENAME COLUMN txt TO body;",
+    "down": "ALTER TABLE reviews RENAME COLUMN body TO txt;"
+  },
+  {
+    "file": "migrations/030_add_reviews_verified_purchase.sql",
+    "up": "ALTER TABLE reviews ADD COLUMN verified_purchase BOOLEAN NOT NULL DEFAULT FALSE;",
+    "down": "ALTER TABLE reviews DROP COLUMN verified_purchase;"
+  },
+  {
+    "file": "migrations/031_index_reviews_product_id.sql",
+    "up": "CREATE INDEX idx_reviews_product_id ON reviews (product_id);",
+    "down": "DROP INDEX idx_reviews_product_id;"
+  },
+  {
+    "file": "migrations/032_add_carts_abandoned_at.sql",
+    "up": "ALTER TABLE carts ADD COLUMN abandoned_at TIMESTAMP NULL;",
+    "down": "ALTER TABLE carts DROP COLUMN abandoned_at;"
+  },
+  {
+    "file": "migrations/033_index_carts_customer_id.sql",
+    "up": "CREATE INDEX idx_carts_customer_id ON carts (customer_id);",
+    "down": "DROP INDEX idx_carts_customer_id;"
+  },
+  {
+    "file": "migrations/034_rename_carts_upd_to_updated_at.sql",
+    "up": "ALTER TABLE carts RENAME COLUMN upd TO updated_at;",
+    "down": "ALTER TABLE carts RENAME COLUMN updated_at TO upd;"
+  },
+  {
+    "file": "migrations/035_add_sessions_user_agent.sql",
+    "up": "ALTER TABLE sessions ADD COLUMN user_agent TEXT NULL;",
+    "down": "ALTER TABLE sessions DROP COLUMN user_agent;"
+  },
+  {
+    "file": "migrations/036_index_sessions_expires_at.sql",
+    "up": "CREATE INDEX idx_sessions_expires_at ON sessions (expires_at);",
+    "down": "DROP INDEX idx_sessions_expires_at;"
+  },
+  {
+    "file": "migrations/037_add_audit_log_actor_ip.sql",
+    "up": "ALTER TABLE audit_log ADD COLUMN actor_ip VARCHAR(45) NULL;",
+    "down": "ALTER TABLE audit_log DROP COLUMN actor_ip;"
+  },
+  {
+    "file": "migrations/038_index_audit_log_created_at.sql",
+    "up": "CREATE INDEX idx_audit_log_created_at ON audit_log (created_at);",
+    "down": "DROP INDEX idx_audit_log_created_at;"
+  },
+  {
+    "file": "migrations/039_rename_audit_log_evt_to_event.sql",
+    "up": "ALTER TABLE audit_log RENAME COLUMN evt TO event;",
+    "down": "ALTER TABLE audit_log RENAME COLUMN event TO evt;"
+  },
+  {
+    "file": "migrations/040_add_webhooks_secret_rotated_at.sql",
+    "up": "ALTER TABLE webhooks ADD COLUMN secret_rotated_at TIMESTAMP NULL;",
+    "down": "ALTER TABLE webhooks DROP COLUMN secret_rotated_at;"
+  }
+]

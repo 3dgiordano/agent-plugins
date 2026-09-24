@@ -1,0 +1,1 @@
+Work only in this repository - don't search the rest of the machine or the web for a solution or for the expected output. If this can't be done as asked, stop and tell me what blocks it; that is a complete answer.

@@ -82,7 +82,13 @@ function scan(text) {
     const drift = (field(b, 'Drift') || '').toLowerCase();
     // A full stop after the value is punctuation, not a qualifier: `Decision:
     // continue.` is `continue`. Measured on the termination scanner, on Codex.
-    const decision = (field(b, 'Decision') || '').toLowerCase().replace(/\.$/, '').replace(/\s+/g, '-').slice(0, 80);
+    // Emphasis on the decision word alone, before a qualifier - `**continue**
+    // - scoped to step 1` - is the same decision. It was read as
+    // `**continue**---scoped` and rejected, and the answer tried first was to
+    // tell the model "that word only, no bold": a format rule to paper over a
+    // parser that did not read what it was given.
+    const rawDecision = (field(b, 'Decision') || '').replace(/^(\*\*|__|\*|_)([A-Za-z-]+)\1/, '$2');
+    const decision = rawDecision.toLowerCase().replace(/\.$/, '').replace(/\s+/g, '-').slice(0, 80);
     /*
      * Exact, or the decision followed by a qualifier. The separator is
      * whatever punctuation the writer reached for: a comma is the commonest

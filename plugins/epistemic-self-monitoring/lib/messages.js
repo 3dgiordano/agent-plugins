@@ -12,7 +12,7 @@ const LOAD =
   'Status (observed | conjecture | verified), Evidence, Falsifier, Verified by, Scope. Load the ' +
   `${SKILL} skill if it is not already loaded for the rules. Not a blocker - a way of writing.`;
 
-const PROTOCOL = `(${SKILL} skill, "Core Protocol")`;
+const PROTOCOL = `Load the ${SKILL} skill if it is not already loaded ("Core Protocol").`;
 
 /*
  * The most frequent message in the collection - every sixth shell command, and

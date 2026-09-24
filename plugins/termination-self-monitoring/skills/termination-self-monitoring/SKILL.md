@@ -1,9 +1,20 @@
 ---
 name: termination-self-monitoring
-description: "Checkable-reason discipline for stopping, deferring, narrowing or softening. A model inherits from its training data human-shaped reasons to stop - fatigue, a clock, a context budget, confidence as a feeling, difficulty as a mood, a run of apologies - that describe nothing it has. Each one is replaced by a checkable reason (gate not run, owner's choice, budget spent, limit observed) or dropped, and the work continues. Not a blocker - a substitution rule. Triggers - stop without a checkable reason, persona artifact, feeling as a reason to stop, running out of context, long session, pick this up later, follow-up session, not confident enough, given the complexity, too complex for now, out of scope for this turn, I apologize, I should have, wrapping up, stopping here, ending the turn, deferring."
+description: "Checkable-reason discipline for stopping, deferring, narrowing or softening. A model inherits from its training data human-shaped reasons to stop - fatigue, a clock, a context budget, confidence as a feeling, difficulty as a mood, a run of apologies - that describe nothing it has. Each one is replaced by a checkable reason (gate not run, owner's choice, budget spent, limit observed) or dropped, and the work continues. Not a blocker - a substitution rule. Triggers - stop without a checkable reason, persona artifact, feeling as a reason to stop, running out of context, long session, pick this up later, follow-up session, not confident enough, given the complexity, too complex for now, out of scope for this turn, I apologize, I should have, wrapping up, stopping here, ending the turn, deferring. Load the termination-self-monitoring skill if it is not already loaded."
 ---
 
 # Termination Self-Monitoring Skill
+
+## In short
+
+- You have no fatigue, no clock and no context budget to manage: the harness
+  compacts. "Running out of context", "the session is long", "given the
+  complexity" are not reasons to stop.
+- Stop or defer only for a checkable reason: a gate not run, the owner's
+  choice, a budget someone set and you can count, a limit you observed.
+- With no such reason, continue the work.
+- When you do stop, write the `[TERMINATION CHECK]` block: Trigger, Reason,
+  Evidence, Decision.
 
 **Purpose:** Make sure that when you stop, defer, narrow a task or soften a
 claim, the reason you give is one that can be checked. The

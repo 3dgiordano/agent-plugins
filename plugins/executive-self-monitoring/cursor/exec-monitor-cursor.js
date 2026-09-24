@@ -10,8 +10,12 @@
  * every-Nth-turn cadence is intentionally not reproduced (it can't be done
  * without blocking).
  *
- * The protocol itself lives in the shared skill (skills/executive-self-monitoring),
- * which Cursor loads directly from the plugin -- this hook only points at it.
+ * The protocol lives in the shared skill. A pointer alone was measured not to
+ * load it (the skill opened 0 times in 28 Claude runs while the discipline
+ * happened in prose). This message therefore names the block the scanner
+ * reads, and asks for the skill only for the rules behind those fields.
+ * It fires once per session, before the prompt is known, so a trivial turn
+ * is told to skip it.
  *
  * Output: JSON on stdout with `additional_context` added to the session context.
  * Optional DEBUG-ONLY audit (env EXECMON_LOG): logs a session_start event via the
@@ -27,11 +31,11 @@ const { logEvent } = require('../lib/execlog.js');
 const { cwdOf } = require('../lib/host.js');
 
 const MSG =
-  '[executive self-monitoring] For long or iterative work, periodically re-ground: ' +
-  'name the active plan/gate and confirm your current step serves it. If you cannot ' +
-  'name it, or you are chasing a number/optimization the plan did not ask for, ' +
-  're-read the plan before continuing. Use the executive-self-monitoring skill for ' +
-  'the full protocol. This is a self-check, not a blocker - the plan defines the work.';
+  '[executive self-monitoring] For long or iterative work, re-open the artifact that defines ' +
+  'it and write the [PLAN CHECK] markdown list: Plan (the artifact, named), Gate (quoted from ' +
+  'it), Drift (none, or what pulls away), Decision (continue | refocus | revise-plan). Load the ' +
+  'executive-self-monitoring skill if it is not already loaded for the rules behind them. Skip ' +
+  'this when the turn is trivial. Not a blocker - the plan defines the work.';
 
 const workspace = cwdOf({});
 

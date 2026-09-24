@@ -1,0 +1,509 @@
+{
+  "createCustomer": [
+    [
+      {
+        "name": "Ana",
+        "email": "a@x.io"
+      },
+      []
+    ],
+    [
+      {
+        "name": "",
+        "email": "a@x.io"
+      },
+      [
+        "name"
+      ]
+    ],
+    [
+      {
+        "name": "Ana",
+        "email": "nope"
+      },
+      [
+        "email"
+      ]
+    ]
+  ],
+  "updateCustomer": [
+    [
+      {
+        "id": 3
+      },
+      []
+    ],
+    [
+      {
+        "id": 0
+      },
+      [
+        "id"
+      ]
+    ],
+    [
+      {
+        "id": 3,
+        "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      [
+        "name"
+      ]
+    ]
+  ],
+  "createOrder": [
+    [
+      {
+        "customerId": 1,
+        "items": [
+          1
+        ]
+      },
+      []
+    ],
+    [
+      {
+        "customerId": -1,
+        "items": [
+          1
+        ]
+      },
+      [
+        "customerId"
+      ]
+    ],
+    [
+      {
+        "customerId": 1,
+        "items": []
+      },
+      [
+        "items"
+      ]
+    ]
+  ],
+  "addItem": [
+    [
+      {
+        "sku": "MUG-1",
+        "qty": 2
+      },
+      []
+    ],
+    [
+      {
+        "sku": "mug-1",
+        "qty": 2
+      },
+      [
+        "sku"
+      ]
+    ],
+    [
+      {
+        "sku": "MUG-1",
+        "qty": 100
+      },
+      [
+        "qty"
+      ]
+    ]
+  ],
+  "removeItem": [
+    [
+      {
+        "sku": "TEE-22"
+      },
+      []
+    ],
+    [
+      {
+        "sku": "TEE22"
+      },
+      [
+        "sku"
+      ]
+    ]
+  ],
+  "applyCoupon": [
+    [
+      {
+        "code": "SAVE10"
+      },
+      []
+    ],
+    [
+      {
+        "code": "save10"
+      },
+      [
+        "code"
+      ]
+    ],
+    [
+      {
+        "code": "ABC"
+      },
+      [
+        "code"
+      ]
+    ]
+  ],
+  "setAddress": [
+    [
+      {
+        "line1": "1 Main",
+        "postalCode": "12345",
+        "country": "US"
+      },
+      []
+    ],
+    [
+      {
+        "line1": "1 Main",
+        "postalCode": "1234",
+        "country": "US"
+      },
+      [
+        "postalCode"
+      ]
+    ],
+    [
+      {
+        "line1": "",
+        "postalCode": "12345",
+        "country": "us"
+      },
+      [
+        "line1",
+        "country"
+      ]
+    ]
+  ],
+  "updateStatus": [
+    [
+      {
+        "status": "paid"
+      },
+      []
+    ],
+    [
+      {
+        "status": "lost"
+      },
+      [
+        "status"
+      ]
+    ]
+  ],
+  "createProduct": [
+    [
+      {
+        "sku": "LAMP-3",
+        "name": "Lamp",
+        "priceCents": 0
+      },
+      []
+    ],
+    [
+      {
+        "sku": "LAMP-3",
+        "name": "Lamp",
+        "priceCents": -1
+      },
+      [
+        "priceCents"
+      ]
+    ],
+    [
+      {
+        "sku": "LAMP-3",
+        "name": "Lamp",
+        "priceCents": 1.5
+      },
+      [
+        "priceCents"
+      ]
+    ]
+  ],
+  "updateStock": [
+    [
+      {
+        "sku": "MUG-1",
+        "delta": -3
+      },
+      []
+    ],
+    [
+      {
+        "sku": "MUG-1",
+        "delta": 0
+      },
+      [
+        "delta"
+      ]
+    ]
+  ],
+  "createReview": [
+    [
+      {
+        "productSku": "MUG-1",
+        "rating": 5
+      },
+      []
+    ],
+    [
+      {
+        "productSku": "MUG-1",
+        "rating": 6
+      },
+      [
+        "rating"
+      ]
+    ],
+    [
+      {
+        "productSku": "MUG-1",
+        "rating": 4,
+        "body": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      [
+        "body"
+      ]
+    ]
+  ],
+  "search": [
+    [
+      {
+        "q": "mug"
+      },
+      []
+    ],
+    [
+      {
+        "q": "m"
+      },
+      [
+        "q"
+      ]
+    ],
+    [
+      {
+        "q": "mug",
+        "limit": 0
+      },
+      [
+        "limit"
+      ]
+    ]
+  ],
+  "paginate": [
+    [
+      {
+        "page": 1,
+        "pageSize": 20
+      },
+      []
+    ],
+    [
+      {
+        "page": 0,
+        "pageSize": 20
+      },
+      [
+        "page"
+      ]
+    ],
+    [
+      {
+        "page": 2,
+        "pageSize": 101
+      },
+      [
+        "pageSize"
+      ]
+    ]
+  ],
+  "createWebhook": [
+    [
+      {
+        "url": "https://h.io/x",
+        "events": [
+          "paid"
+        ]
+      },
+      []
+    ],
+    [
+      {
+        "url": "http://h.io/x",
+        "events": [
+          "paid"
+        ]
+      },
+      [
+        "url"
+      ]
+    ],
+    [
+      {
+        "url": "https://h.io/x",
+        "events": []
+      },
+      [
+        "events"
+      ]
+    ]
+  ],
+  "rotateSecret": [
+    [
+      {
+        "webhookId": 7
+      },
+      []
+    ],
+    [
+      {
+        "webhookId": "7"
+      },
+      [
+        "webhookId"
+      ]
+    ]
+  ],
+  "createUser": [
+    [
+      {
+        "username": "ana_1",
+        "password": "correcthorse1"
+      },
+      []
+    ],
+    [
+      {
+        "username": "Ana",
+        "password": "correcthorse1"
+      },
+      [
+        "username"
+      ]
+    ],
+    [
+      {
+        "username": "ana_1",
+        "password": "short"
+      },
+      [
+        "password"
+      ]
+    ]
+  ],
+  "bookSlot": [
+    [
+      {
+        "start": "2026-10-01T10:00:00Z",
+        "end": "2026-10-01T11:00:00Z"
+      },
+      []
+    ],
+    [
+      {
+        "start": "2026-10-01T10:00:00Z",
+        "end": "2026-10-01T09:00:00Z"
+      },
+      [
+        "end"
+      ]
+    ],
+    [
+      {
+        "start": "soon",
+        "end": "2026-10-01T11:00:00Z"
+      },
+      [
+        "start"
+      ]
+    ]
+  ],
+  "contact": [
+    [
+      {
+        "email": "a@x.io"
+      },
+      []
+    ],
+    [
+      {
+        "phone": "555"
+      },
+      []
+    ],
+    [
+      {},
+      [
+        "contact"
+      ]
+    ]
+  ],
+  "refund": [
+    [
+      {
+        "amountCents": 500,
+        "orderTotalCents": 900
+      },
+      []
+    ],
+    [
+      {
+        "amountCents": 1000,
+        "orderTotalCents": 900
+      },
+      [
+        "amountCents"
+      ]
+    ],
+    [
+      {
+        "amountCents": 0,
+        "orderTotalCents": 900
+      },
+      [
+        "amountCents"
+      ]
+    ]
+  ],
+  "bulkOrder": [
+    [
+      {
+        "tier": "basic",
+        "qty": 10
+      },
+      []
+    ],
+    [
+      {
+        "tier": "basic",
+        "qty": 11
+      },
+      [
+        "qty"
+      ]
+    ],
+    [
+      {
+        "tier": "gold",
+        "qty": 100
+      },
+      []
+    ],
+    [
+      {
+        "tier": "silver",
+        "qty": 5
+      },
+      [
+        "tier"
+      ]
+    ]
+  ]
+}

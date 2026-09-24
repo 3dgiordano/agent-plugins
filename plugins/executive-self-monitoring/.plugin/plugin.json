@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "executive-self-monitoring",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Plan-anchored drift self-check for coding agents. Bundles the executive-self-monitoring skill (the 'what': re-ground in the active plan/gate before substantive work) with a per-host cadence hook (the 'when'). Not a blocker - a periodic nudge to avoid investing effort outside the plan. Portable core: the skill only; cadence hooks are host-specific (see hooks/ for Claude Code and Codex, cursor/ for Cursor).",
   "author": {
     "name": "David Giordano",

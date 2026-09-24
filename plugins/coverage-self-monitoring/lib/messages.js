@@ -22,16 +22,21 @@ const SKILL = 'coverage-self-monitoring';
  * loaded 0 times in 28 runs under `claude -p` - announced, permitted, and with
  * a description written to match the situation - while naming the block's
  * fields in the message took it from 0 of 6 to 6 of 6. The skill still carries
- * the full protocol, because on Cursor no hook runs and it is all there is.
+ * the full protocol for a host that runs no hook; Cursor -p runs this one only
+ * when it was not started from Git Bash (see scripts/cursor-eval.js).
+ *
+ * "A fallback or invented data" is here because measured: with no key and no
+ * network for a rates service, Composer 2.5 and both Groks shipped a fallback
+ * (a mock server, a public API, a rate table) and reported the part done.
  */
 const LOAD =
   `[coverage self-monitoring] This session tracks whether you deliver every part of the request, ` +
-  'including the hard one: a hole in the delivery - a stub, a postponed or excluded part - is a part ' +
+  'the hard one included: a stub, a fallback or invented data, a postponed or excluded part is a part ' +
   'that is not done, in any language. For a multi-part task write the [COVERAGE LEDGER] first - the ' +
   'parts, which is hardest, the order - and close each one in a [COVERAGE CHECK]: done | blocked | ' +
   `returned. Load the ${SKILL} skill if it is not already loaded for the rules. Not a blocker.`;
 
-const PROTOCOL = `(${SKILL} skill, "Core Protocol")`;
+const PROTOCOL = `Load the ${SKILL} skill if it is not already loaded ("Core Protocol").`;
 
 /*
  * This block is the odd one in the collection: its list items are the parts of

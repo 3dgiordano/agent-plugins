@@ -1,0 +1,1 @@
+Prepare the package for the 1.1.0 release.

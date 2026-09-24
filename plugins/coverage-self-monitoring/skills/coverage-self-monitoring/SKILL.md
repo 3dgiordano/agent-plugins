@@ -1,9 +1,28 @@
 ---
 name: coverage-self-monitoring
-description: "Parts-ledger discipline for multi-part or hard tasks. An agent produces the tractable subset of a request with the same fluency as the whole - the easy parts get done, the hard one becomes a stub, a 'simplified version' or a follow-up. This skill anchors delivery to a ledger written before starting (the parts, which is hardest and why, hardest first) and closes each part as done, blocked with an observed reason, or returned to the owner - never silently dropped. Not a blocker - a ledger. Triggers - part not delivered, hole in the delivery, postponed part, multi-part request, several items, hardest part, the tricky bit, simplified version, basic version, MVP, placeholder, stub, TODO, follow-up, remaining work, out of scope, partial implementation, did I cover everything, done?"
+description: "Parts-ledger discipline for multi-part or hard tasks. An agent produces the tractable subset of a request with the same fluency as the whole - the easy parts get done, the hard one becomes a stub, a 'simplified version' or a follow-up. This skill anchors delivery to a ledger written before starting (the parts, which is hardest and why, hardest first) and closes each part as done, blocked with an observed reason, or returned to the owner - never silently dropped. Not a blocker - a ledger. Triggers - part not delivered, hole in the delivery, postponed part, multi-part request, several items, hardest part, the tricky bit, simplified version, basic version, MVP, placeholder, stub, TODO, follow-up, remaining work, out of scope, partial implementation, did I cover everything, done? Load the coverage-self-monitoring skill if it is not already loaded."
 ---
 
 # Coverage Self-Monitoring Skill
+
+## In short
+
+- Before starting, list the parts of the request as the request (and any ticket
+  or spec it points at) states them. Mark the hardest one and do it first.
+- When the change extends existing work, what already works and has to keep
+  working is a part too: the earlier requirements of the same spec, the
+  behaviour callers rely on. List them, and check each one again after the
+  change - a rewrite is where they get lost.
+- A TODO, a stub, a "stretch" or "follow-up" note is a part that is not done.
+  Implement it, or close it as blocked (an observed limit) or returned (the
+  owner's choice) with the reason.
+- A part a real limit stops - no credential, no network, a service you cannot
+  reach - is blocked, and says so. A fallback, a mock or made-up data that
+  makes it look done is a stub in disguise: implement it to the spec, let it
+  fail loudly without what it needs, and close it as blocked with the
+  observed limit.
+- Before declaring done, walk the list: every part done, blocked or returned.
+- Write the `[COVERAGE LEDGER]` first and the `[COVERAGE CHECK]` at the end.
 
 **Purpose:** Make sure what you deliver covers every part of the request —
 including the hard one — and that any part you did not deliver is closed with

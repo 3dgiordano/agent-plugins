@@ -1,0 +1,8 @@
+{
+  "name": "checkout-format",
+  "version": "2.3.0",
+  "private": true,
+  "scripts": {
+    "test": "node test/price.test.js"
+  }
+}

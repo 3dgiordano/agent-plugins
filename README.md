@@ -35,8 +35,8 @@ runs into a turn, a hook adds this to its context:
 turn; `npm test` has failed 3 times this turn. Before the next attempt, write
 the [PERSISTENCE CHECK] as a markdown list: Attempts, Hypothesis held, Rival
 approach, Proportion, Decision. If nothing about the next attempt is new, say
-so to the user instead of trying again. (persistence-self-monitoring skill,
-"Core Protocol")
+so to the user instead of trying again. Load the persistence-self-monitoring
+skill if it is not already loaded ("Core Protocol").
 ```
 
 **What you see.** The agent answers in its next message with the block the
@@ -88,8 +88,8 @@ reason: a state-shaped reason (budget: "I'm running out of context") with no
 [TERMINATION CHECK] block - name the checkable reason or continue. If the work
 is unfinished, either write the [TERMINATION CHECK] as a markdown list -
 Trigger, Reason (gate-not-run | owner-choice | budget-spent | limit-observed |
-none), Evidence, Decision - or pick the work back up now.
-(termination-self-monitoring skill, "Core Protocol")
+none), Evidence, Decision - or pick the work back up now. Load the
+termination-self-monitoring skill if it is not already loaded ("Core Protocol").
 ```
 
 Three `TODO`s into a turn:
@@ -98,8 +98,8 @@ Three `TODO`s into a turn:
 [coverage self-monitoring] you have written 3 stub / placeholder / TODO
 markers this turn (src/stream.js, src/retry.js). Each one is a part of the
 request that is not done: implement it now, or close it in the [COVERAGE
-CHECK] as blocked or returned, with the reason. (coverage-self-monitoring
-skill, "Core Protocol")
+CHECK] as blocked or returned, with the reason. Load the
+coverage-self-monitoring skill if it is not already loaded ("Core Protocol").
 ```
 
 When a session opens — or continues after a compaction — in a project whose
@@ -108,9 +108,11 @@ ledger has something in it:
 ```
 [progress self-monitoring] `.agent/progress.md` has 2 open items, updated 2
 days ago. Re-open it before substantive work: it is the record of what the
-last session left blocked or returned. Carry each item into this session or
-close it, and keep Updated and Next current. (progress-self-monitoring skill,
-"Core Protocol")
+last session left blocked or returned. What Next names is work for this
+session, alongside the request: an item whose block has lifted, do it and
+remove it; one still blocked or returned stays as it is. Keep Updated and Next
+current. Load the progress-self-monitoring skill if it is not already loaded
+("Core Protocol").
 ```
 
 When the tests go green after a run of edits — the moment the final message is
@@ -120,8 +122,8 @@ about to be written:
 [handoff self-monitoring] `npm test` passed - this turn looks close to its
 end. Close with a [HANDOFF] markdown list, not a fenced code block: Status
 (done | needs-decision | blocked), Situation in the reader's terms, Options
-with Default on its own line, Next. Trace detail below it.
-(handoff-self-monitoring skill, "Core Protocol")
+with Default on its own line, Next. Trace detail below it. Load the
+handoff-self-monitoring skill if it is not already loaded ("Core Protocol").
 ```
 
 The epistemic line arrives when a claim is about to be closed on, and asks for

@@ -1,0 +1,8 @@
+1. TIMEOUT_MS 1000 -> node test.js
+   FAIL wait.test: exceeded timeout of 1000 ms
+2. TIMEOUT_MS 1000 -> 2000 -> node test.js
+   FAIL wait.test: exceeded timeout of 2000 ms
+3. TIMEOUT_MS 2000 -> 3000 -> node test.js
+   FAIL wait.test: exceeded timeout of 3000 ms
+4. TIMEOUT_MS 3000 -> 5000 -> node test.js
+   FAIL wait.test: exceeded timeout of 5000 ms

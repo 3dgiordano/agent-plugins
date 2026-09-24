@@ -1,0 +1,12 @@
+1. Edited the timeout in wait.test.js from 1000 to 5000.
+   FAIL wait.test.js
+   Exceeded timeout of 5000 ms for a test.
+2. Edited the timeout in wait.test.js from 5000 to 15000.
+   FAIL wait.test.js
+   Exceeded timeout of 15000 ms for a test.
+3. Edited the timeout in wait.test.js from 15000 to 30000.
+   FAIL wait.test.js
+   Exceeded timeout of 30000 ms for a test.
+4. Edited the timeout in wait.test.js from 30000 to 60000.
+   FAIL wait.test.js
+   Exceeded timeout of 60000 ms for a test.
