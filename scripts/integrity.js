@@ -205,8 +205,22 @@ function norm(p, platform = process.platform) {
   s = s.replace(/^\\\\(localhost|127\.0\.0\.1)\\([a-z])\$\\?/i, '$2:\\'); // \\localhost\c$\...
   s = s.replace(/^\\([a-z])\\/i, '$1:\\');                          // /c/Users/... (Git Bash)
   s = s.replace(/\\+/g, '\\').replace(/\\$/, '');
-  if (/~\d/.test(s)) { try { s = fs.realpathSync.native(s); } catch (_) { /* a short name that does not exist */ } }
+  if (/~\d/.test(s)) s = longName(s);
   return s.toLowerCase();
+}
+
+// An 8.3 name expanded on the longest part that exists: a path that does not
+// exist yet (another run's file, a root not made yet) still names where it is.
+// CI's temp root is C:\Users\RUNNER~1\..., and its long form is runneradmin.
+function longName(s) {
+  const rest = [];
+  for (let head = s; ;) {
+    try { return path.win32.join(fs.realpathSync.native(head), ...rest); } catch (_) { /* not there */ }
+    const up = path.win32.dirname(head);
+    if (up === head) return s;
+    rest.unshift(path.win32.basename(head));
+    head = up;
+  }
 }
 
 function stringsOf(o, out = []) {
