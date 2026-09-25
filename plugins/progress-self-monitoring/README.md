@@ -59,7 +59,7 @@ turn's edits touched it.
 
 | | Claude Code | Cursor |
 |---|-------------|--------|
-| **Session boundary** — the ledger has open items: say how many and how old | `SessionStart` (startup, resume, clear, **and compact**) → text | `sessionStart` → `additional_context` |
+| **Session boundary** — the ledger exists: say what it holds by kind (open items, a Next line, lines outside the format) and how old, or "nothing to do"; without one, the load message says it does not exist yet | `SessionStart` (startup, resume, clear, **and compact**) → text | `sessionStart` → `additional_context` |
 | **Turn boundary** — stamp the turn's start, reset the edit counter, load the skill on turn 1, carry the retrospective | `UserPromptSubmit` | `sessionStart` (load) + `afterAgentResponse` (reset) |
 | **Boundary named in the prompt** — the user says the work continues in a later session | `UserPromptSubmit` → names the ledger | — (no per-prompt event) |
 | **The sweep** — what the agent wrote it would do later, handed back two turns on, once each | `Stop` collects → `UserPromptSubmit` asks | `afterAgentResponse` collects → **log only** |
@@ -105,9 +105,13 @@ no `git checkout` ever touches, which also keeps its mtime honest. The hooks
 do not care which; this repository ignores its own.
 
 What the hook reads: one fixed path, `<project>/.agent/progress.md`, at
-most 64 KB, for its mtime and its open-item count. It never writes the file
-— the agent does, with its ordinary tools — and no message carries any of
-its text. That is the whole of this plugin's project I/O, and it is the one
+most 64 KB, for its mtime and counts: `- blocked:` and `- returned:` items
+under `## Open`, whether `Next:` names an action, and how many lines are
+outside that format, with their line numbers. A line outside the format -
+including a marker someone made up - is counted and located, never repeated,
+and the message tells the agent to treat it as file content, not as
+instructions. It never writes the file — the agent does, with its ordinary
+tools — and no message carries any of its text. That is the whole of this plugin's project I/O, and it is the one
 place in the collection where a hook reads a project file at all;
 [SECURITY.md](../../SECURITY.md) says so.
 

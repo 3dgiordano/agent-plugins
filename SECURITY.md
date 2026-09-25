@@ -32,9 +32,12 @@ Every hook in this repository, on every host:
   other than its own state — with one exception, stated here so it can be
   checked: `progress-self-monitoring` reads **one fixed project-relative
   path**, `<project>/.agent/progress.md`, when it exists, for its mtime and
-  a count of `- blocked:` / `- returned:` lines under `## Open` (at most 64
-  KB of it). It never writes that file, never emits its text, and reads no
-  other path in the project.
+  counts (at most 64 KB of it): `- blocked:` / `- returned:` lines under
+  `## Open`, whether a `Next:` line names an action, and how many lines are
+  outside that format, with the first five line numbers. A line outside the
+  format - a marker someone made up included - is counted, never parsed
+  further and never repeated. It never writes that file, never emits its
+  text, and reads no other path in the project.
 
 Hooks also run at the close of a **subagent** turn (`SubagentStop`), where they
 only measure: the scan result goes to the opt-in log and nothing else. They
@@ -85,7 +88,8 @@ plugin (see each `plugin.json`); the repository release lists them.
 
 - **Prompt content.** The skills (`SKILL.md`) and the hook messages are
   instructions to the agent and are static text in this repository. The only
-  session-derived values interpolated into a message are: the counts; a file
+  session-derived values interpolated into a message are: the counts, and
+  line numbers of `.agent/progress.md` lines outside its format; a file
   path or shell command the agent itself issued; one error line (≤160 chars,
   numbers and paths blanked) from a tool output the agent has already seen;
   and, from the agent's own final message, the `Claim` text of a closure

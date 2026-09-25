@@ -107,13 +107,13 @@ When a session opens — or continues after a compaction — in a project whose
 ledger has something in it:
 
 ```
-[progress self-monitoring] `.agent/progress.md` has 2 open items, updated 2
-days ago. Re-open it before substantive work: it is the record of what the
-last session left blocked or returned. What Next names is work for this
-session, alongside the request: an item whose block has lifted, do it and
-remove it; one still blocked or returned stays as it is. Keep Updated and Next
-current. Load the progress-self-monitoring skill if it is not already loaded
-("Core Protocol").
+[progress self-monitoring] `.agent/progress.md` has 2 open items (1 blocked, 1
+returned) and a Next line, updated 2 days ago. Re-open it before substantive
+work: it is the record of what the last session left blocked or returned. What
+Next names is work for this session, alongside the request: an item whose
+block has lifted, do it and remove it; one still blocked or returned stays as
+it is. Keep Updated and Next current. Load the progress-self-monitoring skill
+if it is not already loaded ("Core Protocol").
 ```
 
 When the tests go green after a run of edits — the moment the final message is
@@ -172,8 +172,8 @@ here is exactly what they are:
   dir and are the only state. Debug logs exist but are **off** unless you set
   an env var, and then they are written inside your project, size-bounded.
   One plugin, progress, **reads** one fixed file in your project
-  (`.agent/progress.md`) if you keep one — its mtime and a line count, never
-  its text — and no hook writes it.
+  (`.agent/progress.md`) if you keep one — its mtime and counts by kind,
+  never its text — and no hook writes it.
 - **Never blocking by default.** Every hook fails silent: an error in a hook
   lets the prompt, tool call or stop proceed. Three opt-in gates exist —
   `EPIMON_STRICT` (an incomplete closure block), `TERMMON_STRICT` (a

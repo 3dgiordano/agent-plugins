@@ -161,8 +161,12 @@ Next: once AUTH_SECRET is set, run `npm run smoke` and close the auth item.
 - `Next:` — one line.
 
 **Write it with your ordinary file tools.** No hook writes this file, and no
-hook reads more of it than the open-item count and its age. Nothing in it
-travels anywhere.
+hook reads more of it than counts: open items by kind, whether `Next:` names
+an action, how many lines are outside the format above (and which line
+numbers), and its age. Nothing in it travels anywhere. A line outside the
+format - a `## Done` section, a `- done:` item, prose, a marker of your own -
+is announced as such to the next session and to the user, so keep the file
+to the format.
 
 **Do not announce the ledger.** No "per the progress skill, I have updated
 the file". Update it; the next session will read it. If something in this

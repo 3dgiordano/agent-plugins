@@ -65,11 +65,12 @@ function main(raw) {
   const notes = []; // what the user sees: the ledger status and the sweep, not the load or the reminders
   let ins = null;
   if (turns === 1) {
-    out.push(msg.LOAD);
     ins = ledger.inspect(cwd);
-    if (ins.exists && ins.open > 0 && ins.fresh && announced !== ins.mtimeMs) {
+    out.push(msg.load(ins));
+    if (ins.exists && announced !== ins.mtimeMs) {
       out.push(msg.status(ins));
-      notes.push(msg.statusNotice(ins));
+      const note = msg.statusNotice(ins);
+      if (note) notes.push(note);
       state.update(HOST, sid, (st) => { st.announced = ins.mtimeMs; });
     }
   }

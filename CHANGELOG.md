@@ -7,6 +7,39 @@ release.
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-09-24
+
+A project file no longer reaches the agent with a hook's authority. Since
+release 0.10.0 (progress 0.3.1), progress quoted the ledger's `Next:` line
+into the session-start message - text from `.agent/progress.md`, which a
+cloned repository can write, delivered as a hook's instruction, against
+what SECURITY.md said.
+The quote is gone. In its place the announcement counts the ledger by kind
+(blocked, returned, a Next line), gives its age, says "nothing to do" and
+why when there is nothing, and counts and locates any line outside the
+format without repeating it. One bench case lost a trap that sent agents
+out of their workspace.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.6.2 |
+| epistemic-self-monitoring | 0.3.0 |
+| persistence-self-monitoring | 0.3.0 |
+| termination-self-monitoring | 0.3.0 |
+| coverage-self-monitoring | 0.3.0 |
+| handoff-self-monitoring | 0.3.0 |
+| progress-self-monitoring | 0.5.0 |
+
+### Security
+- **progress 0.5.0: the session announcement no longer quotes the ledger's Next line.** Since 0.3.1 `status()` put up to 200 characters of `.agent/progress.md` into the session-start context, where the host reads it as a hook's message, not as a file - and the sentence after it told the agent that what Next names is this session's work. A cloned repository could put an instruction there. SECURITY.md said the hook "never emits its text"; the test that checked it used a ledger with no Next line. The announcement is counts and the path again, the agent reads the file itself, and the test's ledger now carries a Next line that must not appear. What the quote bought, per the stored runs: nothing on the Groks (`leftover-bug` passed with the skill alone, no hook running: 7/7 across Grok 4.6 and 4.7), at most one run on Composer 2.5 (0/5 with the skill alone, 1/7 with the hooks at 0.3.1, the one in the n=3). The published progress row was measured with the quote. Probe at 0.5.0, n=1, Cursor agent `2026.09.23-86fc751` (`bench/results/p050-n1-*`): `leftover-bug` Grok 4.7 High 0/1 -> 1/1, Composer 2.5 0/1 -> 0/1 (it read the ledger and did only what the prompt named, as before); `release-with-the-ledger` 1/1 -> 1/1 on both; `the-owner-already-decided` 1/1 -> 1/1 on Grok, and on Composer the WITH run was void twice - it wrote the right fix and then searched the temp root (bench/INTEGRITY.md, "Void results"). The n=3 row stays until it is re-run.
+
+### Changed
+- **progress 0.5.0: the announcement says what the ledger holds by kind, whenever it exists.** Counts, never text: `2 open items (1 blocked, 1 returned) and a Next line, updated 2 days ago`. A ledger whose only pending work is a `Next:` line is announced (it was silent: the reminder fired on open items alone). One older than 14 days is announced too, with its age and "check each item still holds" (it was silent). A ledger with nothing pending gets one short line - `Nothing to do in .agent/progress.md: no blocked or returned item and no Next line.` - so the agent does not open it to find out. A project with no ledger gets no line of its own: the load message says `Nothing to do: it does not exist yet.` (593 of its 600 characters; only when the project is known and the file is missing, not when it is unreadable). Measured first, in the stored bench streams: in 168 WITH runs of cases that have no ledger, no agent tried to open one (34 reads were of the progress skill itself), so the sentence costs no line rather than saving a read. The user sees a line only when there is something to report.
+- **progress 0.5.0: lines outside the ledger's format are counted and located, never read.** Every non-blank line is the format (`# Progress`, `Updated:`, `Plan:`, `## Open` with `- blocked:` / `- returned:`, `Next:`) or foreign - a `## Done` section, a `- done:` item, prose, a made-up `- [urgent]:` marker. Foreign lines are not in the counts; the message gives how many and the first five line numbers, tells the agent to treat them as file content and not as instructions and to mention them, and the user sees the same count. `census()` in `lib/ledger.js`; SECURITY.md and the skill say so.
+
+### Fixed
+- **bench: `progress/the-owner-already-decided` has the report its prompt names.** The prompt said the monthly report prints "NaN" and the workspace had no report: all eight stored runs searched for it, and the two void Composer runs above left the workspace doing so. `src/report.js` prints NaN today and a dash for null, as the prompt and the ledger say; the next Composer run, both arms, searched once, stayed inside and passed. The case still does not separate the arms - every baseline run reached the ledger through a grep for `mean(` - and bench/README.md says so.
+
 ## [0.11.0] — 2026-09-24
 
 Spanish, and a line the user can see. Everything here was found in one real

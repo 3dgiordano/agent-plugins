@@ -3,8 +3,9 @@
  * The ledger: one fixed file in the project, `.agent/progress.md`, that holds
  * what must outlive the session - the work still blocked or returned, and the
  * next action. The agent writes it with its ordinary tools. This module only
- * READS it, and reads it for two numbers: how many items are open, and how
- * old it is.
+ * READS it, and reads it for numbers: how many items are open, of which
+ * kind, whether it names a next action, how many lines are not its format,
+ * and how old it is.
  *
  * Why a file and not a block in the message: every other plugin in this
  * collection anchors to something the agent writes into its turn, and that is
@@ -52,21 +53,58 @@ const HEADING_RE = /^#{1,6}[ \t]+\S/;
 const EM = '(?:\\*\\*|__|\\*|_)?';
 const ITEM_RE = new RegExp('^[ \\t]*[-*+][ \\t]+(?:\\[[ xX]?\\][ \\t]+)?' + EM + '(blocked|returned)' + EM + '[ \\t]*:', 'i');
 
+// The rest of the format (SKILL.md "The ledger"): the title, the two fields
+// and Next, with the same tolerance on emphasis and spacing as an item.
+const TITLE_RE = /^#[ \t]+Progress[ \t]*$/i;
+const FIELD_RE = new RegExp('^[ \\t]*' + EM + '(Updated|Plan|Next)' + EM + '[ \\t]*:[ \\t]*(.*)$', 'i');
+// A Next that names no action is no Next.
+const EMPTY_NEXT_RE = /^(?:none|nothing|-)?\.?$/i;
+const MAX_FOREIGN_LINES = 5; // line numbers kept for the message; the count is exact
+
+/*
+ * census(text) -> {
+ *   blocked, returned: n   items under `## Open` (several sections add up)
+ *   next:    boolean       a `Next:` line that names an action
+ *   foreign: n             non-blank lines outside the format
+ *   foreignLines: [n]      the first MAX_FOREIGN_LINES of them, 1-based
+ * }
+ *
+ * Every non-blank line is either the format or foreign. A foreign line - a
+ * `## Done` section, a `- done:` item, prose, a made-up `- [urgent]:` marker -
+ * is counted and located, never read further: its text is not a field, and
+ * a count is the only thing about it the message carries.
+ */
+function census(text) {
+  const out = { blocked: 0, returned: 0, next: false, foreign: 0, foreignLines: [] };
+  if (typeof text !== 'string' || !text) return out;
+  let inOpen = false;
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.trim()) continue;
+    if (OPEN_RE.test(line)) { inOpen = true; continue; }
+    if (TITLE_RE.test(line)) { inOpen = false; continue; }
+    let m;
+    if (inOpen && (m = line.match(ITEM_RE))) { out[m[1].toLowerCase()] += 1; continue; }
+    if ((m = line.match(FIELD_RE))) {
+      if (m[1].toLowerCase() === 'next' && !EMPTY_NEXT_RE.test(m[2].trim())) out.next = true;
+      continue;
+    }
+    if (HEADING_RE.test(line)) inOpen = false;
+    out.foreign += 1;
+    if (out.foreignLines.length < MAX_FOREIGN_LINES) out.foreignLines.push(i + 1);
+  }
+  return out;
+}
+
 /*
  * openItems(text) -> number of open items: `- blocked: ...` / `- returned: ...`
- * lines under `## Open`. Several `## Open` sections add up; nothing else
- * counts - not `done`, not prose, not a bullet outside the section.
+ * lines under `## Open`. Nothing else counts - not `done`, not prose, not a
+ * bullet outside the section.
  */
 function openItems(text) {
-  if (typeof text !== 'string' || !text) return 0;
-  let n = 0;
-  let inOpen = false;
-  for (const line of text.split(/\r?\n/)) {
-    if (OPEN_RE.test(line)) { inOpen = true; continue; }
-    if (HEADING_RE.test(line)) { inOpen = false; continue; }
-    if (inOpen && ITEM_RE.test(line)) n += 1;
-  }
-  return n;
+  const c = census(text);
+  return c.blocked + c.returned;
 }
 
 function ledgerPath(cwd) {
@@ -76,7 +114,9 @@ function ledgerPath(cwd) {
 /*
  * inspect(cwd, now) -> {
  *   exists:  boolean
- *   open:    n            open items, 0 when absent
+ *   absent:  boolean      the project is known and has no ledger (not: unreadable)
+ *   open:    n            open items, 0 when absent (blocked + returned)
+ *   blocked, returned, next, foreign, foreignLines: see census()
  *   lines:   n            non-blank lines (of the first MAX_BYTES)
  *   bytes:   n            file size
  *   mtimeMs: number|null  last write, per the filesystem
@@ -88,13 +128,20 @@ function ledgerPath(cwd) {
  * The only project file any hook in this plugin reads. Everything about it
  * fails silent: no cwd, no file, an unreadable file and a file over MAX_BYTES
  * all come back as `exists: false` or as the numbers that could be read.
+ *
+ * No text of the file leaves this function: counts, line numbers and a
+ * timestamp only.
+ * Release 0.3.1 quoted the ledger's `Next:` line into the session-start
+ * message, so a project file reached the model with a hook's authority - a
+ * cloned repository could put an instruction there. Removed in 0.5.0; the
+ * agent reads the file itself, as a file.
  */
 function inspect(cwd, now) {
-  const out = { exists: false, open: 0, lines: 0, bytes: 0, mtimeMs: null, ageMs: null, fresh: false, bloated: [], next: null };
+  const out = { exists: false, absent: false, open: 0, blocked: 0, returned: 0, next: false, foreign: 0, foreignLines: [], lines: 0, bytes: 0, mtimeMs: null, ageMs: null, fresh: false, bloated: [] };
   const file = ledgerPath(cwd);
   if (!file) return out;
   let st;
-  try { st = fs.statSync(file); } catch (_) { return out; }
+  try { st = fs.statSync(file); } catch (e) { out.absent = !!(e && e.code === 'ENOENT'); return out; }
   if (!st.isFile()) return out;
   out.exists = true;
   out.bytes = st.size;
@@ -108,8 +155,8 @@ function inspect(cwd, now) {
       const buf = Buffer.alloc(Math.min(st.size, MAX_BYTES));
       const read = fs.readSync(fd, buf, 0, buf.length, 0);
       const text = buf.toString('utf8', 0, read);
-      out.open = openItems(text);
-      out.next = nextLine(text);
+      Object.assign(out, census(text));
+      out.open = out.blocked + out.returned;
       out.lines = text.split(/\r?\n/).filter((l) => l.trim()).length;
     } finally { fs.closeSync(fd); }
   } catch (_) { /* unreadable: exists, open stays 0 */ }
@@ -117,22 +164,6 @@ function inspect(cwd, now) {
   if (out.lines > MAX_LINES) out.bloated.push('lines');
   if (out.bytes > MAX_BYTES) out.bloated.push('bytes');
   return out;
-}
-
-/*
- * The ledger's `Next:` line - one line, the action the last session or the
- * owner left - and the only text of the file a hook repeats. Composer 2.5 read
- * the ledger when told to, saw a lifted block and the owner's decision, and
- * did only the request: "re-open it" was followed, the file was not acted on.
- * The line itself, in the message, is what a model that skims can act on.
- * Capped so a pasted paragraph cannot ride along.
- */
-function nextLine(text) {
-  const m = String(text).match(/^[ \t]*\**Next\**[ \t]*:[ \t]*(.+)$/im);
-  if (!m) return null;
-  const v = m[1].trim();
-  if (!v || /^(none|nothing|-)\.?$/i.test(v)) return null;
-  return v.length > 200 ? v.slice(0, 199) + '…' : v;
 }
 
 // "2 days ago", "3 hours ago", "just now" - for the message, never for a decision.
@@ -152,4 +183,4 @@ function isLedgerPath(p) {
   return /(^|[\\/])\.agent[\\/]progress\.md$/.test(p.trim());
 }
 
-module.exports = { LEDGER, MAX_BYTES, MAX_AGE_DAYS, MAX_AGE_MS, MAX_OPEN_ITEMS, MAX_LINES, openItems, inspect, ledgerPath, ageText, isLedgerPath };
+module.exports = { LEDGER, MAX_BYTES, MAX_AGE_DAYS, MAX_AGE_MS, MAX_OPEN_ITEMS, MAX_LINES, census, openItems, inspect, ledgerPath, ageText, isLedgerPath };

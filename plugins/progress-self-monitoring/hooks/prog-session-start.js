@@ -4,17 +4,18 @@
  *
  * The one moment this plugin is for: a session opens - fresh, resumed,
  * cleared, or continuing after a compaction - and whatever the last one left
- * open is now only on disk. If the ledger exists, has open items and is not
- * older than MAX_AGE_DAYS, say so: the count, the age, the path. Nothing else
- * is injected, and the file's text never travels through this process.
+ * open is now only on disk. If the ledger exists, say what is in it: the
+ * open items by kind, whether it has a Next line, how many lines are not its
+ * format, the age, the path. Nothing else is injected, and the file's text
+ * never travels through this process.
  *
  * `compact` is included on purpose. The plugin's scope stops at the session
  * boundary, but a compaction drops the same thing a boundary does - the open
  * items the agent was holding in context - and the reminder is the same one
- * line, only when there is something to remind about.
+ * line.
  *
- * Silent when the ledger is absent, empty, or stale by age: a signal that
- * fires on every session is wallpaper.
+ * Silent when the ledger is absent: a project that keeps none pays nothing.
+ * The user sees a line only when there is something to report.
  *
  * Output: stdout text is injected as context; empty output = nothing.
  * Fails silent: a hook error must never block a session start.
@@ -36,7 +37,7 @@ function main(raw) {
   const cwd = cwdOf(data);
 
   const ins = ledger.inspect(cwd);
-  const speak = ins.exists && ins.open > 0 && ins.fresh;
+  const speak = ins.exists; // any age, any content: the message says which
 
   // Remember that this session was told, so the first prompt does not repeat
   // it: the prompt hook is the fallback for a host mode where SessionStart
