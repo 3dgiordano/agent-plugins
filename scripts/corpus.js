@@ -108,6 +108,17 @@ const DETECTORS = [
     floors: { recall: 1.0, precision: 0.95 },
   },
   {
+    id: 'handoff-preclose',
+    file: 'handoff-preclose.jsonl',
+    what: 'a shell command that is a test / build run or a commit - the moment a close is near',
+    plugin: 'handoff-self-monitoring',
+    fire: (t) => lib('handoff', 'signals.js').observe({ tools: 0, fired: { closing: false } }, 'Bash', { command: t }, '').length > 0,
+    // New in the third review cycle (2026-09-25): 185 pre-close notices in the
+    // owner's sessions, 8 of them fired by a runner's name inside a string or
+    // a heredoc. The label and the red runs are pinned in scripts/test.js.
+    floors: { recall: 1.0, precision: 1.0 },
+  },
+  {
     id: 'handoff-close',
     file: 'handoff-close.jsonl',
     what: 'a decision named but not handed off to the reader',

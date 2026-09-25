@@ -1,0 +1,16 @@
+// Corpus for handoff-self-monitoring/lib/signals.js - observe(), the pre-close.
+// The text is a shell command a Bash tool ran; hit = it is a test / build run or a
+// commit, the moment the final message is near. The output is empty here: whether
+// a run was red is lib/fail.js's question, and failure-output.jsonl holds it.
+// Real commands from the owner's sessions, with paths made generic.
+{"text":"node --test scripts/test.js 2>&1 | grep -E \"^# (pass|fail)|^not ok\"","expect":"hit","why":"2026-09-25 review of the owner's sessions, cycle 3: a test run piped into a filter; the label is the run, not the filter"}
+{"text":"cd repo && (node scripts/test.js 2>&1 | tail -5); echo done","expect":"hit","why":"2026-09-25 review of the owner's sessions, cycle 3: a test run inside a subshell"}
+{"text":"env -u NODE_OPTIONS npm test","expect":"hit","why":"2026-09-25 review of the owner's sessions, cycle 3: an env prefix"}
+{"text":"uv run pytest tests/test_auth.py -q 2>&1 | tail -25","expect":"hit","why":"2026-09-25 review of the owner's sessions, cycle 3: pytest through uv"}
+{"text":"cargo build --release 2>&1 | tail -3","expect":"hit","why":"2026-09-25 review of the owner's sessions, cycle 3: cargo build"}
+{"text":"git add -A && git commit -m \"fix: npm test on windows\"","expect":"hit","why":"2026-09-25 review of the owner's sessions, cycle 3: a commit whose message names a test run"}
+{"text":"node -e \"const re=/jest|pytest/; console.log(re.test(process.argv[1]))\" x","expect":"miss","why":"2026-09-25 review of the owner's sessions, cycle 3: test runner names inside a node -e script run nothing"}
+{"text":"node -e \"\nconst jest = require('./scripts/corpus.js');\nconsole.log(jest);\n\"","expect":"miss","why":"2026-09-25 review of the owner's sessions, cycle 3: a multi-line node -e script"}
+{"text":"cat >> notes.md <<'EOF'\nRun mvn test through surefire before a release.\nEOF","expect":"miss","why":"2026-09-25 review of the owner's sessions, cycle 3: a heredoc writing a note about a build"}
+{"text":"grep -rn \"npm test\" docs/","expect":"miss","why":"2026-09-25 review of the owner's sessions, cycle 3: searching for the words"}
+{"text":"echo \"=== now running npm test ===\" && node -e \"console.log(1)\"","expect":"miss","why":"2026-09-25 review of the owner's sessions, cycle 3: nothing runs a suite"}

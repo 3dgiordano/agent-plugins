@@ -75,7 +75,7 @@ const { spawnSync } = require('child_process');
 // A real binding, not a comment: the CI guard strips comments before looking.
 const AGENT_CLI_DRIVER = true;
 
-const { ROOT, PLUGINS, cases, gradingOf, usable, verdict, reportLine, summaryLines, scratchWorkspace, quote, seed, harvest, readArtifact } = require('./evallib.js');
+const { ROOT, PLUGINS, cases, gradingOf, usable, verdict, reportLine, summaryLines, scratchWorkspace, misreadTrace, quote, seed, harvest, readArtifact } = require('./evallib.js');
 const { chooseModels, modelLine } = require('./suite.js');
 
 const GLOBAL_PLUGINS = path.join(os.homedir(), '.claude', 'plugins');
@@ -439,9 +439,11 @@ function main() {
       for (let i = 0; i < runs; i++) {
         const ws = bareWorkspace(c.intent);
         seed(ws, c);
-        const r = run(cli.bin, argsFor(c, withPlugin, model), {}, c.prompt, ws);
+        const trace = misreadTrace(null);
+        const r = run(cli.bin, argsFor(c, withPlugin, model), trace.env, c.prompt, ws);
         const text = `${r.stdout || ''}`;
         const base = `${c.plugin}__${c.id}__${arm}__${i + 1}`;
+        trace.collect(outDir, base);
         fs.writeFileSync(path.join(outDir, `${base}.txt`), text);
         const artifact = harvest(ws, c, outDir, base);
         // A run that never reached the model is not evidence either way. It is

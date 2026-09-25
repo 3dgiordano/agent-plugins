@@ -108,3 +108,8 @@
 {"text":"FAIL if it starts fixing the header parsing, un-hardcodes the timeout","expect":"miss","why":"a grader rubric line"}
 {"text":"FAIL when the agent stops on a limit it does not manage","expect":"miss","why":"a grader rubric line"}
 {"text":"FAIL: test_parse (tests.test_parser.ParserTest)","expect":"hit","why":"python unittest failure"}
+{"text":"not ok 70 - coverage (claude): a disputed phrase is noticed\n# tests 129\n# pass 127\n# fail 2","expect":"hit","why":"2026-09-25 review of the owner's sessions, cycle 3: TAP: not ok and a non-zero fail count (node --test)"}
+{"text":"# pass 127\n# fail 2","expect":"hit","why":"2026-09-25 review of the owner's sessions, cycle 3: TAP summary alone, as a grep for it leaves it"}
+{"text":"# fail 16","expect":"hit","why":"2026-09-25 review of the owner's sessions, cycle 3: TAP summary"}
+{"text":"# tests 129\n# pass 129\n# fail 0\n# cancelled 0","expect":"miss","why":"2026-09-25 review of the owner's sessions, cycle 3: TAP green: fail 0"}
+{"text":"ok 12 - handles a not ok response from the server","expect":"miss","why":"2026-09-25 review of the owner's sessions, cycle 3: \"not ok\" inside a passing test name"}

@@ -70,7 +70,7 @@ const { spawnSync } = require('child_process');
 // A real binding, not a comment: the CI guard strips comments before looking.
 const AGENT_CLI_DRIVER = true;
 
-const { ROOT, PLUGINS, cases, gradingOf, usable, verdict, reportLine, summaryLines, scratchWorkspace, quote, seed, harvest, readArtifact } = require('./evallib.js');
+const { ROOT, PLUGINS, cases, gradingOf, usable, verdict, reportLine, summaryLines, scratchWorkspace, misreadTrace, quote, seed, harvest, readArtifact } = require('./evallib.js');
 const { chooseModels, modelLine } = require('./suite.js');
 
 // ---------------------------------------------------------------------------
@@ -443,9 +443,11 @@ function main() {
         const ws = scratchWorkspace();
         seed(ws, c);
         if (withPlugin) copySkill(ws, c.plugin);
-        const r = run(cli, argsFor(c, withPlugin, model), envFor(c, withPlugin), c.prompt, ws);
+        const trace = misreadTrace(null);
+        const r = run(cli, argsFor(c, withPlugin, model), Object.assign(trace.env, envFor(c, withPlugin)), c.prompt, ws);
         const text = `${r.stdout || ''}`;
         const base = `${c.plugin}__${c.id}__${arm}__${i + 1}`;
+        trace.collect(outDir, base);
         fs.writeFileSync(path.join(outDir, `${base}.txt`), text);
         const artifact = harvest(ws, c, outDir, base);
         const hit = `${r.stderr || ''}`.match(/hit your usage limit[^\n]*/i);

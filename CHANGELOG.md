@@ -7,6 +7,62 @@ release.
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-09-25
+
+The detectors learn from what agents actually write. Every eval and bench
+stage now leaves a trace of what coverage's close scan read, and the owner's
+own Claude Code sessions are a second source. A review turns both into
+corpus lines before any pattern changes (CONTRIBUTING, "Improving a detector
+from real closes"). Three cycles ran on 2026-09-25. Coverage's reminder now
+reaches 14.4% of turns on the owner's other projects (from 18.5%) and 11.1%
+here (from 22.9%). Handoff's pre-close names the run it saw and ignores a red
+one. `fail.js` reads TAP, so persistence and epistemic see a red
+`node --test`. When the scan misreads, the agent can say so in one line.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.6.2 |
+| epistemic-self-monitoring | 0.3.1 |
+| persistence-self-monitoring | 0.3.1 |
+| termination-self-monitoring | 0.3.0 |
+| coverage-self-monitoring | 0.4.0 |
+| handoff-self-monitoring | 0.3.1 |
+| progress-self-monitoring | 0.5.2 |
+
+### Fixed
+- **handoff 0.3.1: the pre-close names the run it saw, and a red run or a runner's name in a string is no close.** This is the third review cycle, on every pre-close notice in the owner's Claude Code sessions: 185, each joined to the call that fired it. The label was the pipeline's last segment in 182 of them ("`head -20` passed", "`fail)\"` passed"). 28 called a red `node --test` run passed. 8 fired on `jest` or `mvn test` inside a `node -e` script or a heredoc. The gate is now looked for in the shell code only: heredoc bodies and quoted strings are blanked, and a quoted string may span lines. The label is the segment that matched, without a subshell paren, `VAR=` or an `env -u` prefix. On the 185: 149 still fire, all labelled with their run (`node scripts/test.js`, `cargo build`, `node --test`...), 28 red runs are silent, 8 non-runs are silent, and no red run is called passed. New corpus detector `handoff-preclose` (11 lines, from those commands made generic; its misses fire on HEAD).
+- **epistemic 0.3.1, handoff 0.3.1, persistence 0.3.1: TAP is a failure shape.** `node --test` reports "not ok 70 - name" and "# fail 2", word before number. `fail.js` read neither, and it skipped "# fail 1" as a comment line. Across 21 671 tool results in the owner's sessions, 64 red runs now read as failed and no green one does. So persistence counts a repeated red `node --test`, epistemic does not take one as a verification, and handoff does not call it passed. Five lines in `failure-output.jsonl`: "# fail 0" and a passing test named "not ok" stay misses.
+- **The bench's case filter takes the form `--list` prints.** `coverage-self-monitoring/the-stretch-part-ships` matched nothing, because a term was compared to the plugin name and to the case id apart. `plugin/id` now matches too (`benchlib.js` `loadCases`).
+
+### Changed
+- **coverage 0.4.0: the close scan's first review cycle on real closes.** Sources: 92 readings from the repository's own 15 Claude Code sessions, 11 from the final messages of the 414 stored bench streams. Each row was judged: sessions had 30 deferrals, 57 misreads and 5 unsure, which is precision 0.34; the bench had 2 deferrals and 9 misreads, 0.18. The corpus held 0.97. Five classes were fixed, each locked with real-close `miss` lines that fire on HEAD and `hit` lines that keep firing (16 corpus lines, `cycle 1` in their `why`):
+  - **The collection's other blocks are reports.** Lines of a `[HANDOFF]`, `[TERMINATION CHECK]`, `[EPISTEMIC CLOSE]`, `[PLAN CHECK]` or `[PERSISTENCE CHECK]` are not read as deferrals. That covers options offered and "the remaining work" in termination's Evidence. A deferral inside a `[HANDOFF]` is the returned closure the skill asks for: 8 session deferrals went quiet that way, each checked, and every deferral outside a block still reads (22 of 22).
+  - **Spanish `TODO` counts in capitals only.** "Preparé el release con todo" read as a marker: 10 of 92.
+  - **The article decides.** "Una primera versión" and "un esqueleto" are a partial thing delivered. "La primera versión usaba...", "reutilizando el esqueleto" and "versión inicial 0.1.0" name a known one. That was 9 of 92.
+  - **A hypothesis "sin probar"** (`[conjecture, sin probar]`) is its epistemic status, not an untested part: 5 of 92.
+  - **Negation:** "no son cosas que faltan".
+
+  After the fixes: 35 of the 57 session misreads are gone and precision is 0.50. Still open, and why:
+  - "Lo que queda es <a conclusion>" and "still pending from the owner" read like real deferrals.
+  - Meta-talk about the detector itself is specific to this repository.
+- **coverage 0.4.0: "I have not touched X" / "no toqué X" is scope kept, not a part left undone.** This was a `hit` by recorded design ("a part not done is the ledger's business"). The owner reversed it on 2026-09-25: 9 of 9 such session readings were restraint, the discipline executive asks for, so coverage was penalising what executive rewards. The corpus line is now a `miss`, with the reason.
+- **coverage 0.4.0: second review cycle, on sessions of other projects.** 1434 closes from 49 sessions of four other projects, none seen by cycle 1. Cycle 1's fixes carried over to that unseen data: phrases read went from 309 to 249. Of the 138 readings reviewed there were 75 deferrals, 60 misreads and 3 unsure, precision 0.56. Six more classes were fixed, locked by 16 paraphrased corpus lines (no project text; `cycle 2` in their `why`):
+  - A question to the owner is a handoff, not a silent drop ("¿Sigo con lo que falta, o...?"), and handoff judges it.
+  - "Fuera del alcance de #155" and "out of scope for this PR" are scope kept, by the rule above. Bare "fuera de alcance" still reads.
+  - A possessive or demonstrative names a known version, as the article does: "mi / esa primera versión".
+  - "Lo que queda escrito / apuntado / claro / en pie" is a resulting state.
+  - Negation: "nada queda pendiente", "ya no tiene trabajo pendiente".
+  - The first person preterite needs its accent, so "para que no llegue a" (a subjunctive) no longer reads.
+
+  On the labelled rows all 16 targeted misreads are gone and all 75 deferrals still read, precision 0.63. The 44 left are research reasoning, reported speech and other senses that the words cannot tell from a deferral. The rate of turns that get coverage's reminder, before both cycles and after, on the owner's real closes: other projects 18.5% → 14.4% (1434 closes), this repository 22.9% → 11.1% (371). Both now sit inside the 5-15% band `calibrate.js` aims at. Both samples are the ones the fixes were judged on.
+
+### Added
+- **coverage 0.4.0: the agent can say the scan misread it, and the maintainer learns from it.** The close scan reads words, not what a sentence does with them. In one session on 2026-09-25, "el esqueleto" in an option offered to the owner and "Lo que queda es..." (what remains of a mechanism) both read as deferred work, and the only answers were to obey or to ignore. Four changes:
+  - **The reminder shows its reading.** It quotes each phrase in the sentence it was found in, says the reading can be wrong, and gives the answer: `- "<phrase>": misread - <what it was>` in the `[COVERAGE CHECK]`. A misread line needs its reason, is not a part and not a fourth state, and is taken only for a phrase the scan raised (the previous turn's, or one in the same message), so it cannot silence a phrase in advance.
+  - **A taken dispute holds for the session.** The phrase is not raised again, up to 32 phrases (`disputed` in session state), and the user sees each dispute as a notice. A different phrase of the same pattern is still raised: a pattern now takes its first match that was not disputed, not its first match.
+  - **A misread log for whoever maintains the lexicon, off by default.** Enabled with `COVMON_MISREAD_LOG`, it writes `~/.3dgiordano-agent-plugins/misreads/coverage-self-monitoring.json`, outside every project and named in no message or skill text. It keeps one entry per pattern and phrase: a repeat raises its count instead of adding a line. Each entry keeps up to 3 distinct sentences, each with the agent's reason, and the file holds at most 50 entries, the most recently seen kept. `COVMON_MISREAD_FILE` overrides the path. `node scripts/misreads.js` prints it; `--clear` empties it. An entry is the agent's word: confirm it, add the sentence as a test miss, then change the pattern. The session's own misreads became the fixtures in `scripts/test.js`.
+  - **Every eval and bench invocation leaves a trace for review.** `COVMON_MISREAD_LOG=all` also records every phrase the scan read, in its sentence. Entries count `raised` (the hook raised it), `matched` (a block or a report turn kept it silent, so a false positive there is shown to nobody) and `misread` (the agent disputed it). That is what a reviewer judges. The four runners keep one per invocation (`evallib.js` `misreadTrace`). claude-eval and codex-eval set the variable and the plugin's Stop hook writes the file. Cursor headless fires no `afterAgentResponse` or `stop` (measured again on `2026.09.23-86fc751` with `--probe-hooks`), so the hook would never write there. cursor-bench and cursor-eval instead run the plugin's `scanClose` themselves on each turn's final message, in both arms. That is the assistant text after the turn's last tool call, as a Stop hook reads it, not the `result` event, which runs the turn's opening narration in with it. On the 414 stored streams the whole turn raised 21 phrases and the final message 11. The trace sits in the scratch HOME's default path when there is one, with no path in the environment, and otherwise in a neutral directory, never the owner's log. It is copied beside the run as `<base>.misreads.json`, so each stage starts empty and the cap never drops a reading. `node scripts/misreads.js <results dir> [...] --md` merges them into a review sheet. The sheet shows each sentence as written: code and quotes are blanked only for matching, and a dot inside `http.js` does not end a sentence. A run that died hands back its raw stream as its text, and that is not scanned: the skill it read is not a close. The sheet has one row per sentence, whether the turn was `open` or `closed`, the runs it came from, and an empty verdict (`deferral` / `misread` / `unsure`) for a person or a model to fill in. `--sessions ~/.claude/projects/<project>` does the same for Claude Code transcripts: each turn's final message, subagents left out.
+
 ## [0.12.1] — 2026-09-25
 
 Three readings the hooks got wrong in real sessions, and one line the user

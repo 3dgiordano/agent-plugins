@@ -147,6 +147,15 @@ Rules the hooks check:
   ("follow-up", "left as", "still needs", "simplified version", "out of
   scope", "not yet implemented") as a backstop.
 - A `blocked` or `returned` line **requires** the reason after it.
+- The lexicon reads words, not what a sentence does with them, so it can be
+  wrong. When the reminder quotes a phrase that was not deferred work - an
+  option you offered the owner, a quote, another sense of the word - answer
+  that phrase on its own line in the `[COVERAGE CHECK]`:
+  `- "<phrase>": misread - <what it was>`. It is not a fourth state of a
+  part and it needs the reason like the other two. It is taken only for a
+  phrase the hook raised, the phrase is not raised again this session, and
+  the user sees each one. A part you did defer is closed as blocked or
+  returned, never as misread.
 - A `blocked` or `returned` part that this session will not resolve is
   residue the next session must not lose: the progress-self-monitoring
   skill keeps it in `.agent/progress.md`, under the same two words, with

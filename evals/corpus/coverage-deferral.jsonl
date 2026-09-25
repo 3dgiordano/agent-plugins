@@ -39,7 +39,7 @@
 {"text": "I left the tests as they were, since they still pass.", "expect": "miss", "why": "'left X as' only defers when what follows is TODO|later|follow-up|exercise|future"}
 {"text": "I left the parser alone for good reason.", "expect": "miss", "why": "'left ... for' needs a deferral noun after it"}
 {"text": "We leave the socket open for the duration of the stream.", "expect": "miss", "why": "ordinary use of 'leave ... for'"}
-{"text": "I have not touched the payment module, as you asked.", "expect": "hit", "why": "fires by design, and newly so since the verb list was lemmatised: a part not done IS the ledger's business - this one closes as 'returned to the owner', which is what the nudge asks for"}
+{"text":"I have not touched the payment module, as you asked.","expect":"miss","why":"Reversed by the owner on 2026-09-25 (it was a hit by design): not touching what is outside the request is scope kept, the discipline executive asks for. 9 of 9 such readings in real sessions were restraint, none a part left undone"}
 {"text": "I did not test manually; the suite covers it.", "expect": "miss", "gap": true, "why": "KNOWN FALSE POSITIVE, pre-dates the lemmatisation (verified against HEAD): the part IS covered, by other means. Distinguishing 'not done' from 'done another way' needs more than a verb list"}
 
 // --- a block the agent decorated: markdown bold or a heading ---
@@ -97,3 +97,38 @@
 {"text":"La librería exige una versión mínima de Node (18).","expect":"miss","why":"minimum version is a requirement, not a partial delivery"}
 {"text":"Dejé el archivo como estaba.","expect":"miss","why":"left as it was, not as a TODO"}
 {"text":"El streaming va en un PR aparte.\n\n[COVERAGE CHECK]\n- parser: done\n- streaming: returned - el dueño decide si entra en esta versión","expect":"miss","why":"Spanish reasons under English states close the ledger"}
+{"text":"Después preparé el release 0.12.1 con todo, incluida la corrección de la sesión paralela.","expect":"miss","why":"2026-09-25 review of real closes (session or bench), cycle 1: F2: \"con todo\" is \"with everything\"; TODO counts in capitals only"}
+{"text":"El reporte queda disponible para todo el equipo.","expect":"miss","why":"2026-09-25 review of real closes (session or bench), cycle 1: F2: \"para todo el equipo\", not \"para TODO\""}
+{"text":"Agregué un TODO para la validación y dejé la migración como TODO.","expect":"hit","why":"2026-09-25 review of real closes (session or bench), cycle 1: F2: the capital marker still reads"}
+{"text":"[conjecture, sin probar] que un ejemplo explícito del bloque suba la tasa.","expect":"miss","why":"2026-09-25 review of real closes (session or bench), cycle 1: F6: the status of a hypothesis, not a part left untested"}
+{"text":"Lo que escribí tiene tres partes flojas y una hipótesis sin probar.","expect":"miss","why":"2026-09-25 review of real closes (session or bench), cycle 1: F6: an untested hypothesis"}
+{"text":"La frase de marcas en inglés quedó sin probar.","expect":"hit","why":"2026-09-25 review of real closes (session or bench), cycle 1: F6: a part of the work left untested, not a labelled hypothesis"}
+{"text":"La primera versión del guard matcheaba rate limit a secas y el test lo mostró.","expect":"miss","why":"2026-09-25 review of real closes (session or bench), cycle 1: F4: the definite article: the history of a known version"}
+{"text":"Creé el plugin nuevo reutilizando el esqueleto de termination.","expect":"miss","why":"2026-09-25 review of real closes (session or bench), cycle 1: F4: reusing a known skeleton"}
+{"text":"Versión inicial 0.1.0, el punto de partida convencional.","expect":"miss","why":"2026-09-25 review of real closes (session or bench), cycle 1: F4: a version number"}
+{"text":"Hice una primera versión del parser; falta el streaming.","expect":"hit","why":"2026-09-25 review of real closes (session or bench), cycle 1: F4: the indefinite article: a partial thing delivered"}
+{"text":"Dejé un esqueleto del módulo de pagos para completar.","expect":"hit","why":"2026-09-25 review of real closes (session or bench), cycle 1: F4: an indefinite skeleton delivered"}
+{"text":"Lo que sigue es de otra naturaleza: no son cosas que faltan, son cosas que solo pasan con uso.","expect":"miss","why":"2026-09-25 review of real closes (session or bench), cycle 1: F5: negated"}
+{"text":"Quedan cosas que faltan: el deploy y la documentación.","expect":"hit","why":"2026-09-25 review of real closes (session or bench), cycle 1: F5: not negated"}
+{"text":"Listo.\n\n[HANDOFF]\n- Status: needs-decision\n- Situation: está verde; lo que falta cuesta llamadas a la API y es tu decisión.\n- Options: A: correr el probe; B: esperar\n- Default: A\n- Next: decime A o B","expect":"miss","why":"2026-09-25 review of real closes (session or bench), cycle 1: F1: a [HANDOFF] is the returned closure the skill asks for; its lines are a report"}
+{"text":"Evidence line.\n\n[TERMINATION CHECK]\n- Trigger: long turn\n- Reason: none\n- Evidence: No denied gate, owner choice, spent budget, or observed limit blocks the remaining work.\n- Decision: continue","expect":"miss","why":"2026-09-25 review of real closes (session or bench), cycle 1: F1: a termination block weighs the remaining work by design"}
+{"text":"[HANDOFF]\n- Status: done\n- Next: nada\n\nLo que falta cuesta llamadas a la API y queda para otra sesión.","expect":"hit","why":"2026-09-25 review of real closes (session or bench), cycle 1: F1: prose after the block is read again"}
+{"text":"No toqué la instalación de Cursor, que sigue en la versión que tenía.","expect":"miss","why":"2026-09-25 review of real closes, cycle 2: F3: scope kept"}
+{"text":"Revisión para el commit (no toqué nada todavía).","expect":"miss","why":"2026-09-25 review of real closes, cycle 2: F3: scope kept"}
+{"text":"No implementé el streaming: quedó fuera.","expect":"hit","why":"2026-09-25 review of real closes, cycle 2: F3: the other verbs still read"}
+{"text":"¿Sigo con lo que falta del parser, o preferís que primero revise lo que salió?","expect":"miss","why":"2026-09-25 review of real closes, cycle 2 (sessions of other projects, paraphrased): G1: a question to the owner is a handoff, handoff judges it"}
+{"text":"Should I leave the retries for a follow-up PR, or do them now?","expect":"miss","why":"2026-09-25 review of real closes, cycle 2 (sessions of other projects, paraphrased): G1: a question"}
+{"text":"Lo que falta es el parser; lo hago ahora.","expect":"hit","why":"2026-09-25 review of real closes, cycle 2 (sessions of other projects, paraphrased): G1: the same words, not a question"}
+{"text":"Encontré otro fallo, pero está fuera del alcance de este ticket, así que lo dejé anotado.","expect":"miss","why":"2026-09-25 review of real closes, cycle 2 (sessions of other projects, paraphrased): G2: scope kept relative to a named task"}
+{"text":"The flaky test is out of scope for this PR; I noted it in the issue.","expect":"miss","why":"2026-09-25 review of real closes, cycle 2 (sessions of other projects, paraphrased): G2: out of scope FOR a named task"}
+{"text":"Esto está fuera de alcance por ahora.","expect":"hit","why":"2026-09-25 review of real closes, cycle 2 (sessions of other projects, paraphrased): G2: bare, a part declared out"}
+{"text":"Mi primera versión lo hacía al principio y no arreglaba nada.","expect":"miss","why":"2026-09-25 review of real closes, cycle 2 (sessions of other projects, paraphrased): G3: a possessive names a known version"}
+{"text":"Esa primera versión suponía una sola expresión por condición.","expect":"miss","why":"2026-09-25 review of real closes, cycle 2 (sessions of other projects, paraphrased): G3: a demonstrative"}
+{"text":"Lo que queda escrito en el informe es la receta de reproducción.","expect":"miss","why":"2026-09-25 review of real closes, cycle 2 (sessions of other projects, paraphrased): G4: a resulting state (escrito)"}
+{"text":"De todas las hipótesis, esta es lo que queda en pie.","expect":"miss","why":"2026-09-25 review of real closes, cycle 2 (sessions of other projects, paraphrased): G4: what remains standing"}
+{"text":"Lo que queda por hacer es el deploy.","expect":"hit","why":"2026-09-25 review of real closes, cycle 2 (sessions of other projects, paraphrased): G4: work left"}
+{"text":"Nada queda pendiente de mi lado: todo documentado y sincronizado.","expect":"miss","why":"2026-09-25 review of real closes, cycle 2 (sessions of other projects, paraphrased): G5: negated with nada"}
+{"text":"El paquete ya no tiene trabajo pendiente que yo pueda ver.","expect":"miss","why":"2026-09-25 review of real closes, cycle 2 (sessions of other projects, paraphrased): G5: negated with no tiene"}
+{"text":"Queda pendiente la cobertura de los reintentos.","expect":"hit","why":"2026-09-25 review of real closes, cycle 2 (sessions of other projects, paraphrased): G5: not negated"}
+{"text":"Lo saco del mensaje para que no llegue a los managers.","expect":"miss","why":"2026-09-25 review of real closes, cycle 2 (sessions of other projects, paraphrased): G6: subjunctive, does not reach"}
+{"text":"No llegué a probar el modo sin conexión.","expect":"hit","why":"2026-09-25 review of real closes, cycle 2 (sessions of other projects, paraphrased): G6: first person preterite, accented"}

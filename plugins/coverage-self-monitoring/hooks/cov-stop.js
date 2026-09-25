@@ -20,8 +20,10 @@ const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const msg = require('../lib/messages.js');
 const { cwdOf, context } = require('../lib/host.js');
+const misread = require('../lib/misread.js');
 
 const HOST = 'claude';
+const MAX_DISPUTED = 32;
 
 function main(raw) {
   let data = {};
@@ -39,19 +41,37 @@ function main(raw) {
 
   const st = state.load(HOST, sid);
   const turn = st.turn || signals.freshTurn();
-  const res = signals.scanClose(data.last_assistant_message || '', { report: signals.reportTurn(st.parts, turn) });
+  const disputed = Array.isArray(st.disputed) ? st.disputed : [];
+  const report = signals.reportTurn(st.parts, turn);
+  const res = signals.scanClose(data.last_assistant_message || '', { report, disputed });
+
+  /*
+   * A misread line is taken only for a phrase the scan raised: the one the
+   * previous turn's reminder quoted (st.raised), or one in this same message.
+   * A taken dispute silences that phrase for the session (MAX_DISPUTED of
+   * them), goes to the user as a notice, and - for the maintainer only, with
+   * COVMON_MISREAD_LOG set - to the misread log (lib/misread.js).
+   */
+  const taken = subagent ? [] : signals.disputes(res.misreads, (Array.isArray(st.raised) ? st.raised : []).concat(res.found));
 
   logEvent(cwdOf(data), Object.assign({
     event: subagent ? 'subagent_stop' : 'stop', session: sid, agent: data.agent_type || null, turn: st.turns || 0, deferrals: res.deferrals, blocks: res.blocks,
-    parts: res.parts, violations: res.violations
+    parts: res.parts, violations: res.violations, misreads: taken.map((d) => d.phrase)
   }, signals.summary(turn)));
 
-  if (res.violations.length && !subagent) {
+  if (!subagent) {
+    if (taken.length) st.disputed = [...new Set(disputed.concat(taken.map((d) => signals.phraseKey(d.phrase))))].slice(-MAX_DISPUTED);
+    misread.record(misread.readings(res, st.raised, report));
+    // What the next reminder quotes, and what a dispute on the next turn may answer.
+    st.raised = res.violations.length ? res.found : [];
     st.pending = res.violations;
     state.save(HOST, sid, st);
   }
   // The finding reaches the user now, the model on the next prompt (lib/host.js).
-  if (res.violations.length && !subagent && notices()) process.stdout.write(context('Stop', '', msg.notice(res.violations)));
+  const notes = [];
+  if (taken.length) notes.push(msg.disputeNotice(taken));
+  if (res.violations.length && !subagent) notes.push(msg.notice(res.violations));
+  if (notes.length && notices()) process.stdout.write(context('Stop', '', notes.join('\n')));
 }
 
 let buf = '';

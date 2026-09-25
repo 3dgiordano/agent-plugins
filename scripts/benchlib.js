@@ -63,7 +63,8 @@ function loadCases(filter) {
     for (const id of fs.readdirSync(pluginDir).sort()) {
       const dir = path.join(pluginDir, id);
       if (!fs.statSync(dir).isDirectory()) continue;
-      if (terms && !terms.some((t) => plugin.includes(t) || id.includes(t))) continue;
+      // `plugin/id` too: the form --list prints.
+      if (terms && !terms.some((t) => plugin.includes(t) || id.includes(t) || `${plugin}/${id}` === t)) continue;
       const promptPath = path.join(dir, 'prompt.md');
       const gradePath = path.join(dir, 'grade.js');
       /*

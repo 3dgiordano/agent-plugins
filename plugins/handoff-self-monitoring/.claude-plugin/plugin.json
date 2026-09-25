@@ -1,6 +1,6 @@
 {
   "name": "handoff-self-monitoring",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Structured-handoff discipline for the final message of a turn. Bundles the handoff-self-monitoring skill (the 'what': a close modelled on the SBAR / I-PASS handoff protocols - Status first, Situation in the reader's terms, the fork as Options with a default, one Next action - so a reader who has the message and not the trace can act on it) with per-host hooks (the 'when') that inject the format on the first closing-shaped tool call of a turn and scan the final message for a decision named but not handed off - an offer, a fork, a closing question, a returned coverage part - and for the [HANDOFF] block. Non-blocking by default; HANDMON_STRICT=1 blocks once. Claude Code: UserPromptSubmit load + retrospective, PostToolUse pre-close nudge, Stop scan of the final message.",
   "author": {
     "name": "David Giordano",

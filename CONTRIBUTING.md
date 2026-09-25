@@ -120,6 +120,44 @@ questions — so the design is agreed before code is written.
   log-events table and re-check [SECURITY.md](SECURITY.md)'s contract.
 - Keep the message texts in `lib/messages.js` — both adapters share them.
 
+### Improving a detector from real closes
+
+The corpus says how a detector does on the lines someone thought to write
+down. What agents actually write is another population. On 2026-09-25,
+coverage's close scan held precision 0.97 on its corpus, and 0.34 on the
+closes of this repository's own Claude Code sessions and 0.18 on the bench's.
+So every eval and bench stage leaves the evidence, and a review turns it into
+corpus lines before any pattern changes:
+
+1. **Collect.** Each invocation leaves `<base>.misreads.json` beside its
+   stream (`evallib.js` `misreadTrace`). Transcripts are the other source:
+   `--sessions ~/.claude/projects/<project>` replays each turn's final message
+   as the Stop hook read it.
+2. **List.** `node scripts/misreads.js <results dirs> --md`, or
+   `--sessions <dir> --md`. That gives one row per sentence, with the pattern
+   that matched, whether the turn was `open` (the hook raised it) or `closed`,
+   and the runs it came from.
+3. **Judge.** Mark each row `deferral`, `misread` or `unsure`, with what it
+   was. An agent can do this first pass. Group the misreads by what they have
+   in common: an article, a negation, a block, a word with a second sense.
+4. **Fix a class, not a row.** A fix is kept only for a class that recurs
+   and that the words can tell apart. When a misread and a real deferral read
+   the same ("still pending from the owner" in both), the class stays open;
+   the agent's `misread` answer covers the single case.
+5. **Lock it in the corpus first.** For each fix, add at least one `miss`
+   from a real close and one `hit` that must keep firing. The new misses must
+   fire on HEAD and stay quiet after the fix. `node scripts/corpus.js --check`
+   holds the floors. Corpus lines are public. Paraphrase every line: no names,
+   paths, hostnames or text from a project, only the phrasing that makes the
+   class. The review sheets quote real closes, so they stay out of the
+   repository (the scratchpad, or `bench/results/` and `evals/results/`, which
+   are ignored).
+6. **Measure on the labelled rows.** Re-scan the same sources and count the
+   misreads removed and the deferrals kept. Explain every deferral that went
+   quiet before calling the fix good. A deferral inside a `[HANDOFF]` is
+   already returned, and that is a closure, not a loss.
+7. **Record** the numbers in `CHANGELOG.md`.
+
 ## Checking that a change still works
 
 Five layers, cheapest first. The first four are deterministic, take seconds and

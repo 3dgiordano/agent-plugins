@@ -193,9 +193,15 @@ const DEFERRAL_RES = [
   /\bnot\s+yet\s+(?:implemented|done|addressed|covered|handled|wired|tested)\b/i,
   // "did not wire" takes the base form, "have not wired" the participle, so
   // the verbs are matched with an optional -d/-ed rather than listed twice.
-  /\bI\s+(?:did\s+not|didn't|have\s+not|haven't)\s+(?:(?:implement|address|cover|handle|touch|finish|wire|test)(?:ed|d)?|got\s+to|get\s+to)\b/i,
+  // Not "touch": "I have not touched the payment module" is scope kept, the
+  // discipline executive asks for, not a part left undone (owner's decision,
+  // 2026-09-25: 9 of 9 such session readings were restraint).
+  /\bI\s+(?:did\s+not|didn't|have\s+not|haven't)\s+(?:(?:implement|address|cover|handle|finish|wire|test)(?:ed|d)?|got\s+to|get\s+to)\b/i,
   /\b(?:a\s+|the\s+)?(?:simplified|basic|minimal|initial|partial|naive|first[- ]pass|skeleton|bare[- ]bones|MVP|proof[- ]of[- ]concept)\s+(?:version|implementation|approach|solution|pass|form)\b/i,
-  /\bout\s+of\s+scope\b(?!\s+(?:of|for)\s+(?:this|the\s+current|a\s+single|one)\s+(?:turn|response|session|pass|message|conversation))/i,
+  // Out of scope OF or FOR something - this turn (termination's reason), or a
+  // named task ("out of scope for #155") - is scope kept, the owner's rule of
+  // 2026-09-25; bare "out of scope, so I stubbed it" defers a part.
+  /\bout\s+of\s+scope\b(?!\s+(?:of|for)\b)/i,
   /\bremaining\s+(?:work|items|tasks|parts|steps|pieces)\b/i,
   /\bstill\s+(?:needs?|need\s+to|to\s+do|to\s+be\s+done|pending|outstanding|open)\b/i,
   /\bcan\s+(?:be|get)\s+(?:added|done|handled|addressed|implemented|wired|finished|completed)\s+(?:later|separately|afterwards|in\s+a)\b/i,
@@ -208,17 +214,39 @@ const DEFERRAL_RES = [
   /(?<!\p{L})(?:en|para)\s+(?:(?:un|una|el|la)\s+(?:pr[oó]xim[oa]|futur[oa]|siguiente|posterior)|otro|otra)\s+(?:PR|pull\s+request|commit|pasada|cambio|tarea|paso|iteraci[oó]n|turno|sesi[oó]n|ticket|issue)(?!\p{L})/iu,
   /(?<!\p{L})(?:en|para)\s+(?:un|una)\s+(?:PR|pull\s+request|commit|pasada|cambio|tarea|ticket|issue)\s+(?:aparte|separad[oa]|posterior|de\s+seguimiento)(?!\p{L})/iu,
   /(?<!\p{L})(?:como|para)\s+(?:un\s+)?(?:seguimiento|trabajo\s+futuro|mejora\s+futura|tarea\s+pendiente)(?!\p{L})/iu,
-  /(?<!\p{L})(?:dej[eé]|dejo|dejando|queda|qued[oó]|quedan)\s+(?:[^.!?\n]{0,30}?\s+)?(?:como|para)\s+(?:un\s+|una\s+)?(?:TODO|pendiente|m[aá]s\s+adelante|despu[eé]s|seguimiento|ejercicio|el\s+futuro|luego)(?!\p{L})/iu,
-  /(?<!\p{L})(?:dej[eé]|agregu[eé]|agrego|dejando|con)\s+(?:un\s+|unos\s+|algunos\s+|\d+\s+)?TODOs?(?!\p{L})/iu,
+  /(?<!\p{L})(?:dej[eé]|dejo|dejando|queda|qued[oó]|quedan)\s+(?:[^.!?\n]{0,30}?\s+)?(?:como|para)\s+(?:un\s+|una\s+)?(?:pendiente|m[aá]s\s+adelante|despu[eé]s|seguimiento|ejercicio|el\s+futuro|luego)(?!\p{L})/iu,
+  // TODO in capitals only: in Spanish "todo" is "everything", and under the i
+  // flag "preparé el release con todo" and "queda para todo el equipo" read
+  // as markers (2026-09-25 review: 10 of 92 session readings, all "con todo").
+  /(?<!\p{L})(?:(?:[Dd]ej[eé]|[Dd]ejo|[Dd]ejando|[Qq]ueda|[Qq]ued[oó]|[Qq]uedan)\s+(?:[^.!?\n]{0,30}?\s+)?(?:como|para)\s+(?:un\s+|una\s+)?TODOs?|(?:[Dd]ej[eé]|[Aa]gregu[eé]|[Aa]grego|[Dd]ejando|[Cc]on)\s+(?:(?:un|unos|algunos|\d+)\s+)?TODOs?)(?!\p{L})/u,
   /(?<!\p{L})(?:todav[ií]a|a[uú]n)\s+no\s+(?:est[aá]n?\s+)?(?:implementad|hech|cubiert|resuelt|probad|testead|conectad|manejad)[oa]s?(?!\p{L})/iu,
-  /(?<!\p{L})sin\s+(?:implementar|probar|testear|terminar|conectar|cubrir)(?!\p{L})/iu,
-  /(?<!\p{L})no\s+(?:implement[eé]|abord[eé]|cubr[ií]|manej[eé]|toqu[eé]|termin[eé]|conect[eé]|prob[eé]|teste[eé]|llegu[eé]\s+a|alcanc[eé]\s+a)(?!\p{L})/iu,
+  // Not a hypothesis "sin probar": that is its epistemic status, not a part
+  // left undone ("[conjecture, sin probar] que un ejemplo suba la tasa").
+  /(?<!\p{L})(?<!(?:hip[oó]tesis|conjetura|conjecture|supuesto)[\s,]+)sin\s+(?:implementar|probar|testear|terminar|conectar|cubrir)(?!\p{L})/iu,
+  // Not "no toqué": scope kept, as "touch" above. The first person preterite
+  // carries its accent: without it "para que no llegue a los managers" is a
+  // subjunctive, "does not reach" (cycle 2). This reads the agent's text,
+  // and agents write the accent.
+  /(?<!\p{L})no\s+(?:implementé|abordé|cubrí|manejé|terminé|conecté|probé|testeé|llegué\s+a|alcancé\s+a)(?!\p{L})/iu,
   // Not "versión mínima": "exige una versión mínima de Node" is a requirement.
-  /(?<!\p{L})(?:versi[oó]n|implementaci[oó]n|soluci[oó]n|aproximaci[oó]n)\s+(?:simplificada|b[aá]sica|inicial|parcial|ingenua|preliminar|reducida)(?!\p{L})|(?<!\p{L})(?:primera\s+(?:versi[oó]n|implementaci[oó]n|pasada)|prueba\s+de\s+concepto|(?:un|el)\s+(?:MVP|esqueleto))(?!\p{L})/iu,
-  /(?<!\p{L})fuera\s+del?\s+alcance(?!\p{L})(?!\s+de\s+(?:este|esta|un|una)\s+(?:turno|respuesta|sesi[oó]n|pasada|mensaje|conversaci[oó]n))/iu,
-  /(?<!\p{L})(?:trabajo|[ií]tems|tareas|partes|pasos|piezas|cosas)\s+(?:restantes?|pendientes?|que\s+faltan?|por\s+hacer)(?!\p{L})|(?<!\p{L})lo\s+que\s+(?:falta|queda)(?:\s+por\s+hacer)?(?!\p{L})/iu,
-  // "no falta nada" and "no queda nada pendiente" are negated, and stay out
-  /(?<!\p{L}|no\s)(?:todav[ií]a\s+|a[uú]n\s+)?(?:falta|faltan|queda|quedan|sigue|siguen)\s+(?:todav[ií]a\s+|a[uú]n\s+)?(?:pendientes?|por\s+hacer|agregar|implementar|probar|testear|conectar|cubrir|manejar|terminar|resolver|documentar|migrar)(?!\p{L})/iu,
+  // The article decides the rest: "una primera versión", "un esqueleto" is a
+  // partial thing delivered; "la primera versión usaba...", "reutilizando el
+  // esqueleto de termination" names a known one - its history, its reuse -
+  // and "versión inicial 0.1.0" is a version number (2026-09-25 review: 9 of
+  // 92 session readings). A possessive or a demonstrative names a known one
+  // as the article does: "mi primera versión lo hacía...", "esa primera
+  // versión" (cycle 2).
+  /(?<!\p{L})(?:versi[oó]n|implementaci[oó]n|soluci[oó]n|aproximaci[oó]n)\s+(?:simplificada|b[aá]sica|inicial|parcial|ingenua|preliminar|reducida)(?!\p{L})(?!\s*v?\d)|(?<!\p{L})(?<!(?<!\p{L})(?:la|mi|tu|su|nuestra|esa|esta|aquella)\s+)(?:primera\s+(?:versi[oó]n|implementaci[oó]n|pasada)|prueba\s+de\s+concepto|un\s+(?:MVP|esqueleto))(?!\p{L})/iu,
+  // As "out of scope" above: "fuera del alcance de #155", "de la migración",
+  // "de este turno" is scope kept (2026-09-25 review, cycle 2: 4 readings).
+  /(?<!\p{L})fuera\s+del?\s+alcance(?!\p{L})(?!\s+(?:de|del|para)\s)/iu,
+  // "no son cosas que faltan", "ya no tiene trabajo pendiente" are negated,
+  // like "no queda nada pendiente" below. "Lo que queda escrito / apuntado /
+  // claro / en pie" is a resulting state, not work left (cycle 2).
+  /(?<!\p{L})(?<!(?<!\p{L})no\s+(?:son|hay|quedan|tiene|tienen|tengo|tenemos)\s+)(?:trabajo|[ií]tems|tareas|partes|pasos|piezas|cosas)\s+(?:restantes?|pendientes?|que\s+faltan?|por\s+hacer)(?!\p{L})|(?<!\p{L})lo\s+que\s+(?:falta|queda)(?:\s+por\s+hacer)?(?!\p{L})(?!\s+(?:escrito|apuntado|anotado|registrado|documentado|guardado|claro|en\s+pie)(?!\p{L}))/iu,
+  // "no falta nada" and "no queda nada pendiente" are negated, and stay out,
+  // and so is "nada queda pendiente".
+  /(?<!\p{L}|no\s|nada\s)(?:todav[ií]a\s+|a[uú]n\s+)?(?:falta|faltan|queda|quedan|sigue|siguen)\s+(?:todav[ií]a\s+|a[uú]n\s+)?(?:pendientes?|por\s+hacer|agregar|implementar|probar|testear|conectar|cubrir|manejar|terminar|resolver|documentar|migrar)(?!\p{L})/iu,
   /(?<!\p{L})(?:se\s+)?(?:puede|pueden|podr[ií]a|podr[ií]an)\s+(?:agregar|hacer|manejar|abordar|implementar|conectar|terminar|completar|sumar)(?:se)?\s+(?:m[aá]s\s+tarde|despu[eé]s|luego|m[aá]s\s+adelante|por\s+separado|aparte)(?!\p{L})/iu,
   /(?<!\p{L})(?:requerir[ií]a|necesitar[ií]a|har[ií]a\s+falta|llevar[ií]a)\s+(?:un\s+|una\s+|m[aá]s\s+|otro\s+|otra\s+)?(?:trabajo|pasada|cambio|PR|esfuerzo|investigaci[oó]n|tarea)\s+(?:aparte|adicional|separad[oa]|m[aá]s\s+profund[oa]|de\s+seguimiento|extra)(?!\p{L})/iu,
 ];
@@ -242,7 +270,14 @@ const BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[COVERAGE CHECK\](?:[ \t]
  * en-dash is the same line. What does NOT loosen: `blocked` and `returned`
  * still have to be followed by their reason.
  */
-const PART_LINE_RE = /^[ \t]*[-*][ \t]*(.+?)[ \t]*[:—–][ \t]*(done|blocked|returned)\b[ \t]*[-—–:(]?[ \t]*(.*)$/i;
+/*
+ * `misread` is not a state of a part. It answers the close scan: a phrase it
+ * quoted as deferred work was something else - an option offered to the
+ * owner, a quote, another sense of the word ("lo que queda" of a mechanism).
+ * Like blocked and returned it needs what the phrase was. The Stop hook takes
+ * it only for a phrase the scan actually raised (disputes() below).
+ */
+const PART_LINE_RE = /^[ \t]*[-*][ \t]*(.+?)[ \t]*[:—–][ \t]*(done|blocked|returned|misread)\b[ \t]*[-—–:(]?[ \t]*(.*)$/i;
 
 // Phrases in double quotes (straight, curly or guillemets) are cited, not
 // said - see the note on prose() in handoff's lib/handoff.js.
@@ -275,6 +310,113 @@ function unfenced(text) {
 }
 
 /*
+ * The sentence a phrase was found in, so the reminder can show what was read
+ * and the agent can say what it meant. Taken from the scanned prose (quotes
+ * and code already blanked), cut to a window around the phrase, with double
+ * quotes turned single so the reminder's own quoting stays balanced.
+ */
+const CONTEXT_MAX = 120;
+/*
+ * The same blanking as prose(), character for character, so offsets in it
+ * are offsets in the original text. prose() collapses what it blanks and the
+ * patterns are tuned on that; this is only for finding where a match was, so
+ * the reviewer reads the sentence as written, code and quotes included (in
+ * the collapsed text "pull `retry` into `http.js`" reads "pull retry into").
+ */
+function shadow(text) {
+  const blank = (s) => s.replace(/[^\n]/g, ' ');
+  return text
+    .replace(/```[\s\S]*?```/g, blank)
+    .replace(/`[^`\n]*`/g, blank)
+    .replace(QUOTED_RE, blank)
+    .split('\n').map((l) => (/^\s*>/.test(l) ? blank(l) : l)).join('\n');
+}
+
+// Where the k-th occurrence of `phrase` in the collapsed body sits in the
+// original: occurrences come in the same order in both. A run of spaces in
+// the phrase may be a blanked span ("leave the other `client.js` notes"),
+// one space in the body and eleven in the shadow, so spaces match any run.
+// Returns [index, length] in the original, or null: the caller falls back.
+function originalIndex(body, index, phrase, shadowed) {
+  const re = new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+'), 'g');
+  let k = 0;
+  for (let m = re.exec(body); m && m.index < index; m = re.exec(body)) k += 1;
+  re.lastIndex = 0;
+  for (let m = re.exec(shadowed); m; m = re.exec(shadowed)) {
+    if (k === 0) return [m.index, m[0].length];
+    k -= 1;
+  }
+  return null;
+}
+
+function contextOf(body, index, length) {
+  // A sentence ends at a newline, or at . ! ? followed by space or the end -
+  // not at the dot of `http.js` or `v1.2`.
+  const ends = (i) => body[i] === '\n' || (/[.!?]/.test(body[i]) && (i + 1 >= body.length || /\s/.test(body[i + 1])));
+  let a = index;
+  while (a > 0 && !ends(a - 1)) a -= 1;
+  let b = index + length;
+  while (b < body.length && !ends(b)) b += 1;
+  if (b < body.length && body[b] !== '\n') b += 1;
+  while (a < index && /[\s\-*•]/.test(body[a])) a += 1; // a list marker is not the sentence
+  let from = a;
+  let to = b;
+  if (to - from > CONTEXT_MAX) {
+    const side = Math.max(0, Math.floor((CONTEXT_MAX - length) / 2));
+    from = Math.max(a, index - side);
+    to = Math.min(b, index + length + side);
+  }
+  const text = body.slice(from, to).replace(/\s+/g, ' ').trim().replace(/"/g, "'");
+  return (from > a ? '...' : '') + text + (to < b ? '...' : '');
+}
+
+/*
+ * The other blocks of this collection are reports by design: a [HANDOFF]
+ * lists options ("B: empezar por el esqueleto y dejar los casos para
+ * después"), a [TERMINATION CHECK] weighs what blocks "the remaining work",
+ * an [EPISTEMIC CLOSE] says what is "still open". Read as prose they are
+ * deferrals (2026-09-25 review: options offered were 5 of 92 session
+ * readings, a termination Evidence line 1 of 11 bench readings). A block
+ * runs from its marker line to the first blank line, as the skills write it;
+ * it is blanked character by character so offsets stay the original's.
+ * Coverage's own blocks are read as they always were.
+ */
+const REPORT_MARKER_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[(?:HANDOFF|TERMINATION CHECK|EPISTEMIC CLOSE|PLAN CHECK|PERSISTENCE CHECK)\]/;
+function reports(text) {
+  const lines = text.split('\n');
+  let inside = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (!inside && REPORT_MARKER_RE.test(lines[i])) inside = true;
+    else if (inside && !lines[i].trim()) { inside = false; continue; }
+    if (inside) lines[i] = lines[i].replace(/[^\r]/g, ' ');
+  }
+  return lines.join('\n');
+}
+
+/*
+ * A question to the owner is a handoff, not a silent drop: "¿Sigo con lo
+ * que falta del test A, o preferís que primero arregle...?" asks whether to
+ * continue, and whether it is formulated well is handoff's to judge.
+ * (2026-09-25 review, cycle 2: 4 of 138 readings.) The sentence is the
+ * phrase's own, bounded as contextOf() bounds it.
+ */
+function question(body, index, length) {
+  let a = index;
+  while (a > 0 && body[a - 1] !== '\n' && !/[.!?]/.test(body[a - 1])) a -= 1;
+  let b = index + length;
+  while (b < body.length && body[b] !== '\n' && !/[.!?]/.test(body[b])) b += 1;
+  return body[b] === '?' || body.slice(a, index).includes('¿');
+}
+
+// What a phrase and a dispute of it are compared on: case, spacing and the
+// quotes or emphasis an agent wraps a phrase in do not make two phrases.
+function phraseKey(s) {
+  return String(s || '').normalize('NFC').toLowerCase()
+    .replace(/^[\s"'`*“”«»]+|[\s"'`*“”«»]+$/g, '')
+    .replace(/\s+/g, ' ').trim();
+}
+
+/*
  * scanClose(text, ctx) - ctx.report: the turn answered a request with no
  * enumerated parts and edited no file. Its "what is left" is a status
  * report, not a part it did not deliver: measured 2026-09-25, a greeting
@@ -283,15 +425,38 @@ function unfenced(text) {
  * the log; only the finding is dropped. A block the agent did write is
  * still checked.
  */
+/*
+ * ctx.disputed: phrase keys this session already answered as misread; they
+ * are not raised again. out.found carries, for each phrase raised, the
+ * pattern that matched and the sentence it was in; out.misreads the lines
+ * the agent wrote as `- "<phrase>": misread - <what it was>`.
+ */
 function scanClose(text, ctx) {
-  const out = { deferrals: [], blocks: 0, parts: 0, violations: [] };
+  const out = { deferrals: [], found: [], misreads: [], blocks: 0, parts: 0, violations: [] };
   if (typeof text !== 'string' || !text) return out;
-  const body = prose(text);
+  const body = prose(reports(text));
+  const shadowed = shadow(reports(text));
+  const disputed = new Set(ctx && Array.isArray(ctx.disputed) ? ctx.disputed : []);
+  const where = (m) => {
+    const at = originalIndex(body, m.index, m[0], shadowed);
+    return at ? contextOf(text, at[0], at[1]) : contextOf(body, m.index, m[0].length);
+  };
 
-  for (const re of DEFERRAL_RES) {
-    const m = body.match(re);
-    if (m) out.deferrals.push(m[0].replace(/\s+/g, ' ').slice(0, 80));
-  }
+  // The first match of each pattern that was not disputed: a disputed "lo que
+  // queda" early in the message must not hide a "lo que queda por hacer" later.
+  DEFERRAL_RES.forEach((re, i) => {
+    const all = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
+    let m;
+    let phrase = null;
+    while ((m = all.exec(body)) !== null) {
+      const p = m[0].replace(/\s+/g, ' ').slice(0, 80);
+      if (!disputed.has(phraseKey(p)) && !question(body, m.index, m[0].length)) { phrase = p; break; }
+      if (!m[0]) all.lastIndex += 1;
+    }
+    if (!phrase) return;
+    out.deferrals.push(phrase);
+    out.found.push({ phrase, pattern: i, source: re.source.slice(0, 120), context: where(m) });
+  });
 
   let m;
   while ((m = BLOCK_RE.exec(unfenced(text))) !== null) {
@@ -300,11 +465,16 @@ function scanClose(text, ctx) {
     for (const line of m[1].split(/\r?\n/)) {
       const p = line.match(PART_LINE_RE);
       if (!p) continue;
-      out.parts += 1;
       blockParts += 1;
       const [, part, state, rest] = p;
       const name = part.trim().slice(0, 80);
       const reason = rest.trim().replace(/^[-:(]\s*/, '').replace(/\)\s*$/, '');
+      if (/^misread$/i.test(state)) {
+        if (!reason || /^<.*>$/.test(reason)) out.violations.push(`"${phraseKey(name)}": misread with no reason - say what the phrase was: an option offered, a quote, another sense of the word`);
+        else out.misreads.push({ phrase: name, reason: reason.slice(0, 200) });
+        continue;
+      }
+      out.parts += 1;
       if (/^(blocked|returned)$/i.test(state) && (!reason || /^<.*>$/.test(reason))) {
         out.violations.push(`"${name}": ${state.toLowerCase()} with no reason - blocked needs the observed limit, returned needs the choice the owner must make`);
       }
@@ -313,7 +483,7 @@ function scanClose(text, ctx) {
   }
 
   if (out.deferrals.length && !out.blocks && !(ctx && ctx.report)) {
-    out.violations.unshift('work deferred (' + out.deferrals.map((d) => `"${d}"`).join('; ') +
+    out.violations.unshift('work that reads as deferred (' + out.deferrals.map((d) => `"${d}"`).join('; ') +
       ') with no [COVERAGE CHECK] block - close each part as done, blocked with the observed reason, or returned to the owner');
   }
   return out;
@@ -328,4 +498,20 @@ function summary(turn) {
   return { tools: turn.tools, edits: turn.edits || 0, stubs: turn.stubs, stubFiles: Object.keys(turn.files).length };
 }
 
-module.exports = { freshTurn, observe, partsOf, scanClose, reportTurn, countStubs, summary, PARTS_MIN, STUBS_STEP };
+/*
+ * disputes(misreads, raised) - the misread lines that answer a phrase the scan
+ * raised (the previous turn's, or this one's), each joined to what was found.
+ * A misread naming nothing raised is not taken: the answer cannot silence a
+ * phrase in advance.
+ */
+function disputes(misreads, raised) {
+  const out = [];
+  for (const m of misreads || []) {
+    const k = phraseKey(m.phrase);
+    const hit = (raised || []).find((f) => { const fk = phraseKey(f.phrase); return fk && (k === fk || k.includes(fk)); });
+    if (hit && !out.some((d) => phraseKey(d.phrase) === phraseKey(hit.phrase))) out.push(Object.assign({}, hit, { reason: m.reason }));
+  }
+  return out;
+}
+
+module.exports = { freshTurn, observe, partsOf, scanClose, reportTurn, disputes, phraseKey, countStubs, summary, PARTS_MIN, STUBS_STEP };

@@ -21,6 +21,11 @@ const FAIL_LINE_RES = [
   /\bpanic:/,                                                          // Go, Rust
   /\bsegmentation fault\b/i,
   /\b[1-9]\d*\s+(?:failed|failures?|errors?)\b/i,                      // "1 failed", "3 errors" - not "0 failed"
+  // TAP, which node --test prints: "not ok 70 - name", and the summary with the
+  // word before the number, "# fail 2" - not "# fail 0". Seen 2026-09-25: 28
+  // red node --test runs were called "passed" by handoff's pre-close.
+  /^\s*not ok\s+\d+\b/,
+  /^#\s+fail\s+[1-9]\d*\b/,
   /^\s*(?:npm\s+)?ERR!/,                                               // npm
   /^\s*make(?:\[\d+\])?:\s+\*\*\*/,                                    // "make: *** [all] Error 2"
   // pytest "FAILED test_x", Jest/Go "FAIL src/x" - not a grader rubric's "FAIL if ..."
@@ -77,7 +82,8 @@ function unquoted(line) {
 
 // A source comment - `//`, `/*`, a JSDoc `*`, `# `, `<!--` - is prose about the
 // code. `#8 ERROR:` (a BuildKit step) is not one: the hash needs a space.
-const COMMENT_LINE_RE = /^\s*(?:\/\/|\/\*|\*(?=\s|\/|$)|#(?=\s)|<!--)/;
+// Nor is TAP's summary: "# fail 1" is output that begins with a hash.
+const COMMENT_LINE_RE = /^\s*(?:\/\/|\/\*|\*(?=\s|\/|$)|#(?=\s)(?!\s+fail\s+\d)|<!--)/;
 
 // The first line that matches a failure rule, or null.
 function failureLine(text) {

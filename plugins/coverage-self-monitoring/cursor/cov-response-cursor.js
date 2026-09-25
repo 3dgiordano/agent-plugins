@@ -17,6 +17,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const { cwdOf } = require('../lib/host.js');
+const misread = require('../lib/misread.js');
 
 const HOST = 'cursor';
 
@@ -28,6 +29,10 @@ function main(raw) {
   const st = state.load(HOST, cid);
   st.turns = (st.turns || 0) + 1;
   const res = signals.scanClose(data.text || '');
+  // No reminder reaches the agent here, so it cannot answer a misreading of
+  // the previous turn; what it can leave is the trace (COVMON_MISREAD_LOG=all)
+  // and a misread line for a phrase in this same message.
+  misread.record(misread.readings(res, [], false));
   logEvent(cwdOf(data), Object.assign({
     event: 'stop', host: 'cursor', conversation: cid, turn: st.turns, deferrals: res.deferrals,
     blocks: res.blocks, parts: res.parts, violations: res.violations

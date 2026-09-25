@@ -50,7 +50,7 @@ const path = require('path');
 const AGENT_CLI_DRIVER = true;
 
 const { findCli, authState, argsFor, globalInstalls, run, pluginCopy } = require('./cursor-eval.js');
-const { reached, seed, scratchWorkspace, isolatedHome, dropHome, dropWorkspace, hookWitness, auditStream, quote, MARKER } = require('./evallib.js');
+const { reached, seed, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, quote, MARKER } = require('./evallib.js');
 const { ROOT, loadCases } = require('./benchlib.js');
 const { benchmarkVersion, pluginVersions } = require('./benchsession.js');
 
@@ -398,11 +398,14 @@ function main() {
         // One HOME per invocation: the CLI keeps chats and project state
         // there, and the two arms must not share any of it.
         const runEnv = isolate ? isolatedHome('.cursor', c.shell) : {};
+        const trace = misreadTrace(runEnv);
+        Object.assign(runEnv, trace.env);
         seed(ws, c);
         const limits = { timeout: timeoutMin * 60 * 1000, maxBuffer: 50 * 1024 * 1024 };
         const args = argsFor(c, withPlugin, model, ws, 'stream-json');
         const r = run(cli.bin, args, runEnv, c.prompt, cliCwd, limits);
         let parsed = parseAgent(r.stdout);
+        let turnStreams = [String(r.stdout || '')];
         if (c.turns && c.turns.length > 1) {
           const parts = [parsed];
           const streams = [String(r.stdout || '')];
@@ -415,6 +418,7 @@ function main() {
             streams.push(String(rn.stdout || ''));
             parts.push(parseAgent(rn.stdout));
           }
+          turnStreams = streams.slice();
           parsed = mergeTurns(parts);
           if (parts.length < c.turns.length) parsed.error = true;
           r.stdout = streams.join('\n');
@@ -444,6 +448,8 @@ function main() {
         if (audit.suspect.length) console.log(`  suspect ${arm} run ${i + 1}: ${[...new Set(audit.suspect.map((s) => s.kind))].join(', ')}`);
         addCost(costCase[arm], parsed);
         addCost(costAll[arm], parsed);
+        if (!parsed.error) trace.scan(turnStreams.map(finalMessage));
+        trace.collect(outDir, base);
         dropHome(runEnv);
         dropWorkspace(cliCwd);
         dropHostJunk(ws);

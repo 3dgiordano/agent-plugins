@@ -69,10 +69,23 @@ function nudge(signals) {
   return '[coverage self-monitoring] ' + lines.join('; ') + `. ${PROTOCOL}`;
 }
 
-function retrospective(violations) {
-  return '[coverage self-monitoring] Your previous turn deferred work without closing the ledger: ' +
-    violations.join('; ') + '. Close each deferred part in a [COVERAGE CHECK] - done, blocked, or ' +
-    `returned, with the reason - and do the ones that are none of those. ${PROTOCOL}`;
+/*
+ * The scan reads words, not what a sentence does with them: an option offered
+ * to the owner ("empezar por el esqueleto") and "lo que queda" of a mechanism
+ * both read as deferred work (measured 2026-09-25, three of four findings in
+ * one session). So the reminder says what it read and where, admits it can be
+ * wrong, and gives the answer for that case - one line, which also keeps the
+ * phrase from being raised again this session (hooks/cov-stop.js).
+ */
+function retrospective(violations, found) {
+  const where = (found || []).filter((f) => f && f.context).slice(0, 4)
+    .map((f) => `"${f.phrase}" in "${f.context}"`);
+  return '[coverage self-monitoring] Your previous turn may have deferred work without closing the ledger: ' +
+    violations.join('; ') + '.' + (where.length ? ` Where it was read: ${where.join('; ')}.` : '') +
+    ' Close each deferred part in a [COVERAGE CHECK] - done, blocked, or returned, with the reason - ' +
+    'and do the ones that are none of those. The reading can be wrong: if a phrase is not deferred ' +
+    'work - an option you offered, a quote, another sense of the word - say so on its own line, ' +
+    `\`- "<phrase>": misread - <what it was>\`. ${PROTOCOL}`;
 }
 
 // The one line the user sees when the stop scan finds something (lib/host.js):
@@ -80,10 +93,16 @@ function retrospective(violations) {
 function notice(violations) {
   return host.notice('coverage self-monitoring', violations, 'the agent is reminded on your next message');
 }
+// A dispute silences a phrase for the session, so the person sees each one.
+function disputeNotice(disputes) {
+  return host.notice('coverage self-monitoring',
+    disputes.map((d) => `the agent answered "${d.phrase}" as a misreading: ${d.reason.replace(/"/g, "'").replace(/\s+-\s+/g, ', ')}`),
+    'not raised again this session');
+}
 function stubNotice(signals) {
   const s = signals.find((x) => x.kind === 'stubs');
   return host.notice('coverage self-monitoring', [`${s.count} stub / placeholder / TODO markers written this turn`],
     'the agent is asked to implement them or close them in a [COVERAGE CHECK]');
 }
 
-module.exports = { LOAD, ledger, nudge, retrospective, notice, stubNotice };
+module.exports = { LOAD, ledger, nudge, retrospective, notice, disputeNotice, stubNotice };

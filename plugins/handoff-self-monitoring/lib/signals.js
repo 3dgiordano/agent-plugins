@@ -49,12 +49,55 @@ function commandOf(input) {
   return '';
 }
 
+/*
+ * The shell the command runs, without the text it carries: a heredoc body,
+ * a quoted string. "node -e \"...jest...\"" runs no suite, and a heredoc
+ * that writes "surefire test" into a note runs no build - yet the gate
+ * patterns found them there (2026-09-25 review of the owner's sessions).
+ * Blanked character by character, so segment offsets stay the command's.
+ */
+function shellCode(cmd) {
+  const blank = (s) => s.replace(/[^\n]/g, ' ');
+  return cmd
+    .replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\s*(?=\n|$)/g, (h) => h.replace(/\n[\s\S]*$/, (body) => blank(body)))
+    // A quoted string may span lines: node -e "<a script>" usually does.
+    .replace(/'[^']*'|"(?:[^"\\]|\\.)*"/g, blank);
+}
+
+/*
+ * The segments of a command line, split on |, ||, &&, ; and newlines outside
+ * quotes, each with its own text. The label is the segment the pattern
+ * matched - "node --test", not the "head -20" or the `fail)"` a pipeline
+ * ends on, which is what the last-segment label showed in 182 of 184
+ * pre-close notices in the owner's sessions.
+ */
+function segments(cmd) {
+  const code = shellCode(cmd);
+  const out = [];
+  let from = 0;
+  const re = /\|\|?|&&|;|\n/g;
+  let m;
+  while ((m = re.exec(code)) !== null) {
+    out.push({ code: code.slice(from, m.index), text: cmd.slice(from, m.index) });
+    from = m.index + m[0].length;
+  }
+  out.push({ code: code.slice(from), text: cmd.slice(from) });
+  return out.filter((s) => s.code.trim());
+}
+
 // A stable, short label for the log and the nudge: the first word or two of
-// the command that matched ("git commit", "npm test").
-function labelOf(cmd) {
-  const m = cmd.match(/(?:^|&&|;|\|\|?)\s*([^&;|]+)$/);
-  const last = (m ? m[1] : cmd).trim();
-  return last.split(/\s+/).slice(0, 2).join(' ').slice(0, 40);
+// the segment that matched ("git commit", "npm test").
+// A subshell's paren, VAR=value and an `env [-u NAME]` prefix are not the
+// command: "(node scripts/test.js", "env -u" were labels before this.
+function labelOf(segment) {
+  const words = segment.trim().replace(/^[({\s]+/, '').split(/\s+/);
+  let i = 0;
+  for (;;) {
+    if (/^\w+=/.test(words[i] || '')) i += 1;
+    else if (words[i] === 'env') { i += 1; while (/^-/.test(words[i] || '')) i += /^-[uS]$/.test(words[i]) ? 2 : 1; }
+    else break;
+  }
+  return words.slice(i, i + 2).join(' ').slice(0, 40);
 }
 
 /*
@@ -68,17 +111,20 @@ function observe(turn, toolName, toolInput, toolResponse) {
   const cmd = commandOf(toolInput);
   if (!cmd) return [];
 
+  const segs = segments(cmd);
+  const commit = segs.find((s) => COMMIT_RES.some((re) => re.test(s.code)));
+  const gate = commit ? null : segs.find((s) => GATE_RES.some((re) => re.test(s.code)));
   let what = null;
-  if (COMMIT_RES.some((re) => re.test(cmd))) what = 'commit';
-  else if (GATE_RES.some((re) => re.test(cmd)) && !looksFailed(outputText(toolResponse))) what = 'gate';
+  if (commit) what = 'commit';
+  else if (gate && !looksFailed(outputText(toolResponse))) what = 'gate';
   if (!what) return [];
 
   turn.fired.closing = true;
-  return [{ kind: 'closing', what, label: labelOf(cmd) }];
+  return [{ kind: 'closing', what, label: labelOf((commit || gate).text) }];
 }
 
 function summary(turn) {
   return { tools: turn.tools, preclose: !!(turn.fired && turn.fired.closing) };
 }
 
-module.exports = { freshTurn, observe, summary };
+module.exports = { freshTurn, observe, summary, segments, shellCode };

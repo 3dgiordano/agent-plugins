@@ -103,19 +103,22 @@ function release(lock) {
   try { fs.unlinkSync(lock); } catch (_) {}
 }
 
+// Run `fn` holding `lock` when it can be had, and without it when it cannot
+// (see LOCK_WAIT_MS). Shared with the misread log (lib/misread.js).
+function withLock(lock, fn) {
+  const locked = acquire(lock);
+  try { return fn(); } finally { if (locked) release(lock); }
+}
+
 // Read, let `fn` mutate the state object (its return value is passed back),
 // write - under the lock when it can be had.
 function update(host, id, fn) {
-  const lock = fileFor(host, id) + '.lock';
-  const locked = acquire(lock);
-  try {
+  return withLock(fileFor(host, id) + '.lock', () => {
     const st = load(host, id);
     const out = fn(st);
     save(host, id, st);
     return out;
-  } finally {
-    if (locked) release(lock);
-  }
+  });
 }
 
 
@@ -150,4 +153,4 @@ function sweep(now) {
   return dropped;
 }
 
-module.exports = { load, save, update, remove, sweep };
+module.exports = { load, save, update, remove, sweep, withLock };

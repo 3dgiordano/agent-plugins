@@ -38,7 +38,7 @@ function main(raw) {
   const out = [];
   if (st.turns === 1) out.push(msg.LOAD);
   if (parts >= signals.PARTS_MIN) out.push(msg.ledger(parts));
-  if (pending.length) out.push(msg.retrospective(pending));
+  if (pending.length) out.push(msg.retrospective(pending, st.raised));
 
   logEvent(cwdOf(data), { event: 'prompt', session: sid, turn: st.turns, parts: parts, ledger: parts >= signals.PARTS_MIN, retrospective: pending.length });
   if (out.length) process.stdout.write(context('UserPromptSubmit', out.join('\n')));

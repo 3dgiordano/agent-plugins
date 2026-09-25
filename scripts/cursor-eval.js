@@ -100,7 +100,7 @@ const ROOT = path.resolve(__dirname, '..');
 const PLUGINS = path.join(ROOT, 'plugins');
 const GLOBAL_PLUGINS = path.join(os.homedir(), '.cursor', 'plugins', 'local');
 
-const { PLUGINS: PLUGINS_DIR, cases, graderFor, gradingOf, usable, verdict, reportLine, summaryLines, scratchWorkspace, isolatedHome, dropHome, dropWorkspace, hookWitness, auditStream, neutralDir, quote, seed, harvest } = require('./evallib.js');
+const { PLUGINS: PLUGINS_DIR, cases, graderFor, gradingOf, usable, verdict, reportLine, summaryLines, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, neutralDir, quote, seed, harvest } = require('./evallib.js');
 
 // ---------------------------------------------------------------------------
 // The CLI
@@ -540,20 +540,24 @@ function main() {
           const ws = scratchWorkspace();
           // One HOME per invocation, so the two arms share no CLI state.
           const runEnv = isolate ? isolatedHome('.cursor') : {};
+          const trace = misreadTrace(runEnv);
+          Object.assign(runEnv, trace.env);
           seed(ws, c);
           // stream-json, not text: the stream is what the audit reads (where the
           // agent went), and the reply is its `result` event.
           const r = run(cli.bin, argsFor(c, withPlugin, model.id, ws, 'stream-json'), runEnv, c.prompt, ws, { maxBuffer: 50 * 1024 * 1024 });
           const stream = `${r.stdout || ''}`;
           const audit = auditStream(stream, [ws, runEnv.HOME, withPlugin ? path.dirname(pluginCopy(c.plugin)) : null, hookWitness().dir], ROOT, ws);
-          dropHome(runEnv);
+          const base = `${c.plugin}__${c.id}__${arm}__${i + 1}`;
           hooks[arm] += hookWitness().fired(ws) ? 1 : 0;
           let text = stream;
           for (const line of stream.split(/\r?\n/)) {
             if (!line.startsWith('{')) continue;
             try { const o = JSON.parse(line); if (o.type === 'result' && typeof o.result === 'string') text = o.result; } catch (_) { /* not an event */ }
           }
-          const base = `${c.plugin}__${c.id}__${arm}__${i + 1}`;
+          trace.scan([finalMessage(stream)]);
+          trace.collect(outDir, base);
+          dropHome(runEnv);
           fs.writeFileSync(path.join(outDir, `${base}.txt`), text);
           fs.writeFileSync(path.join(outDir, `${base}.stream.jsonl`), stream);
           const artifact = harvest(ws, c, outDir, base);

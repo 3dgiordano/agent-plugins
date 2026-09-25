@@ -123,6 +123,64 @@ user-visible field on the events this plugin uses (`sessionStart`,
 `postToolUse`, `afterAgentResponse` - `user_message` exists only on permission
 hooks), so nothing shows there. Off with `COVMON_NOTICE=0`.
 
+## When the scan misreads
+
+The close scan reads a lexicon of words, not what a sentence does with them:
+an option offered to the owner ("empezar por el esqueleto") or "lo que queda"
+of a mechanism reads as deferred work. So the reminder on the next prompt
+quotes each phrase in the sentence it was read in, says the reading can be
+wrong, and gives the answer for that case - one line in the
+`[COVERAGE CHECK]`:
+
+```
+- "el esqueleto": misread - an option offered to the owner, not a stub
+```
+
+A misread line needs its reason, and it is taken only for a phrase the scan
+raised (the previous turn's, or one in the same message), so it cannot
+silence a phrase in advance. A taken one is not raised again this session
+(up to 32 phrases), and the user sees it as a notice:
+
+```
+[coverage self-monitoring] the agent answered "el esqueleto" as a misreading: an option offered to the owner, not a stub - not raised again this session
+```
+
+## Misread log (for the maintainer, off by default)
+
+A user cannot change a pattern, so what the disputes teach is for whoever
+maintains the lexicon in `lib/signals.js`. With it unset nothing is written,
+and the dispute works the same.
+
+| `COVMON_MISREAD_LOG` | Records |
+|----------------------|---------|
+| `1`/`true`/`yes`/`on` | every taken dispute |
+| `all` | also every phrase the scan raised, in its sentence - the trace a reviewer judges, and the only one on Cursor, where no reminder reaches the agent and so no dispute is written |
+
+```
+# PowerShell:  $env:COVMON_MISREAD_LOG = "1"
+# bash:        export COVMON_MISREAD_LOG=1
+```
+
+The repository's eval and bench runners keep one file per invocation beside
+the run as `<base>.misreads.json`: on Claude Code and Codex the Stop hook
+writes it (`all`); on Cursor headless, which fires no `afterAgentResponse`,
+the runner runs this `scanClose` on each turn's final message itself.
+
+- **Where:** `~/.3dgiordano-agent-plugins/misreads/coverage-self-monitoring.json`,
+  outside every project, and named in no message or skill text the agent
+  reads. `COVMON_MISREAD_FILE` overrides the path.
+- **No duplicates:** one entry per pattern and phrase. A repeat raises
+  `raised` or `misread` and `last`; up to 3 distinct sentences are kept per
+  entry, the newest, a disputed one with the agent's reason.
+- **Bounded:** at most 50 entries, the most recently seen kept.
+- **Read it:** `node scripts/misreads.js` in this repository prints the
+  entries by count; `--md` writes a review sheet with a verdict column;
+  `--clear` empties the file. Given results directories instead, it merges
+  their `*.misreads.json`.
+
+An entry is the agent's word, not a verdict. Confirm it, add the sentence to
+the test suite as a miss, and only then change the pattern.
+
 ## Debug log (opt-in, off by default)
 
 Off unless `COVMON_LOG` is set (`1`/`true`/`yes`/`on`); with it unset the hooks
@@ -142,7 +200,7 @@ Code) or `<project>/.cursor/logs/…` (Cursor); override with
 | `prompt` | `turn`, `parts`, `ledger`, `retrospective` | per user prompt: enumerated items, ledger asked, findings carried (Claude Code) |
 | `session_start` | — | once per Cursor session |
 | `signal` | `stubs`, `signals` | stub threshold crossed: count and files |
-| `stop` | `deferrals`, `blocks`, `parts`, `violations`, `tools`, `stubs`, `stubFiles` | per final message: deferral phrases, closing ledger, turn totals |
+| `stop` | `deferrals`, `blocks`, `parts`, `violations`, `misreads`, `tools`, `stubs`, `stubFiles` | per final message: deferral phrases, closing ledger, phrases answered as misread, turn totals |
 | `subagent_stop` | same as `stop`, plus `agent` | a subagent's final message. Measured only: never blocks, and never parks a retrospective — a subagent has no next user prompt to carry one, so parking would deliver it to the parent's turn |
 
 ```
