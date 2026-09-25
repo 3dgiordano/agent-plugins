@@ -44,3 +44,23 @@
 {"text":"La sesión de capacitación es el viernes.","expect":"miss","why":"training session"}
 {"text":"Continuá con el siguiente archivo de la lista.","expect":"miss","why":"continue, no session"}
 {"text":"La sesión del usuario expira a los 30 minutos; la próxima petición debe renovarla.","expect":"miss","why":"la próxima petición, not la próxima vez"}
+{"text": "Look at what the other session answered:\n\n<pasted_content id=\"3bc4\">\nThree spun-off tasks go to separate sessions; we continue in a later session.\n</pasted_content id=\"3bc4\">", "expect": "miss", "why": "the later session is inside pasted text, not the user's request (2026-09-25)"}
+{"text": "Here is the log. We pick this up next session.\n\n<pasted_content id=\"a1\">\nERROR session expired\n</pasted_content id=\"a1\">", "expect": "hit", "why": "the user's own words say next session; the paste beside it does not hide them"}
+
+// --- Direction (2026-09-24): a session opened, or one behind, is a report; a session ahead is the boundary ---
+{"text":"listo, abrí una nueva sesión también y escribí \"Hola\". Puedes verla?","expect":"miss","why":"the user reports a session they opened (past tense); nothing continues in it - fired before 0.5.2"}
+{"text":"Inicié una nueva sesión para probar el hook y no apareció el aviso.","expect":"miss","why":"inicié una nueva sesión: an event reported"}
+{"text":"Empecé otra sesión y ahí sí se ve la línea del ledger.","expect":"miss","why":"empecé otra sesión: an event reported"}
+{"text":"Acabo de abrir una nueva sesión; ¿ves el mensaje de bienvenida?","expect":"miss","why":"acabo de abrir: an event reported"}
+{"text":"En la sesión anterior hice el parser; ahora agregá los tests.","expect":"miss","why":"sesión anterior with no resume cue: a report of what was done"}
+{"text":"En la última sesión arreglé el login.","expect":"miss","why":"última sesión with no resume cue: a report"}
+{"text":"¿Qué cambió desde la sesión previa?","expect":"miss","why":"sesión previa in a question about history, no resume cue"}
+{"text":"Seguimos en otra sesión con el resto.","expect":"hit","why":"otra sesión, forward"}
+{"text":"Lo termino en la próxima sesión.","expect":"hit","why":"próxima sesión, forward"}
+{"text":"En una nueva sesión hacemos el deploy.","expect":"hit","why":"nueva sesión as where the work goes, no opening verb"}
+{"text":"Abrí otra sesión para mirar logs; el deploy lo seguimos en otra sesión.","expect":"hit","why":"the opened session is cut out; the second otra sesión still points forward"}
+{"text":"Retomá lo pendiente de la sesión anterior.","expect":"hit","why":"sesión anterior with a resume cue (retomá, pendiente)"}
+{"text":"I opened a new session and typed hello - can you see it?","expect":"miss","why":"English twin: a session the user opened is an event"}
+{"text":"In the previous session I fixed the parser; now add the tests.","expect":"miss","why":"previous session with no resume cue: a report"}
+{"text":"Last session you broke the build, so check CI first.","expect":"miss","why":"last session with no resume cue: a report"}
+{"text":"Open a new session for the deploy once this is merged.","expect":"hit","why":"present-tense open: the deploy goes to a later session"}

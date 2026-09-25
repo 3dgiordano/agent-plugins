@@ -42,10 +42,21 @@ function main(raw) {
   // Remember that this session was told, so the first prompt does not repeat
   // it: the prompt hook is the fallback for a host mode where SessionStart
   // did not run, not a second announcement.
-  state.update(HOST, sid, (st) => { if (speak) st.announced = ins.mtimeMs; });
+  //
+  // The user's line waits for the next prompt. Claude Code records a
+  // SessionStart systemMessage and the desktop app does not show it
+  // (2026-09-25: two sessions opened on a ledger with open items, the notice
+  // in the transcript as hook_system_message, only the Stop notices on
+  // screen). The prompt hook delivers it once, on whatever turn comes next -
+  // after a compaction that is not turn 1.
+  const note = speak && notices() ? msg.statusNotice(ins) : '';
+  state.update(HOST, sid, (st) => {
+    if (speak) st.announced = ins.mtimeMs;
+    st.notice = note || null;
+  });
 
   logEvent(cwd, { event: 'session_start', session: sid, source: data.source || null, exists: ins.exists, open: ins.open, lines: ins.lines, bytes: ins.bytes, bloated: ins.bloated, ageMs: ins.ageMs, emitted: speak });
-  if (speak) process.stdout.write(context('SessionStart', msg.status(ins), notices() && msg.statusNotice(ins)));
+  if (speak) process.stdout.write(context('SessionStart', msg.status(ins), ''));
 }
 
 let buf = '';

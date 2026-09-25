@@ -47,7 +47,10 @@ function main(raw) {
   let pending = null;
   let announced = null;
   let sweep = [];
+  let parked = null; // the ledger line SessionStart could not show (prog-session-start.js)
   state.update(HOST, sid, (st) => {
+    parked = st.notice || null;
+    st.notice = null;
     st.turns = (st.turns || 0) + 1;
     st.turn = signals.freshTurn();
     st.turnStart = Date.now();
@@ -63,6 +66,7 @@ function main(raw) {
 
   const out = [];
   const notes = []; // what the user sees: the ledger status and the sweep, not the load or the reminders
+  if (parked) notes.push(parked);
   let ins = null;
   if (turns === 1) {
     ins = ledger.inspect(cwd);
@@ -80,7 +84,8 @@ function main(raw) {
   if (sweep.length) { out.push(msg.sweep(sweep, turns)); notes.push(msg.sweepNotice(sweep)); }
 
   logEvent(cwd, { event: 'prompt', session: sid, turn: turns, open: ins ? ins.open : undefined, retrospective: !!pending, spans, swept: sweep.length });
-  if (out.length) process.stdout.write(context('UserPromptSubmit', out.join('\n'), notices() && notes.join('\n')));
+  const note = notices() ? notes.join('\n') : '';
+  if (out.length || note) process.stdout.write(context('UserPromptSubmit', out.join('\n'), note));
 }
 
 let buf = '';

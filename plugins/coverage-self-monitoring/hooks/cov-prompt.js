@@ -31,9 +31,10 @@ function main(raw) {
   st.turn = signals.freshTurn();
   const pending = Array.isArray(st.pending) ? st.pending : [];
   st.pending = [];
+  const parts = signals.partsOf(data.prompt);
+  st.parts = parts; // read at the close: a report turn (signals.reportTurn)
   state.save(HOST, sid, st);
 
-  const parts = signals.partsOf(data.prompt);
   const out = [];
   if (st.turns === 1) out.push(msg.LOAD);
   if (parts >= signals.PARTS_MIN) out.push(msg.ledger(parts));

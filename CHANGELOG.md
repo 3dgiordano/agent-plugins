@@ -7,6 +7,31 @@ release.
 
 ## [Unreleased]
 
+## [0.12.1] — 2026-09-25
+
+Three readings the hooks got wrong in real sessions, and one line the user
+never saw. Pasted text is no longer read as the request; a turn that only
+reports what is left is no longer a deferral; a session the user opened, or
+one behind this one, is no longer a later session. And the ledger's line for
+the user moves from session start, which the desktop app records but does
+not show, to the first message.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.6.2 |
+| epistemic-self-monitoring | 0.3.0 |
+| persistence-self-monitoring | 0.3.0 |
+| termination-self-monitoring | 0.3.0 |
+| coverage-self-monitoring | 0.3.1 |
+| handoff-self-monitoring | 0.3.0 |
+| progress-self-monitoring | 0.5.2 |
+
+### Fixed
+- **coverage 0.3.1, progress 0.5.2: a pasted block is not the request.** Text pasted into a message reaches the prompt hook wrapped in `<pasted_content id="…">`; the two prompt scanners read it as the user's words. Measured 2026-09-25: a pasted reply with a twelve-line list drew "the request enumerates 12 parts" from coverage, and its "separate sessions" drew progress's later-session reminder. `userText()` in `lib/host.js` (the shared copy, now in all seven) drops pasted blocks before `partsOf()` and `spansSessions()` read the prompt; an unclosed block runs to the end. The user's own list and words beside a paste still count. Two rows in the progress prompt corpus.
+- **coverage 0.3.1: a report is not a deferral.** A turn that answers a request with no enumerated parts and edits no file - "Hola", "what is the state of the project?" - reports what is left; it did not leave a part undone. Measured twice: a greeting answered with the ledger's open items, and a status question, each drew "work deferred (\"queda por hacer\")". The Stop scan still counts the deferral phrases for the log and drops only the finding; a turn that edited, or a request with parts, is scanned as before, and a block the agent wrote is still checked. The prompt hook keeps the prompt's part count and the observe hook counts edits (`reportTurn()` in `lib/signals.js`).
+- **progress 0.5.2: the ledger's line for the user comes with the first prompt.** Claude Code records a SessionStart `systemMessage` and the desktop app does not show it: two sessions opened on a ledger with open items, the notice in the transcript as `hook_system_message`, only the Stop notices on screen. SessionStart now gives the agent its context and parks the user's line; the prompt hook delivers it once, on whatever turn comes next (after a compaction that is not turn 1). Checked by the owner in a new session on 2026-09-25: the line shows with the first message.
+- **progress 0.5.2: a session the user opened, or one behind, is not a later session.** "listo, abrí una nueva sesión también y escribí \"Hola\". Puedes verla?" drew the later-session reminder on its "nueva sesión"; "en la sesión anterior hice X" and "In the previous session I fixed the parser" fired the same way. `spansSessions()` now reads direction: a next, other or new session (`SPANS_RE`) is a hit on its own; a previous, last or past one (`BACK_RE`) counts only beside a resume cue in the same sentence ("continue where we left off", "retomá lo pendiente"); and a session opened ("abrí / inicié / empecé / acabo de abrir una nueva sesión", "I opened a new session") is cut from the text before either list reads it. "Seguimos en otra sesión", "lo termino en la próxima sesión", "en una nueva sesión hacemos el deploy" stay hits. Sixteen rows in the progress prompt corpus (ten misses, each a hit before), English twins included; recall and precision 100%.
+
 ## [0.12.0] — 2026-09-24
 
 A project file no longer reaches the agent with a hook's authority. Since
@@ -1349,7 +1374,9 @@ First public release.
   backticks was scanned as a closure block; the marker must now stand alone
   on its line.
 
-[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.12.1...HEAD
+[0.12.1]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.12.1
+[0.12.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.12.0
 [0.11.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.11.0
 [0.10.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.10.0
 [0.9.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.9.0

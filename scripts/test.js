@@ -588,6 +588,38 @@ test('coverage (claude): load on turn 1, ledger prompt at 3+ parts, stub nudge, 
   assert.equal(hook(COV, 'hooks/cov-prompt.js', cc({ prompt: 'ok' })).out, '', 'closed ledger leaves nothing');
 });
 
+test('prompt scanners read what the user wrote: a pasted block is neither parts nor a later session', (t) => {
+  const { userText } = require(path.join(plugin(COV), 'lib/host.js'));
+  const pasted = 'this is what I got:\n\n<pasted_content id="3bc4">\n- one\n- two\n- three\n- four\nwe continue in a later session\n</pasted_content id="3bc4">';
+  assert.equal(userText(pasted).trim(), 'this is what I got:');
+  assert.equal(userText('x <pasted_content id="9">\n- a\n- b').trim(), 'x', 'an unclosed block runs to the end');
+  assert.equal(userText('no paste here'), 'no paste here');
+  const sid = uid('paste');
+  t.after(() => { cleanupTemp(`covmon_claude_${sid}`); cleanupTemp(`progmon_claude_${sid}`); });
+  const cc = (x) => Object.assign({ session_id: sid, cwd: os.tmpdir() }, x);
+  assert.ok(!hook(COV, 'hooks/cov-prompt.js', cc({ prompt: pasted })).out.includes('enumerates'), 'coverage: no ledger for a pasted list');
+  assert.match(hook(COV, 'hooks/cov-prompt.js', cc({ prompt: pasted + '\nnow:\n- a\n- b\n- c' })).out, /enumerates 3 parts/, 'the user\'s own list still counts');
+  assert.ok(!hook(PRO, 'hooks/prog-prompt.js', cc({ prompt: pasted })).out.includes('continues in a later session'), 'progress: no later session from a paste');
+});
+
+test('coverage (claude): a turn that answers a request with no parts and edits nothing is a report, not a deferral', (t) => {
+  const run = (prompt, edits, close) => {
+    const sid = uid('covrep');
+    t.after(() => cleanupTemp(`covmon_claude_${sid}`));
+    const cc = (x) => Object.assign({ session_id: sid, cwd: os.tmpdir() }, x);
+    hook(COV, 'hooks/cov-prompt.js', cc({ prompt }));
+    hook(COV, 'hooks/cov-observe.js', cc({ tool_name: 'Read', tool_input: { file_path: '.agent/progress.md' } }));
+    for (let i = 0; i < edits; i++) hook(COV, 'hooks/cov-observe.js', cc({ tool_name: 'Edit', tool_input: { file_path: 'src/x.js', old_string: 'a', new_string: 'b' } }));
+    return hook(COV, 'hooks/cov-stop.js', cc({ last_assistant_message: close })).out;
+  };
+  const status = 'Where the work stands. Lo que queda por hacer: the n=3 run, and the remaining work is in the ledger.';
+  assert.equal(run('Hola', 0, status), '', 'a greeting answered with the ledger: nothing deferred');
+  assert.equal(run('what is the state of the project?', 0, status), '', 'a status question: nothing deferred');
+  assert.match(JSON.parse(run('fix the bug', 1, status)).systemMessage, /work deferred/, 'a turn that edited: still a deferral');
+  assert.match(JSON.parse(run('do:\n- a\n- b\n- c', 0, status)).systemMessage, /work deferred/, 'a request with parts: still a deferral');
+  assert.match(JSON.parse(run('Hola', 0, '[COVERAGE CHECK]\n')).systemMessage, /block with no part lines/, 'a block the agent wrote is still checked');
+});
+
 test('coverage (cursor): sessionStart, postToolUse with Cursor fields, afterAgentResponse resets', (t) => {
   const cid = uid('covc');
   t.after(() => cleanupTemp(`covmon_cursor_${cid}`));
@@ -894,8 +926,14 @@ test('progress (claude): a ledger that outgrew a page is said so, with the numbe
 test('progress (claude): session start says what the ledger holds by kind, never its text; silent without one; the first prompt does not repeat it', (t) => {
   const sid = uid('prog-ss');
   t.after(() => cleanupTemp('progmon_claude_' + sid));
-  const start = (cwd, id) => hook(PRO, 'hooks/prog-session-start.js', { session_id: id || sid, cwd, source: 'startup' });
-  const note = (r) => JSON.parse(r.out).systemMessage;
+  const start = (cwd, id) => Object.assign(hook(PRO, 'hooks/prog-session-start.js', { session_id: id || sid, cwd, source: 'startup' }), { id: id || sid, cwd });
+  // The user's line is not on SessionStart (the desktop app records it and
+  // does not show it): it rides on the next prompt of the same session.
+  const note = (r) => {
+    assert.equal(r.out ? JSON.parse(r.out).systemMessage : undefined, undefined, 'SessionStart carries no line for the user');
+    const p = hook(PRO, 'hooks/prog-prompt.js', { session_id: r.id, cwd: r.cwd, prompt: 'go' });
+    return p.out ? JSON.parse(p.out).systemMessage : undefined;
+  };
   assert.equal(start(ledgerProject(t)).out, '', 'no ledger: silent');
   // a ledger with nothing pending: one short line for the agent, nothing for the user
   const empty = start(ledgerProject(t, '# Progress\nUpdated: 2026-09-20\n\n## Open\n\nNext: none\n'), uid('prog-empty'));
@@ -907,10 +945,13 @@ test('progress (claude): session start says what the ledger holds by kind, never
   assert.match(r.text, /^\[progress self-monitoring\] `\.agent\/progress\.md` has 2 open items \(1 blocked, 1 returned\) and a Next line, updated 1 hour ago\. Re-open it/);
   assert.ok(!r.out.includes('blocked: a'), 'the ledger text never travels through a hook');
   assert.ok(!r.out.includes('rm -rf'), 'nor its Next line: a project file is not a hook instruction');
-  assert.match(note(r), /has 2 open items \(1 blocked, 1 returned\) and a Next line, updated 1 hour ago - the agent is asked to re-open it$/);
+  assert.equal(JSON.parse(r.out).systemMessage, undefined, 'SessionStart carries no line for the user');
   const p1 = hook(PRO, 'hooks/prog-prompt.js', { session_id: sid, cwd: open, prompt: 'go' });
-  assert.match(p1.out, /Load the progress-self-monitoring skill if it is not already loaded/, 'turn 1 loads');
-  assert.ok(!p1.out.includes('has 2 open items'), 'already announced by SessionStart: not repeated');
+  assert.match(p1.text, /Load the progress-self-monitoring skill if it is not already loaded/, 'turn 1 loads');
+  assert.ok(!p1.text.includes('has 2 open items'), 'already announced to the agent by SessionStart: not repeated');
+  assert.match(JSON.parse(p1.out).systemMessage, /has 2 open items \(1 blocked, 1 returned\) and a Next line, updated 1 hour ago - the agent is asked to re-open it$/, 'the parked line reaches the user on the next prompt');
+  const p2 = hook(PRO, 'hooks/prog-prompt.js', { session_id: sid, cwd: open, prompt: 'go' });
+  assert.equal(p2.out, '', 'once');
   // a Next line alone is pending work
   const next = start(ledgerProject(t, '## Open\n\nNext: ship\n'), uid('prog-next'));
   assert.match(next.text, /has a Next line, updated 1 hour ago\. Re-open it/);
@@ -1264,7 +1305,9 @@ test('notices: a finding reaches the user as one systemMessage line; the load, a
     const dir = ledgerProject(t, '## Open\n- blocked: a\n');
     const j = JSON.parse(hook(PRO, 'hooks/prog-session-start.js', { session_id: `${stamp}-pro`, cwd: dir, source: 'startup' }).out);
     assert.match(j.hookSpecificOutput.additionalContext, /has 1 open item/);
-    assert.equal(j.systemMessage, '[progress self-monitoring] .agent/progress.md has 1 open item (1 blocked), updated 1 hour ago - the agent is asked to re-open it');
+    assert.equal(j.systemMessage, undefined, 'the desktop app does not show a SessionStart notice: it waits for the prompt');
+    const p = JSON.parse(hook(PRO, 'hooks/prog-prompt.js', { session_id: `${stamp}-pro`, cwd: dir, prompt: 'go' }).out);
+    assert.equal(p.systemMessage, '[progress self-monitoring] .agent/progress.md has 1 open item (1 blocked), updated 1 hour ago - the agent is asked to re-open it');
   }
 });
 

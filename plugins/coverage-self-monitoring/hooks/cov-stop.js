@@ -38,12 +38,13 @@ function main(raw) {
   const subagent = data.hook_event_name === 'SubagentStop';
 
   const st = state.load(HOST, sid);
-  const res = signals.scanClose(data.last_assistant_message || '');
+  const turn = st.turn || signals.freshTurn();
+  const res = signals.scanClose(data.last_assistant_message || '', { report: signals.reportTurn(st.parts, turn) });
 
   logEvent(cwdOf(data), Object.assign({
     event: subagent ? 'subagent_stop' : 'stop', session: sid, agent: data.agent_type || null, turn: st.turns || 0, deferrals: res.deferrals, blocks: res.blocks,
     parts: res.parts, violations: res.violations
-  }, signals.summary(st.turn || signals.freshTurn())));
+  }, signals.summary(turn)));
 
   if (res.violations.length && !subagent) {
     st.pending = res.violations;

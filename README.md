@@ -184,7 +184,9 @@ here is exactly what they are:
   working plugin used to be invisible unless the agent wrote the block. A
   finding - a close without its block, a counter over its threshold, open
   items in the ledger - now also shows you one line in the transcript
-  (Claude Code and Codex; Cursor has no field for it). Off per plugin with
+  (Claude Code and Codex; Cursor has no field for it). The ledger's line
+  comes with your first message, not when the session opens: the desktop
+  app does not show a notice sent at session start. Off per plugin with
   `*_NOTICE=0`.
 - **Tested as the host runs them.** CI drives every adapter with the JSON its
   host sends, on Ubuntu and Windows, Node 18/20/22.

@@ -17,6 +17,8 @@
  * Everything is scoped to the current *turn* (since the user's last message).
  */
 
+const { userText } = require('./host.js');
+
 const PARTS_MIN = 3;
 const STUBS_STEP = 3;
 const MAX_KEYS = 64;
@@ -62,7 +64,7 @@ function unquoted(line) {
 }
 
 function freshTurn() {
-  return { tools: 0, stubs: 0, files: {}, fired: { stubs: 0 } };
+  return { tools: 0, edits: 0, stubs: 0, files: {}, fired: { stubs: 0 } };
 }
 
 function bump(map, key, n) {
@@ -157,6 +159,7 @@ function newStubsIn(input, response) {
 function observe(turn, toolName, toolInput, toolResponse) {
   turn.tools += 1;
   if (!EDIT_TOOL_RE.test(String(toolName || ''))) return [];
+  turn.edits = (turn.edits || 0) + 1;
   const n = newStubsIn(toolInput, toolResponse);
   if (!n) return [];
   turn.stubs += n;
@@ -166,10 +169,11 @@ function observe(turn, toolName, toolInput, toolResponse) {
   return [{ kind: 'stubs', count: turn.stubs, files: Object.keys(turn.files) }];
 }
 
-// How many enumerated items a prompt carries: bullet or numbered lines.
+// How many enumerated items a prompt carries: bullet or numbered lines, in
+// what the user wrote - not in a pasted transcript (host.js userText).
 function partsOf(prompt) {
   if (typeof prompt !== 'string' || !prompt) return 0;
-  const body = prompt.replace(/```[\s\S]*?```/g, ' ');
+  const body = userText(prompt).replace(/```[\s\S]*?```/g, ' ');
   return body.split(/\r?\n/).filter((l) => /^\s*(?:[-*•]|\d+[.)]|[a-z][.)])\s+\S/i.test(l)).length;
 }
 
@@ -270,7 +274,16 @@ function unfenced(text) {
   return text.replace(/```[\s\S]*?```/g, (f) => f.replace(/[^\n]/g, ' '));
 }
 
-function scanClose(text) {
+/*
+ * scanClose(text, ctx) - ctx.report: the turn answered a request with no
+ * enumerated parts and edited no file. Its "what is left" is a status
+ * report, not a part it did not deliver: measured 2026-09-25, a greeting
+ * answered with the ledger's open items read as "work deferred", and so did
+ * "what is the state of the project?". The deferrals are still counted for
+ * the log; only the finding is dropped. A block the agent did write is
+ * still checked.
+ */
+function scanClose(text, ctx) {
   const out = { deferrals: [], blocks: 0, parts: 0, violations: [] };
   if (typeof text !== 'string' || !text) return out;
   const body = prose(text);
@@ -299,15 +312,20 @@ function scanClose(text) {
     if (blockParts === 0) out.violations.push('[COVERAGE CHECK] block with no part lines (- <part>: done | blocked - <observed reason> | returned - <the choice>)');
   }
 
-  if (out.deferrals.length && !out.blocks) {
+  if (out.deferrals.length && !out.blocks && !(ctx && ctx.report)) {
     out.violations.unshift('work deferred (' + out.deferrals.map((d) => `"${d}"`).join('; ') +
       ') with no [COVERAGE CHECK] block - close each part as done, blocked with the observed reason, or returned to the owner');
   }
   return out;
 }
 
-function summary(turn) {
-  return { tools: turn.tools, stubs: turn.stubs, stubFiles: Object.keys(turn.files).length };
+// A report turn (see scanClose): the prompt listed no parts and nothing was edited.
+function reportTurn(parts, turn) {
+  return parts === 0 && !!turn && (turn.edits || 0) === 0;
 }
 
-module.exports = { freshTurn, observe, partsOf, scanClose, countStubs, summary, PARTS_MIN, STUBS_STEP };
+function summary(turn) {
+  return { tools: turn.tools, edits: turn.edits || 0, stubs: turn.stubs, stubFiles: Object.keys(turn.files).length };
+}
+
+module.exports = { freshTurn, observe, partsOf, scanClose, reportTurn, countStubs, summary, PARTS_MIN, STUBS_STEP };

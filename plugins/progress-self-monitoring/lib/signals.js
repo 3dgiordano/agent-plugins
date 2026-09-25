@@ -26,6 +26,7 @@
  */
 
 const { isLedgerPath } = require('./ledger.js');
+const { userText } = require('./host.js');
 
 const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff/i;
 
@@ -92,9 +93,19 @@ function summary(turn) {
  * said out loud, and "session" in every other sense (a cookie, a store, an id,
  * "this session") is a corpus miss. Fenced and inline code are stripped so
  * a prompt quoting `sessionStorage` is not a hit.
+ *
+ * Direction matters. A later, next or other session points forward: SPANS_RE,
+ * a hit on its own. A previous or last session points back, and alone it is a
+ * report - "in the previous session I fixed the parser" leaves nothing for a
+ * later one: BACK_RE counts only beside a resume cue in the same sentence
+ * ("continue where we left off in the previous session"). And a session the
+ * user opened is an event, not a plan: "abrí una nueva sesión y escribí Hola"
+ * fired on its "nueva sesión" (2026-09-24), so OPENED_RE is cut out of the
+ * text before either list reads it - "abrí otra sesión; seguimos en otra
+ * sesión" still hits on what is left.
  */
 const SPANS_RE = [
-  /\b(?:later|next|another|future|separate|new|follow-up|previous|last|prior|earlier)\s+sessions?\b/i,
+  /\b(?:later|next|another|future|separate|new|follow-up)\s+sessions?\b/i,
   /\b(?:across|over|spans?|spanning|between)\s+(?:a\s+few\s+|several\s+|multiple\s+|two\s+|\d+\s+)?sessions\b/i,
   /\bmulti-?session\b/i,
   /\bwe(?:'ll| will) (?:continue|pick (?:this|it) (?:back )?up|resume|carry on)\b[^.!?\n]{0,30}\b(?:later|tomorrow|next (?:time|week|session)|another (?:day|time))\b/i,
@@ -104,18 +115,39 @@ const SPANS_RE = [
   // Spanish. JS word characters are ASCII, so a trailing \b fails after an
   // accented letter: bounded with (?<!\p{L}) / (?!\p{L}), under the u flag.
   // "una nueva sesión de usuario" is data, so a "sesión de ..." is refused.
-  /(?<!\p{L})(?:otras?|pr[oó]ximas?|nuevas?|futuras?|siguientes?|anterior(?:es)?|[uú]ltima|previas?|varias|m[uú]ltiples)\s+sesi(?:[oó]n|ones)(?!\p{L})(?!\s+del?\s)/iu,
-  /(?<!\p{L})sesi(?:[oó]n|ones)\s+(?:anterior(?:es)?|siguiente|previa|pasada|futura)(?!\p{L})/iu,
+  /(?<!\p{L})(?:otras?|pr[oó]ximas?|nuevas?|futuras?|siguientes?|varias|m[uú]ltiples)\s+sesi(?:[oó]n|ones)(?!\p{L})(?!\s+del?\s)/iu,
+  /(?<!\p{L})sesi(?:[oó]n|ones)\s+(?:siguiente|futura)(?!\p{L})/iu,
   /(?<!\p{L})(?:entre|a\s+lo\s+largo\s+de)\s+(?:varias\s+|m[uú]ltiples\s+|dos\s+|\d+\s+)?sesiones(?!\p{L})/iu,
   /(?<!\p{L})multi-?sesi[oó]n(?!\p{L})/iu,
   /(?<!\p{L})(?:seguimos|continuamos|retomamos|terminamos)\s+(?:[^.!?\n]{0,30}?\s)?(?:ma[ñn]ana|otro\s+d[ií]a|la\s+semana\s+que\s+viene|la\s+pr[oó]xima\s+(?:vez|semana))(?!\p{L})/iu,
   /(?<!\p{L})la\s+pr[oó]xima\s+vez(?!\p{L})/iu,
 ];
 
+// A session behind this one: a hit only with a RESUME_RE cue in its sentence.
+const BACK_RE = [
+  /\b(?:previous|last|prior|earlier)\s+sessions?\b/i,
+  /(?<!\p{L})(?:anterior(?:es)?|[uú]ltimas?|previas?|pasadas?)\s+sesi(?:[oó]n|ones)(?!\p{L})(?!\s+del?\s)/iu,
+  /(?<!\p{L})sesi(?:[oó]n|ones)\s+(?:anterior(?:es)?|previas?|pasadas?)(?!\p{L})/iu,
+];
+const RESUME_RE = [
+  /\b(?:continue|carry on|resume|pick (?:this|it) (?:back )?up|left off|where we (?:stopped|were)|same project|unfinished|leftover)\b/i,
+  /(?<!\p{L})(?:segu[ií]|sigamos|seguimos|continu[aá]|continuemos|continuamos|retom[aá]|retomemos|retomamos|donde\s+(?:nos\s+)?(?:quedamos|lo\s+dejamos)|mismo\s+proyecto|pendientes?|a\s+medias)(?!\p{L})/iu,
+];
+
+// "I opened a new session", "abrí una nueva sesión": the session is an event
+// the user reports (or, voseo "abrí", one they ask for), not where this work
+// goes. Present-tense "open a new session for the deploy" is left to SPANS_RE.
+const OPENED_RE = [
+  /\b(?:opened|started|launched|created|began|spun up|kicked off)\s+(?:a\s+|another\s+|the\s+)?(?:new\s+|another\s+|separate\s+)?sessions?\b/gi,
+  /(?<!\p{L})(?:abr[ií]|abrimos|abri[oó]|abierto|inici[eé]|iniciamos|inici[oó]|iniciado|empec[eé]|empezamos|empez[oó]|empezado|arranqu[eé]|arrancamos|arranc[oó]|arrancado|comenc[eé]|comenzamos|comenz[oó]|comenzado|cre[eé]|creamos|cre[oó]|creado|lanc[eé]|lanzamos|lanz[oó]|lanzado|acab\p{L}*\s+de\s+(?:abrir|iniciar|empezar|arrancar|comenzar|crear|lanzar))\s+(?:una\s+|otra\s+|la\s+)?(?:nueva\s+|otra\s+)?sesi(?:[oó]n|ones)(?!\p{L})/giu,
+];
+
 function spansSessions(prompt) {
   if (typeof prompt !== 'string' || !prompt) return false;
-  const t = prompt.replace(/```[\s\S]*?```/g, ' ').replace(/`[^`\n]*`/g, ' ');
-  return SPANS_RE.some((re) => re.test(t));
+  let t = userText(prompt).replace(/```[\s\S]*?```/g, ' ').replace(/`[^`\n]*`/g, ' ');
+  for (const re of OPENED_RE) t = t.replace(re, ' ');
+  if (SPANS_RE.some((re) => re.test(t))) return true;
+  return t.split(/[.!?¿¡\n]+/).some((s) => BACK_RE.some((re) => re.test(s)) && RESUME_RE.some((re) => re.test(s)));
 }
 
 module.exports = { freshTurn, observe, stale, summary, spansSessions, EDIT_TOOL_RE };

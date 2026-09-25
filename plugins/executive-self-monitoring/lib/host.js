@@ -63,4 +63,20 @@ function context(event, text, note) {
   return JSON.stringify(out);
 }
 
-module.exports = { cwdOf, context, notice, finding };
+/*
+ * The part of a prompt the user wrote. Text pasted into the message arrives
+ * wrapped in <pasted_content id="…"> … </pasted_content id="…"> (Claude Code
+ * desktop): a transcript, a log, another agent's reply. Its bullets are not
+ * the request's parts and its "next session" is not the user's. Measured
+ * 2026-09-25: a pasted reply with a twelve-line list read as "the request
+ * enumerates 12 parts" and as a request that spans sessions. An unclosed
+ * block runs to the end of the prompt.
+ */
+function userText(prompt) {
+  if (typeof prompt !== 'string') return '';
+  return prompt
+    .replace(/<pasted_content\b[^>]*>[\s\S]*?<\/pasted_content\b[^>]*>/gi, ' ')
+    .replace(/<pasted_content\b[^>]*>[\s\S]*$/i, ' ');
+}
+
+module.exports = { cwdOf, context, notice, finding, userText };
