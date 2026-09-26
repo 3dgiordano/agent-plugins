@@ -146,7 +146,7 @@ function childEnv(extra, source = process.env, platform = process.platform) {
 
 /*
  * A plugin copy that looks like any local install: no evals/, no README, no
- * homepage or repository URL in the manifests, and no comment that sends a
+ * homepage, repository or directory-listing URL in the manifests, and no comment that sends a
  * reader to the runners or the eval (`see scripts/cursor-eval.js` is how one
  * run went looking for `cursor-eval*`). Code lines are never touched; a
  * script whose cleaned text no longer compiles is left as it was.
@@ -160,8 +160,7 @@ function sanitizePlugin(dir) {
     const f = path.join(dir, m, 'plugin.json');
     if (!fs.existsSync(f)) continue;
     const j = JSON.parse(fs.readFileSync(f, 'utf8'));
-    delete j.homepage;
-    delete j.repository;
+    for (const k of ['homepage', 'repository', 'documentationUrl', 'supportUrl', 'privacyPolicyUrl']) delete j[k];
     if (j.author && typeof j.author === 'object') delete j.author.url;
     fs.writeFileSync(f, JSON.stringify(j, null, 2) + '\n');
   }

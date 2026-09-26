@@ -8,6 +8,9 @@
   },
   "homepage": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/progress-self-monitoring",
   "repository": "https://github.com/3dgiordano/agent-plugins",
+  "documentationUrl": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/progress-self-monitoring#readme",
+  "supportUrl": "https://github.com/3dgiordano/agent-plugins/issues",
+  "privacyPolicyUrl": "https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md",
   "license": "Apache-2.0",
   "keywords": [
     "progress",

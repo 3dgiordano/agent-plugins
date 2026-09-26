@@ -7,6 +7,12 @@ release.
 
 ## [Unreleased]
 
+The Claude Code manifests carry the links the plugin directory lists:
+`documentationUrl` (each plugin's README), `supportUrl` (the repository's
+issues) and `privacyPolicyUrl` (SECURITY.md: no network, no data collected).
+Claude Code ignores these fields at load time (`claude plugin validate` warns
+about each one), and the eval copy strips them with the other URLs.
+
 ## [0.14.0] — 2026-09-25
 
 A new plugin, integrity, for work that cannot be done as asked: the result
