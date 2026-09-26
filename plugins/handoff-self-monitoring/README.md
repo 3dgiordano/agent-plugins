@@ -1,4 +1,4 @@
-<img src="assets/logo.svg" width="72" align="right" alt="">
+![handoff-self-monitoring logo](assets/logo.svg)
 
 # handoff-self-monitoring
 
@@ -15,7 +15,7 @@ starts to look finished, and flags a final message that names a decision
 without handing it off.
 
 It answers *"can the reader act on what I wrote?"* — the transmission side of
-[epistemic-self-monitoring](../epistemic-self-monitoring/), which answers *"is
+[epistemic-self-monitoring](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/epistemic-self-monitoring/), which answers *"is
 what I concluded true?"*. Knowing and having transmitted are two functions;
 this one covers the second.
 
@@ -197,6 +197,16 @@ field on the events this plugin uses (`sessionStart`, `postToolUse`,
 `afterAgentResponse`, `stop` - `user_message` exists only on permission
 hooks), so nothing shows there. Off with `HANDMON_NOTICE=0`.
 
+## What it does on your machine
+
+The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
+
+- **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed.
+- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `handmon_…`, removed at session end together with this plugin's files there older than seven days; only with `HANDMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
+- **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them.
+
+The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
+
 ## Debug log (opt-in, off by default)
 
 Off unless `HANDMON_LOG` is set (`1`/`true`/`yes`/`on`); with it unset the
@@ -262,4 +272,4 @@ On any other Agent Skills / Agent Plugins host the skill loads on its own: the
 protocol and the block work without hooks; only the automatic reminders, the
 pre-close scaffold and the gate are host-specific.
 
-Install instructions are in the [repository README](../../README.md).
+Install instructions are in the [repository README](https://github.com/3dgiordano/agent-plugins/blob/main/README.md).

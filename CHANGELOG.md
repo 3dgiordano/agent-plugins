@@ -13,6 +13,14 @@ issues) and `privacyPolicyUrl` (SECURITY.md: no network, no data collected).
 Claude Code ignores these fields at load time (`claude plugin validate` warns
 about each one), and the eval copy strips them with the other URLs.
 
+Documentation only, for the directory listing, which shows each plugin's
+README and installs only the plugin's folder. Every plugin README has a "What
+it does on your machine" section (what the hooks read and write, no network,
+no process, what `evals/` holds and which fixtures carry a credential name).
+Links that left the plugin folder are absolute, and the logo is a Markdown
+image. SECURITY.md lists the one write it left out: coverage's opt-in misread
+log in the home directory.
+
 ## [0.14.0] — 2026-09-25
 
 A new plugin, integrity, for work that cannot be done as asked: the result

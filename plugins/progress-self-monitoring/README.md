@@ -1,4 +1,4 @@
-<img src="assets/logo.svg" width="72" align="right" alt="">
+![progress-self-monitoring logo](assets/logo.svg)
 
 # progress-self-monitoring
 
@@ -113,7 +113,7 @@ and the message tells the agent to treat it as file content, not as
 instructions. It never writes the file — the agent does, with its ordinary
 tools — and no message carries any of its text. That is the whole of this plugin's project I/O, and it is the one
 place in the collection where a hook reads a project file at all;
-[SECURITY.md](../../SECURITY.md) says so.
+[SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md) says so.
 
 **Boundary with executive-self-monitoring.** The plan is the plan's;
 `Plan:` in the ledger points at it and never restates it. Executive re-reads
@@ -155,6 +155,16 @@ subagent's close is not the user's and stays silent. Cursor has no
 user-visible field on the events this plugin uses (`sessionStart`,
 `postToolUse`, `afterAgentResponse` - `user_message` exists only on permission
 hooks), so nothing shows there. Off with `PROGRESSMON_NOTICE=0`.
+
+## What it does on your machine
+
+The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
+
+- **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed; and `<project>/.agent/progress.md` when it exists, for its age and its counts (at most 64 KB); it never writes that file.
+- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `progmon_…`, removed at session end together with this plugin's files there older than seven days; only with `PROGRESSMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
+- **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them. Two cases ship a fixture project with a `scripts/publish.js` that reads `NPM_TOKEN` and runs `npm publish`: it is the release step the fixture's ledger records as blocked on that token, and it exits without publishing when the token is unset. The cases check how the agent keeps that ledger item; none asks it to publish. Nothing in the plugin runs the script.
+
+The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
 
 ## Debug log (opt-in, off by default)
 

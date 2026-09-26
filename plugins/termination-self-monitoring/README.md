@@ -1,4 +1,4 @@
-<img src="assets/logo.svg" width="72" align="right" alt="">
+![termination-self-monitoring logo](assets/logo.svg)
 
 # termination-self-monitoring
 
@@ -12,7 +12,7 @@ for the substitution: which of four checkable reasons actually holds — or
 none, in which case the work continues.
 
 It answers *"is this stop justified by something checkable?"* — the mirror of
-[persistence-self-monitoring](../persistence-self-monitoring/), which answers
+[persistence-self-monitoring](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/persistence-self-monitoring/), which answers
 *"is it still worth insisting?"*. Persistence watches the agent stop too late,
 on no signal; this one watches it stop too early, on a signal it does not have.
 
@@ -88,7 +88,7 @@ per message; the block rules are:
 
 **Boundary with progress-self-monitoring.** "I'll pick this up next session"
 is a stop on a phrase until something checkable says what is blocked and by
-what. [progress-self-monitoring](../progress-self-monitoring/) is where that
+what. [progress-self-monitoring](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/progress-self-monitoring/) is where that
 record lives across the boundary — `.agent/progress.md` — and it holds a
 reason, not a mood: a `blocked:` line names the limit that was observed.
 
@@ -117,12 +117,12 @@ retrospective is not enough is a forced extra turn worth its cost.
 
 Silence. An agent that narrows the task without saying so writes no trigger
 phrase and gets no nudge. That failure is about *what got delivered*, not the
-reason given, and it belongs to [coverage-self-monitoring](../coverage-self-monitoring/).
+reason given, and it belongs to [coverage-self-monitoring](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/coverage-self-monitoring/).
 
 Nor the *form* of a justified stop. `owner-choice` says the owner must pick;
 how that choice is put to them — options with consequences, a default, one
 action asked, in the reader's register — is
-[handoff-self-monitoring](../handoff-self-monitoring/)'s `[HANDOFF]` block.
+[handoff-self-monitoring](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/handoff-self-monitoring/)'s `[HANDOFF]` block.
 
 ## What the user sees
 
@@ -143,6 +143,16 @@ speaks through the host's own stderr path instead. Cursor has no user-visible
 field on the events this plugin uses (`sessionStart`, `afterAgentResponse`,
 `stop` - `user_message` exists only on permission hooks), so nothing shows
 there. Off with `TERMMON_NOTICE=0`.
+
+## What it does on your machine
+
+The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
+
+- **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed.
+- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `termmon_…`, removed at session end together with this plugin's files there older than seven days; only with `TERMMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
+- **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them.
+
+The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
 
 ## Debug log (opt-in, off by default)
 
@@ -199,4 +209,4 @@ On any other Agent Skills / Agent Plugins host the skill loads on its own: the
 protocol and the block work without hooks; only the automatic reminders and
 the gate are host-specific.
 
-Install instructions are in the [repository README](../../README.md).
+Install instructions are in the [repository README](https://github.com/3dgiordano/agent-plugins/blob/main/README.md).

@@ -1,4 +1,4 @@
-<img src="assets/logo.svg" width="72" align="right" alt="">
+![persistence-self-monitoring logo](assets/logo.svg)
 
 # persistence-self-monitoring
 
@@ -10,8 +10,8 @@ condition, switch approach, step back to the plan, or report to the user.
 
 It answers *"is it still worth insisting on this?"* — the third question of the
 collection, after *am I doing what the plan asks?*
-([executive-self-monitoring](../executive-self-monitoring/)) and *is what I
-concluded true?* ([epistemic-self-monitoring](../epistemic-self-monitoring/)).
+([executive-self-monitoring](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/executive-self-monitoring/)) and *is what I
+concluded true?* ([epistemic-self-monitoring](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/epistemic-self-monitoring/)).
 
 **It never blocks.** The value is the objective count at the right moment; the
 judgment stays with the agent — and with the user, who sees the decision.
@@ -87,7 +87,7 @@ question is its "strongest rival explanation" step; the two compose without
 either depending on the other.
 
 When the checks contradict each other, persistence says that is the finding.
-[integrity-self-monitoring](../integrity-self-monitoring/) watches the other
+[integrity-self-monitoring](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/integrity-self-monitoring/) watches the other
 exit: the green reached by a trick - code that reads its caller, a stand-in
 for the service - named as it is written, before the close.
 
@@ -112,6 +112,16 @@ Cursor has no user-visible field on the events this plugin uses
 (`sessionStart`, `postToolUse`, `afterAgentResponse` - `user_message` exists
 only on permission hooks), so nothing shows there. Off with
 `PERSISTMON_NOTICE=0`.
+
+## What it does on your machine
+
+The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
+
+- **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed.
+- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `persistmon_…`, removed at session end together with this plugin's files there older than seven days; only with `PERSISTMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
+- **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them.
+
+The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
 
 ## Debug log (opt-in, off by default)
 
@@ -171,4 +181,4 @@ lib/log.js                          # opt-in logger (per-plugin copy; plugins ar
 On any other Agent Skills / Agent Plugins host the skill loads on its own; the
 thresholds are listed in it so the agent can apply them by hand.
 
-Install instructions are in the [repository README](../../README.md).
+Install instructions are in the [repository README](https://github.com/3dgiordano/agent-plugins/blob/main/README.md).

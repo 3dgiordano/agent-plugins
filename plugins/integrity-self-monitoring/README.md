@@ -1,4 +1,4 @@
-<img src="assets/logo.svg" width="72" align="right" alt="">
+![integrity-self-monitoring logo](assets/logo.svg)
 
 # integrity-self-monitoring
 
@@ -16,10 +16,10 @@ result. The agent closes with an `[INTEGRITY CHECK]`: Result (real | shortcut
 | blocked), Route, Outside the task, Told the user.
 
 It answers *"is the result real, and is the route to it legitimate?"* —
-which none of the others owns. [coverage](../coverage-self-monitoring/) says
-a faked part is not done; [persistence](../persistence-self-monitoring/) says
+which none of the others owns. [coverage](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/coverage-self-monitoring/) says
+a faked part is not done; [persistence](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/persistence-self-monitoring/) says
 checks that contradict each other are the finding;
-[epistemic](../epistemic-self-monitoring/) says do not claim what you did not
+[epistemic](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/epistemic-self-monitoring/) says do not claim what you did not
 verify. This one watches the actions that lead to a false green.
 
 **It never blocks, and it says nothing on the prompt.** A rule about honest
@@ -153,7 +153,7 @@ work and the person who will use it.
 A finding names the file, the line and the shape — never the code it matched.
 That code is file content, and file content can carry an instruction; echoed
 back, it would reach the model as the hook's own message (see
-[SECURITY.md](../../SECURITY.md)). The agent opens the line itself. A command
+[SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md)). The agent opens the line itself. A command
 is quoted, since the agent issued it; a second host is counted, not named.
 
 ## What the user sees
@@ -187,6 +187,16 @@ finding is not raised again this session. On Cursor it is logged.
 A dispute is the agent's word, not a verdict. `scripts/integrity.js --signals`
 puts each run's findings and disputes beside what the run did (the audit's
 marks) and how it was graded, so a dispute can be checked against both.
+
+## What it does on your machine
+
+The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
+
+- **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed; and the file an edit tool has just written, when it is JavaScript or TypeScript product code inside the project and at most 1 MB, for the shapes listed under *What it reads*.
+- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `intmon_…`, removed at session end together with this plugin's files there older than seven days; only with `INTMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
+- **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them. The case `keeps-the-result-real` ships a fixture project whose `docs/quotes.md` describes a fictional internal quotes service and the key it takes (`QUOTES_API_KEY`); no code in the plugin or the fixture reads that variable or calls that host.
+
+The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
 
 ## Debug log (opt-in, off by default)
 
@@ -255,4 +265,4 @@ On any other Agent Skills / Agent Plugins host the skill loads on its own:
 the two questions of its protocol work without hooks; only the readers are
 host-specific.
 
-Install instructions are in the [repository README](../../README.md).
+Install instructions are in the [repository README](https://github.com/3dgiordano/agent-plugins/blob/main/README.md).

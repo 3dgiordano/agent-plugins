@@ -1,4 +1,4 @@
-<img src="assets/logo.svg" width="72" align="right" alt="">
+![epistemic-self-monitoring logo](assets/logo.svg)
 
 # epistemic-self-monitoring
 
@@ -8,7 +8,7 @@ a claim carries its evidence and a named falsifier, and only a claim that
 survived that falsifier may become a fact, a defect entry, or a closure.
 
 It answers *"is what I concluded actually true?"* — the sibling of
-[executive-self-monitoring](../executive-self-monitoring/), which answers *"am I
+[executive-self-monitoring](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/executive-self-monitoring/), which answers *"am I
 doing what the plan asks?"*.
 
 **Being wrong is fine. Recording an unverified conjecture as a fact is not.**
@@ -105,6 +105,16 @@ field on the events this plugin uses (`sessionStart`, `postToolUse`,
 `afterAgentResponse`, `stop` - `user_message` exists only on permission
 hooks), so nothing shows there. Off with `EPIMON_NOTICE=0`.
 
+## What it does on your machine
+
+The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
+
+- **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed.
+- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `epimon_…`, removed at session end together with this plugin's files there older than seven days; only with `EPIMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
+- **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them.
+
+The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
+
 ## Debug log (opt-in, off by default)
 
 Off unless `EPIMON_LOG` is set (`1`/`true`/`yes`/`on`); with it unset the hooks
@@ -165,4 +175,4 @@ On any other Agent Skills / Agent Plugins host the skill loads on its own: the
 protocol and the closure block work without hooks; only the automatic reminders
 and the gate are host-specific.
 
-Install instructions are in the [repository README](../../README.md).
+Install instructions are in the [repository README](https://github.com/3dgiordano/agent-plugins/blob/main/README.md).

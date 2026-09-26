@@ -15,7 +15,12 @@ Every hook in this repository, on every host:
   `<os-temp-dir>/3dgiordano-agent-plugins/`, and — only when the corresponding
   `*_LOG` env var is set — a JSONL log under `<project>/.claude/logs/` or
   `<project>/.cursor/logs/`, rotated at ~256 KB. One directory, named after the
-  marketplace, so you can see what put it there, list it, and remove it whole;
+  marketplace, so you can see what put it there, list it, and remove it whole.
+  One opt-in exception: with `COVMON_MISREAD_LOG` set, `coverage-self-monitoring`
+  also keeps its misread log, one JSON file of at most 50 entries with sentences
+  clipped to 200 characters, at
+  `~/.3dgiordano-agent-plugins/misreads/coverage-self-monitoring.json` (or
+  `COVMON_MISREAD_FILE`), outside every project; its README describes it;
 - **deletes only its own leftovers**: at session end (Claude Code `SessionEnd`,
   and on Cursor at session start, which has no end event - or, for
   `integrity-self-monitoring`, which wires no session start there, on a

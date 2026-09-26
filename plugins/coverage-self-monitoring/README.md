@@ -1,4 +1,4 @@
-<img src="assets/logo.svg" width="72" align="right" alt="">
+![coverage-self-monitoring logo](assets/logo.svg)
 
 # coverage-self-monitoring
 
@@ -12,7 +12,7 @@ language in the final message that no closing ledger accounts for.
 
 It answers *"does what I delivered cover every part of the request, including
 the hard one?"* — the complement of
-[executive-self-monitoring](../executive-self-monitoring/), which asks whether
+[executive-self-monitoring](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/executive-self-monitoring/), which asks whether
 the work is *outside* the plan. This one asks whether it is *below* it.
 
 **It never blocks.** A wrong "you deferred X" costs one line on the next
@@ -88,7 +88,7 @@ reason is a mood fails the termination check, which sends it back here as
 not blocked.
 
 **Boundary with handoff-self-monitoring.** A `returned` part says the owner
-must choose; [handoff-self-monitoring](../handoff-self-monitoring/) makes sure
+must choose; [handoff-self-monitoring](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/handoff-self-monitoring/) makes sure
 the choice reaches them formulated — its scanner reads the `returned` lines of
 the `[COVERAGE CHECK]` and asks for a `[HANDOFF]` block (options with their
 consequences, a default, one next action) when there is none. Coverage says
@@ -97,12 +97,12 @@ consequences, a default, one next action) when there is none. Coverage says
 **Boundary with progress-self-monitoring.** The ledger here lives in the
 turn and closes with it. What the `[COVERAGE CHECK]` leaves `blocked` or
 `returned` and the session will not resolve is what
-[progress-self-monitoring](../progress-self-monitoring/) keeps on disk, in
+[progress-self-monitoring](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/progress-self-monitoring/) keeps on disk, in
 `.agent/progress.md`, under the same two words — so the next session opens
 on the parts this one could not close, with their reasons.
 
 **Boundary with integrity-self-monitoring.** Coverage counts a part made of
-stubs or of made-up data as not done. [integrity-self-monitoring](../integrity-self-monitoring/)
+stubs or of made-up data as not done. [integrity-self-monitoring](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/integrity-self-monitoring/)
 reads *how* a result was reached: the rate table, the `catch` that answers,
 the local stand-in, the machine changed until the run went green, named as it
 is written. A part it finds becomes a `blocked` line here, with the reason.
@@ -189,6 +189,16 @@ the runner runs this `scanClose` on each turn's final message itself.
 An entry is the agent's word, not a verdict. Confirm it, add the sentence to
 the test suite as a miss, and only then change the pattern.
 
+## What it does on your machine
+
+The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
+
+- **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed.
+- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `covmon_…`, removed at session end together with this plugin's files there older than seven days; only with `COVMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`; and, only with `COVMON_MISREAD_LOG` set, the misread log described above, in `~/.3dgiordano-agent-plugins/misreads/`.
+- **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them.
+
+The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
+
 ## Debug log (opt-in, off by default)
 
 Off unless `COVMON_LOG` is set (`1`/`true`/`yes`/`on`); with it unset the hooks
@@ -246,4 +256,4 @@ On any other Agent Skills / Agent Plugins host the skill loads on its own: the
 ledger and the closing check work without hooks; only the counters and the
 automatic reminders are host-specific.
 
-Install instructions are in the [repository README](../../README.md).
+Install instructions are in the [repository README](https://github.com/3dgiordano/agent-plugins/blob/main/README.md).
