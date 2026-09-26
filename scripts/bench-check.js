@@ -12,7 +12,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { loadCases, fixtureDirs } = require('./benchlib.js');
+const { loadCases, fixtureDirs, BENCH } = require('./benchlib.js');
 
 function copy(src, dest) {
   fs.cpSync(src, dest, { recursive: true });
@@ -21,14 +21,17 @@ function copy(src, dest) {
 function main() {
   const cases = loadCases();
   const plugins = new Set(cases.map((c) => c.plugin));
-  const expected = 7;
+  // one per plugin in plugins/, not a number to keep in step by hand
+  const expected = fs.readdirSync(path.join(__dirname, '..', 'plugins'), { withFileTypes: true }).filter((e) => e.isDirectory()).length;
   if (plugins.size !== expected) {
     console.error(`expected one case for each of ${expected} plugins, found ${plugins.size}: ${[...plugins].join(', ') || '(none)'}`);
     process.exit(1);
   }
   let n = 0;
   for (const c of cases) {
-    const dirs = fixtureDirs(c.dir);
+    // a case that runs another's task ("same") is checked on that task's fixtures, with its own grade.js
+    const home = c.same ? path.join(BENCH, c.same) : c.dir;
+    const dirs = fixtureDirs(home);
     const pass = dirs.filter((d) => d === 'pass' || d.startsWith('pass-'));
     const fail = dirs.filter((d) => d === 'fail' || d.startsWith('fail-'));
     if (!pass.length || !fail.length) {
@@ -43,7 +46,7 @@ function main() {
         process.exit(1);
       }
       const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-bench-'));
-      copy(path.join(c.dir, 'fixtures', name), ws);
+      copy(path.join(home, 'fixtures', name), ws);
       let result;
       try { result = c.grade({ workspace: ws }); }
       catch (e) {

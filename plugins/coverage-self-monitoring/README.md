@@ -101,6 +101,14 @@ turn and closes with it. What the `[COVERAGE CHECK]` leaves `blocked` or
 `.agent/progress.md`, under the same two words — so the next session opens
 on the parts this one could not close, with their reasons.
 
+**Boundary with integrity-self-monitoring.** Coverage counts a part made of
+stubs or of made-up data as not done. [integrity-self-monitoring](../integrity-self-monitoring/)
+reads *how* a result was reached: the rate table, the `catch` that answers,
+the local stand-in, the machine changed until the run went green, named as it
+is written. A part it finds becomes a `blocked` line here, with the reason.
+Its `[INTEGRITY CHECK]` is a report, and coverage's close scan does not read
+it as deferred work.
+
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 prompt, a tool call, or a stop.
 

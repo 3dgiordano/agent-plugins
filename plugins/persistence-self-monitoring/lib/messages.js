@@ -63,7 +63,8 @@ function said(signals, toUser) {
     switch (s.kind) {
       case 'edits': return `${toUser ? 'the agent has' : 'you have'} edited \`${s.key}\` ${s.count} times this turn`;
       case 'cmds': return `\`${s.key}\` has failed ${s.count} times this turn`;
-      case 'errs': return `the same error has come back ${s.count} times this turn (${s.key})`;
+      // Never the error line itself: it is output text (lib/signals.js).
+      case 'errs': return `the same error has come back ${s.count} times this turn${s.cmd ? `, last in the output of \`${s.cmd}\`` : ''}`;
       case 'effort': return `${s.count} tool calls since ${toUser ? 'your' : "the user's"} last message - is this effort proportional to what was asked?`;
       default: return '';
     }

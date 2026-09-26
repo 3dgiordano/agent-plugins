@@ -105,6 +105,15 @@ const ACCEPTED = {
     note: "Never blocks on either host, so it wires no Cursor `stop` gate.",
     capabilities: {},
   },
+  'integrity-self-monitoring': {
+    // Neither host gets a prompt-time message, by design (lib/messages.js).
+    // The close reads the block and a dispute on both; on Cursor a dispute is
+    // logged and not shown, since no point after the response reaches the
+    // person - and a headless run fires no close event at all.
+    note: "Never blocks and says nothing on the prompt on either host; the finding reaches the agent " +
+      "from the post-tool reader on both, a dispute reaches the user on Claude Code only.",
+    capabilities: {},
+  },
   'progress-self-monitoring': {
     // Not a capability difference, so not flagged: on Claude Code the close
     // finding (a turn that edited files and left the ledger stale) is parked

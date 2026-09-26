@@ -41,6 +41,11 @@
       "name": "progress-self-monitoring",
       "source": "./plugins/progress-self-monitoring",
       "description": "Cross-session ledger discipline: what a session leaves blocked or returned, with the reason, and the next action, kept in .agent/progress.md and re-opened before the next session works. Hooks announce the ledger's open items when a session opens or continues after a compaction, and notice a turn that edited files and left it untouched. Shared skill + per-host hooks. Never blocks."
+    },
+    {
+      "name": "integrity-self-monitoring",
+      "source": "./plugins/integrity-self-monitoring",
+      "description": "Real-result discipline: when a service, a key or consistent tests are missing, the result is an error that says so, not a fallback that looks done. Hooks read each edit to product code for made-up data where a service was asked for (a rate table, a catch that answers, a missing key answered, a second host) or code that reads its caller, and each shell command for a change to the machine or a server started; each finding is said once, with what it means for the user. Shared skill + per-host hooks. No message on the prompt. Never blocks."
     }
   ]
 }

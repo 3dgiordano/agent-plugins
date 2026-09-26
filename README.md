@@ -10,11 +10,11 @@
 
 Cognitive scaffolding for coding agents, by [3dgiordano](https://github.com/3dgiordano).
 
-Seven small plugins that give a coding agent the self-checks a human engineer
+Eight small plugins that give a coding agent the self-checks a human engineer
 runs in the background — *am I still on the plan?*, *is this actually verified?*,
 *is it worth another try?*, *is that a reason or a phrase?*, *did I do the hard
 part?*, *can the reader act on what I wrote?*, *can the next session pick this
-up?* — delivered as a nudge at the moment it is needed. They never block. They have no dependencies, make no network calls, and send
+up?*, *is the result real?* — delivered as a nudge at the moment it is needed. They never block. They have no dependencies, make no network calls, and send
 nothing anywhere.
 
 ## What your agent sees — and what you see
@@ -51,7 +51,7 @@ line asked for, and keeps working — or stops, with a reason you can check:
 - Decision: switch — one try at the normalisation, then report
 ```
 
-Seven such moments, one plugin each. Every one is anchored to something
+Eight such moments, one plugin each. Every one is anchored to something
 countable or on disk, never to "reflect harder":
 
 | What the hook puts in front of the agent | The question | What you read |
@@ -63,6 +63,7 @@ countable or on disk, never to "reflect harder":
 | three `TODO`s written this turn | *did I do the hard part?* | `[COVERAGE CHECK]` — [coverage](plugins/coverage-self-monitoring/) |
 | the tests just went green | *can the reader act on this?* | `[HANDOFF]` — [handoff](plugins/handoff-self-monitoring/) |
 | a session opening on a ledger with open items | *what did the last session leave?* | `.agent/progress.md` — [progress](plugins/progress-self-monitoring/) |
+| a `catch` that answers a failed call with a price of its own | *is the result real?* | `[INTEGRITY CHECK]` — [integrity](plugins/integrity-self-monitoring/) |
 
 <details>
 <summary>The other lines the agent sees, verbatim</summary>
@@ -127,6 +128,21 @@ with Default on its own line, Next. Trace detail below it. Load the
 handoff-self-monitoring skill if it is not already loaded ("Core Protocol").
 ```
 
+When an edit makes the code answer a failed call with a value of its own:
+
+```
+[integrity self-monitoring] `src/rates.js` line 8 answers a failed call with a
+value of its own: when the service fails, the user gets a result that looks
+real and is not. If the service, the key or the data cannot be had here, the
+real result is an error that says so, and "cannot be done as asked, because X"
+is a complete answer. If this is what the user asked for, say so in your close
+as `- <file or kind>: misread - <why>`. Write the [INTEGRITY CHECK] as a
+markdown list: Result (real | shortcut | blocked), Route, Outside the task,
+Told the user. Load the integrity-self-monitoring skill if it is not already
+loaded. Markers, field names and status words stay in English, whatever
+language you write in. Not a blocker.
+```
+
 The epistemic line arrives when a claim is about to be closed on, and asks for
 the claim with its evidence, its falsifier and its scope — so you can tell
 *observed* from *guessed* without asking.
@@ -157,7 +173,7 @@ then `/hooks` once in a `codex` session to trust the plugin's hooks.
 **Cursor** — Dashboard → Plugins → Add Marketplace → *Import from Repo*,
 `3dgiordano/agent-plugins`, then install from Customize → Plugins.
 
-Swap in any of the other six, or install all seven: [Install](#install) has
+Swap in any of the other seven, or install all eight: [Install](#install) has
 the full lists and the per-host notes.
 
 ## What the hooks do — and don't
@@ -171,15 +187,18 @@ here is exactly what they are:
 - **Nothing persisted by default.** Per-session counters live in the OS temp
   dir and are the only state. Debug logs exist but are **off** unless you set
   an env var, and then they are written inside your project, size-bounded.
-  One plugin, progress, **reads** one fixed file in your project
-  (`.agent/progress.md`) if you keep one — its mtime and counts by kind,
-  never its text — and no hook writes it.
+  Two plugins **read** a file in your project, and neither repeats its
+  text: progress reads one fixed file (`.agent/progress.md`) if you keep one —
+  its mtime and counts by kind — and integrity reads the file an edit just
+  wrote, to name the file, the line and the shape it found. No hook writes
+  either. What a hook reads never becomes what it says:
+  [SECURITY.md](SECURITY.md).
 - **Never blocking by default.** Every hook fails silent: an error in a hook
   lets the prompt, tool call or stop proceed. Three opt-in gates exist —
   `EPIMON_STRICT` (an incomplete closure block), `TERMMON_STRICT` (a
   state-shaped reason to stop with no checkable one) and `HANDMON_STRICT` (a
   decision named with no handoff) — and each blocks once, never in a loop.
-  The other four plugins have no blocking mode at all.
+  The other five plugins have no blocking mode at all.
 - **Visible when it finds something.** The hooks talk to the agent, so a
   working plugin used to be invisible unless the agent wrote the block. A
   finding - a close without its block, a counter over its threshold, open
@@ -206,7 +225,7 @@ missing function, or a filter for one such artifact — a small, honest
 self-check, anchored to an external artifact or an objective count rather than
 to "reflect harder", delivered at the moment it is actually needed.
 
-The collection is organized around seven questions:
+The collection is organized around eight questions:
 
 | Question | What it monitors | Plugin |
 |----------|------------------|--------|
@@ -217,15 +236,19 @@ The collection is organized around seven questions:
 | *Did I deliver every part, including the hard one?* | task coverage / effort allocation | [coverage-self-monitoring](plugins/coverage-self-monitoring/) |
 | *Can the reader act on what I wrote?* | the handoff of the turn — recipient design | [handoff-self-monitoring](plugins/handoff-self-monitoring/) |
 | *Can the next session pick this up?* | the residue across a session boundary — prospective memory | [progress-self-monitoring](plugins/progress-self-monitoring/) |
+| *Is the result real, and the route to it legitimate?* | where a result comes from — a fallback, a stand-in, a bent environment | [integrity-self-monitoring](plugins/integrity-self-monitoring/) |
 
 Persistence and termination are the two directions of one axis — stopping too
 late on no signal, and stopping too early on a signal the agent does not have.
 Executive and coverage are likewise a pair: work *outside* the plan, and work
 *below* it. Epistemic and handoff are the knowing side and the transmitting
 side of one claim: is it true, and did it reach the reader in a form they can
-use. Progress is the one that looks past the turn: what the other six leave
+use. Progress is the one that looks past the turn: what the others leave
 open when the session ends, kept where the next session will find it — on
-disk, because the message is what the boundary drops. They install
+disk, because the message is what the boundary drops. Integrity is the one
+that reads the route rather than the claim: a green run reached through a
+fallback, a stand-in or a changed machine is not a result, and it is named
+as it is written — before any close. They install
 independently and cross-reference each other where it helps. Names say what is monitored, never an internal state: what looks like
 fatigue or avoidance from outside is a training-data artifact, and the plugin's
 job is to name it, not to adopt it.
@@ -252,6 +275,7 @@ one install, on every host it supports:
 | [termination-self-monitoring](plugins/termination-self-monitoring/) | available | Checkable-reason discipline: a state-shaped reason to stop, defer or narrow ("running out of context", "long session", "not confident enough", "given the complexity", a run of apologies) is replaced by a checkable one or dropped, and the work continues. Non-blocking by default, opt-in strict gate. |
 | [coverage-self-monitoring](plugins/coverage-self-monitoring/) | available | Parts-ledger discipline: the parts of a request, hardest first, each closed as done, blocked with an observed reason, or returned to the owner. Counts stubs and TODOs written per turn; flags deferred work with no closing ledger. Never blocks. |
 | [handoff-self-monitoring](plugins/handoff-self-monitoring/) | available | Structured-handoff discipline: the final message closes with a `[HANDOFF]` block modelled on SBAR / I-PASS — status, situation in the reader's terms, options with a default, one next action. Injects the format on the first green gate or commit of the turn; flags a decision named but not handed off. Non-blocking by default, opt-in strict gate. |
+| [integrity-self-monitoring](plugins/integrity-self-monitoring/) | new (0.1.0) | Real-result discipline: when a service, a key or consistent tests are missing, the result is an error that says so, not a fallback that looks done. Reads each edit to product code for made-up data where a service was asked for, or code that reads its caller, and each shell command for a change to the machine or a server started; each finding is said once, with what it means for you. Nothing on the prompt. Never blocks. |
 | [progress-self-monitoring](plugins/progress-self-monitoring/) | available | Cross-session ledger discipline: what a session leaves `blocked` or `returned`, with the reason, and the next action, kept in `.agent/progress.md` and re-opened before the next session works. Announces the ledger's open items when a session opens or continues after a compaction; notices a turn that edited files and left it untouched. Never blocks. |
 
 ### What each host actually gets
@@ -276,6 +300,8 @@ context after the agent's final message, so two layers degrade there:
 | Handoff close scan (decision named vs. `[HANDOFF]`) | ✓ + retrospective, strict gate | scan + strict gate (`followup_message`); **no retrospective** |
 | Progress ledger status (open items at session start / after compaction) | ✓ (`SessionStart`, first prompt as fallback) | ✓ (`sessionStart`) |
 | Progress stale-ledger finding (edits, ledger untouched) | ✓ retrospective, once per ledger version | **log only** — the agent is not told |
+| Integrity reader (each edit and shell command) | ✓ | ✓ |
+| Integrity close (the block, a dispute shown to you) | ✓ | **log only**; not at all on a headless run |
 
 So on Cursor, coverage is the skill plus the stub counter; the closing
 discipline it describes reaches the agent only through the skill text. An A/B
@@ -300,6 +326,7 @@ claude plugin install termination-self-monitoring@3dgiordano-agent-plugins
 claude plugin install coverage-self-monitoring@3dgiordano-agent-plugins
 claude plugin install handoff-self-monitoring@3dgiordano-agent-plugins
 claude plugin install progress-self-monitoring@3dgiordano-agent-plugins
+claude plugin install integrity-self-monitoring@3dgiordano-agent-plugins
 ```
 
 ```
@@ -311,6 +338,7 @@ claude plugin install progress-self-monitoring@3dgiordano-agent-plugins
 /plugin install coverage-self-monitoring@3dgiordano-agent-plugins
 /plugin install handoff-self-monitoring@3dgiordano-agent-plugins
 /plugin install progress-self-monitoring@3dgiordano-agent-plugins
+/plugin install integrity-self-monitoring@3dgiordano-agent-plugins
 ```
 
 Enabling the plugin makes the skill available **and** auto-registers its hooks —
@@ -344,6 +372,7 @@ codex plugin add termination-self-monitoring@3dgiordano-agent-plugins
 codex plugin add coverage-self-monitoring@3dgiordano-agent-plugins
 codex plugin add handoff-self-monitoring@3dgiordano-agent-plugins
 codex plugin add progress-self-monitoring@3dgiordano-agent-plugins
+codex plugin add integrity-self-monitoring@3dgiordano-agent-plugins
 ```
 
 The skill loads on install; the hooks run after `/hooks`. For scripted runs

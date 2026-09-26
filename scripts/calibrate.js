@@ -67,6 +67,22 @@ const PLUGINS = {
       { name: 'stops blocked (strict mode)', filter: (e) => e.event === 'stop', hit: (e) => !!e.blocked },
     ],
   },
+  /*
+   * No threshold to tune: every finding is said once. What the log answers is
+   * how often a finding is said at all, and what the close does with it - a
+   * block, a dispute, or nothing. The false-alarm rate on real code is read
+   * from the signal events' files, not from a rate.
+   */
+  'integrity-self-monitoring': {
+    env: 'INTMON_LOG',
+    turns: (e) => e.event === 'stop',
+    rates: [
+      { name: 'reads that brought a finding the agent was told', filter: (e) => e.event === 'signal', hit: (e) => (e.said || []).length > 0 },
+      { name: 'closes after a finding with an [INTEGRITY CHECK] block', filter: (e) => e.event === 'stop' && e.raised > 0, hit: (e) => !!e.block },
+      { name: '  ... Result: shortcut or blocked', filter: (e) => e.event === 'stop' && e.raised > 0 && e.block, hit: (e) => e.block.status === 'shortcut' || e.block.status === 'blocked' },
+      { name: 'closes after a finding that dispute one', filter: (e) => e.event === 'stop' && e.raised > 0, hit: (e) => (e.disputes || []).length > 0 },
+    ],
+  },
   'handoff-self-monitoring': {
     env: 'HANDMON_LOG',
     turns: (e) => e.event === 'stop',
@@ -178,12 +194,14 @@ function crossPlugin(dirs) {
     'coverage-self-monitoring': (e) => (e.turn === 1 ? 1 : 0) + (e.ledger ? 1 : 0) + (e.retrospective ? 1 : 0),
     'handoff-self-monitoring': (e) => (e.load ? 1 : 0) + (e.retrospective ? 1 : 0),
     'progress-self-monitoring': (e) => (e.turn === 1 ? 1 : 0) + (e.retrospective ? 1 : 0) + (e.spans ? 1 : 0) + (e.swept ? 1 : 0),
+    'integrity-self-monitoring': () => 0, // says nothing on the prompt, by design
   };
   const midTurn = {
     'epistemic-self-monitoring': (e) => e.event === 'observe' && !!e.emitted,
     'persistence-self-monitoring': (e) => e.event === 'signal',
     'coverage-self-monitoring': (e) => e.event === 'signal',
     'handoff-self-monitoring': (e) => e.event === 'signal',
+    'integrity-self-monitoring': (e) => e.event === 'signal' && (e.said || []).length > 0,
   };
   const prompts = new Map(); // "session\tturn" -> blocks
   const sessions = new Map(); // session -> { turns, nudges }
@@ -248,7 +266,7 @@ function main() {
 
   if (!any) {
     console.log('\nNo logs found. Enable logging in the projects you work in (EXECMON_LOG, EPIMON_LOG, PERSISTMON_LOG,');
-    console.log('TERMMON_LOG, COVMON_LOG, HANDMON_LOG, PROGRESSMON_LOG = 1), work normally for a while, then run this against those');
+    console.log('TERMMON_LOG, COVMON_LOG, HANDMON_LOG, PROGRESSMON_LOG, INTMON_LOG = 1), work normally for a while, then run this against those');
     console.log('project dirs.');
     process.exitCode = 1;
     return;

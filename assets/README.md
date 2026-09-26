@@ -11,9 +11,10 @@ persistence — a retry arrow; termination — a halmos ∎, the end-of-proof ma
 (a stop that has been justified); coverage — a three-line ledger with the
 longest line, the hard part, in green; handoff — an arrow reaching a receiving
 bar, the turn handed to its reader; progress — a page with its corner folded
-down, the place the next session opens to.
+down, the place the next session opens to; integrity — a plumb line, a result
+that is true rather than only level-looking.
 
-Palette: ink `#1F2933` · executive `#E8A33D` · epistemic `#3B82F6` · persistence `#E4573D` · termination `#7C3AED` · coverage `#16A34A` · handoff `#0891B2` · progress `#D97706` · plate `#F4F6F9` (`#E2E8F0` on dark).
+Palette: ink `#1F2933` · executive `#E8A33D` · epistemic `#3B82F6` · persistence `#E4573D` · termination `#7C3AED` · coverage `#16A34A` · handoff `#0891B2` · progress `#D97706` · integrity `#DB2777` · plate `#F4F6F9` (`#E2E8F0` on dark).
 
 The ring's three gaps are the first three questions; the top gap is where a fourth
 plugin would not go — the mascot stays as it is, and a new plugin gets its own

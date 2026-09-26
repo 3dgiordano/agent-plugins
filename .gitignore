@@ -15,6 +15,8 @@ bench/report-*/
 
 # The progress ledger (progress-self-monitoring): per-checkout residue, not shared history
 .agent/progress.md
+# scratch a session copies next to the ledger (a detector draft, a probe): not shared history
+.agent/integrity/
 
 # bench cases seed a node_modules on purpose (persistence: a stale installed copy)
 !bench/*/*/files/node_modules/

@@ -151,10 +151,11 @@ Nor does it judge the *content* of a block — the rules are structural.
 
 ### Living with the sibling blocks
 
-The four closing blocks coexist in one message and each plugin reads only
-its own: `[EPISTEMIC CLOSE]` (is the claim true), `[COVERAGE CHECK]` (which
-parts are open), `[TERMINATION CHECK]` (why the stop is justified) and
-`[HANDOFF]` (what the reader does with it). The only cross-read is this
+The closing blocks coexist in one message and each plugin reads only its
+own: `[EPISTEMIC CLOSE]` (is the claim true), `[COVERAGE CHECK]` (which parts
+are open), `[TERMINATION CHECK]` (why the stop is justified), `[INTEGRITY
+CHECK]` (whether the result is real) and `[HANDOFF]` (what the reader does
+with it). The only cross-read is this
 plugin's scanner looking for `returned` lines in the `[COVERAGE CHECK]`.
 Coverage's deferral scan reads the whole prose, a `[HANDOFF]` included — so a
 `Next:` line that says a part is *out of scope* still wants the coverage

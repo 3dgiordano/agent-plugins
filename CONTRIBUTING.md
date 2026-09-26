@@ -26,9 +26,10 @@ five rules the existing plugins follow:
    in the user's `CLAUDE.md` or rules, not in the skill.
 5. **Name the monitored decision or variable, never an internal state.**
    `executive`, `epistemic`, `persistence`, `termination`, `coverage`,
-   `handoff`, `progress` name what is checked — alignment to the plan, the
-   status of a claim, the persist-or-quit decision, the reason for a stop, the
-   parts delivered, the handoff to the reader, the residue across sessions. A
+   `handoff`, `progress`, `integrity` name what is checked — alignment to the
+   plan, the status of a claim, the persist-or-quit decision, the reason for a
+   stop, the parts delivered, the handoff to the reader, the residue across
+   sessions, where a result comes from. A
    name like *affective* or *avoidance* would assert a state the agent does
    not have; what looks like one from outside is a training-data artifact,
    and the plugin's job is to name the artifact, not to adopt it. The same

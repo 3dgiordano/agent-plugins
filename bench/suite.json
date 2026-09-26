@@ -12,7 +12,8 @@
       "cli": {
         "model": "composer-2.5",
         "effort": null
-      }
+      },
+      "idleMin": 3
     },
     {
       "host": "cursor",
@@ -25,7 +26,8 @@
         "model": "cursor-grok-4.6-high",
         "effort": null
       },
-      "timeoutMin": 45
+      "timeoutMin": 45,
+      "idleMin": 10
     },
     {
       "host": "cursor",
@@ -38,7 +40,8 @@
         "model": "grok-4.7-high",
         "effort": null
       },
-      "timeoutMin": 45
+      "timeoutMin": 45,
+      "idleMin": 10
     },
     {
       "host": "claude",
@@ -114,5 +117,6 @@
     }
   ],
   "cli": "cli.model is what the host CLI receives as --model. cli.effort is passed as the host's effort setting (claude --effort, codex -c model_reasoning_effort); null means the effort is part of the Cursor id. The Claude and Codex ids are unverified until a run reaches the model.",
-  "timeoutMin": "Per-invocation ceiling in minutes for the outcome bench (default 15). A run that reaches it has no result and is dropped as dead, so a slow model needs a higher one rather than a lower score."
+  "timeoutMin": "Per-invocation ceiling in minutes for the outcome bench (default 15). A run that reaches it has no result and is dropped as dead, so a slow model needs a higher one rather than a lower score.",
+  "idleMin": "Per-model idle cut in minutes for the outcome bench: an invocation that writes nothing for this long is stopped and counted dead (scripts/idle-watchdog.js), and one that stopped after a finished thinking block is named a stall. Set from the longest silence in finished runs: Composer 2.5 25 s in 161, Grok 4.6 High 153 s, Grok 4.7 High 460 s. None when unset."
 }

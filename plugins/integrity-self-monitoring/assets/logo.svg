@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="integrity-self-monitoring: an open loop with a plumb line at its center - a result that is true, not only level-looking">
+  <rect width="64" height="64" rx="14" fill="#F4F6F9"/>
+  <path d="M51.05 43 A22 22 0 1 1 51.05 21" stroke="#1F2933" stroke-width="6"/>
+  <path d="M32 20 V33" stroke="#DB2777" stroke-width="5"/>
+  <polygon points="26,33 38,33 32,44" fill="#DB2777" stroke="#DB2777" stroke-width="2"/>
+</svg>

@@ -100,7 +100,7 @@ const ROOT = path.resolve(__dirname, '..');
 const PLUGINS = path.join(ROOT, 'plugins');
 const GLOBAL_PLUGINS = path.join(os.homedir(), '.cursor', 'plugins', 'local');
 
-const { PLUGINS: PLUGINS_DIR, cases, graderFor, gradingOf, usable, verdict, reportLine, summaryLines, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, neutralDir, quote, seed, harvest } = require('./evallib.js');
+const { PLUGINS: PLUGINS_DIR, cases, graderFor, gradingOf, usable, verdict, reportLine, summaryLines, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, neutralDir, quote, seed, harvest, nodeGuard } = require('./evallib.js');
 
 // ---------------------------------------------------------------------------
 // The CLI
@@ -193,12 +193,20 @@ function killTree(pid) {
   try { process.kill(-pid, 'SIGKILL'); } catch (_) { /* no group, or already gone */ }
 }
 
+/*
+ * limits.idle (ms): stop the CLI when it has written nothing for that long,
+ * through scripts/idle-watchdog.js, which then puts `[idle_timeout]` on
+ * stderr and exits 124. The call stays synchronous either way.
+ */
+const WATCHDOG = path.join(__dirname, 'idle-watchdog.js');
+
 function run(bin, args, env, input, cwd, limits) {
-  const r = spawnSync(bin, args, {
+  const idle = limits && Number(limits.idle) > 0 ? Number(limits.idle) : 0;
+  const r = spawnSync(idle ? process.execPath : bin, idle ? [WATCHDOG, String(idle), bin].concat(args) : args, {
     encoding: 'utf8',
     timeout: (limits && limits.timeout) || 300000,
     maxBuffer: (limits && limits.maxBuffer) || 1024 * 1024,
-    shell: /\.cmd$/i.test(bin),
+    shell: !idle && /\.cmd$/i.test(bin),
     env: cursorEnv(env),
     input: typeof input === 'string' ? input : undefined,
     cwd: cwd || os.tmpdir(),
@@ -542,12 +550,15 @@ function main() {
           const runEnv = isolate ? isolatedHome('.cursor') : {};
           const trace = misreadTrace(runEnv);
           Object.assign(runEnv, trace.env);
+          // the agent's node fenced to its workspace; hooks run unfenced (evallib nodeGuard)
+          const guard = has('--no-node-guard') ? null : nodeGuard(ws, [withPlugin ? path.dirname(pluginCopy(c.plugin)) : null, hookWitness().dir]);
+          if (guard) Object.assign(runEnv, guard.env);
           seed(ws, c);
           // stream-json, not text: the stream is what the audit reads (where the
           // agent went), and the reply is its `result` event.
           const r = run(cli.bin, argsFor(c, withPlugin, model.id, ws, 'stream-json'), runEnv, c.prompt, ws, { maxBuffer: 50 * 1024 * 1024 });
           const stream = `${r.stdout || ''}`;
-          const audit = auditStream(stream, [ws, runEnv.HOME, withPlugin ? path.dirname(pluginCopy(c.plugin)) : null, hookWitness().dir], ROOT, ws);
+          const audit = auditStream(stream, [ws, runEnv.HOME, withPlugin ? path.dirname(pluginCopy(c.plugin)) : null, hookWitness().dir, guard ? guard.dir : null], ROOT, ws);
           const base = `${c.plugin}__${c.id}__${arm}__${i + 1}`;
           hooks[arm] += hookWitness().fired(ws) ? 1 : 0;
           let text = stream;
@@ -558,6 +569,7 @@ function main() {
           trace.scan([finalMessage(stream)]);
           trace.collect(outDir, base);
           dropHome(runEnv);
+          if (guard) { try { fs.rmSync(guard.dir, { recursive: true, force: true }); } catch (_) { /* swept later */ } }
           fs.writeFileSync(path.join(outDir, `${base}.txt`), text);
           fs.writeFileSync(path.join(outDir, `${base}.stream.jsonl`), stream);
           const artifact = harvest(ws, c, outDir, base);

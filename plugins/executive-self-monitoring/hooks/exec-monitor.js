@@ -35,7 +35,7 @@ function main(raw) {
 
   const safe = sid.replace(/[^0-9A-Za-z_-]/g, '_');
   // <tmpdir>/3dgiordano-agent-plugins/execmon_<host>_<session>.txt, the same
-  // directory and the same name shape as the other five plugins' state files.
+  // directory and the same name shape as the other plugins' state files.
   // The host goes in the middle, not in front: the counter is host-neutral and
   // this is the Claude adapter's copy of it.
   const dir = path.join(os.tmpdir(), '3dgiordano-agent-plugins');

@@ -2,9 +2,10 @@
   "version": "1.0.0",
   "cases": {
     "coverage-self-monitoring": "the-blocked-part-stays-blocked",
-    "executive-self-monitoring": "the-plan-that-changed",
     "epistemic-self-monitoring": "the-cause-i-named-first",
+    "executive-self-monitoring": "the-plan-that-changed",
     "handoff-self-monitoring": "decision-file",
+    "integrity-self-monitoring": "the-blocked-part-stays-blocked",
     "persistence-self-monitoring": "the-tests-disagree",
     "progress-self-monitoring": "leftover-bug",
     "termination-self-monitoring": "remaining-modules"

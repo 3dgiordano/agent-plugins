@@ -17,6 +17,10 @@
  *   --isolate     scratch HOME so a global install does not reach the baseline
  *   --arm <a>     run one arm only (with | without): a probe, printed, never stored as a score
  *   --timeout-min per-invocation ceiling; default from the suite row (timeoutMin), else 15
+ *   --no-node-guard  let the agent's `node` run unfenced (evallib nodeGuard; on by default)
+ *   --idle-min    stop an invocation that has written nothing for this long; default
+ *                 from the suite row (idleMin), else none. A run cut this way is dead,
+ *                 and a stall (a finished thinking block, then nothing) is named as one.
  *   --guard <f>   put one guard on every case run now (`none` takes them all off); a case
  *                 otherwise carries its own, named in case.json. Recorded in run.json.
  *
@@ -50,7 +54,7 @@ const path = require('path');
 const AGENT_CLI_DRIVER = true;
 
 const { findCli, authState, argsFor, globalInstalls, run, pluginCopy } = require('./cursor-eval.js');
-const { reached, seed, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, quote, MARKER } = require('./evallib.js');
+const { reached, seed, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, quote, MARKER, stallOf, nodeGuard } = require('./evallib.js');
 const { ROOT, loadCases } = require('./benchlib.js');
 const { benchmarkVersion, pluginVersions } = require('./benchsession.js');
 
@@ -193,7 +197,7 @@ function main() {
   const argv = process.argv.slice(2);
   const has = (f) => argv.includes(f);
   const val = (f, d) => { const i = argv.indexOf(f); return i !== -1 && argv[i + 1] ? argv[i + 1] : d; };
-  const flagged = new Set(['--runs', '--model', '--out', '--timeout-min', '--arm', '--guard']);
+  const flagged = new Set(['--runs', '--model', '--out', '--timeout-min', '--idle-min', '--arm', '--guard']);
   const filter = argv.find((a, i) => !a.startsWith('--') && !flagged.has(argv[i - 1]));
   const runs = parseInt(val('--runs', '1'), 10) || 1;
   const model = val('--model', null);
@@ -364,6 +368,16 @@ function main() {
    */
   const timeoutMin = Number(val('--timeout-min', '')) || (listed && listed.timeoutMin) || 15;
   runRecord.timeoutMin = timeoutMin;
+  /*
+   * Idle cut: the CLI can stop mid-session with nothing more to say (evallib
+   * stallOf). Per model, because a healthy silence differs: Composer 2.5's
+   * longest in 161 finished runs was 25 s, Grok 4.7 High's 460 s.
+   */
+  const idleMin = Number(val('--idle-min', '')) || (listed && listed.idleMin) || 0;
+  runRecord.idleMin = idleMin || null;
+  // The agent's node runs under Node's permission model, fenced to its workspace (evallib nodeGuard).
+  const fence = !has('--no-node-guard');
+  runRecord.nodeGuard = fence;
   if (listed) {
     runRecord.tier = listed.tier;
     runRecord.modelLine = listed.line;
@@ -400,8 +414,11 @@ function main() {
         const runEnv = isolate ? isolatedHome('.cursor', c.shell) : {};
         const trace = misreadTrace(runEnv);
         Object.assign(runEnv, trace.env);
+        // hooks run unfenced from their own directories: the plugin copy and the witness
+        const guard = fence ? nodeGuard(ws, [withPlugin ? path.dirname(pluginCopy(c.plugin)) : null, hookWitness().dir]) : null;
+        if (guard) Object.assign(runEnv, guard.env);
         seed(ws, c);
-        const limits = { timeout: timeoutMin * 60 * 1000, maxBuffer: 50 * 1024 * 1024 };
+        const limits = { timeout: timeoutMin * 60 * 1000, maxBuffer: 50 * 1024 * 1024, idle: idleMin * 60 * 1000 };
         const args = argsFor(c, withPlugin, model, ws, 'stream-json');
         const r = run(cli.bin, args, runEnv, c.prompt, cliCwd, limits);
         let parsed = parseAgent(r.stdout);
@@ -423,7 +440,7 @@ function main() {
           if (parts.length < c.turns.length) parsed.error = true;
           r.stdout = streams.join('\n');
         }
-        const audit = auditStream(r.stdout, [ws, cliCwd, runEnv.HOME, withPlugin ? path.dirname(pluginCopy(c.plugin)) : null, hookWitness().dir], ROOT, ws);
+        const audit = auditStream(r.stdout, [ws, cliCwd, runEnv.HOME, withPlugin ? path.dirname(pluginCopy(c.plugin)) : null, hookWitness().dir, guard ? guard.dir : null], ROOT, ws);
         const hooked = hookWitness().fired(ws);
         if (hooked) hooksRan[arm] += 1;
         if (parsed.modelReported) reported.add(parsed.modelReported);
@@ -439,10 +456,11 @@ function main() {
           error: parsed.error,
           stderr: String(r.stderr || '').trim().split(/\r?\n/).slice(-3).join(' | ').slice(0, 300),
           hooks: hooked,
+          stall: stallOf(r.stdout, r.stderr),
           outside: audit.outside,
           contaminated: audit.contaminated,
           suspect: audit.suspect,
-          roots: [ws, cliCwd, runEnv.HOME, withPlugin ? path.dirname(pluginCopy(c.plugin)) : null, hookWitness().dir].filter(Boolean),
+          roots: [ws, cliCwd, runEnv.HOME, withPlugin ? path.dirname(pluginCopy(c.plugin)) : null, hookWitness().dir, guard ? guard.dir : null].filter(Boolean),
           aware: audit.aware,
         }, null, 2));
         if (audit.suspect.length) console.log(`  suspect ${arm} run ${i + 1}: ${[...new Set(audit.suspect.map((s) => s.kind))].join(', ')}`);
@@ -452,13 +470,15 @@ function main() {
         trace.collect(outDir, base);
         dropHome(runEnv);
         dropWorkspace(cliCwd);
+        if (guard) { try { fs.rmSync(guard.dir, { recursive: true, force: true }); } catch (_) { /* swept later */ } }
         dropHostJunk(ws);
         try { fs.cpSync(ws, path.join(outDir, base), { recursive: true }); } catch (_) {}
         if (parsed.error || !reached(parsed.text)) {
           // Why it died is on stderr (a quota says `[resource_exhausted]`); the stream only shows retries.
           dead += 1;
           const m = String(r.stderr || '').match(/\[([a-z_]+)\]|(\w*Error\b[^\r\n]{0,80})/);
-          deadWhy.add(m ? (m[1] || m[2]) : (r.error ? r.error.code || String(r.error.message).slice(0, 60) : 'no result event'));
+          const stall = stallOf(r.stdout, r.stderr);
+          deadWhy.add(stall ? `stalled after a thinking block (${stall.idled ? 'idle cut' : 'ceiling'})` : m ? (m[1] || m[2]) : (r.error ? r.error.code || String(r.error.message).slice(0, 60) : 'no result event'));
           dropWorkspace(ws);
           continue;
         }

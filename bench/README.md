@@ -43,6 +43,10 @@ A case may carry a guard: a paragraph appended to its first prompt, the same in 
 
 `--start` opens one session. It records `bench/benchmark.json`, the version in every plugin manifest, and the Cursor agent version when the CLI is present. Later commands add models to that session. Running a model again replaces that model. `--finish` seals it. `--finish` refuses while any stored result is invalid; `--finish --discard` drops the session instead of publishing it.
 
+An invocation that writes nothing for its model's `idleMin` (`bench/suite.json`; `--idle-min` overrides it) is stopped and counted dead. If it stopped after a finished thinking block, it is named a stall: the CLI can leave a session there with nothing more to come (`scripts/idle-watchdog.js`, `evallib.js` `stallOf`).
+
+The agent's `node` is fenced to its workspace (`evallib.js` `nodeGuard`, recorded as `nodeGuard` in `run.json`, off with `--no-node-guard`). It cannot start processes or read and write outside the workspace, and the network stays open. See bench/INTEGRITY.md, "What guards a run now".
+
 `--isolate` is required when the plugins are installed globally. It gives every invocation its own scratch HOME, removed when the invocation ends. Cursor headless loads the skill and runs `sessionStart` and `postToolUse` - but no hook at all when started from a Git Bash process tree, so run it from PowerShell or cmd. Every case prints `hooks ran` per arm from a witness plugin both arms load; a WITH arm with none is the skill alone. The run count is the `runs` field in `bench/suite.json`, pinned on the session. Passing a different `--runs` is refused.
 
 A change of benchmark version invalidates every stored model. A change of one plugin's version invalidates that plugin's case. A change of the agent version for a host invalidates that host. `--status` prints what has to be run again. Those results stay off the page until the new run replaces them. Two sessions, or two runs whose benchmark, plugins, or agent versions differ, are not drawn on one page.
@@ -117,7 +121,7 @@ The report is one English HTML page. With no run directories it renders the curr
 
 ## What each case counts
 
-**Canonical cases** are the seven in `bench/benchmark.json`, one per plugin: the ones the report draws and a published number is measured on. Their target: Grok 4.7 High fails the case without the plugin, Composer 2.5 passes it with the plugin.
+**Canonical cases** are the eight in `bench/benchmark.json`, one per plugin: the ones the report draws and a published number is measured on. A case may be another plugin's task (`"same": "<plugin>/<id>"` in `case.json`): `integrity-self-monitoring/the-blocked-part-stays-blocked` runs coverage's task, files and grader with integrity installed. It has no runs yet. Their target: Grok 4.7 High fails the case without the plugin, Composer 2.5 passes it with the plugin.
 
 n=3 on 2026-09-23, Cursor agent `2026.09.18-9a7762b`, per-case guards, today's graders, runs that left their workspace excluded (`bench/report-n3`). Passes without -> with the plugin:
 

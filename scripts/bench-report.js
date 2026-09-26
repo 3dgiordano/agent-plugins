@@ -703,7 +703,7 @@ function renderHtml(records, meta) {
     ${buttons}
   </nav>
 ${sections}
-  <p class="note">One page for the whole suite. All plugins pools the seven cases. Each other control is that plugin alone. The rate is passes over runs that reached the model. Tokens are the mean of input plus output. Cache reads are not included. Tool calls are the mean of completed calls. The CLI does not return a price, so the axis is not in dollars. The discipline block is not the rate. Composer 2.5 stays on Default because the Cursor model list has no High id for it. The other models in the set are at High: Grok 4.6, Grok 4.7, Sonnet 5, Opus 5, Opus 5.5, GPT-5.6 Luna, GPT-5.6 Sol, and GPT-6 Astra. A model that has not been run is absent. A result from another benchmark version, plugin version, or agent version is left off the page.</p>
+  <p class="note">One page for the whole suite. All plugins pools the canonical cases, one per plugin. Each other control is that plugin alone. The rate is passes over runs that reached the model. Tokens are the mean of input plus output. Cache reads are not included. Tool calls are the mean of completed calls. The CLI does not return a price, so the axis is not in dollars. The discipline block is not the rate. Composer 2.5 stays on Default because the Cursor model list has no High id for it. The other models in the set are at High: Grok 4.6, Grok 4.7, Sonnet 5, Opus 5, Opus 5.5, GPT-5.6 Luna, GPT-5.6 Sol, and GPT-6 Astra. A model that has not been run is absent. A result from another benchmark version, plugin version, or agent version is left off the page.</p>
 </main>
 <script>
 document.querySelector('.switch').addEventListener('click', function (event) {

@@ -87,6 +87,19 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity"
+    },
+    {
+      "name": "integrity-self-monitoring",
+      "source": {
+        "source": "local",
+        "path": "./plugins/integrity-self-monitoring"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "description": "Real-result discipline: when a service, a key or consistent tests are missing, the result is an error that says so, not a fallback that looks done. Hooks read each edit to product code for made-up data where a service was asked for (a rate table, a catch that answers, a missing key answered, a second host) or code that reads its caller, and each shell command for a change to the machine or a server started; each finding is said once, with what it means for the user. Shared skill + per-host hooks. No message on the prompt. Never blocks."
     }
   ]
 }

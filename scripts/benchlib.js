@@ -65,7 +65,18 @@ function loadCases(filter) {
       if (!fs.statSync(dir).isDirectory()) continue;
       // `plugin/id` too: the form --list prints.
       if (terms && !terms.some((t) => plugin.includes(t) || id.includes(t) || `${plugin}/${id}` === t)) continue;
-      const promptPath = path.join(dir, 'prompt.md');
+      let own = {};
+      try { own = JSON.parse(fs.readFileSync(path.join(dir, 'case.json'), 'utf8')); } catch (_) {}
+      /*
+       * "same": "<plugin>/<id>" - the same task, run with this plugin. Its
+       * prompt, turns and seed files are the other case's; its grade.js
+       * re-exports that case's grader, and case.json may override the rest
+       * (why, guard). One task, one set of files and one grader, measured
+       * against more than one plugin: nothing to copy and keep in step.
+       */
+      const src = typeof own.same === 'string' ? path.join(BENCH, own.same) : dir;
+      if (src !== dir && !fs.existsSync(path.join(src, 'grade.js'))) throw new Error(`bench/${plugin}/${id}: "same" names ${own.same}, which is not a case`);
+      const promptPath = path.join(src, 'prompt.md');
       const gradePath = path.join(dir, 'grade.js');
       /*
        * turns/01.md, 02.md, ...: a conversation. The first is sent as the prompt,
@@ -74,7 +85,7 @@ function loadCases(filter) {
        * a constraint given early and gone later, a plan re-derived from memory -
        * happen across turns, and one prompt cannot hold them.
        */
-      const turnsDir = path.join(dir, 'turns');
+      const turnsDir = path.join(src, 'turns');
       const turnNames = fs.existsSync(turnsDir) ? fs.readdirSync(turnsDir).filter((n) => /^\d+\.md$/.test(n)).sort() : [];
       const turns = turnNames.length
         ? turnNames.map((n) => fs.readFileSync(path.join(turnsDir, n), 'utf8').trim())
@@ -87,13 +98,16 @@ function loadCases(filter) {
         return fs.existsSync(d) && fs.statSync(d).isDirectory() ? d : null;
       });
       if ((!fs.existsSync(promptPath) && !(turns && turns.length)) || !fs.existsSync(gradePath)) continue;
-      let meta = {};
-      try { meta = JSON.parse(fs.readFileSync(path.join(dir, 'case.json'), 'utf8')); } catch (_) {}
-      const files = fs.existsSync(path.join(dir, 'files')) ? path.join(dir, 'files') : null;
+      let meta = own;
+      if (src !== dir) {
+        try { meta = Object.assign(JSON.parse(fs.readFileSync(path.join(src, 'case.json'), 'utf8')), own); } catch (_) {}
+      }
+      const files = fs.existsSync(path.join(src, 'files')) ? path.join(src, 'files') : null;
       out.push({
         plugin,
         id,
         dir,
+        same: src !== dir ? own.same : null,
         intent: meta.intent || 'work',
         metric: meta.metric || 'checks passed',
         shell: Array.isArray(meta.shell) ? meta.shell : null,

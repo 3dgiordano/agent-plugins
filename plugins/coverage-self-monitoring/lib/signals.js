@@ -381,7 +381,8 @@ function contextOf(body, index, length) {
  * it is blanked character by character so offsets stay the original's.
  * Coverage's own blocks are read as they always were.
  */
-const REPORT_MARKER_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[(?:HANDOFF|TERMINATION CHECK|EPISTEMIC CLOSE|PLAN CHECK|PERSISTENCE CHECK)\]/;
+// [INTEGRITY CHECK] too: the Route of a blocked part says what it still needs.
+const REPORT_MARKER_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[(?:HANDOFF|TERMINATION CHECK|EPISTEMIC CLOSE|PLAN CHECK|PERSISTENCE CHECK|INTEGRITY CHECK)\]/;
 function reports(text) {
   const lines = text.split('\n');
   let inside = false;

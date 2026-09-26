@@ -24,29 +24,33 @@
       <g transform="scale(.7)" fill="none" stroke-linecap="round" stroke-width="6"><path d="M51.05 43 A22 22 0 1 1 51.05 21" stroke="#F1F5F9"/><circle cx="32" cy="32" r="6" fill="#E8A33D" stroke="none"/></g>
       <text x="58" y="29">Am I doing what the plan asks?</text>
     </g>
-    <g transform="translate(0,50)">
+    <g transform="translate(0,46)">
       <g transform="scale(.7)" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"><path d="M51.05 43 A22 22 0 1 1 51.05 21" stroke="#F1F5F9"/><path d="M23 33 L29.5 39.5 L41 26" stroke="#3B82F6"/></g>
       <text x="58" y="29">Is what I concluded actually true?</text>
     </g>
-    <g transform="translate(0,100)">
+    <g transform="translate(0,92)">
       <g transform="scale(.7)" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"><path d="M51.05 43 A22 22 0 1 1 51.05 21" stroke="#F1F5F9"/><path d="M35.5 25.94 A7 7 0 1 1 25.42 29.61" stroke="#E4573D"/><polygon points="26.4,26.0 28.3,31.1 22.9,29.2" fill="#E4573D" stroke="none"/></g>
       <text x="58" y="29">Is it still worth insisting on this?</text>
     </g>
-    <g transform="translate(0,150)">
+    <g transform="translate(0,138)">
       <g transform="scale(.7)" fill="none" stroke-linecap="round" stroke-width="6"><path d="M51.05 43 A22 22 0 1 1 51.05 21" stroke="#F1F5F9"/><rect x="25" y="25" width="14" height="14" rx="2" fill="#7C3AED" stroke="none"/></g>
       <text x="58" y="29">Is this stop justified by something checkable?</text>
     </g>
-    <g transform="translate(0,200)">
+    <g transform="translate(0,184)">
       <g transform="scale(.7)" fill="none" stroke-linecap="round" stroke-width="6"><path d="M51.05 43 A22 22 0 1 1 51.05 21" stroke="#F1F5F9"/><path d="M23 23 H39" stroke="#F1F5F9"/><path d="M23 32 H35" stroke="#F1F5F9"/><path d="M23 41 H44" stroke="#16A34A"/></g>
       <text x="58" y="29">Did I deliver every part, including the hard one?</text>
     </g>
-    <g transform="translate(0,250)">
+    <g transform="translate(0,230)">
       <g transform="scale(.7)" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"><path d="M51.05 43 A22 22 0 1 1 51.05 21" stroke="#F1F5F9"/><path d="M21 32 H34 M28 25 L35 32 L28 39" stroke="#0891B2"/><path d="M42 23 V41" stroke="#0891B2"/></g>
       <text x="58" y="29">Can the reader act on what I wrote?</text>
     </g>
-    <g transform="translate(0,300)">
+    <g transform="translate(0,276)">
       <g transform="scale(.7)" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"><path d="M51.05 43 A22 22 0 1 1 51.05 21" stroke="#F1F5F9"/><path d="M23 20 H36 L43 27 V44 H23 Z" stroke="#F1F5F9" stroke-width="5"/><path d="M36 20 V27 H43" stroke="#D97706" stroke-width="5"/></g>
       <text x="58" y="29">Can the next session pick this up?</text>
+    </g>
+    <g transform="translate(0,322)">
+      <g transform="scale(.7)" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"><path d="M51.05 43 A22 22 0 1 1 51.05 21" stroke="#F1F5F9"/><path d="M32 20 V33" stroke="#DB2777" stroke-width="5"/><polygon points="26,33 38,33 32,44" fill="#DB2777" stroke="#DB2777" stroke-width="2"/></g>
+      <text x="58" y="29">Is the result real?</text>
     </g>
   </g>
   <text x="64" y="598" fill="#64748B" font-size="22">Claude Code · Codex · Cursor · Agent Plugins &#160;&#160;·&#160;&#160; never blocks · no dependencies · no network</text>

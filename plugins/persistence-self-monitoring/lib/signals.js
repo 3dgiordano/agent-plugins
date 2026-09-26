@@ -86,7 +86,10 @@ function observe(turn, toolName, toolInput, toolOutput) {
       const sig = errorSignature(out);
       if (sig) {
         const n = bump(turn.errs, sig);
-        if (crossed(n, REPEAT_FAILURES, turn.fired.errs, sig)) fired.push({ kind: 'errs', key: sig, count: n });
+        // The signature keys the count and goes to the log. It is a line of
+        // the command's output - text a test, a file or a service can write -
+        // so the message names the command it came from, never the line.
+        if (crossed(n, REPEAT_FAILURES, turn.fired.errs, sig)) fired.push({ kind: 'errs', key: sig, count: n, cmd: c || null });
       }
     }
   }

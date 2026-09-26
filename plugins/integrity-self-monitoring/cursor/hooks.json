@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      {
+        "command": "node ./cursor/int-observe-cursor.js"
+      }
+    ],
+    "afterAgentResponse": [
+      {
+        "command": "node ./cursor/int-response-cursor.js"
+      }
+    ]
+  }
+}

@@ -67,6 +67,11 @@ const SAMPLES = {
 
   // The session-boundary status: counts and the path, never the ledger's text.
   progress: () => lib('progress', 'messages.js').status({ open: 2, blocked: 1, returned: 1, next: true, fresh: true, ageMs: 2 * 24 * 3600 * 1000 }),
+
+  // A finding, with what it means for the user; the rule rides on it (no load message).
+  integrity: () => lib('integrity', 'messages.js').nudge([
+    { kind: 'catch returns', file: 'src/rates.js', line: 8, at: 'return amount * 1.08;' },
+  ]),
 };
 
 // Wrap on spaces at WRAP columns, the way the rest of the README is wrapped.

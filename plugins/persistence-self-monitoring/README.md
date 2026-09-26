@@ -62,7 +62,7 @@ threshold is crossed (and again at each multiple), never on every call:
 |--------|-----------|-------------|
 | `edits` | same file edited **4** times | any tool whose name looks like an edit (`Edit`, `Write`, `NotebookEdit`, `edit_file`, …), keyed by file path |
 | `cmds` | same shell command failing **3** times | shell-like tools whose output looks like a failure, keyed by the normalized command |
-| `errs` | same error signature **3** times | the first error-naming line of a failed output, with numbers, hex ids and paths blanked — so a retry that only moved a line number still counts as the same error |
+| `errs` | same error signature **3** times | the first error-naming line of a failed output, with numbers, hex ids and paths blanked — so a retry that only moved a line number still counts as the same error. The message names the command whose output it was, never the line: output is text a test, a file or a service wrote |
 | `effort` | **30** tool calls, then every 30 | every tool call |
 
 Thresholds are constants at the top of `lib/signals.js` (`EDITS_SAME_FILE`,
@@ -85,6 +85,11 @@ what changed between attempts, and what the agent would do if the hypothesis
 were wrong. When the epistemic-self-monitoring plugin is installed, that last
 question is its "strongest rival explanation" step; the two compose without
 either depending on the other.
+
+When the checks contradict each other, persistence says that is the finding.
+[integrity-self-monitoring](../integrity-self-monitoring/) watches the other
+exit: the green reached by a trick - code that reads its caller, a stand-in
+for the service - named as it is written, before the close.
 
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 prompt, a tool call, or a stop.
