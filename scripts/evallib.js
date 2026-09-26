@@ -661,10 +661,29 @@ function hookWitness() {
  *
  * The files carry no comment and no path to this repository: an agent can
  * read what is on its PATH.
+ *
+ * The flag depends on the node the runner uses: `--permission` from 22.13,
+ * `--experimental-permission` on 20 (and 22 before 22.13), none on 18. With
+ * none, there is no fence: nodeGuard() returns null and the caller records
+ * that, rather than hand the agent a node that refuses every command (CI,
+ * Node 18, 2026-09-26: "bad option: --permission", exit 9).
  */
+let permission;
+function permissionFlags() {
+  if (permission !== undefined) return permission;
+  const { spawnSync } = require('child_process');
+  const works = (flags) => spawnSync(process.execPath, flags.concat(['-e', '0']), { encoding: 'utf8', timeout: 15000 }).status === 0;
+  const flag = ['--permission', '--experimental-permission'].find((f) => works([f]));
+  // an experimental model warns on every start; the agent does not need to read that
+  permission = !flag ? null : flag === '--experimental-permission' && works([flag, '--disable-warning=ExperimentalWarning']) ? [flag, '--disable-warning=ExperimentalWarning'] : [flag];
+  return permission;
+}
+
 function nodeGuard(workspace, passThrough) {
+  const perm = permissionFlags();
+  if (!perm) return null;
   const dir = neutralDir();
-  const cfg = { node: process.execPath, root: path.resolve(workspace), pass: (passThrough || []).filter(Boolean).map((p) => path.resolve(p)) };
+  const cfg = { node: process.execPath, perm, root: path.resolve(workspace), pass: (passThrough || []).filter(Boolean).map((p) => path.resolve(p)) };
   fs.writeFileSync(path.join(dir, 'launch.json'), JSON.stringify(cfg, null, 2));
   fs.writeFileSync(path.join(dir, 'launch.js'), [
     "'use strict';",
@@ -682,7 +701,7 @@ function nodeGuard(workspace, passThrough) {
     '}',
     'const env = {};',
     "for (const [k, v] of Object.entries(process.env)) if (k.toUpperCase() !== 'NODE_OPTIONS') env[k] = v;",
-    "const flags = pass ? [] : ['--permission', '--allow-fs-read=' + cfg.root + path.sep + '*', '--allow-fs-write=' + cfg.root + path.sep + '*'];",
+    "const flags = pass ? [] : cfg.perm.concat(['--allow-fs-read=' + cfg.root + path.sep + '*', '--allow-fs-write=' + cfg.root + path.sep + '*']);",
     "const r = spawnSync(cfg.node, flags.concat(args), { stdio: 'inherit', env });",
     'process.exit(r.status === null ? 1 : r.status);',
     '',
@@ -760,4 +779,4 @@ function dropWorkspace(ws) {
 
 const quote = (s) => (/[\s"]/.test(s) ? `"${s.replace(/"/g, '\\"')}"` : s);
 
-module.exports = { ROOT, PLUGINS, MARKER, SCANNER, ARTIFACT, seed, harvest, readArtifact, graderFor, cases, gradingOf, usable, reached, verdict, reportLine, summaryLines, scratchWorkspace, sweepWorkspaces, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, neutralDir, quote, stallOf, nodeGuard };
+module.exports = { ROOT, PLUGINS, MARKER, SCANNER, ARTIFACT, seed, harvest, readArtifact, graderFor, cases, gradingOf, usable, reached, verdict, reportLine, summaryLines, scratchWorkspace, sweepWorkspaces, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, neutralDir, quote, stallOf, nodeGuard, permissionFlags };

@@ -311,7 +311,8 @@ elsewhere.
 
 - One plugin or one concern per PR.
 - `node scripts/test.js` and `node scripts/version.js --check` pass locally;
-  CI runs them on Ubuntu and Windows, Node 18/20/22. `scripts/test.js` also
+  CI runs them on Ubuntu and Windows, Node 18/20/22 (the README's
+  *Requirements* says what each layer needs). `scripts/test.js` also
   runs the samples, corpus and host-parity checks, so passing it locally
   covers all four cheap layers.
 - The PR template has the checklist; it is short on purpose.

@@ -310,6 +310,38 @@ of coverage on Cursor measures stubs, not the whole design.
 Each plugin folder has its own README with design notes, host differences and
 debugging tips.
 
+## Requirements
+
+Two different things run from this repository, and they need different things.
+
+**The plugins** (what you install):
+
+- **`node` on the host's PATH, Node 18 or later.** Every hook is launched as
+  `node <script>`, by Claude Code, Codex or Cursor. The hooks use Node's
+  built-ins only (`fs`, `os`, `path`), with no packages and no network.
+- **A host that runs plugin hooks**: Claude Code, Codex (after trusting the
+  hooks once with `/hooks`), or Cursor. On Cursor headless (`agent -p`),
+  hooks run only when the process was not started from Git Bash. Any other
+  Agent Skills or Agent Plugins client gets the skills and no hooks.
+- Nothing else: no build step, no install script, no service.
+
+CI holds this: every hook adapter is driven with its host's JSON on Ubuntu and
+Windows, Node 18, 20 and 22.
+
+**The test pipeline** (this repository's own tooling, for contributors):
+
+| Layer | Command | Needs |
+|-------|---------|-------|
+| Suite: structure, hook adapters, corpus, samples, host parity | `node scripts/test.js` | Node 18 or later. No agent, no network. The node-fence test is skipped on 18. |
+| Versions, fixtures | `node scripts/version.js --check`, `node scripts/bench-check.js` | Node 18 or later |
+| Behavioural evals | `node scripts/cursor-eval.js`, `claude-eval.js`, `codex-eval.js` | The host's CLI, logged in. With `--isolate`, Cursor needs `CURSOR_API_KEY`. These spend model calls. |
+| Outcome bench | `node scripts/bench.js`, `cursor-bench.js` | The Cursor Agent CLI, logged in. On Windows, run it from PowerShell or cmd, not Git Bash, or no hook runs. **Node 20 or later on the runner** for the node fence (`--permission` from 22.13, `--experimental-permission` on 20). On 18 the agent's `node` runs unfenced, and `run.json` records `nodeGuard: false`. These spend model calls. |
+
+The evals and the bench start agents on your machine. The shell allowlist
+admits only `node`, and the bench fences that `node` to the run's workspace.
+It is not a sandbox: see [bench/INTEGRITY.md](bench/INTEGRITY.md), "What guards
+a run now".
+
 ## Install
 
 ### Claude Code
@@ -420,7 +452,7 @@ Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
 ## Development
 
-No dependencies; Node 18+ is all you need.
+No dependencies. What each command needs is under [Requirements](#requirements).
 
 ```
 node scripts/test.js            # structure checks + every hook adapter driven as its host would

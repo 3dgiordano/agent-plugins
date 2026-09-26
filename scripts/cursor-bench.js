@@ -54,7 +54,7 @@ const path = require('path');
 const AGENT_CLI_DRIVER = true;
 
 const { findCli, authState, argsFor, globalInstalls, run, pluginCopy } = require('./cursor-eval.js');
-const { reached, seed, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, quote, MARKER, stallOf, nodeGuard } = require('./evallib.js');
+const { reached, seed, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, quote, MARKER, stallOf, nodeGuard, permissionFlags } = require('./evallib.js');
 const { ROOT, loadCases } = require('./benchlib.js');
 const { benchmarkVersion, pluginVersions } = require('./benchsession.js');
 
@@ -376,8 +376,10 @@ function main() {
   const idleMin = Number(val('--idle-min', '')) || (listed && listed.idleMin) || 0;
   runRecord.idleMin = idleMin || null;
   // The agent's node runs under Node's permission model, fenced to its workspace (evallib nodeGuard).
-  const fence = !has('--no-node-guard');
-  runRecord.nodeGuard = fence;
+  // Only where the runner's node has a permission model (20+); on 18 the runs are not fenced, and say so.
+  const fence = !has('--no-node-guard') && !!permissionFlags();
+  runRecord.nodeGuard = fence ? permissionFlags().join(' ') : false;
+  if (!has('--no-node-guard') && !fence) console.log('node fence: unavailable on node ' + process.version + ' (no permission model) - the agent runs node unfenced');
   if (listed) {
     runRecord.tier = listed.tier;
     runRecord.modelLine = listed.line;

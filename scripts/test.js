@@ -2482,12 +2482,26 @@ test('bench: the idle watchdog stops a silent command and passes a talking one t
 });
 
 test('bench: the agent\'s node is fenced to its workspace; hooks and the tests still run', (t) => {
-  const { nodeGuard } = require('./evallib.js');
+  const { nodeGuard, permissionFlags } = require('./evallib.js');
   const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-fence-ws-'));
   const plug = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-fence-plug-'));
   const outside = path.join(os.tmpdir(), `agent-plugins-fence-leak-${process.pid}.txt`);
+  t.after(() => { for (const d of [ws, plug]) fs.rmSync(d, { recursive: true, force: true }); fs.rmSync(outside, { force: true }); });
+
+  // on every node: the runners use it, and a denied access is an audit mark
+  for (const f of ['cursor-bench.js', 'cursor-eval.js']) assert.match(fs.readFileSync(path.join(ROOT, 'scripts', f), 'utf8'), /nodeGuard\(ws,/, f);
+  const { auditRun } = require('./integrity.js');
+  const denial = JSON.stringify({ type: 'tool_call', subtype: 'completed', tool_call: { shellToolCall: { args: { command: 'node -e x' }, result: { failure: { stderr: 'Error: Access to this API has been restricted. Use --allow-child-process to manage permissions.' } } } } });
+  assert.deepEqual(auditRun(denial, { roots: [ws], workspace: ws }).suspect.map((s) => s.kind), ['stopped by the node fence']);
+
+  // a node with no permission model (18) gets no fence - not a node that refuses every command
+  if (!permissionFlags()) {
+    assert.equal(nodeGuard(ws, [plug]), null);
+    t.skip(`no permission model on node ${process.version}: the runs are not fenced`);
+    return;
+  }
   const g = nodeGuard(ws, [plug]);
-  t.after(() => { for (const d of [ws, plug, g.dir]) fs.rmSync(d, { recursive: true, force: true }); fs.rmSync(outside, { force: true }); });
+  t.after(() => fs.rmSync(g.dir, { recursive: true, force: true }));
   // what the shim forwards to: the real node, through launch.js
   const node = (args, cwd, env) => spawnSync(process.execPath, [path.join(g.dir, 'launch.js')].concat(args), { cwd: cwd || ws, encoding: 'utf8', env: Object.assign({}, process.env, env || {}), timeout: 30000 });
   assert.ok(fs.existsSync(path.join(g.dir, process.platform === 'win32' ? 'node.cmd' : 'node')), 'a node on PATH');
@@ -2519,12 +2533,6 @@ test('bench: the agent\'s node is fenced to its workspace; hooks and the tests s
   const hook = node(['./hook.js'], plug);
   assert.equal(hook.status, 0, hook.stderr);
   assert.equal(fs.readFileSync(outside, 'utf8'), 'hook');
-
-  // the runners use it, and a denied access is an audit mark
-  for (const f of ['cursor-bench.js', 'cursor-eval.js']) assert.match(fs.readFileSync(path.join(ROOT, 'scripts', f), 'utf8'), /nodeGuard\(ws,/, f);
-  const { auditRun } = require('./integrity.js');
-  const stream = JSON.stringify({ type: 'tool_call', subtype: 'completed', tool_call: { shellToolCall: { args: { command: 'node -e x' }, result: { failure: { stderr: 'Error: Access to this API has been restricted. Use --allow-child-process to manage permissions.' } } } } });
-  assert.deepEqual(auditRun(stream, { roots: [ws], workspace: ws }).suspect.map((s) => s.kind), ['stopped by the node fence']);
 });
 
 test('bench: a run the CLI left hanging after a thinking block is named a stall', () => {

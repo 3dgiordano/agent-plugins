@@ -30,6 +30,8 @@ A quiet case in that eval is not one of these tasks. There the without arm is a 
 
 ## Run
 
+Needs the Cursor Agent CLI, logged in; on Windows, PowerShell or cmd, not Git Bash; and Node 20 or later for the node fence (README, *Requirements*).
+
 ```
 node scripts/bench-check.js
 node scripts/bench.js --list
@@ -45,7 +47,7 @@ A case may carry a guard: a paragraph appended to its first prompt, the same in 
 
 An invocation that writes nothing for its model's `idleMin` (`bench/suite.json`; `--idle-min` overrides it) is stopped and counted dead. If it stopped after a finished thinking block, it is named a stall: the CLI can leave a session there with nothing more to come (`scripts/idle-watchdog.js`, `evallib.js` `stallOf`).
 
-The agent's `node` is fenced to its workspace (`evallib.js` `nodeGuard`, recorded as `nodeGuard` in `run.json`, off with `--no-node-guard`). It cannot start processes or read and write outside the workspace, and the network stays open. See bench/INTEGRITY.md, "What guards a run now".
+The agent's `node` is fenced to its workspace (`evallib.js` `nodeGuard`, recorded as `nodeGuard` in `run.json`, off with `--no-node-guard`). The runner's node needs a permission model, so Node 20 or later. On 18 the runs are not fenced and `run.json` says `false`. It cannot start processes or read and write outside the workspace, and the network stays open. See bench/INTEGRITY.md, "What guards a run now".
 
 `--isolate` is required when the plugins are installed globally. It gives every invocation its own scratch HOME, removed when the invocation ends. Cursor headless loads the skill and runs `sessionStart` and `postToolUse` - but no hook at all when started from a Git Bash process tree, so run it from PowerShell or cmd. Every case prints `hooks ran` per arm from a witness plugin both arms load; a WITH arm with none is the skill alone. The run count is the `runs` field in `bench/suite.json`, pinned on the session. Passing a different `--runs` is refused.
 
