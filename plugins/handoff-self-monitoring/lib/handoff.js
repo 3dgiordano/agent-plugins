@@ -274,7 +274,9 @@ function scan(text) {
     // A qualifier may follow the token after any punctuation, comma included:
     // measured on the executive scanner, where the missing comma scored two
     // correct blocks of three as malformed. Same defect, fixed before it bites.
-    const known = STATUSES.find((s) => status === s || (status.startsWith(s) && /^[-—–,;:([]/.test(status.slice(s.length))));
+    // ...and a full stop with more after it: `Status: done. The file is written,
+    // but ...` is `done` and a sentence about it.
+    const known = STATUSES.find((s) => status === s || (status.startsWith(s) && /^(?:[-—–,;:([]|\.-)/.test(status.slice(s.length))));
     out.status = known || status || null;
     if (!known) out.violations.push(`Status must be one of ${STATUSES.join(' | ')}, got "${status || '(empty)'}"`);
     if (!field(b, 'Situation')) out.violations.push('Situation is empty - one sentence, in the reader\'s terms: what do they have now?');
@@ -283,7 +285,11 @@ function scan(text) {
       if (!opt || opt.count < 2) out.violations.push('Status is needs-decision but Options has fewer than two alternatives - the fork as a list, one choice per line, Default on its own line');
       else if (!opt.hasDefault) out.violations.push('Options has no Default - which one, and why');
     }
-    if (known === 'blocked' && !field(b, 'Blocked-by')) out.violations.push('Status is blocked but Blocked-by is empty - the observed limit, and the tool that showed it');
+    // The skill's rule 5, where the model reads it: the skill is often not
+    // opened, and asking only for the missing field got a Blocked-by filled
+    // with any observation ("ls shows the directory is empty") and still
+    // nothing delivered.
+    if (known === 'blocked' && !field(b, 'Blocked-by')) out.violations.push('Status is blocked but Blocked-by is empty - blocked needs a limit you observed that stops the ask, and the tool that showed it; with none, it is needs-decision, delivered with its default');
     if (!field(b, 'Next')) out.violations.push('Next is empty - the one action asked of the reader, or: nothing');
   }
 

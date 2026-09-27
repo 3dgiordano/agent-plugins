@@ -24,8 +24,9 @@ Every hook in this repository, on every host:
 - **deletes only its own leftovers**: at session end (Claude Code `SessionEnd`,
   and on Cursor at session start, which has no end event - or, for
   `integrity-self-monitoring`, which wires no session start there, on a
-  conversation's first tool call) each plugin removes the state file for that
-  session, then lists
+  conversation's first tool call) each plugin keeps the state file of that
+  session - a Claude Code session is resumed, and its state carries the
+  retrospective the last close parked for the next prompt - then lists
   `<os-temp-dir>/3dgiordano-agent-plugins/` — never the bare temp dir — and
   removes entries whose name begins with its own prefix (`covmon_`, `epimon_`,
   `execmon_`, `handmon_`, `intmon_`, `persistmon_`, `progmon_`, `termmon_`) whose mtime is more than
@@ -46,7 +47,7 @@ many, which kind, which path, which line. What the agent itself wrote - a
 command it ran, a phrase of its own final message - may be quoted back to it,
 short. A finding in a file or an output is pointed at (the path and line, the
 command whose output it was), for the agent to read itself. The full list of values that do reach a message is under *Scope notes*.
-Beyond its own state, two hooks read
+Beyond its own state, three hooks read
 a project file, stated here so they can be checked:
 
 - `progress-self-monitoring` reads **one fixed project-relative path**,
@@ -66,6 +67,11 @@ a project file, stated here so they can be checked:
   other path in the project. The matched text, at most 80 characters, goes only
   to the opt-in log, and so do the paths outside the project a read or a
   command named.
+- `executive-self-monitoring`, on Claude Code, reads **the modification time**
+  of each document the agent read or wrote with a file tool (`.md`,
+  `.markdown`, `.txt`, `.rst`, `.adoc`), at most 50 per session; never its
+  text. Its message names that path and that it changed on disk since the
+  agent read it. It never writes the file and reads no other path.
 
 Hooks also run at the close of a **subagent** turn (`SubagentStop`), where they
 only measure: the scan result goes to the opt-in log and nothing else. They

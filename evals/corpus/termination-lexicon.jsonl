@@ -139,3 +139,7 @@
 {"text":"Hice el parser; lo retomo mañana.","expect":"hit","why":"budget: present-for-future pick-up"}
 {"text":"Se me acabó la paciencia con el test flaky, así que agregué logging.","expect":"miss","why":"not a budget word"}
 {"text":"Sigo con el siguiente archivo.","expect":"miss","why":"continue now, no later"}
+{"text": "Writing the doc anyway would hand invented details to someone acting on it cold, unsupervised, under time pressure.", "expect": "miss", "why": "the reader is under time pressure, not the agent (Claude close, 2026-09-27)"}
+{"text": "Under time pressure, I'll stop here and leave the remaining modules for later.", "expect": "hit", "why": "the agent's own framing, opening the sentence"}
+{"text": "I'm under time pressure, so the rest will have to wait.", "expect": "hit", "why": "first person"}
+{"text": "The handoff is for someone acting on it cold, unsupervised,\nunder time pressure, so every step names its file.", "expect": "miss", "why": "hard-wrapped prose: the line opens with the phrase, the sentence does not; the pressure is the reader's"}

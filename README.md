@@ -187,11 +187,12 @@ here is exactly what they are:
 - **Nothing persisted by default.** Per-session counters live in the OS temp
   dir and are the only state. Debug logs exist but are **off** unless you set
   an env var, and then they are written inside your project, size-bounded.
-  Two plugins **read** a file in your project, and neither repeats its
+  Three plugins **read** a file in your project, and none repeats its
   text: progress reads one fixed file (`.agent/progress.md`) if you keep one —
-  its mtime and counts by kind — and integrity reads the file an edit just
-  wrote, to name the file, the line and the shape it found. No hook writes
-  either. What a hook reads never becomes what it says:
+  its mtime and counts by kind — integrity reads the file an edit just
+  wrote, to name the file, the line and the shape it found, and executive, on
+  Claude Code, reads only the modification time of the documents the agent
+  read, to say that one changed since. No hook writes any of them. What a hook reads never becomes what it says:
   [SECURITY.md](SECURITY.md).
 - **Never blocking by default.** Every hook fails silent: an error in a hook
   lets the prompt, tool call or stop proceed. Three opt-in gates exist —

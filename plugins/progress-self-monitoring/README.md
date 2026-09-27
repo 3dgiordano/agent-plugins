@@ -65,7 +65,7 @@ turn's edits touched it.
 | **The sweep** — what the agent wrote it would do later, handed back two turns on, once each | `Stop` collects → `UserPromptSubmit` asks | `afterAgentResponse` collects → **log only** |
 | **Edit counter** — did this turn write files; did it write the ledger | `PostToolUse`, no matcher, silent | `postToolUse`, silent |
 | **Close** — edits this turn, ledger with open items not written this turn | `Stop` → finding parked; **next prompt** carries it, once per ledger version | `afterAgentResponse` → **log only** (no injection point after the response) |
-| **Session end** — how did it end: open items, stale or not | `SessionEnd` → log, then cleanup | — (no event; state is swept by age at the next `sessionStart`) |
+| **Session end** — how did it end: open items, stale or not | `SessionEnd` → log, then sweep aged state | — (no event; state is swept by age at the next `sessionStart`) |
 
 The first prompt also carries the session-boundary status when
 `SessionStart` did not run — some host modes fire one event and not the
@@ -227,7 +227,7 @@ hooks/prog-session-start.js        # ledger status at the session boundary (and 
 hooks/prog-prompt.js               # turn start stamp, load on turn 1, status fallback, retrospective
 hooks/prog-observe.js              # edit counter; silent
 hooks/prog-stop.js                 # edits vs. ledger mtime; parks the finding, once per ledger version
-hooks/prog-session-end.js          # logs how the session ended, then drops the state
+hooks/prog-session-end.js          # logs how the session ended; the state is kept for a resume
 cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse
 cursor/prog-session-start.js       # load + status; also sweeps aged state (no session-end event)
 cursor/prog-observe-cursor.js

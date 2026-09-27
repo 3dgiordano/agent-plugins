@@ -249,10 +249,11 @@ other plugins'.
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/handoff-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code + Codex: UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
+hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact), UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/hand-prompt.js
 hooks/hand-observe.js
 hooks/hand-stop.js
+hooks/hand-session-start.js         # a resumed or compacted session loads the discipline again
 hooks/hand-session-end.js
 cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse, stop
 cursor/hand-session-start.js   # also sweeps aged state (Cursor has no session-end event)

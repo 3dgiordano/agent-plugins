@@ -161,10 +161,11 @@ grep '"event":"turn"' .claude/logs/persistence-self-monitoring.jsonl | grep -o '
 .cursor-plugin/plugin.json          # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/persistence-self-monitoring/SKILL.md
-hooks/hooks.json                    # Claude Code + Codex: UserPromptSubmit, PostToolUse (all), Stop, SessionEnd
+hooks/hooks.json                    # Claude Code + Codex: SessionStart(resume|compact), UserPromptSubmit, PostToolUse (all), Stop, SessionEnd
 hooks/persist-prompt.js
 hooks/persist-observe.js
 hooks/persist-stop.js
+hooks/persist-session-start.js      # a resumed or compacted session loads the discipline again
 hooks/persist-session-end.js
 cursor/hooks.json                   # Cursor: sessionStart, postToolUse, afterAgentResponse
 cursor/persist-session-start.js   # also sweeps aged state (Cursor has no session-end event)

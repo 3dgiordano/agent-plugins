@@ -236,10 +236,11 @@ grep '"event":"stop"' .claude/logs/coverage-self-monitoring.jsonl | grep -vc '"v
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/coverage-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code + Codex: UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
+hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact), UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/cov-prompt.js
 hooks/cov-observe.js
 hooks/cov-stop.js
+hooks/cov-session-start.js          # a resumed or compacted session loads the discipline again
 hooks/cov-session-end.js
 cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse
 cursor/cov-session-start.js   # also sweeps aged state (Cursor has no session-end event)

@@ -17,7 +17,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const msg = require('../lib/messages.js');
-const { cwdOf, context } = require('../lib/host.js');
+const { cwdOf, context, notification } = require('../lib/host.js');
 
 const EVERY_N_TURNS = 10; // after the first turn, re-state the discipline every N turns
 const HOST = 'claude';
@@ -26,15 +26,19 @@ function main(raw) {
   let data = {};
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
   const sid = data.session_id || 'nosession';
+  // A background task's completion is not a turn (lib/host.js notification).
+  if (notification(data.prompt)) return;
 
   const st = state.load(HOST, sid);
   st.turns = (st.turns || 0) + 1;
+  const reload = !!st.reload; // a resumed or compacted session (hooks/*-session-start.js)
+  st.reload = false;
   const pending = Array.isArray(st.pending) ? st.pending : [];
   st.pending = [];
   st.turn = signals.freshTurn();
   state.save(HOST, sid, st);
 
-  const load = st.turns === 1 || st.turns % EVERY_N_TURNS === 0;
+  const load = st.turns === 1 || reload || st.turns % EVERY_N_TURNS === 0;
   const parts = [];
   if (load) parts.push(msg.LOAD);
   if (pending.length) parts.push(msg.retrospective(pending));

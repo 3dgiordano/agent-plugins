@@ -79,4 +79,18 @@ function userText(prompt) {
     .replace(/<pasted_content\b[^>]*>[\s\S]*$/i, ' ');
 }
 
-module.exports = { cwdOf, context, notice, finding, userText };
+/*
+ * A prompt nobody typed. Claude Code hands a background task's completion to
+ * the model as a user turn - UserPromptSubmit fires with the prompt
+ * `<task-notification>...</task-notification>`. Counted as turns, those
+ * prompts reset the per-turn counters mid-task, fire a once-per-turn
+ * pre-close again inside the same turn, bring the load back on the cadence,
+ * and spend a retrospective on a notification. A prompt that is nothing
+ * but such blocks is not a turn, and the prompt hooks leave the session alone.
+ */
+function notification(prompt) {
+  if (typeof prompt !== 'string' || !/<task-notification>/.test(prompt)) return false;
+  return prompt.replace(/<task-notification>[\s\S]*?<\/task-notification>/g, '').trim() === '';
+}
+
+module.exports = { cwdOf, context, notice, finding, userText, notification };

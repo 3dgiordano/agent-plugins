@@ -29,7 +29,12 @@ const CATEGORIES = [
       /\b(?:let(?:'s| us)|we can|we could|I(?:'ll| will|'d| would)(?: suggest)?)\s+(?:pick|take)\s+(?:this|it|that)\s+up\s+(?:later|tomorrow|next time|in (?:a|another|the next) (?:new |fresh )?(?:session|conversation|turn))\b/i,
       /\b(?:let(?:'s| us)|we\s+(?:can|could|should)|I(?:'ll| will|'d| would| can| could)(?:\s+(?:suggest|recommend|propose))?)\s+(?:we\s+|you\s+)?(?:continue|resume|revisit|finish|do|handle)\s+(?:this|it|that|the rest)?\s*(?:later|tomorrow|in (?:a|another) (?:new|fresh|separate|future) (?:session|conversation|context))\b/i,
       /\b(?:let(?:'s| us)|we\s+(?:can|could|should)|I(?:'ll| will|'d| would| can| could)(?:\s+(?:suggest|recommend|propose))?)\s+(?:we\s+|you\s+)?(?:start|continue|resume)\s+(?:this\s+|it\s+)?(?:in|with|from)\s+a\s+(?:new|fresh|clean)\s+(?:session|context|conversation)\b/i,
-      /\b(?:due to|given|because of|under)\s+(?:the\s+)?(?:time|context|length|token)\s+(?:constraints?|limits?|pressure|budget)\b/i,
+      /\b(?:due to|given|because of)\s+(?:the\s+)?(?:time|context|length|token)\s+(?:constraints?|limits?|pressure|budget)\b/i,
+      // "under time pressure" only as the agent's own: opening the text, a
+      // sentence, a paragraph or a list item, or after I'm / we're. "hand
+      // invented details to someone acting on it cold, unsupervised, under time
+      // pressure" is the reader's - also when a wrapped line happens to open with it.
+      /(?:^|[.!?:]\s+|\n[ \t]*\n\s*|(?:^|\n)[ \t]*(?:[-*+]|\d{1,3}[.)])[ \t]+|\b(?:I(?:'m| am)|we(?:'re| are))\s+(?:(?:working|acting)\s+)?)under\s+(?:the\s+)?(?:time|context|length|token)\s+(?:constraints?|limits?|pressure|budget)\b/i,
 
       // Deferring the WORK to a later session. First-person anchored, and the
       // destination must be a session-shaped thing: "I'll defer the rest to a

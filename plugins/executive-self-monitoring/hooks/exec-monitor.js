@@ -22,7 +22,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { logEvent } = require('../lib/execlog.js');
-const { cwdOf, context } = require('../lib/host.js');
+const { cwdOf, context, notification } = require('../lib/host.js');
+const reads = require('../lib/reads.js');
 
 const EVERY_N_TURNS = 5; // after the session-start fire, remind every N turns
 
@@ -30,6 +31,8 @@ function main(raw) {
   let data = {};
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
 
+  // A background task's completion is not a turn (lib/host.js notification).
+  if (notification(data.prompt)) return;
   let sid = 'nosession';
   if (typeof data.session_id === 'string' && data.session_id) sid = data.session_id;
 
@@ -48,10 +51,23 @@ function main(raw) {
   try { fs.writeFileSync(counterFile, String(count)); } catch (_) {}
 
   const fire = count === 1 || count % EVERY_N_TURNS === 0;
+  // A document read earlier that changed on disk since the agent's last Read,
+  // Write or Edit of it: the plan it would otherwise quote from memory
+  // (lib/reads.js). Said on any turn. Not "not by you": a change the agent
+  // made through the shell is one too.
+  const cwd = cwdOf(data);
+  const moved = reads.changed('claude', sid).map((p) => (cwd && !path.relative(cwd, p).startsWith('..') ? path.relative(cwd, p) : p).split(path.sep).join('/'));
 
-  logEvent(cwdOf(data), { event: 'prompt', session: sid, count: count, emitted: fire });
+  logEvent(cwd, { event: 'prompt', session: sid, count: count, emitted: fire, changed: moved.length });
 
-  if (!fire) return;
+  const changedLine = moved.length
+    ? `[executive self-monitoring] ${moved.slice(0, 3).map((p) => '`' + p + '`').join(', ')}${moved.length > 3 ? ` and ${moved.length - 3} more` : ''} changed on disk since your last Read, Write or Edit of ${moved.length === 1 ? 'it' : 'them'}. ` +
+      'Re-open before you go on: what you remember of it is not what it says now.'
+    : '';
+  if (!fire) {
+    if (changedLine) process.stdout.write(context('UserPromptSubmit', changedLine));
+    return;
+  }
 
   /*
    * The marker used to be named and the four fields were not, on the reasoning
@@ -69,7 +85,7 @@ function main(raw) {
    * pre-close message from 0 of 3 to 3 of 3. The rules behind them stay in the
    * skill and are referenced.
    */
-  process.stdout.write(context('UserPromptSubmit',
+  process.stdout.write(context('UserPromptSubmit', (changedLine ? changedLine + '\n' : '') +
     '[executive self-monitoring] Checkpoint for long/iterative work: re-open the artifact that ' +
     'defines it and write the [PLAN CHECK] markdown list - Plan (the artifact, named), Gate (quoted ' +
     'from it), Drift (none, or what pulls away), Decision (continue | refocus | revise-plan). Load ' +
