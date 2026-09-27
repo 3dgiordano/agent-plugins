@@ -3,9 +3,9 @@
  * executive-self-monitoring - Claude Code SessionEnd hook (cleanup only).
  *
  * The cadence hook keeps one small turn counter per session, as
- * execmon_<host>_<session>.txt under <temp>/3dgiordano-agent-plugins/. Nothing
- * reads it once the session ends, so this drops it and sweeps anything older
- * than a week on the way past: SessionEnd does not fire when the host is
+ * execmon_<host>_<session>.txt under <temp>/3dgiordano-agent-plugins/. The
+ * session's own counter is kept for a resume, and this sweeps anything
+ * older than a week on the way past: SessionEnd does not fire when the host is
  * killed, and Cursor has no equivalent event, so the sweep is what keeps the
  * directory from growing by one file per session indefinitely.
  *
@@ -29,9 +29,9 @@ function main(raw) {
   let data = {};
   try { data = JSON.parse(raw) || {}; } catch (_) {}
 
-  const sid = typeof data.session_id === 'string' && data.session_id ? data.session_id : 'nosession';
-  const safe = sid.replace(/[^0-9A-Za-z_-]/g, '_');
-  try { fs.unlinkSync(path.join(DIR, `${PREFIX}claude_${safe}.txt`)); } catch (_) {}
+  // This session's counter is kept for a resume, as the other plugins keep
+  // their state (see their SessionEnd hooks); exec-session-start.js restarts
+  // the cadence when the session is resumed or compacted.
 
   const cutoff = Date.now() - MAX_AGE_MS;
   try {

@@ -17,7 +17,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const msg = require('../lib/messages.js');
-const { cwdOf, context } = require('../lib/host.js');
+const { cwdOf, context, notification } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -25,14 +25,18 @@ function main(raw) {
   let data = {};
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
   const sid = data.session_id || 'nosession';
+  // A background task's completion is not a turn (lib/host.js notification).
+  if (notification(data.prompt)) return;
 
   const st = state.load(HOST, sid);
   st.turns = (st.turns || 0) + 1;
+  const reload = !!st.reload; // a resumed or compacted session (hooks/persist-session-start.js)
+  st.reload = false;
   st.turn = signals.freshTurn();
   state.save(HOST, sid, st);
 
   logEvent(cwdOf(data), { event: 'prompt', session: sid, turn: st.turns });
-  if (st.turns === 1) process.stdout.write(context('UserPromptSubmit', msg.LOAD));
+  if (st.turns === 1 || reload) process.stdout.write(context('UserPromptSubmit', msg.LOAD));
 }
 
 let buf = '';

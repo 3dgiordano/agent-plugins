@@ -35,10 +35,15 @@ const host = require('./host.js');
 // 2510.20270): given one, models stop passing contradictory tests by tricks.
 // Composer 2.5 read only this message, not the skill, and passed them with
 // per-call state and by reading the caller off new Error().stack.
+/*
+ * The load names the block, not its fields: a field list sent as context
+ * before any work was read by some models as a request for their reasoning,
+ * and the session ended there. The fields are in the skill. The nudge below
+ * still names them: it fires on a count, where the shape is what is missing.
+ */
 const LOAD =
   `[persistence self-monitoring] When something has already failed more than once - whichever way ` +
-  'you go next - write the [PERSISTENCE CHECK] markdown list: Attempts, Hypothesis held, Rival ' +
-  'approach, Proportion, Decision. If the checks contradict each other or the spec, that is the ' +
+  'you go next - write the [PERSISTENCE CHECK] block. If the checks contradict each other or the spec, that is the ' +
   'finding: fix what can be fixed honestly, report the rest, and never pass them by a trick. ' +
   `Load the ${SKILL} skill if it is not already loaded for the rules. Markers, field names and status words stay in English, whatever language you write in. Not a blocker - a signal.`;
 

@@ -153,10 +153,11 @@ grep '"event":"close"' .claude/logs/epistemic-self-monitoring.jsonl | grep -vc '
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/epistemic-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code + Codex: UserPromptSubmit, PostToolUse(Bash), Stop, SubagentStop, SessionEnd
+hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact), UserPromptSubmit, PostToolUse(Bash), Stop, SubagentStop, SessionEnd
 hooks/epi-prompt.js
 hooks/epi-observe.js
 hooks/epi-stop.js
+hooks/epi-session-start.js          # a resumed or compacted session loads the discipline again
 hooks/epi-session-end.js
 cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse, stop
 cursor/epi-session-start.js   # also sweeps aged state (Cursor has no session-end event)

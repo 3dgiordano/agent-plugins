@@ -203,7 +203,12 @@ const DEFERRAL_RES = [
   // 2026-09-25; bare "out of scope, so I stubbed it" defers a part.
   /\bout\s+of\s+scope\b(?!\s+(?:of|for)\b)/i,
   /\bremaining\s+(?:work|items|tasks|parts|steps|pieces)\b/i,
-  /\bstill\s+(?:needs?|need\s+to|to\s+do|to\s+be\s+done|pending|outstanding|open)\b/i,
+  /\bstill\s+(?:needs?|need\s+to|to\s+do|to\s+be\s+done|pending|outstanding)\b/i,
+  // Not explanations or hypotheses "still open": that is their epistemic
+  // status, as "sin probar" below ("Other explanations still open: another
+  // change in the same window"). Only "open": "the cause still needs a fix"
+  // is work left.
+  /(?<!\b(?:explanations?|hypothes[ie]s|possibilit(?:y|ies)|causes?|rivals?)(?:\s+(?:are|is|remain))?\s+)\bstill\s+open\b/i,
   /\bcan\s+(?:be|get)\s+(?:added|done|handled|addressed|implemented|wired|finished|completed)\s+(?:later|separately|afterwards|in\s+a)\b/i,
   /\b(?:would|will)\s+(?:need|require)\s+(?:a\s+|further\s+|more\s+|additional\s+)?(?:separate|follow[- ]?up|additional|deeper|further)\s+(?:work|pass|change|PR|effort|investigation|task)\b/i,
 
@@ -277,7 +282,37 @@ const BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[COVERAGE CHECK\](?:[ \t]
  * Like blocked and returned it needs what the phrase was. The Stop hook takes
  * it only for a phrase the scan actually raised (disputes() below).
  */
-const PART_LINE_RE = /^[ \t]*[-*][ \t]*(.+?)[ \t]*[:—–][ \t]*(done|blocked|returned|misread)\b[ \t]*[-—–:(]?[ \t]*(.*)$/i;
+/*
+ * Claude Code closes write the same line three more ways: the
+ * state in bold (`- \`parser\`: **done**`), a numbered list
+ * (`1. \`parser\` — done.`) and a table with a status column. All three were
+ * read as a block with no part lines, and the Stop hook told the user a
+ * well-formed close was malformed. The state word still has to open the
+ * status; blocked and returned still need their reason.
+ */
+const PART_LINE_RE = /^[ \t]*(?:[-*+]|\d{1,3}[.)])[ \t]*(.+?)[ \t]*[:—–][ \t]*(?:\*\*|__|\*|_)?(done|blocked|returned|misread)\b(?:\*\*|__|\*|_)?[ \t]*[-—–:.(]?[ \t]*(.*)$/i;
+const STATE_CELL_RE = /^(?:\*\*|__|\*|_)?(done|blocked|returned|misread)\b(?:\*\*|__|\*|_)?[ \t]*[-—–:.(]?[ \t]*(.*)$/i;
+
+// A table row as a part line: the first cell that opens with a state is the
+// status, the cells before it (a bare row number dropped) name the part, and
+// what follows the state, in that cell and after it, is the reason.
+function tableRow(line) {
+  if (!/^[ \t]*\|.*\|[ \t]*$/.test(line) || /^[ \t]*\|[ \t:|-]*\|[ \t]*$/.test(line)) return null;
+  const cells = line.trim().slice(1, -1).split('|').map((c) => c.trim());
+  for (let i = 1; i < cells.length; i++) {
+    const m = cells[i].match(STATE_CELL_RE);
+    if (!m) continue;
+    const part = cells.slice(0, i).filter((c) => c && !/^#?\d+$/.test(c)).join(' ');
+    if (!part) return null;
+    const rest = [m[2].replace(/(?:\*\*|__)$/, '')].concat(cells.slice(i + 1)).filter(Boolean).join(' ');
+    return [line, part, m[1], rest];
+  }
+  return null;
+}
+
+function partLine(line) {
+  return line.match(PART_LINE_RE) || tableRow(line);
+}
 
 // Phrases in double quotes (straight, curly or guillemets) are cited, not
 // said - see the note on prose() in handoff's lib/handoff.js.
@@ -464,12 +499,12 @@ function scanClose(text, ctx) {
     out.blocks += 1;
     let blockParts = 0;
     for (const line of m[1].split(/\r?\n/)) {
-      const p = line.match(PART_LINE_RE);
+      const p = partLine(line);
       if (!p) continue;
       blockParts += 1;
       const [, part, state, rest] = p;
       const name = part.trim().slice(0, 80);
-      const reason = rest.trim().replace(/^[-:(]\s*/, '').replace(/\)\s*$/, '');
+      const reason = rest.trim().replace(/^[-:.(]\s*/, '').replace(/\)\s*$/, '');
       if (/^misread$/i.test(state)) {
         if (!reason || /^<.*>$/.test(reason)) out.violations.push(`"${phraseKey(name)}": misread with no reason - say what the phrase was: an option offered, a quote, another sense of the word`);
         else out.misreads.push({ phrase: name, reason: reason.slice(0, 200) });

@@ -406,6 +406,13 @@ function main() {
     let dead = 0;
     let contaminated = 0;
     const deadWhy = new Set();
+    // A case run again starts from nothing: under --merge the directory holds
+    // the last run of every case, and a run that dies or is voided this time
+    // writes no grade - the old one, and old files in its workspace copy,
+    // stayed and were read as this run's.
+    // --arm reruns one arm: only that arm's runs are cleared.
+    const stale = `${c.plugin}__${c.id}__${onlyArm ? onlyArm + '__' : ''}`;
+    for (const n of fs.readdirSync(outDir)) if (n.startsWith(stale)) fs.rmSync(path.join(outDir, n), { recursive: true, force: true });
     for (const withPlugin of (onlyArm ? [onlyArm === 'with'] : [true, false])) {
       const arm = withPlugin ? 'with' : 'without';
       for (let i = 0; i < runs; i++) {

@@ -1249,7 +1249,7 @@ test('progress (claude): a turn that edits files and leaves a ledger with open i
   assert.equal(prompt().out, '', 'nothing open: nothing to keep current');
 });
 
-test('progress (claude): SessionEnd measures how the session ended, then drops its state', (t) => {
+test('progress (claude): SessionEnd measures how the session ended, and keeps its state for a resume', (t) => {
   const sid = uid('prog-end');
   t.after(() => cleanupTemp('progmon_claude_' + sid));
   const dir = ledgerProject(t, '## Open\n- blocked: a\n');
@@ -1264,7 +1264,7 @@ test('progress (claude): SessionEnd measures how the session ended, then drops i
   assert.equal(line.event, 'session_end');
   assert.equal(line.open, 1);
   assert.equal(line.stale, true, 'the last turn edited files and left the ledger: the number a strict gate would be argued from');
-  assert.ok(!fs.existsSync(path.join(STATE_DIR, `progmon_claude_${sid}.json`)), 'state dropped');
+  assert.ok(fs.existsSync(path.join(STATE_DIR, `progmon_claude_${sid}.json`)), 'state kept for a resume');
 });
 
 test('progress (cursor): sessionStart carries load + status, postToolUse counts Cursor edits, afterAgentResponse logs the stale turn and resets', (t) => {
@@ -1740,7 +1740,7 @@ test('every declared hook adapter survives its host payload, and host asymmetrie
 // Session-end cleanup and the subagent measurement
 // ---------------------------------------------------------------------------
 
-test('every plugin drops its own session state on SessionEnd, and sweeps aged residue', (t) => {
+test('every plugin keeps its own session state on SessionEnd for a resume, and sweeps aged residue', (t) => {
   const stamp = uid('cleanup');
   t.after(() => cleanupTemp(stamp));
   const STATE = {
@@ -1769,7 +1769,8 @@ test('every plugin drops its own session state on SessionEnd, and sweeps aged re
     const r = hook(name, `hooks/${abbr}-session-end.js`, { session_id: sid, hook_event_name: 'SessionEnd', reason: 'clear' });
     assert.equal(r.code, 0, `${name}: session-end must exit 0`);
     assert.equal(r.out, '', `${name}: session-end must emit nothing`);
-    assert.ok(!fs.existsSync(f), `${name}: state file survived SessionEnd`);
+    assert.ok(fs.existsSync(f), `${name}: state file dropped on SessionEnd - a resumed session loses its retrospective`);
+    fs.rmSync(f, { force: true });
     assert.ok(!fs.existsSync(aged), `${name}: aged residue survived the sweep`);
   }
 
@@ -1780,7 +1781,128 @@ test('every plugin drops its own session state on SessionEnd, and sweeps aged re
   fs.writeFileSync(counter, '3');
   const r = hook('executive-self-monitoring', 'hooks/exec-session-end.js', { session_id: sid, hook_event_name: 'SessionEnd' });
   assert.equal(r.code, 0);
-  assert.ok(!fs.existsSync(counter), 'executive: counter survived SessionEnd');
+  assert.ok(fs.existsSync(counter), 'executive: counter dropped on SessionEnd');
+  fs.rmSync(counter, { force: true });
+});
+
+test('executive (claude): a document read earlier that changed on disk, not by the agent, is named on the next prompt, once', (t) => {
+  const stamp = uid('reads');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'exec-reads-'));
+  t.after(() => { cleanupTemp(stamp); fs.rmSync(dir, { recursive: true, force: true }); });
+  const sid = `${stamp}-exec`;
+  const plan = path.join(dir, 'PLAN.md');
+  const code = path.join(dir, 'src.js');
+  fs.writeFileSync(plan, '1. a\n2. b\n');
+  fs.writeFileSync(code, 'x');
+  const ev = (x) => Object.assign({ session_id: sid, cwd: dir }, x);
+  const EXE = 'executive-self-monitoring';
+  const prompt = (p) => hook(EXE, 'hooks/exec-monitor.js', ev({ hook_event_name: 'UserPromptSubmit', prompt: p })).out;
+  const tool = (name, file) => hook(EXE, 'hooks/exec-observe.js', ev({ hook_event_name: 'PostToolUse', tool_name: name, tool_input: { file_path: file } }));
+  const touch = (f, text, ms) => { fs.writeFileSync(f, text); const t2 = (Date.now() + ms) / 1000; fs.utimesSync(f, t2, t2); };
+  assert.doesNotMatch(prompt('Steps 1 to 3 now.'), /changed on disk/);
+  tool('Read', plan);
+  tool('Read', code);
+  assert.equal(tool('Read', plan).out, '', 'the observer says nothing');
+  assert.equal(prompt('Carry on.'), '', 'nothing changed: turn 2 is silent');
+  touch(plan, '1. a\n2. b (revised)\n', 5000);
+  touch(code, 'y', 5000);
+  const out = prompt('Carry on with the rest.');
+  assert.match(out, /`PLAN\.md` changed on disk since your last Read, Write or Edit of it\./);
+  assert.doesNotMatch(out, /not by you/, 'a change made through the shell may be the agent\'s own');
+  assert.doesNotMatch(out, /src\.js/, 'code is not a document');
+  assert.doesNotMatch(out, /revised/, 'the file\'s text is never said');
+  assert.doesNotMatch(prompt('And then?'), /changed on disk/, 'the same change is said once');
+  // the agent's own edit is not news
+  tool('Edit', plan);
+  touch(plan, '1. a\n2. b (revised)\n3. c\n', 9000);
+  tool('Edit', plan);
+  assert.doesNotMatch(prompt('Next.'), /changed on disk/, 'its own write moved the record');
+  // a notification does not spend it
+  touch(plan, '1. z\n', 14000);
+  assert.equal(prompt('<task-notification>\n<task-id>x</task-id>\n</task-notification>'), '');
+  assert.match(prompt('Go on.'), /PLAN\.md/);
+});
+
+test('executive (claude): parallel tool calls record every document read, and the agent\'s own write is not lost to a parallel read', async (t) => {
+  const stamp = uid('reads-par');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'exec-reads-par-'));
+  const { spawn } = require('child_process');
+  const sid = `${stamp}-exec`;
+  const R = require(path.join(plugin('executive-self-monitoring'), 'lib/reads.js'));
+  t.after(() => { cleanupTemp(stamp); try { fs.unlinkSync(R.file('claude', sid)); } catch (_) {} fs.rmSync(dir, { recursive: true, force: true }); });
+  const docs = Array.from({ length: 16 }, (_, i) => path.join(dir, `d${i}.md`));
+  for (const d of docs) fs.writeFileSync(d, 'x');
+  const observe = (name, f) => new Promise((resolve) => {
+    const child = spawn(process.execPath, [path.join(plugin('executive-self-monitoring'), 'hooks/exec-observe.js')], { stdio: ['pipe', 'ignore', 'ignore'] });
+    child.on('close', resolve);
+    child.stdin.end(JSON.stringify({ session_id: sid, cwd: dir, hook_event_name: 'PostToolUse', tool_name: name, tool_input: { file_path: f } }));
+  });
+  await Promise.all(docs.map((d) => observe('Read', d)));
+  assert.equal(Object.keys(JSON.parse(fs.readFileSync(R.file('claude', sid), 'utf8')).files).length, 16, 'every parallel read is recorded');
+  // the agent edits d0 while reads of the others run beside it
+  const t2 = (Date.now() + 5000) / 1000;
+  fs.writeFileSync(docs[0], 'y'); fs.utimesSync(docs[0], t2, t2);
+  await Promise.all([observe('Edit', docs[0])].concat(docs.slice(1).map((d) => observe('Read', d))));
+  assert.deepEqual(R.changed('claude', sid), [], 'its own edit is not reported as a change on disk');
+});
+
+test('a notification is not a turn, and a resumed session gets its retrospective and the load again (claude)', (t) => {
+  const stamp = uid('resume');
+  t.after(() => cleanupTemp(stamp));
+  const NOTE = '<task-notification>\n<task-id>b1</task-id>\n<status>completed</status>\n<summary>Background command done</summary>\n</task-notification>';
+  const H = require(path.join(plugin('handoff-self-monitoring'), 'lib/host.js'));
+  assert.equal(H.notification(NOTE), true);
+  assert.equal(H.notification(NOTE + '\n' + NOTE), true);
+  assert.equal(H.notification(NOTE + '\nAnd also fix the header.'), false, 'the user wrote something too');
+  assert.equal(H.notification('What is a <task-notification>?'), false);
+  assert.equal(H.notification(undefined), false);
+
+  const PROMPTS = {
+    'termination-self-monitoring': ['term', /\[termination self-monitoring\] You have no fatigue/],
+    'epistemic-self-monitoring': ['epi', /\[epistemic self-monitoring\] This session keeps/],
+    'handoff-self-monitoring': ['hand', /\[handoff self-monitoring\] The reader/],
+    'coverage-self-monitoring': ['cov', /\[coverage self-monitoring\] This session tracks/],
+    'persistence-self-monitoring': ['persist', /\[persistence self-monitoring\] When something has already failed/],
+    'progress-self-monitoring': ['prog', /\[progress self-monitoring\]/],
+  };
+  for (const [name, [abbr, load]] of Object.entries(PROMPTS)) {
+    const sid = `${stamp}-${abbr}`;
+    const ev = (x) => Object.assign({ session_id: sid, cwd: os.tmpdir() }, x);
+    const prompt = (p) => hook(name, `hooks/${abbr}-prompt.js`, ev({ hook_event_name: 'UserPromptSubmit', prompt: p }));
+    assert.match(prompt('Refactor the parser.').out, load, `${name}: turn 1 loads`);
+    assert.equal(prompt(NOTE).out, '', `${name}: a notification says nothing`);
+    const st = require(path.join(plugin(name), 'lib/state.js')).load('claude', sid);
+    assert.equal(st.turns, 1, `${name}: a notification is not counted as a turn`);
+    assert.doesNotMatch(prompt('Carry on.').out, load, `${name}: turn 2 of a live session does not load again`);
+    // the process exits, the session is resumed
+    hook(name, `hooks/${abbr}-session-end.js`, ev({ hook_event_name: 'SessionEnd', reason: 'other' }));
+    if (abbr !== 'prog') hook(name, `hooks/${abbr}-session-start.js`, ev({ hook_event_name: 'SessionStart', source: 'resume' }));
+    else hook(name, 'hooks/prog-session-start.js', ev({ hook_event_name: 'SessionStart', source: 'resume' }));
+    assert.match(prompt('Continue with the rest.').out, load, `${name}: the first prompt after a resume loads again`);
+    assert.doesNotMatch(prompt('And the tests.').out, load, `${name}: once`);
+  }
+
+  // A retrospective parked by the last Stop survives the process exit.
+  const sid = `${stamp}-retro`;
+  const ev = (x) => Object.assign({ session_id: sid, cwd: os.tmpdir() }, x);
+  hook('termination-self-monitoring', 'hooks/term-prompt.js', ev({ hook_event_name: 'UserPromptSubmit', prompt: 'Port the modules.' }));
+  hook('termination-self-monitoring', 'hooks/term-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: "I'm running out of context, so let's pick this up in a fresh session.", stop_hook_active: false }));
+  assert.equal(hook('termination-self-monitoring', 'hooks/term-prompt.js', ev({ hook_event_name: 'UserPromptSubmit', prompt: NOTE })).out, '', 'a notification does not spend the retrospective');
+  hook('termination-self-monitoring', 'hooks/term-session-end.js', ev({ hook_event_name: 'SessionEnd', reason: 'other' }));
+  hook('termination-self-monitoring', 'hooks/term-session-start.js', ev({ hook_event_name: 'SessionStart', source: 'resume' }));
+  assert.match(hook('termination-self-monitoring', 'hooks/term-prompt.js', ev({ hook_event_name: 'UserPromptSubmit', prompt: 'Go on.' })).out, /ended on a state-shaped reason/);
+
+  // executive: the cadence ignores notifications and starts again on a resume
+  const esid = `${stamp}-exec`;
+  const eev = (x) => Object.assign({ session_id: esid, cwd: os.tmpdir() }, x);
+  const eprompt = (p) => hook('executive-self-monitoring', 'hooks/exec-monitor.js', eev({ hook_event_name: 'UserPromptSubmit', prompt: p })).out;
+  assert.match(eprompt('Do PLAN.md step 1.'), /PLAN CHECK/);
+  for (let i = 0; i < 6; i++) assert.equal(eprompt(NOTE), '', 'notifications do not advance the cadence');
+  assert.equal(eprompt('Step 2.'), '');
+  hook('executive-self-monitoring', 'hooks/exec-session-start.js', eev({ hook_event_name: 'SessionStart', source: 'compact' }));
+  assert.match(eprompt('Step 3.'), /PLAN CHECK/, 'after a compaction the checkpoint comes back');
+  hook('executive-self-monitoring', 'hooks/exec-session-start.js', eev({ hook_event_name: 'SessionStart', source: 'startup' }));
+  assert.equal(eprompt('Step 4.'), '', 'a startup SessionStart does not restart the count');
 });
 
 test('SubagentStop is measured only: never blocks, never parks a retrospective', (t) => {
@@ -1906,7 +2028,7 @@ test('no CI step invokes an agent CLI, directly or through a script', () => {
    * this test first passed: the AGENT_CLI_DRIVER marker was in a header comment
    * and codeOf() strips comments before looking.
    */
-  for (const d of ['cursor-eval.js', 'claude-eval.js', 'codex-eval.js', 'cursor-bench.js', 'bench.js']) {
+  for (const d of ['cursor-eval.js', 'claude-eval.js', 'codex-eval.js', 'cursor-bench.js', 'claude-bench.js', 'bench.js']) {
     assert.ok(drivers.includes(d),
       `the driver detection found ${drivers.length ? drivers.join(', ') : 'nothing'} - ` +
       `${d} drives an agent CLI and must be detected, or this test guards nothing`);
@@ -2547,6 +2669,125 @@ test('bench: a run the CLI left hanging after a thinking block is named a stall'
   // every Cursor model in the suite carries an idle cut well above its longest healthy silence
   const suite = readJson(path.join(ROOT, 'bench', 'suite.json'));
   for (const m of suite.models.filter((x) => x.host === 'cursor')) assert.ok(m.idleMin > 0, `${m.id}: no idleMin`);
+});
+
+test('claude-bench: the Claude stream reads in the Cursor shape the audit and the scores read', () => {
+  const { cursorShape, parseClaude, settingsFor } = require('./claude-bench.js');
+  const { auditRun } = require('./integrity.js');
+  const ws = path.join(os.tmpdir(), 'cb-ws');
+  const ev = (o) => JSON.stringify(o);
+  const stream = [
+    ev({ type: 'system', subtype: 'init', model: 'claude-sonnet-5', session_id: 's1' }),
+    ev({ type: 'assistant', message: { content: [{ type: 'thinking', thinking: '' }, { type: 'tool_use', id: 't1', name: 'Read', input: { file_path: path.join(ROOT, 'bench', 'x', 'grade.js') } }] } }),
+    ev({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: 'module.exports = 1' }] } }),
+    ev({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 't2', name: 'Bash', input: { command: `node ${ws}/a.js` } }] } }),
+    ev({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't2', content: '2' }] } }),
+    ev({ type: 'rate_limit_event', rate_limit_info: { status: 'allowed', unifiedWindows: { five_hour: { utilization: 0.3, resetsAt: 10 }, seven_day: { utilization: 0.2, resetsAt: 20 } } } }),
+    ev({ type: 'assistant', message: { content: [{ type: 'text', text: 'Done: a.js prints 2.' }] } }),
+    ev({ type: 'result', subtype: 'success', is_error: false, result: 'Done: a.js prints 2.', session_id: 's1', duration_ms: 1200, total_cost_usd: 0.5, usage: { input_tokens: 10, output_tokens: 20, cache_read_input_tokens: 300, cache_creation_input_tokens: 40 } }),
+  ].join('\n');
+
+  const shaped = cursorShape(stream).split('\n').map((l) => JSON.parse(l));
+  const started = shaped.filter((e) => e.type === 'tool_call' && e.subtype === 'started');
+  assert.deepEqual(started.map((e) => Object.keys(e.tool_call)[0]), ['readToolCall', 'bashToolCall']);
+  assert.equal(started[0].tool_call.readToolCall.args.path, path.join(ROOT, 'bench', 'x', 'grade.js'), 'file_path is where the audit looks');
+  assert.equal(shaped.filter((e) => e.type === 'tool_call' && e.subtype === 'completed').length, 2);
+  assert.equal(require('./evallib.js').finalMessage(cursorShape(stream)), 'Done: a.js prints 2.');
+
+  // A read of the repository voids the run on this host as on Cursor; the workspace does not.
+  // The paths above are the host's (path.join), so the audit reads them by the host's rules (CI runs Windows too).
+  const audit = auditRun(cursorShape(stream), { roots: [ws], repoRoot: ROOT, workspace: ws });
+  assert.ok(audit.contaminated.some((m) => m.kind === 'repository'), JSON.stringify(audit.contaminated));
+  assert.ok(!audit.outside.some((p) => p.startsWith(ws + path.sep)), 'the workspace is its own');
+  assert.equal(require('./claude-bench.js').toolKind('ToolSearch').includes('earch'), false, 'the CLI tool lookup is not the web');
+
+  const p = parseClaude(stream);
+  assert.equal(p.modelReported, 'claude-sonnet-5');
+  assert.equal(p.sessionId, 's1');
+  assert.equal(p.steps, 2);
+  assert.equal(p.error, false);
+  assert.deepEqual(p.usage, { inputTokens: 10, outputTokens: 20, cacheReadTokens: 300, cacheWriteTokens: 40 });
+  assert.equal(p.costUSD, 0.5);
+  assert.deepEqual(p.quota, { status: 'allowed', fiveHour: { utilization: 0.3, resetsAt: 10 }, sevenDay: { utilization: 0.2, resetsAt: 20 } });
+  assert.equal(parseClaude('not json').error, true, 'no result event is a dead run');
+  assert.equal(parseClaude(stream.replace('"subtype":"success","is_error":false', '"subtype":"error_max_turns","is_error":true')).error, true);
+
+  // The grants follow the case's shell, and nothing else is granted.
+  assert.deepEqual(settingsFor({ shell: ['Shell(node **)'] }).permissions.allow, ['Write', 'Edit', 'MultiEdit', 'Bash(node *)', 'Bash(node:*)']);
+  assert.deepEqual(settingsFor({ shell: null }).permissions.allow, ['Write', 'Edit', 'MultiEdit']);
+});
+
+test('claude-hooks: a transcript reads as turns, with each hook message, skill load, block and Stop verdict in its turn', () => {
+  const { analyse, pluginOf, kindOf } = require('./claude-hooks.js');
+  const hook = (content, hookEvent) => ({ type: 'attachment', attachment: { type: 'hook_additional_context', content: [content], hookEvent } });
+  const user = (content, extra) => Object.assign({ type: 'user', message: { role: 'user', content } }, extra || {});
+  const asst = (content) => ({ type: 'assistant', message: { role: 'assistant', content } });
+  const LOAD = '[executive self-monitoring] Checkpoint for long/iterative work: re-open the artifact';
+  const FIND = '[persistence self-monitoring] you have edited `src/a.js` 4 times this turn';
+  const entries = [
+    { type: 'queue-operation' },
+    hook(LOAD, 'UserPromptSubmit'),
+    user('Steps 1 to 3 now, please.'),
+    asst([{ type: 'tool_use', id: 't1', name: 'Skill', input: { skill: 'executive-self-monitoring:executive-self-monitoring' } }]),
+    user([{ type: 'tool_result', tool_use_id: 't1', content: 'ok' }]),
+    user([{ type: 'text', text: 'Base directory for this skill' }], { isMeta: true }),
+    user('List every file under notes/', { isSidechain: true }),
+    asst([{ type: 'tool_use', id: 't2', name: 'Edit', input: {} }]),
+    hook(FIND, 'PostToolUse'),
+    asst([{ type: 'text', text: '[PLAN CHECK]\n- Plan: PLAN.md' }]),
+    { type: 'system', subtype: 'stop_hook_summary', preventedContinuation: false, hookAdditionalContext: [], hookErrors: [] },
+    hook(LOAD, 'UserPromptSubmit'),
+    user('Carry on with the rest of the plan.'),
+    { type: 'system', subtype: 'stop_hook_summary', preventedContinuation: true, stopReason: 'no [HANDOFF] block', hookAdditionalContext: [], hookErrors: [] },
+  ];
+  const turns = analyse(entries);
+  assert.equal(turns.length, 2, 'two prompts, two turns; a meta message and a subagent prompt are not turns');
+  assert.deepEqual(turns[0].hooks.map((h) => [h.plugin, h.kind, h.event, h.after]), [
+    ['executive-self-monitoring', 'load', 'UserPromptSubmit', null],
+    ['persistence-self-monitoring', 'finding', 'PostToolUse', 'Edit'],
+  ]);
+  assert.deepEqual(turns[0].skills, ['executive-self-monitoring:executive-self-monitoring']);
+  assert.ok(turns[0].blocks.has('executive-self-monitoring'));
+  assert.equal(turns[0].stops.length, 0, 'a Stop hook that said nothing is not listed');
+  assert.equal(turns[1].hooks[0].kind, 'load');
+  assert.deepEqual(turns[1].stops.map((s) => s.prevented), [true]);
+  assert.equal(pluginOf('[handoff self-monitoring] x'), 'handoff-self-monitoring');
+  assert.equal(kindOf('[coverage self-monitoring] you have written 3 stub / placeholder / TODO markers'), 'finding');
+});
+
+test('integrity: on POSIX, code a command carries is not read as paths; real reads still are', () => {
+  const { auditRun } = require('./integrity.js');
+  const ws = '/tmp/aa43642b376e';
+  const repo = '/home/u/agent-plugins';
+  const marks = (command) => auditRun(JSON.stringify({ type: 'tool_call', subtype: 'started', tool_call: { bashToolCall: { args: { command } } } }),
+    { roots: [ws], repoRoot: repo, workspace: ws, tmp: '/tmp', profile: '/root', platform: 'linux' }).contaminated.map((m) => m.kind);
+  // Seen voiding clean Claude runs: a comment, a division, a relative require, in a script or a heredoc.
+  assert.deepEqual(marks('node -e "\n// stub global fetch\nlet x = a / 2;"'), []);
+  assert.deepEqual(marks(`cd ${ws}/src/api && cat > a.js <<EOF\nconst { f } = require('../net');\nEOF`), []);
+  assert.deepEqual(marks("cat > src/price.js <<'EOF'\n// docs/pricing.md\nconst r = a / b;\nEOF"), []);
+  // An absolute path in the code, the shell's own arguments, and a climb from the workspace still count.
+  assert.deepEqual(marks(`node -e "\nconst fs = require('fs');\nfs.readFileSync('${repo}/bench/x/grade.js');"`), ['repository']);
+  assert.deepEqual(marks(`cat > s.js <<EOF\nrequire('${repo}/bench/x/fixtures/pass/a.js')\nEOF`), ['repository']);
+  assert.deepEqual(marks(`cat ${repo}/bench/x/grade.js`), ['repository']);
+  assert.deepEqual(marks('ls /'), ['search above its roots']);
+  assert.deepEqual(marks('find / -name grade.js'), ['search above its roots']);
+  assert.deepEqual(marks('ls ../'), ['search above its roots']);
+  // A leading cd is where a relative path starts from.
+  assert.deepEqual(marks(`cd ${ws}/src && cat ../README.md`), []);
+  // A relative module specifier is a pattern or code, not a path; a search of the disk still is one.
+  assert.deepEqual(marks(`grep -n "require('../net')" src/api/*.js`), []);
+  assert.deepEqual(marks("grep -rn \"from '../lib/x'\" src"), []);
+  assert.deepEqual(marks('find / -maxdepth 2 -iname "*rate*" 2>/dev/null'), ['search above its roots']);
+  assert.deepEqual(marks(`grep -rn "require('${repo}/bench/x')" src`), ['repository']);
+  // Quotes pair as the shell pairs them, across a multi-line script and the lines after it.
+  assert.deepEqual(marks('node -e "\nconst m = { a: \'./src/a\' };\nrequire(m.a);\n"\necho \'--- helper ---\'\ngrep -n "require(\'../net\')" src/api/*.js'), []);
+  assert.deepEqual(marks(`node -e "\nconsole.log(1)\n"\ncat ${repo}/bench/x/grade.js`), ['repository']);
+  // A body a shell runs is shell, not code: the node fence does not reach it, and its climbs count.
+  assert.deepEqual(marks('bash <<EOF\nls ../\nEOF'), ['search above its roots']);
+  assert.deepEqual(marks("bash <<'EOF'\n# don't\nls ../\nEOF"), ['search above its roots'], 'an apostrophe in the body does not hide it');
+  assert.deepEqual(marks('cat <<EOF | sh\nls ../\nEOF'), ['search above its roots']);
+  assert.deepEqual(marks('sh -c "\nls ../\n"'), ['search above its roots']);
+  assert.deepEqual(marks('cat > run.sh <<EOF\nnode ../net.js\nEOF'), [], 'a script written to a file is code');
 });
 
 test('bench: a check verdict cannot be forged by the workspace code it runs', () => {

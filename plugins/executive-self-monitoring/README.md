@@ -48,7 +48,8 @@ Two pieces that install as one unit:
 
 | Host | Adapter | Cadence |
 |------|---------|---------|
-| Claude Code, Codex | `hooks/exec-monitor.js` (`UserPromptSubmit`) | first turn of a session, then every Nth turn (`EVERY_N_TURNS`, default 5) |
+| Claude Code, Codex | `hooks/exec-monitor.js` (`UserPromptSubmit`) | first turn of a session, then every Nth turn (`EVERY_N_TURNS`, default 5); again after a resume or a compaction (`hooks/exec-session-start.js`) |
+| Claude Code | `hooks/exec-observe.js` (`PostToolUse`: Read, Write, Edit) + `exec-monitor.js` | on any prompt after a document the agent read changed on disk since its last Read, Write or Edit of it: names it, once per change |
 | Cursor | `cursor/exec-monitor-cursor.js` (`sessionStart`) | once per session |
 | Agent Plugins client | *(none)* | skill only — the agent decides when to apply it |
 
@@ -80,7 +81,8 @@ Cursor rule — keep the skill itself generic.
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 
 - **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed.
-- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `execmon_…`, removed at session end together with this plugin's files there older than seven days; only with `EXECMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
+- **Reads, on Claude Code:** the modification time of the documents the agent read (`.md`, `.markdown`, `.txt`, `.rst`, `.adoc`) - never their text - so the next prompt can say that one changed on disk since the agent's last Read, Write or Edit of it (`lib/reads.js`). A change made through the shell, the agent's own included, is one such change. What it says is the path and that fact.
+- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `execmon_…` (the cadence counter, and on Claude Code the documents read with their modification times), kept for a resumed session and swept with this plugin's files there older than seven days; only with `EXECMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
 - **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them.
 
 The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
@@ -129,14 +131,17 @@ grep '"event":"skill"' .claude/logs/executive-self-monitoring.jsonl | grep execu
 .cursor-plugin/plugin.json        # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/logo.svg                    # plugin mark (Cursor marketplace logo)
 skills/executive-self-monitoring/SKILL.md
-hooks/hooks.json                  # Claude Code + Codex: UserPromptSubmit + PreToolUse(Skill) + SessionEnd
+hooks/hooks.json                  # Claude Code + Codex: SessionStart(resume|compact), UserPromptSubmit + PreToolUse(Skill) + PostToolUse(Read|Write|Edit) + SessionEnd
 hooks/exec-monitor.js
+hooks/exec-observe.js              # records the documents read and their mtime
 hooks/exec-log-skill.js
+hooks/exec-session-start.js         # a resumed or compacted session loads the discipline again
 hooks/exec-session-end.js
 cursor/hooks.json                 # Cursor: sessionStart
 cursor/exec-monitor-cursor.js
 lib/execlog.js                    # shared opt-in logger
 lib/host.js                       # cwdOf(): the project dir from the event, else the host env var, else null
+lib/reads.js                      # documents read, their mtime; which changed since the agent's last Read, Write or Edit
 ```
 
 Install instructions are in the [repository README](https://github.com/3dgiordano/agent-plugins/blob/main/README.md).

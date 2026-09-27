@@ -53,6 +53,9 @@ function main(raw) {
   state.update(HOST, sid, (st) => {
     if (speak) st.announced = ins.mtimeMs;
     st.notice = note || null;
+    // A resumed or compacted session loads the discipline again on its next
+    // prompt; the state is kept across the resume (prog-session-end.js).
+    if (data.source === 'resume' || data.source === 'compact') st.reload = true;
   });
 
   logEvent(cwd, { event: 'session_start', session: sid, source: data.source || null, exists: ins.exists, open: ins.open, lines: ins.lines, bytes: ins.bytes, bloated: ins.bloated, ageMs: ins.ageMs, emitted: speak });

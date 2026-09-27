@@ -12,9 +12,9 @@ description: "Observation-vs-conjecture discipline for diagnosis and closure. Ev
   correlation, or "it stopped after X" is not that check.
 - Anything short of that is a conjecture. Say so in the same sentence, name the
   rival explanations you found, and the check that would settle it.
-- This applies to every file you write for someone else - a tracker comment, a
-  CAUSE.md, a changelog, a status note - as much as to your reply. The owner
-  believing it does not verify it.
+- This applies to every file you write for someone else - a ticket comment, an
+  incident write-up, a changelog, a status note - as much as to your reply.
+  Someone believing it, the owner or you, does not verify it.
 - Close with the `[EPISTEMIC CLOSE]` block below.
 
 **Purpose:** Keep what you **observed** apart from what you **think it means**, and

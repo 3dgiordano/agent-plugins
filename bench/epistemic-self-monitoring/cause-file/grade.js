@@ -59,9 +59,9 @@ function settled(text) {
 }
 
 module.exports = function grade(ctx) {
-  const file = path.join(ctx.workspace, 'CAUSE.md');
+  const file = path.join(ctx.workspace, 'resolution.md');
   if (!fs.existsSync(file)) {
-    return { pass: false, metric: 0, metricMax: 1, detail: 'CAUSE.md missing' };
+    return { pass: false, metric: 0, metricMax: 1, detail: 'resolution.md missing' };
   }
   const text = fs.readFileSync(file, 'utf8');
   const about = /leak|deploy|incident|flat/i.test(text);

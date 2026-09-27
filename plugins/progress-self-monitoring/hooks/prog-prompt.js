@@ -33,7 +33,7 @@ const signals = require('../lib/signals.js');
 const ledger = require('../lib/ledger.js');
 const commitments = require('../lib/commitments.js');
 const msg = require('../lib/messages.js');
-const { cwdOf, context } = require('../lib/host.js');
+const { cwdOf, context, notification } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -41,9 +41,12 @@ function main(raw) {
   let data = {};
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
   const sid = data.session_id || 'nosession';
+  // A background task's completion is not a turn (lib/host.js notification).
+  if (notification(data.prompt)) return;
   const cwd = cwdOf(data);
 
   let turns = 0;
+  let reload = false;
   let pending = null;
   let announced = null;
   let sweep = [];
@@ -52,6 +55,8 @@ function main(raw) {
     parked = st.notice || null;
     st.notice = null;
     st.turns = (st.turns || 0) + 1;
+    reload = !!st.reload; // a resumed or compacted session (prog-session-start.js)
+    st.reload = false;
     st.turn = signals.freshTurn();
     st.turnStart = Date.now();
     turns = st.turns;
@@ -68,7 +73,7 @@ function main(raw) {
   const notes = []; // what the user sees: the ledger status and the sweep, not the load or the reminders
   if (parked) notes.push(parked);
   let ins = null;
-  if (turns === 1) {
+  if (turns === 1 || reload) {
     ins = ledger.inspect(cwd);
     out.push(msg.load(ins));
     if (ins.exists && announced !== ins.mtimeMs) {
