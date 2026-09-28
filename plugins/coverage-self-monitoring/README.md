@@ -242,7 +242,7 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .claude-plugin/plugin.json         # Claude Code manifest
 .codex-plugin/plugin.json          # Codex manifest (skills: ./skills, hooks: ./hooks/hooks.json)
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
-assets/logo.svg                    # plugin mark (Cursor marketplace logo)
+assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
 skills/coverage-self-monitoring/SKILL.md
 hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact), UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/cov-prompt.js

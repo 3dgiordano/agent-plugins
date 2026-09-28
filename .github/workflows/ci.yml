@@ -29,6 +29,9 @@ jobs:
       - name: Versions in sync across manifests
         run: node scripts/version.js --check
 
+      - name: Claude plugin directory pre-submission checks (docs/DIRECTORY.md)
+        run: node scripts/directory-check.js
+
       - name: Test suite (structure + hook adapters for Claude Code and Cursor)
         run: node scripts/test.js
 

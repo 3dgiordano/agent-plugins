@@ -1,0 +1,20 @@
+{
+  "about": "Holds that scripts/directory-check.js reports and that we accept: each one sends a version to an Anthropic reviewer before it goes live, which is allowed. A hold missing from this list fails CI. Remove an entry when its cause goes away; add one only with a reason a reviewer would accept. rule = the check's rule id; where = a regular expression over the finding's location.",
+  "accepted": [
+    {
+      "rule": "script-not-followed",
+      "where": "^plugins/[a-z-]+/hooks/hooks\\.json ",
+      "reason": "Every hook is a Node.js script under ${CLAUDE_PLUGIN_ROOT}/hooks/ that requires ../lib/*.js; the plugins live in subfolders of one repository, where the validator follows only plain shell scripts. Readable, unminified source, Node built-ins only, no network, no child processes (SECURITY.md). Removing this hold needs each plugin at the root of its own repository (docs/DIRECTORY.md, decision 1)."
+    },
+    {
+      "rule": "env-credential",
+      "where": "^plugins/progress-self-monitoring/evals/(reopens-the-ledger|keeps-a-returned-decision)/files/scripts/publish\\.js:",
+      "reason": "Eval fixture, not plugin code: a sample project's release script that reads NPM_TOKEN for `npm publish`. No hook runs it and no eval asks the agent to run it; the plugin README (Evals) says so. `claude plugin eval` only reads evals/ inside the plugin folder."
+    },
+    {
+      "rule": "env-credential",
+      "where": "^plugins/integrity-self-monitoring/(README\\.md|lib/code\\.js):",
+      "reason": "Not a read: the text `process.env.API_KEY || 'dev-key'` names a code shape the integrity hook detects in the user's edits (a credential with a literal default). Nothing reads API_KEY."
+    }
+  ]
+}

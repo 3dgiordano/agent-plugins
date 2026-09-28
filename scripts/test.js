@@ -1575,6 +1575,46 @@ test('README.md quotes the hook messages verbatim: scripts/samples.js --check pa
     'Run `node scripts/samples.js --fix` to bring the samples back in line.');
 });
 
+/*
+ * Claude plugin directory: scripts/directory-check.js mirrors the portal's
+ * pre-submission checks. It passing on the real plugins proves little unless
+ * it also fails on a plugin that breaks them, so both are checked here.
+ */
+test('directory check: every plugin passes (no blocks, no unaccepted holds)', () => {
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'directory-check.js'), '--json'], { encoding: 'utf8' });
+  const out = JSON.parse(r.stdout);
+  const bad = out.findings.filter((f) => f.level === 'block' || (f.level === 'hold' && !f.accepted));
+  assert.deepEqual(bad.map((f) => `${f.level} ${f.rule} ${f.where}: ${f.message}`), []);
+  assert.equal(r.status, 0);
+});
+
+test('directory check: a plugin that breaks the portal rules is caught, rule by rule', () => {
+  const { checkPlugin } = require('./directory-check.js');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dircheck-'));
+  const dir = path.join(root, 'bad-plugin');
+  const put = (rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
+  try {
+    put('.claude-plugin/plugin.json', JSON.stringify({ name: 'test', McpServers: {}, displayName: 'Bаd', author: { name: 'x​y' } }));
+    put('README.md', 'Too short.\n\n```\nsee assets/logo.png\n```\n');
+    put('assets/logo.png', 'not a png');
+    put('.DS_Store', '');
+    put('hooks/hooks.json', JSON.stringify({ hooks: {
+      Stop: [{ hooks: [{ type: 'command', command: 'node "${CLAUDE_PLUGIN_ROOT}/hooks/a.js" $HOME' }] }],
+      NotAnEvent: [{ hooks: [{ type: 'http', url: 'http://example.com' }] }],
+    } }));
+    put('hooks/a.js', "const t = process.env.GITHUB_TOKEN; require('child_process').execSync('npx some-tool');\n");
+    put('skills/x/SKILL.md', '---\nname: x\ndescription:\n  - a list\n---\nbody\n');
+    const found = [];
+    checkPlugin('bad-plugin', (level, rule) => found.push(`${level} ${rule}`), root);
+    for (const want of [
+      'block name-reserved', 'block component-key-spelling', 'block identity-mixed-script', 'block identity-invisible',
+      'block readme-short', 'block license-missing', 'block system-file', 'block hook-event', 'block hook-http-url',
+      'block command-variable', 'block unpinned-launcher', 'block front-matter',
+      'hold binary-file', 'hold image-path-in-code', 'hold env-credential', 'hold script-not-followed',
+    ]) assert.ok(found.includes(want), `expected ${want}; got:\n${found.join('\n')}`);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
 test('every plugin README documents the env vars its logger actually reads, and no others', () => {
   for (const name of pluginNames) {
     const logFile = ['lib/log.js', 'lib/execlog.js']

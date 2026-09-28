@@ -7,6 +7,13 @@ release.
 
 ## [Unreleased]
 
+- Claude plugin directory readiness: `scripts/directory-check.js` mirrors the
+  portal's pre-submission checks (block / hold / warn) and runs in CI; holds we
+  accept are recorded with their reason in `scripts/directory-holds.json`;
+  `docs/DIRECTORY.md` reviews the repository against the Directory Policy and
+  Terms and holds the per-release checklist. Each plugin README's *Layout* no
+  longer writes the bundled logo's path in a code block (a portal hold).
+
 ## [0.15.0] — 2026-09-28
 
 The outcome bench runs on Claude Code, and what it found is fixed and
