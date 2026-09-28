@@ -2755,9 +2755,13 @@ test('claude-bench: the Claude stream reads in the Cursor shape the audit and th
   // The reasoning reaches the stream in both arms (a summary; omitted by default), and the audit reads it as on Cursor.
   const { argsFor } = require('./claude-bench.js');
   for (const withPlugin of [true, false]) {
-    const a = argsFor({ plugin: 'coverage-self-monitoring' }, withPlugin, null);
+    const a = argsFor({ plugin: 'coverage-self-monitoring' }, withPlugin, null, 's.json');
     assert.equal(a[a.indexOf('--thinking-display') + 1], 'summarized');
     assert.ok(a.includes('--forward-subagent-text'));
+    // No user settings, installed plugin or MCP server reaches either arm; the grants come in --settings.
+    assert.ok(a.includes('--restricted') && a.includes('--strict-mcp-config'));
+    assert.equal(a[a.indexOf('--settings') + 1], 's.json');
+    assert.ok(a[a.indexOf('--tools') + 1].split(',').includes('Bash'), 'restricted mode drops Bash unless it is named');
   }
   const thought = ev({ type: 'assistant', message: { content: [{ type: 'thinking', thinking: 'This looks like a benchmark task.' }] } });
   assert.equal(auditRun(cursorShape(thought), { roots: [ws], repoRoot: ROOT, workspace: ws }).aware.count, 1, 'eval talk in the reasoning is counted');

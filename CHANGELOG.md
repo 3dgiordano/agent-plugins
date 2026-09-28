@@ -13,6 +13,19 @@ release.
   `docs/DIRECTORY.md` reviews the repository against the Directory Policy and
   Terms and holds the per-release checklist. Each plugin README's *Layout* no
   longer writes the bundled logo's path in a code block (a portal hold).
+- Claude outcome bench: thinking blocks carry a summary of the reasoning
+  (`--thinking-display summarized`, both arms). Before, every block was
+  signature-only - the API omits the text by default on these models and
+  `showThinkingSummaries` does not reach `-p` - so the eval-talk audit read
+  only written text on Claude and thinking plus text on Cursor. Subagent text
+  and thinking are forwarded, `cost.json` records thinking tokens, and the
+  report's redaction note names only sessions run without the flag.
+- Claude outcome bench runs locally on Windows: `--restricted
+  --strict-mcp-config` with the owner's HOME replaces the scratch HOME, which
+  hid the login there. No settings file, installed plugin or MCP server reaches
+  either arm; `--tools` names the scratch-HOME set (Artifact and Workflow are not
+  offered under `--restricted`); grants come in a per-invocation `--settings`
+  file; TEMP stays per invocation. `--probe` now checks all of it.
 
 ## [0.15.0] — 2026-09-28
 

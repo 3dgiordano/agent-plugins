@@ -43,23 +43,29 @@
  * stop hooks - not the skill plus two events. A witness plugin both arms load
  * records that a SessionStart hook ran, as on Cursor.
  *
- * Isolation: every invocation gets a scratch HOME and an allowlisted
- * environment (integrity.js childEnv). claude-eval.js found on Windows that a
- * scratch HOME loses the login, and disabled the installed plugins with a
- * settings file in the workspace instead. Where the login survives a scratch
- * HOME - `--probe` checks it - that is not needed: the baseline has no plugin
- * installed at all, no user hooks, no user settings, no session id inherited
- * from a Claude Code process that started this script (a child sharing the
- * parent's session id shares the plugins' per-session state), and nothing in
- * the workspace names a plugin. Where it does not survive, this refuses to run.
+ * Isolation: `--restricted`, the CLI's mode for a harness on a shared machine,
+ * with the owner's own HOME and an allowlisted environment (integrity.js
+ * childEnv). A scratch HOME, as on Cursor, hides Claude's login on Windows:
+ * Cursor keeps its login in %APPDATA%, which a scratch HOME leaves alone, and
+ * Claude keeps it in the profile's .claude beside the plugins and settings.
+ * `--restricted` reads no user, project or local settings file, so no
+ * installed plugin, user hook or permission loads; `--strict-mcp-config`
+ * drops every MCP server; `--tools` names the tools a scratch-HOME session
+ * gets (TOOLS below). Measured on 2.1.283: only the --plugin-dir plugins load
+ * and their hooks run, the skills are the CLI's own that a scratch HOME also
+ * lists, and a file in the profile is out of reach of Read and of cat. TEMP is
+ * still one per invocation, and so is the plugins' state under it. No session
+ * id is inherited from a Claude Code process that started this script (a child
+ * sharing the parent's session id shares the plugins' per-session state), and
+ * nothing in the workspace names a plugin.
  *
- * Permissions: `--permission-mode dontAsk`, with the grants in the scratch
- * HOME's settings, outside the workspace: Write and Edit for every case, and
+ * Permissions: `--permission-mode dontAsk`, with the grants in a settings file
+ * passed as --settings, outside the workspace: Write and Edit for every case, and
  * `Bash(node *)` where the case's `shell` allows node - the counterpart of
  * the Cursor allowlist `Shell(node **)`. Read-only commands run in dontAsk,
- * which the Cursor CLI without --force does not allow; the Read, Grep and
- * Glob tools do the same on both. `node` is fenced to the workspace
- * (evallib nodeGuard) as on Cursor.
+ * which the Cursor CLI without --force does not allow, and --restricted keeps
+ * them and the Read, Grep and Glob tools inside the working directory. `node`
+ * is fenced to the workspace (evallib nodeGuard) as on Cursor.
  *
  * Reasoning: the API returns thinking blocks with the text omitted unless
  * the request asks for a summary, and `showThinkingSummaries` does not reach
@@ -81,6 +87,7 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
@@ -95,6 +102,16 @@ const { benchmarkVersion, pluginVersions } = require('./benchsession.js');
 const suite = require('./suite.js');
 
 const WATCHDOG = path.join(__dirname, 'idle-watchdog.js');
+
+/*
+ * The tools a session with a scratch HOME and no --tools gets (2.1.283, read
+ * from its init event): --restricted drops the ones that run code unless they
+ * are named, so they are named, and the agent sees what it saw before - but
+ * for RESTRICTED_OUT, which --restricted does not offer even when named (2.1.283:
+ * publishing a claude.ai page and multi-agent workflows; no case needs either).
+ */
+const RESTRICTED_OUT = ['Artifact', 'Workflow'];
+const TOOLS = ['Task', 'Artifact', 'Bash', 'CronCreate', 'CronDelete', 'CronList', 'DesignSync', 'Edit', 'EnterWorktree', 'ExitWorktree', 'Glob', 'Grep', 'ListAgents', 'NotebookEdit', 'Read', 'ReportFindings', 'ScheduleWakeup', 'SendMessage', 'Skill', 'TaskStop', 'ToolSearch', 'WebFetch', 'WebSearch', 'Workflow', 'Write'];
 
 // ---------------------------------------------------------------------------
 // The stream
@@ -288,7 +305,7 @@ function claudeWitness() {
   return witness;
 }
 
-// The grants a case gets, in the scratch HOME's user settings - never in the workspace.
+// The grants a case gets, in a --settings file - never in the workspace.
 function settingsFor(c) {
   const node = (c.shell || []).some((s) => /^Shell\(node\b/.test(s));
   return {
@@ -299,14 +316,22 @@ function settingsFor(c) {
   };
 }
 
-function homeFor(c) {
-  const env = isolatedHome('.claude');
-  fs.writeFileSync(path.join(env.HOME, '.claude', 'settings.json'), JSON.stringify(settingsFor(c), null, 2));
-  return env;
+/*
+ * What one invocation gets of its own: a directory outside the workspace for
+ * its --settings file, and a TEMP there. HOME stays the owner's (the login).
+ */
+function runFor(c) {
+  const scratch = isolatedHome('.claude');
+  const dir = scratch.HOME;
+  const settings = path.join(dir, 'settings.json');
+  fs.writeFileSync(settings, JSON.stringify(settingsFor(c), null, 2));
+  return { dir, settings, env: { TEMP: scratch.TEMP, TMP: scratch.TMP, TMPDIR: scratch.TMPDIR } };
 }
 
-function argsFor(c, withPlugin, model) {
+function argsFor(c, withPlugin, model, settings) {
   const a = ['-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'dontAsk', '--permission-prompts', 'none'];
+  a.push('--restricted', '--strict-mcp-config', '--tools', TOOLS.join(','));
+  if (settings) a.push('--settings', settings);
   a.push('--thinking-display', 'summarized', '--forward-subagent-text');
   if (model) a.push('--model', model.cli.model);
   if (model && model.cli.effort) a.push('--effort', model.cli.effort);
@@ -398,14 +423,29 @@ function sideChannel(c, text, ws) {
 }
 
 /*
- * The session transcript the CLI kept in the scratch HOME: what the model was
- * shown, including every hook's additional context (hook_additional_context)
- * and every Stop hook's verdict (stop_hook_summary) - neither is in the
- * stream. Kept beside the run so the hooks can be read after the fact; the
- * system-prompt snapshots are dropped, they are the same in every run.
+ * The session transcript the CLI kept under the owner's .claude/projects, in
+ * the folder named after this run's workspace: what the model was shown,
+ * including every hook's additional context (hook_additional_context) and
+ * every Stop hook's verdict (stop_hook_summary) - neither is in the stream.
+ * Kept beside the run so the hooks can be read after the fact, then the folder
+ * is removed; the system-prompt snapshots are dropped, they are the same in
+ * every run.
  */
-function keepTranscript(home, file) {
-  const dir = path.join(home, '.claude', 'projects');
+function projectDirOf(ws) {
+  const root = path.join(os.homedir(), '.claude', 'projects');
+  const exact = path.join(root, path.resolve(ws).replace(/[^a-zA-Z0-9]/g, '-'));
+  if (fs.existsSync(exact)) return exact;
+  // A long path is shortened in the folder name; the workspace's random name is still in it.
+  const tag = path.basename(ws).replace(/[^a-zA-Z0-9]/g, '-');
+  let names = [];
+  try { names = fs.readdirSync(root); } catch (_) { return null; }
+  const hit = names.filter((n) => n.includes(tag));
+  return hit.length === 1 ? path.join(root, hit[0]) : null;
+}
+
+function keepTranscript(ws, file) {
+  const dir = projectDirOf(ws);
+  if (!dir) return;
   const found = [];
   const walk = (d) => { for (const e of (() => { try { return fs.readdirSync(d, { withFileTypes: true }); } catch (_) { return []; } })()) { const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else if (e.name.endsWith('.jsonl')) found.push(p); } };
   walk(dir);
@@ -417,6 +457,7 @@ function keepTranscript(home, file) {
     }
   }
   if (lines.length) { try { fs.writeFileSync(file, lines.join('\n') + '\n'); } catch (_) { /* a lost transcript, not a lost run */ } }
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) { /* left for the owner's cleanup */ }
 }
 
 // Synchronous wait for a quota window; the run is sequential by design.
@@ -565,18 +606,34 @@ function main() {
       process.exitCode = 1;
       return;
     }
-    const home = isolatedHome('.claude');
+    // One invocation as a case gets it, with the node grant: the login, what
+    // loaded, the witness hook, the grant through --restricted, the transcript.
+    const own = runFor({ shell: ['Shell(node **)'] });
     const ws = scratchWorkspace();
     try {
+      const env = childEnv(own.env);
       console.log(`Claude Code CLI : ${cli.bin}  (${cli.how})`);
-      console.log(`  version       : ${(run(cli.bin, ['--version'], childEnv(home), undefined, ws).stdout || '').trim() || '(unknown)'}`);
-      const r = run(cli.bin, ['-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'dontAsk', '--permission-prompts', 'none', '--plugin-dir', claudeWitness().dir], childEnv(home), 'Reply with exactly: ok', ws, { timeout: 180000 });
+      console.log(`  version       : ${(run(cli.bin, ['--version'], env, undefined, ws).stdout || '').trim() || '(unknown)'}`);
+      const r = run(cli.bin, argsFor({ plugin: null }, false, model, own.settings), env, 'Run this with the Bash tool: node -e "console.log(6*7)" - then reply with only what it printed.', ws, { timeout: 300000 });
       const p = parseClaude(r.stdout);
-      console.log(`  scratch HOME  : ${!p.error && /\bok\b/i.test(p.text) ? 'answers - the login survives an empty HOME and environment' : `NO ANSWER - ${(p.text || r.stderr || '').trim().slice(0, 160)}`}`);
+      let init = {};
+      for (const line of String(r.stdout || '').split(/\r?\n/)) { try { const o = JSON.parse(line); if (o.type === 'system' && o.subtype === 'init') init = o; } catch (_) { /* not an event */ } }
+      // The CLI's own plugins (path "builtin") load with a scratch HOME too.
+      const extraPlugins = (init.plugins || []).filter((x) => x.path !== 'builtin' && x.name !== 'session-log').map((x) => x.name);
+      const tools = (init.tools || []).slice().sort().join(',');
+      const toolsMatch = tools === TOOLS.filter((t) => !RESTRICTED_OUT.includes(t)).sort().join(',');
+      console.log(`  login         : ${!p.error ? 'answers' : `NO ANSWER - ${(p.text || r.stderr || '').trim().slice(0, 160)}`}`);
+      console.log(`  node grant    : ${/\b42\b/.test(p.text || '') ? 'node ran (42)' : `did NOT run - ${(p.text || '').trim().slice(0, 120)}`}`);
+      console.log(`  plugins       : ${extraPlugins.length ? `ALSO LOADED ${extraPlugins.join(', ')}` : 'only the --plugin-dir ones'}`);
+      console.log(`  MCP servers   : ${(init.mcp_servers || []).length ? (init.mcp_servers || []).map((m) => m.name).join(', ') : 'none'}`);
+      console.log(`  tools         : ${toolsMatch ? `the scratch-HOME set without ${RESTRICTED_OUT.join(' and ')}` : `DIFFER - ${tools}`}`);
       console.log(`  witness hook  : ${claudeWitness().fired(ws) ? 'SessionStart ran' : 'did NOT run'}`);
+      const kept = path.join(own.dir, 'probe.transcript.jsonl');
+      keepTranscript(ws, kept);
+      console.log(`  transcript    : ${fs.existsSync(kept) ? 'kept, and its projects folder removed' : 'NOT FOUND under .claude/projects'}`);
       if (p.quota) console.log(`  quota         : five-hour ${pctOf(p.quota.fiveHour)}, seven-day ${pctOf(p.quota.sevenDay)} (${p.quota.status})`);
-      if (p.error || !claudeWitness().fired(ws)) process.exitCode = 1;
-    } finally { dropHome(home); dropWorkspace(ws); }
+      if (p.error || !claudeWitness().fired(ws) || extraPlugins.length || (init.mcp_servers || []).length || !toolsMatch) process.exitCode = 1;
+    } finally { dropHome({ HOME: own.dir }); dropWorkspace(ws); }
     return;
   }
 
@@ -607,11 +664,11 @@ function main() {
     const bin = cli ? cli.bin : 'claude';
     for (const c of found) {
       for (const withPlugin of [true, false]) {
-        console.log(`${withPlugin ? 'with   ' : 'without'}  ${quote(bin)} ${argsFor(c, withPlugin, model).map(quote).join(' ')}   < bench/${c.plugin}/${c.id}/prompt.md`);
+        console.log(`${withPlugin ? 'with   ' : 'without'}  ${quote(bin)} ${argsFor(c, withPlugin, model, '<settings file>').map(quote).join(' ')}   < bench/${c.plugin}/${c.id}/prompt.md`);
       }
     }
     console.log(`\n${found.length} case(s) x 2 arms x ${runs} run(s) = ${found.length * 2 * runs} invocations`);
-    console.log('each invocation: a scratch HOME, an allowlisted environment, grants in that HOME');
+    console.log('each invocation: --restricted with the owner\'s HOME, an allowlisted environment, its own TEMP, grants in its own --settings file');
     return;
   }
 
@@ -647,9 +704,7 @@ function main() {
     } catch (_) { priorCases = []; }
   }
 
-  const probeHome = isolatedHome('.claude');
-  const agentVersion = (run(cli.bin, ['--version'], childEnv(probeHome), undefined, probeHome.HOME).stdout || '').trim();
-  dropHome(probeHome);
+  const agentVersion = (run(cli.bin, ['--version'], childEnv({}), undefined, os.tmpdir()).stdout || '').trim();
   const timeoutMin = Number(val('--timeout-min', '')) || model.timeoutMin || 15;
   const idleMin = Number(val('--idle-min', '')) || model.idleMin || 0;
   const fence = !has('--no-node-guard') && !!permissionFlags();
@@ -670,8 +725,10 @@ function main() {
     family: 'claude',
     layer: 'skill + every hook event: claude -p runs them all; hooksRan counts the witness SessionStart per arm',
     isolate: true,
+    isolation: '--restricted --strict-mcp-config with the owner\'s HOME (the login): no user, project or local settings file, no installed plugin, no MCP server; --tools names the scratch-HOME set (Artifact and Workflow are not offered under --restricted); TEMP per invocation. Sessions before this field ran with a scratch HOME.',
+    tools: TOOLS,
     platform: process.platform,
-    confine: '--permission-mode dontAsk; grants in a scratch HOME: Write, Edit, and Bash(node *) where the case allows node. No OS sandbox. Read-only shell commands run in dontAsk.',
+    confine: '--permission-mode dontAsk; grants in a --settings file: Write, Edit, and Bash(node *) where the case allows node. No OS sandbox. Read-only shell commands run in dontAsk; --restricted keeps them and the file tools inside the working directory.',
     thinking: '--thinking-display summarized and --forward-subagent-text in both arms: thinking blocks carry a summary of the reasoning, and the audit reads it. Sessions before this field have signature-only thinking blocks.',
     cost: 'mean duration_ms, input+output tokens, tool calls and total_cost_usd (list price, not what a subscription pays) from --output-format stream-json. Cache tokens are recorded and not added into the token line. Cost is not the score.',
     timeoutMin,
@@ -732,14 +789,15 @@ function main() {
       }
       const arm = withPlugin ? 'with' : 'without';
       const ws = scratchWorkspace();
-      const home = homeFor(c);
-      const trace = misreadTrace(home);
+      const own = runFor(c);
+      // No HOME in it: the misread trace goes to a file of this invocation's own.
+      const trace = misreadTrace(own.env);
       const plug = withPlugin ? path.dirname(pluginCopy(c.plugin)) : null;
       const nodeFence = fence ? nodeGuard(ws, [plug, claudeWitness().dir]) : null;
-      const env = childEnv(Object.assign({}, home, trace.env, pluginEnv, nodeFence ? nodeFence.env : {}));
+      const env = childEnv(Object.assign({}, own.env, trace.env, pluginEnv, nodeFence ? nodeFence.env : {}));
       seed(ws, c);
       const limits = { timeout: timeoutMin * 60 * 1000, idle: idleMin * 60 * 1000 };
-      const args = argsFor(c, withPlugin, model);
+      const args = argsFor(c, withPlugin, model, own.settings);
       const r = run(cli.bin, args, env, c.prompt, ws, limits);
       let parsed = parseClaude(r.stdout);
       const streams = [String(r.stdout || '')];
@@ -759,7 +817,7 @@ function main() {
       if (parsed.quota) lastQuota = parsed.quota;
       const raw = streams.join('\n');
       const shaped = streams.map(cursorShape).join('\n');
-      const roots = [ws, home.HOME, plug, claudeWitness().dir, nodeFence ? nodeFence.dir : null];
+      const roots = [ws, own.dir, plug, claudeWitness().dir, nodeFence ? nodeFence.dir : null];
       const audit = auditStream(shaped, roots, ROOT, ws);
       const hooked = claudeWitness().fired(ws);
       if (hooked) hooksRan[arm] += 1;
@@ -787,8 +845,8 @@ function main() {
       addCost(costCase[arm], parsed);
       addCost(costAll[arm], parsed);
       trace.collect(outDir, base);
-      keepTranscript(home.HOME, path.join(outDir, `${base}.transcript.jsonl`));
-      dropHome(home);
+      keepTranscript(ws, path.join(outDir, `${base}.transcript.jsonl`));
+      dropHome({ HOME: own.dir });
       if (nodeFence) { try { fs.rmSync(nodeFence.dir, { recursive: true, force: true }); } catch (_) { /* swept later */ } }
       try { fs.cpSync(ws, path.join(outDir, base), { recursive: true }); } catch (_) {}
       if (parsed.error || !reached(parsed.text)) {
