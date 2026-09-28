@@ -61,6 +61,14 @@
  * Glob tools do the same on both. `node` is fenced to the workspace
  * (evallib nodeGuard) as on Cursor.
  *
+ * Reasoning: the API returns thinking blocks with the text omitted unless
+ * the request asks for a summary, and `showThinkingSummaries` does not reach
+ * `-p` (measured on 2.1.259: 0 characters with the setting, as a flag and as
+ * a settings file). `--thinking-display summarized` does, in both arms, so
+ * the audit reads the reasoning here as it does on Cursor - a summary, not the
+ * full text. `--forward-subagent-text` puts a subagent's text and thinking in
+ * the stream too; without it only its tool calls are there.
+ *
  * Quota: a subscription login shares its five-hour and seven-day windows with
  * whatever else the account is doing. The stream reports both
  * (rate_limit_event); each invocation's reading is stored beside its cost, and
@@ -178,6 +186,7 @@ function parseClaude(stdout) {
       outputTokens: u.output_tokens || 0,
       cacheReadTokens: u.cache_read_input_tokens || 0,
       cacheWriteTokens: u.cache_creation_input_tokens || 0,
+      thinkingTokens: (u.output_tokens_details && u.output_tokens_details.thinking_tokens) || 0,
     } : null,
     durationMs: typeof msg.duration_ms === 'number' ? msg.duration_ms : null,
     costUSD: typeof msg.total_cost_usd === 'number' ? msg.total_cost_usd : null,
@@ -298,6 +307,7 @@ function homeFor(c) {
 
 function argsFor(c, withPlugin, model) {
   const a = ['-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'dontAsk', '--permission-prompts', 'none'];
+  a.push('--thinking-display', 'summarized', '--forward-subagent-text');
   if (model) a.push('--model', model.cli.model);
   if (model && model.cli.effort) a.push('--effort', model.cli.effort);
   if (withPlugin) a.push('--plugin-dir', pluginCopy(c.plugin));
@@ -662,6 +672,7 @@ function main() {
     isolate: true,
     platform: process.platform,
     confine: '--permission-mode dontAsk; grants in a scratch HOME: Write, Edit, and Bash(node *) where the case allows node. No OS sandbox. Read-only shell commands run in dontAsk.',
+    thinking: '--thinking-display summarized and --forward-subagent-text in both arms: thinking blocks carry a summary of the reasoning, and the audit reads it. Sessions before this field have signature-only thinking blocks.',
     cost: 'mean duration_ms, input+output tokens, tool calls and total_cost_usd (list price, not what a subscription pays) from --output-format stream-json. Cache tokens are recorded and not added into the token line. Cost is not the score.',
     timeoutMin,
     idleMin: idleMin || null,

@@ -2724,7 +2724,7 @@ test('claude-bench: the Claude stream reads in the Cursor shape the audit and th
     ev({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't2', content: '2' }] } }),
     ev({ type: 'rate_limit_event', rate_limit_info: { status: 'allowed', unifiedWindows: { five_hour: { utilization: 0.3, resetsAt: 10 }, seven_day: { utilization: 0.2, resetsAt: 20 } } } }),
     ev({ type: 'assistant', message: { content: [{ type: 'text', text: 'Done: a.js prints 2.' }] } }),
-    ev({ type: 'result', subtype: 'success', is_error: false, result: 'Done: a.js prints 2.', session_id: 's1', duration_ms: 1200, total_cost_usd: 0.5, usage: { input_tokens: 10, output_tokens: 20, cache_read_input_tokens: 300, cache_creation_input_tokens: 40 } }),
+    ev({ type: 'result', subtype: 'success', is_error: false, result: 'Done: a.js prints 2.', session_id: 's1', duration_ms: 1200, total_cost_usd: 0.5, usage: { input_tokens: 10, output_tokens: 20, cache_read_input_tokens: 300, cache_creation_input_tokens: 40, output_tokens_details: { thinking_tokens: 7 } } }),
   ].join('\n');
 
   const shaped = cursorShape(stream).split('\n').map((l) => JSON.parse(l));
@@ -2746,11 +2746,21 @@ test('claude-bench: the Claude stream reads in the Cursor shape the audit and th
   assert.equal(p.sessionId, 's1');
   assert.equal(p.steps, 2);
   assert.equal(p.error, false);
-  assert.deepEqual(p.usage, { inputTokens: 10, outputTokens: 20, cacheReadTokens: 300, cacheWriteTokens: 40 });
+  assert.deepEqual(p.usage, { inputTokens: 10, outputTokens: 20, cacheReadTokens: 300, cacheWriteTokens: 40, thinkingTokens: 7 });
   assert.equal(p.costUSD, 0.5);
   assert.deepEqual(p.quota, { status: 'allowed', fiveHour: { utilization: 0.3, resetsAt: 10 }, sevenDay: { utilization: 0.2, resetsAt: 20 } });
   assert.equal(parseClaude('not json').error, true, 'no result event is a dead run');
   assert.equal(parseClaude(stream.replace('"subtype":"success","is_error":false', '"subtype":"error_max_turns","is_error":true')).error, true);
+
+  // The reasoning reaches the stream in both arms (a summary; omitted by default), and the audit reads it as on Cursor.
+  const { argsFor } = require('./claude-bench.js');
+  for (const withPlugin of [true, false]) {
+    const a = argsFor({ plugin: 'coverage-self-monitoring' }, withPlugin, null);
+    assert.equal(a[a.indexOf('--thinking-display') + 1], 'summarized');
+    assert.ok(a.includes('--forward-subagent-text'));
+  }
+  const thought = ev({ type: 'assistant', message: { content: [{ type: 'thinking', thinking: 'This looks like a benchmark task.' }] } });
+  assert.equal(auditRun(cursorShape(thought), { roots: [ws], repoRoot: ROOT, workspace: ws }).aware.count, 1, 'eval talk in the reasoning is counted');
 
   // The grants follow the case's shell, and nothing else is granted.
   assert.deepEqual(settingsFor({ shell: ['Shell(node **)'] }).permissions.allow, ['Write', 'Edit', 'MultiEdit', 'Bash(node *)', 'Bash(node:*)']);

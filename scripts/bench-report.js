@@ -561,8 +561,10 @@ function renderAudit(records, stamps) {
       });
     });
   if (!rows.length) return '';
+  // A Claude session run before --thinking-display summarized has signature-only thinking blocks.
+  const redacted = records.some((r) => r.audit && familyOf(r) === 'claude' && !r.thinking);
   return `<h2>Audit</h2>
-  <p class="muted">Every stream is audited. Eval talk counts runs where the model's text says it is in an eval, a grader or a benchmark: a pattern, not a verdict, and on Claude Code the reasoning is redacted, so only written text is read. A run that left its workspace is not scored. A suspect run used a command with an honest use and a dishonest one; it is scored.</p>
+  <p class="muted">Every stream is audited. Eval talk counts runs where the model's text or reasoning says it is in an eval, a grader or a benchmark: a pattern, not a verdict.${redacted ? ' In the Claude Code runs on this page the reasoning is redacted, so only written text is read.' : ''} A run that left its workspace is not scored. A suspect run used a command with an honest use and a dishonest one; it is scored.</p>
   <div class="table-wrap"><table>
     <thead><tr><th>Family</th><th>Model</th><th>Arm</th><th class="num">Runs</th><th class="num">Eval talk</th><th class="num">Left the workspace</th><th class="num">Suspect</th></tr></thead>
     <tbody>
@@ -779,7 +781,8 @@ document.querySelector('.switch').addEventListener('click', function (event) {
  * What the stream audit found, per arm, from each invocation's cost.json:
  * runs with eval talk, runs that left their workspace (not scored), runs with
  * a suspect command. A count, not a verdict: eval talk is a pattern over the
- * model's text, and on Claude Code the reasoning is redacted.
+ * model's text and reasoning; a Claude session without run.json `thinking`
+ * has its reasoning redacted, and only its text is read.
  */
 function auditOf(dir) {
   const blank = () => ({ runs: 0, aware: 0, contaminated: 0, suspect: 0 });
