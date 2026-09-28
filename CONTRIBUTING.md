@@ -110,7 +110,10 @@ questions — so the design is agreed before code is written.
    scripts, syntax). Add behaviour tests for its adapters next to the existing
    ones: drive each hook with the JSON its host sends and assert on stdout,
    stderr and exit code, for both hosts.
-5. Add it to the tables in the root README and to `CHANGELOG.md` under
+5. Add it everywhere the collection is listed: the tables in the root README
+   (the eight moments, which one first, plugins), `docs/HOW-IT-WORKS.md` (the
+   questions and the blocks), `docs/FAQ.md` (what you get, which one first),
+   `docs/RESEARCH.md` (its related work), and `CHANGELOG.md` under
    *Unreleased*.
 
 ## Changing a plugin
@@ -175,6 +178,19 @@ or to a message.
 | behaviour (Claude Code) | `claude plugin eval plugins/<name> --ablation with-without` | does the plugin actually change what the model does — measured against a no-plugin baseline arm? |
 | behaviour (Cursor) | `node scripts/cursor-eval.js --probe`, then `… --isolate --model <id>` | the same question through the Cursor Agent CLI — skill, `sessionStart` and `postToolUse`; not the response scan or the stop gate, see below |
 | behaviour (Codex) | `node scripts/codex-eval.js --probe`, then `… <plugin>` | the same question through `codex exec` — hooks AND skill, like the Claude Code arm, see below |
+
+### What each layer needs
+
+| Layer | Command | Needs |
+|-------|---------|-------|
+| Suite: structure, hook adapters, corpus, samples, host parity | `node scripts/test.js` | Node 18 or later. No agent, no network. The node-fence test is skipped on 18. |
+| Versions, fixtures | `node scripts/version.js --check`, `node scripts/bench-check.js` | Node 18 or later |
+| Behavioural evals | `node scripts/cursor-eval.js`, `claude-eval.js`, `codex-eval.js` | The host's CLI, logged in. With `--isolate`, Cursor needs `CURSOR_API_KEY`. These spend model calls. |
+| Outcome bench | `node scripts/bench.js --host <cursor\|claude>` (`cursor-bench.js`, `claude-bench.js`) | The host's CLI, logged in. Cursor on Windows: run from PowerShell or cmd, not Git Bash, or no hook runs. **Node 20 or later on the runner** for the node fence (`--permission` from 22.13, `--experimental-permission` on 20). On 18 the agent's `node` runs unfenced, and `run.json` records `nodeGuard: false`. These spend model calls. |
+
+The evals and the bench start agents on your machine. The shell allowlist
+admits only `node`, and the bench fences that `node` to the run's workspace.
+It is not a sandbox: see [bench/GUARDS.md](bench/GUARDS.md).
 
 **Neither behaviour layer runs in CI, and that is enforced rather than assumed.**
 They cost API calls, need an authenticated account and are non-deterministic;
@@ -307,12 +323,37 @@ authentication then has to come from `CURSOR_API_KEY`, because the session file
 lives in the real `~/.cursor` and the script will not copy credentials
 elsewhere.
 
+## Contributing to the bench and the research
+
+The bench's cases, graders and detector corpora are written by the plugins'
+author. That is the project's largest limitation ([docs/RESEARCH.md](docs/RESEARCH.md#threats-to-validity)),
+and outside work is the remedy. If you work on agents, evaluation or human
+factors, these help most:
+
+- **A case.** A task the unaided model gets wrong under realistic pressure,
+  scored on the workspace. Follow [bench/README.md](bench/README.md), "How a
+  case is written": the score is what the user asked for, never the opposite
+  of an instruction; the pressure comes from the situation. Stamp the answer
+  key with the canary (`node scripts/integrity.js --stamp`) and add pass and
+  fail fixtures (`node scripts/bench-check.js`).
+- **Corpus lines** from real sessions, paraphrased (see "Improving a detector
+  from real closes" above).
+- **A review** of a grader, a case, or a claim in
+  [docs/EVIDENCE.md](docs/EVIDENCE.md). A result that does not hold is worth
+  more than one that does.
+- **Runs** on a model or a host not yet measured, with their `run.json`.
+- **References**, and corrections where a citation says less than the text
+  that cites it.
+
+Evidence pages are dated: a change to a published number updates
+`docs/EVIDENCE.md` with the date, the versions and the sample size.
+
 ## Pull requests
 
 - One plugin or one concern per PR.
 - `node scripts/test.js` and `node scripts/version.js --check` pass locally;
-  CI runs them on Ubuntu and Windows, Node 18/20/22 (the README's
-  *Requirements* says what each layer needs). `scripts/test.js` also
+  CI runs them on Ubuntu and Windows, Node 18/20/22 ("What each layer needs",
+  above). `scripts/test.js` also
   runs the samples, corpus and host-parity checks, so passing it locally
   covers all four cheap layers.
 - The PR template has the checklist; it is short on purpose.

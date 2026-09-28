@@ -328,6 +328,7 @@ function main() {
   fs.mkdirSync(outDir, { recursive: true });
   let priorCases = [];
   let priorReported = [];
+  let priorStarted = null;
   if (has('--merge')) {
     const priorFile = path.join(outDir, 'run.json');
     if (fs.existsSync(priorFile)) {
@@ -335,6 +336,7 @@ function main() {
         const prior = JSON.parse(fs.readFileSync(priorFile, 'utf8'));
         priorCases = (prior.score && prior.score.cases) || [];
         priorReported = prior.modelReported || [];
+        priorStarted = prior.started || null;
       } catch (_) {
         priorCases = [];
       }
@@ -343,6 +345,8 @@ function main() {
   const agentVersion = (run(cli.bin, ['--version'], env).stdout || '').trim();
   const modelId = model || 'auto';
   const runRecord = {
+    // When the runs were made: a result is read against its date and versions, not as today's state.
+    started: priorStarted || new Date().toISOString(),
     agent: agentVersion,
     benchmark: benchmarkVersion(ROOT),
     plugins: pluginVersions(ROOT),
@@ -587,6 +591,7 @@ function main() {
   runRecord.score = { with: withArm, without: withoutArm, cases: scored };
   runRecord.hooksRan = hooksAll;
   runRecord.costDetail = { with: summarizeCost(costAll.with), without: summarizeCost(costAll.without) };
+  runRecord.finished = new Date().toISOString();
   fs.writeFileSync(path.join(outDir, 'run.json'), JSON.stringify(runRecord, null, 2));
   console.log(`\ntranscripts: ${outDir}`);
   console.log('The rate is for this agent version and this model id. Three runs per case is the count behind it.');

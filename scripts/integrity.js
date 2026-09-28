@@ -63,7 +63,9 @@ function answerKeyFiles(root = ROOT) {
     }
   };
   const bench = path.join(root, 'bench');
-  for (const f of ['README.md', 'INTEGRITY.md']) add(path.join(bench, f));
+  for (const f of ['README.md', 'INTEGRITY.md', 'GUARDS.md']) add(path.join(bench, f));
+  // The pages that report the bench case by case - what each case wants, how it scored.
+  for (const f of ['EVIDENCE.md', 'RESEARCH.md']) add(path.join(root, 'docs', f));
   walk(path.join(bench, '_lib'), add);
   for (const plugin of safeDirs(bench)) {
     if (plugin === '_lib' || plugin.startsWith('report-') || plugin === 'results') continue;
@@ -151,7 +153,9 @@ function childEnv(extra, source = process.env, platform = process.platform) {
  * run went looking for `cursor-eval*`). Code lines are never touched; a
  * script whose cleaned text no longer compiles is left as it was.
  */
-const TELLTALE = /\b(evals?|bench(mark)?|grader|fixture|harness)\b|scripts\/|cursor-eval|claude-eval|codex-eval|test\.js/i;
+// A benchmark's own name or a paper id says the same as "eval": ImpossibleBench
+// has no word break before "Bench", so it is named.
+const TELLTALE = /\b(evals?|bench(mark)?|grader|fixture|harness|arxiv)\b|\w+Bench\b|scripts\/|cursor-eval|claude-eval|codex-eval|test\.js/i;
 
 function sanitizePlugin(dir) {
   const vm = require('vm');

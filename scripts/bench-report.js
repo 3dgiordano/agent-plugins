@@ -375,12 +375,18 @@ function armLegend() {
   return parts.join('\n');
 }
 
-function renderPanel(family, points) {
+function panelTitle(family, stamps) {
+  const stamp = (stamps || []).find((s) => s.family === family);
+  const label = FAMILY_LABEL[family] || family;
+  return stamp && stamp.date ? `${label} · ${stamp.date}` : label;
+}
+
+function renderPanel(family, points, title) {
   const { maxTok, points: placed } = layoutFamily(points);
   const yTicks = [0, 25, 50, 75, 100];
   const parts = [];
   parts.push('<g>');
-  parts.push(`<text x="${LEFT}" y="18" fill="${INK}" font-size="15" font-weight="600" font-family="ui-sans-serif, system-ui, sans-serif">${FAMILY_LABEL[family] || family}</text>`);
+  parts.push(`<text x="${LEFT}" y="18" fill="${INK}" font-size="15" font-weight="600" font-family="ui-sans-serif, system-ui, sans-serif">${esc(title || FAMILY_LABEL[family] || family)}</text>`);
   parts.push(armLegend());
   for (const t of yTicks) {
     const y = Math.round(TOP + (1 - t / 100) * PLOT_H);
@@ -431,7 +437,7 @@ function renderPanel(family, points) {
   return parts.join('\n');
 }
 
-function renderSvg(records, caseId) {
+function renderSvg(records, caseId, stamps) {
   const pts = caseId ? pointsFromCase(records, caseId) : pointsFrom(records);
   if (!pts.length) return '';
   const families = FAMILY_ORDER.filter((family) => pts.some((p) => p.family === family));
@@ -444,7 +450,7 @@ function renderSvg(records, caseId) {
   parts.push(`<title>${esc(title)}</title>`);
   parts.push(`<rect width="${W}" height="${height}" fill="${PAPER}"/>`);
   order.forEach((family, index) => {
-    const panel = renderPanel(family, pts.filter((p) => p.family === family));
+    const panel = renderPanel(family, pts.filter((p) => p.family === family), panelTitle(family, stamps));
     parts.push(`<g transform="translate(0 ${index * H})">`);
     parts.push(panel);
     parts.push('</g>');
@@ -513,7 +519,7 @@ function renderCompact(points) {
  * model does not need the plugin there), a with cell below its runs is the
  * plugin not getting through.
  */
-function renderCaseMatrix(records) {
+function renderCaseMatrix(records, heading) {
   const models = records.slice().sort((a, b) => (TIER_RANK[a.tier] ?? 99) - (TIER_RANK[b.tier] ?? 99));
   if (!models.length) return '';
   const head = models.map((record) => {
@@ -532,8 +538,8 @@ function renderCaseMatrix(records) {
     }).join('');
     return `<tr>${cell('Plugin', esc(label))}${cell('Case', esc(caseId.split('/')[1]))}${cells}</tr>`;
   }).join('\n');
-  return `<h2>By case</h2>
-  <p class="muted">The target for a case: 0 passes without the plugin, every run with it. A shaded without cell is a case the model passes unaided - still to work on. An outlined with cell is a run the plugin did not win.</p>
+  return `<h2>${esc(heading || 'By case')}</h2>
+  <p class="muted">The target for a case: 0 passes without the plugin, every run with it. A shaded without cell is a case the model passes unaided - still to work on. An outlined with cell is a run the plugin did not win. A dash is a case this set of runs did not include.</p>
   <div class="table-wrap"><table class="matrix">
     <thead><tr><th rowspan="2">Plugin</th><th rowspan="2">Case</th>${head}</tr><tr>${sub}</tr></thead>
     <tbody>
@@ -542,18 +548,46 @@ ${rows}
   </table></div>`;
 }
 
-function renderPanelHtml(records, view) {
+function renderAudit(records, stamps) {
+  const rows = records
+    .slice()
+    .sort((a, b) => FAMILY_ORDER.indexOf(familyOf(a)) - FAMILY_ORDER.indexOf(familyOf(b)) || (TIER_RANK[a.tier] ?? 99) - (TIER_RANK[b.tier] ?? 99))
+    .filter((record) => record.audit)
+    .flatMap((record) => {
+      const named = splitModel(record);
+      return ['with', 'without'].map((armName) => {
+        const a = record.audit[armName];
+        return `<tr>${cell('Family', esc(panelTitle(familyOf(record), stamps)))}${cell('Model', esc(named.line))}${cell('Arm', armName === 'with' ? 'With plugins' : 'Without plugins')}${cell('Runs', a.runs, true)}${cell('Eval talk', a.aware, true)}${cell('Left the workspace', a.contaminated, true)}${cell('Suspect', a.suspect, true)}</tr>`;
+      });
+    });
+  if (!rows.length) return '';
+  return `<h2>Audit</h2>
+  <p class="muted">Every stream is audited. Eval talk counts runs where the model's text says it is in an eval, a grader or a benchmark: a pattern, not a verdict, and on Claude Code the reasoning is redacted, so only written text is read. A run that left its workspace is not scored. A suspect run used a command with an honest use and a dishonest one; it is scored.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Family</th><th>Model</th><th>Arm</th><th class="num">Runs</th><th class="num">Eval talk</th><th class="num">Left the workspace</th><th class="num">Suspect</th></tr></thead>
+    <tbody>
+${rows.join('\n')}
+    </tbody>
+  </table></div>`;
+}
+
+function renderPanelHtml(records, view, meta) {
+  const stamps = meta && meta.dated;
   const caseId = view.id === 'all' ? null : view.id;
   const points = caseId ? pointsFromCase(records, caseId) : pointsFrom(records);
   const summary = sortedPointsFrom(points);
-  const svg = renderSvg(records, caseId);
+  const svg = renderSvg(records, caseId, stamps);
+  const matrix = !stamps
+    ? renderCaseMatrix(records)
+    : stamps.map((s) => renderCaseMatrix(records.filter((r) => familyOf(r) === s.family), `By case · ${panelTitle(s.family, stamps)}`)).join('\n');
   const blurb = view.id === 'all'
     ? 'Every plugin, pooled. Each scored run counts once.'
     : `${view.label} only. The rate is this plugin's passes. Tokens are the mean for this plugin's runs.`;
   const body = svg
     ? `<div class="chart">${svg}</div>
   ${renderCompact(summary)}
-  ${view.id === 'all' ? renderCaseMatrix(records) : ''}
+  ${view.id === 'all' ? matrix : ''}
+  ${view.id === 'all' && stamps ? renderAudit(records, stamps) : ''}
   <h2>By model</h2>
   <div class="table-wrap"><table>
     <thead><tr><th>Family</th><th>Model</th><th>Reasoning</th><th>Arm</th><th class="num">Passes</th><th class="num">Rate</th><th class="num">Tokens</th><th class="num">Time</th><th class="num">Tool calls</th></tr></thead>
@@ -588,8 +622,22 @@ function draftOf(records) {
   };
 }
 
+function datedBlock(stamps) {
+  return stamps.map((s) => {
+    const when = s.date
+      ? `${esc(s.date)}${s.source === 'given' ? ' (given with --date: these runs predate the date in run.json)' : ''}`
+      : 'not recorded';
+    const rows = Object.keys(s.plugins).sort().map((name) => `<dt>${esc(name)}</dt><dd>${esc(s.plugins[name])}</dd>`).join('');
+    const notes = s.notes.map((note) => `<p class="banner">${esc(note)}</p>`).join('\n  ');
+    return `<h2>${esc(FAMILY_LABEL[s.family] || s.family)}</h2>
+  <dl class="versions"><dt>Runs made</dt><dd>${when}</dd><dt>Benchmark</dt><dd>${esc(s.benchmark)}</dd><dt>Agent</dt><dd>${esc(s.agent)}</dd>${rows}</dl>
+  ${notes}`;
+  }).join('\n  ');
+}
+
 function versionBlock(meta) {
   const root = path.join(__dirname, '..');
+  if (meta && meta.dated) return datedBlock(meta.dated);
   if (meta && meta.draft) return '';
   if (!meta || !meta.session) {
     return `<p class="muted">Benchmark ${esc(benchmarkVersion(root))}. A session records the plugin versions and the agent version with the runs.</p>`;
@@ -608,18 +656,24 @@ function versionBlock(meta) {
 function renderHtml(records, meta) {
   const sample = records.length > 0 && records.every((r) => r.sample);
   const draft = Boolean(meta && meta.draft);
+  const dated = Boolean(meta && meta.dated);
   const head = sample
     ? 'Format preview. These numbers are not a measured run. Each family shows its models with the reasoning level that was requested. Color only tells those models apart.'
     : draft
       ? meta.draft.text
-      : 'Each panel is one product family. A filled mark is with the plugins. A hollow mark is the same model without them. A model that has not been run yet is absent.';
+      : dated
+        ? 'Each family is its own set of runs, made on its own date with its own agent and plugin versions, stamped below. Compare the two arms within a panel, not one panel with another. A filled mark is with the plugins; a hollow mark is the same model without them.'
+        : 'Each panel is one product family. A filled mark is with the plugins. A hollow mark is the same model without them. A model that has not been run yet is absent.';
   const oneEach = !sample && !draft && records.length > 0 && records.every((r) => r.runs === 1);
   const oneBanner = oneEach
     ? '<p class="banner">One run on each task. The suite rate is three runs, and this page is not that rate.</p>'
     : '';
   const sub = 'Pass rate on the same tasks, with the self-monitoring plugins and without them.';
   const buttons = viewsFor().map((view) => `<button type="button" data-view="${esc(view.id)}"${view.id === 'all' ? ' class="on"' : ''}>${esc(view.label)}</button>`).join('\n    ');
-  const sections = viewsFor().map((view) => renderPanelHtml(records, view)).join('\n');
+  const sections = viewsFor().map((view) => renderPanelHtml(records, view, meta)).join('\n');
+  const versionsNote = dated
+    ? 'Each family is stamped with the date, the benchmark, the agent and the plugin versions of its runs; a family is never mixed with another version of itself.'
+    : 'A result from another benchmark version, plugin version, or agent version is left off the page.';
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -703,7 +757,7 @@ function renderHtml(records, meta) {
     ${buttons}
   </nav>
 ${sections}
-  <p class="note">One page for the whole suite. All plugins pools the canonical cases, one per plugin. Each other control is that plugin alone. The rate is passes over runs that reached the model. Tokens are the mean of input plus output. Cache reads are not included. Tool calls are the mean of completed calls. The CLI does not return a price, so the axis is not in dollars. The discipline block is not the rate. Composer 2.5 stays on Default because the Cursor model list has no High id for it. The other models in the set are at High: Grok 4.6, Grok 4.7, Sonnet 5, Opus 5, Opus 5.5, GPT-5.6 Luna, GPT-5.6 Sol, and GPT-6 Astra. A model that has not been run is absent. A result from another benchmark version, plugin version, or agent version is left off the page.</p>
+  <p class="note">One page for the whole suite. All plugins pools the canonical cases, one per plugin. Each other control is that plugin alone. The rate is passes over runs that reached the model. Tokens are the mean of input plus output. Cache reads are not included. Tool calls are the mean of completed calls. The CLI does not return a price, so the axis is not in dollars. The discipline block is not the rate. Composer 2.5 stays on Default because the Cursor model list has no High id for it. The other models in the set are at High: Grok 4.6, Grok 4.7, Sonnet 5, Opus 5, Opus 5.5, GPT-5.6 Luna, GPT-5.6 Sol, and GPT-6 Astra. A model that has not been run is absent. ${esc(versionsNote)}</p>
 </main>
 <script>
 document.querySelector('.switch').addEventListener('click', function (event) {
@@ -721,12 +775,86 @@ document.querySelector('.switch').addEventListener('click', function (event) {
 `;
 }
 
+/*
+ * What the stream audit found, per arm, from each invocation's cost.json:
+ * runs with eval talk, runs that left their workspace (not scored), runs with
+ * a suspect command. A count, not a verdict: eval talk is a pattern over the
+ * model's text, and on Claude Code the reasoning is redacted.
+ */
+function auditOf(dir) {
+  const blank = () => ({ runs: 0, aware: 0, contaminated: 0, suspect: 0 });
+  const out = { with: blank(), without: blank() };
+  let names = [];
+  try { names = fs.readdirSync(dir); } catch (_) { return out; }
+  for (const name of names.sort()) {
+    const m = name.match(/__(with|without)__\d+\.cost\.json$/);
+    if (!m) continue;
+    let c;
+    try { c = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8')); } catch (_) { continue; }
+    const a = out[m[1]];
+    a.runs += 1;
+    if (c.aware && c.aware.count) a.aware += 1;
+    if ((c.contaminated || []).length) a.contaminated += 1;
+    if ((c.suspect || []).length) a.suspect += 1;
+  }
+  return out;
+}
+
 function loadDir(dir) {
   const file = path.join(dir, 'run.json');
   if (!fs.existsSync(file)) throw new Error(`no run.json in ${dir}`);
   const record = JSON.parse(fs.readFileSync(file, 'utf8'));
   if (!record.score || !record.costDetail) throw new Error(`${file} has no score yet`);
+  record.audit = auditOf(dir);
   return record;
+}
+
+// --date cursor=2026-09-23 / --note claude="..." : one value per family, repeatable.
+function familyArgs(argv, flag) {
+  const out = {};
+  argv.forEach((a, i) => {
+    if (a !== flag || i + 1 >= argv.length) return;
+    const eq = argv[i + 1].indexOf('=');
+    if (eq < 1) return;
+    const family = argv[i + 1].slice(0, eq).toLowerCase();
+    (out[family] = out[family] || []).push(argv[i + 1].slice(eq + 1));
+  });
+  return out;
+}
+
+/*
+ * A dated page: each family is its own set of runs with its own date, agent
+ * and plugin versions, checked for sameness within the family and stamped on
+ * its panel. The date comes from run.json (started, finished); runs from
+ * before run.json carried one take it from --date, and the page says it was
+ * given, not recorded.
+ */
+function datedStamps(records, dates, notes) {
+  const families = FAMILY_ORDER.filter((f) => records.some((r) => familyOf(r) === f))
+    .concat([...new Set(records.map(familyOf))].filter((f) => !FAMILY_ORDER.includes(f)).sort());
+  return families.map((family) => {
+    const group = records.filter((r) => familyOf(r) === family);
+    assertSameVersions(group);
+    const days = group.flatMap((r) => [r.started, r.finished]).filter(Boolean).map((s) => String(s).slice(0, 10)).sort();
+    let date = null;
+    let source = 'none';
+    if (days.length) {
+      date = days[0] === days[days.length - 1] ? days[0] : `${days[0]} to ${days[days.length - 1]}`;
+      source = 'recorded';
+    } else if (dates[family]) {
+      date = dates[family][0];
+      source = 'given';
+    }
+    return {
+      family,
+      date,
+      source,
+      benchmark: group[0].benchmark,
+      agent: group[0].agent,
+      plugins: group[0].plugins || {},
+      notes: notes[family] || [],
+    };
+  });
 }
 
 function main() {
@@ -740,7 +868,9 @@ function main() {
     process.exitCode = 1;
     return;
   }
-  const dirs = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== '--out' && argv[i - 1] !== '--session');
+  const valued = new Set(['--out', '--session', '--date', '--note']);
+  const dirs = argv.filter((a, i) => !a.startsWith('--') && !valued.has(argv[i - 1]));
+  const dated = argv.includes('--dated');
   const suite = loadSuite();
   const root = path.join(__dirname, '..');
   let records;
@@ -752,7 +882,9 @@ function main() {
     } else if (dirs.length) {
       records = dirs.map(loadDir).map((record) => applySuite(record, suite));
       const unstamped = records.filter((record) => !record.benchmark);
-      if (unstamped.length === records.length) {
+      if (dated) {
+        meta = { dated: datedStamps(records, familyArgs(argv, '--date'), familyArgs(argv, '--note')) };
+      } else if (unstamped.length === records.length) {
         const agents = [...new Set(records.map((record) => record.agent))];
         if (agents.length !== 1 || !agents[0]) {
           throw new Error('refusing to combine unstamped runs from different agent versions');
@@ -784,11 +916,11 @@ function main() {
     return;
   }
   fs.mkdirSync(outDir, { recursive: true });
-  fs.writeFileSync(path.join(outDir, 'report.svg'), renderSvg(records));
+  fs.writeFileSync(path.join(outDir, 'report.svg'), renderSvg(records, null, meta.dated));
   fs.writeFileSync(path.join(outDir, 'report.html'), renderHtml(records, meta));
   console.log(path.join(outDir, 'report.html'));
 }
 
 if (require.main === module) main();
 
-module.exports = { renderSvg, renderHtml, SAMPLE };
+module.exports = { renderSvg, renderHtml, SAMPLE, datedStamps, auditOf };

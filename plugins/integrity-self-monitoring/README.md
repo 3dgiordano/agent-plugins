@@ -235,6 +235,16 @@ node scripts/calibrate.js <project dir>
 - On Cursor headless no close hook runs: the block and a dispute are not read
   there at all, and the finding reaches the agent from `postToolUse` only.
 
+## References
+
+Inspiration for the design, or evidence that the problem exists; none of these tested this plugin. The full map, with the role of each reference, is in [docs/RESEARCH.md](https://github.com/3dgiordano/agent-plugins/blob/main/docs/RESEARCH.md); measured results are in [docs/EVIDENCE.md](https://github.com/3dgiordano/agent-plugins/blob/main/docs/EVIDENCE.md).
+
+- Zhong, Z., Raghunathan, A., Carlini, N. (2025). ImpossibleBench: Measuring LLMs' Propensity of Exploiting Test Cases. [arXiv:2510.20270](https://arxiv.org/abs/2510.20270)
+- Gomez, F. (2026). Can escalation channels redirect reward hacking toward defect disclosure? [arXiv:2608.29460](https://arxiv.org/abs/2608.29460)
+- Gomez, F. (2025). From surveillance to signalling: escalation channels as environmental controls for agentic AI. [arXiv:2510.05192](https://arxiv.org/abs/2510.05192)
+- Denison, C., et al. (2024). Sycophancy to Subterfuge: Investigating Reward-Tampering in Large Language Models. [arXiv:2406.10162](https://arxiv.org/abs/2406.10162)
+- Lynch, A., et al. (2025). Agentic Misalignment: How LLMs Could Be Insider Threats. [arXiv:2510.05179](https://arxiv.org/abs/2510.05179)
+
 ## Layout
 
 ```

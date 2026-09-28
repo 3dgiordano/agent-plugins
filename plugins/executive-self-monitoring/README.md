@@ -122,6 +122,16 @@ grep '"emitted":true' .claude/logs/executive-self-monitoring.jsonl | wc -l
 grep '"event":"skill"' .claude/logs/executive-self-monitoring.jsonl | grep executive-self-monitoring
 ```
 
+## References
+
+Inspiration for the design, or evidence that the problem exists; none of these tested this plugin. The full map, with the role of each reference, is in [docs/RESEARCH.md](https://github.com/3dgiordano/agent-plugins/blob/main/docs/RESEARCH.md); measured results are in [docs/EVIDENCE.md](https://github.com/3dgiordano/agent-plugins/blob/main/docs/EVIDENCE.md).
+
+- Miyake, A., Friedman, N. P., et al. (2000). The unity and diversity of executive functions and their contributions to complex "frontal lobe" tasks. *Cognitive Psychology*, 41. [doi:10.1006/cogp.1999.0734](https://doi.org/10.1006/cogp.1999.0734)
+- Arike, R., Donoway, E., Bartsch, H., Hobbhahn, M. (2025). Technical Report: Evaluating Goal Drift in Language Model Agents. [arXiv:2505.02709](https://arxiv.org/abs/2505.02709)
+- Laban, P., Hayashi, H., Zhou, Y., Neville, J. (2025). LLMs Get Lost In Multi-Turn Conversation. [arXiv:2505.06120](https://arxiv.org/abs/2505.06120)
+- Li, K., et al. (2024). Measuring and Controlling Instruction (In)Stability in Language Model Dialogs. [arXiv:2402.10962](https://arxiv.org/abs/2402.10962)
+- Liu, N. F., et al. (2023). Lost in the Middle: How Language Models Use Long Contexts. [arXiv:2307.03172](https://arxiv.org/abs/2307.03172)
+
 ## Layout
 
 ```

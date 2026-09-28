@@ -240,6 +240,17 @@ grep '"preclose":true' .claude/logs/handoff-self-monitoring.jsonl | grep -c '"bl
 `node scripts/calibrate.js <project>` prints these as rates alongside the
 other plugins'.
 
+## References
+
+Inspiration for the design, or evidence that the problem exists; none of these tested this plugin. The full map, with the role of each reference, is in [docs/RESEARCH.md](https://github.com/3dgiordano/agent-plugins/blob/main/docs/RESEARCH.md); measured results are in [docs/EVIDENCE.md](https://github.com/3dgiordano/agent-plugins/blob/main/docs/EVIDENCE.md).
+
+- Camerer, C., Loewenstein, G., Weber, M. (1989). The Curse of Knowledge in Economic Settings. *Journal of Political Economy*, 97. [doi:10.1086/261651](https://doi.org/10.1086/261651)
+- Gilovich, T., Savitsky, K., Medvec, V. H. (1998). The illusion of transparency. *Journal of Personality and Social Psychology*, 75. [doi:10.1037/0022-3514.75.2.332](https://doi.org/10.1037/0022-3514.75.2.332)
+- Flower, L. (1979). Writer-Based Prose: A Cognitive Basis for Problems in Writing. *College English*, 41. [NCTE](https://publicationsncte.org/content/journals/10.58680/ce197916016)
+- Wood, D., Bruner, J. S., Ross, G. (1976). The role of tutoring in problem solving. *Journal of Child Psychology and Psychiatry*, 17. [doi:10.1111/j.1469-7610.1976.tb00381.x](https://doi.org/10.1111/j.1469-7610.1976.tb00381.x)
+- Haig, K. M., Sutton, S., Whittington, J. (2006). SBAR: a shared mental model for improving communication between clinicians. *Joint Commission Journal on Quality and Patient Safety*, 32. [doi:10.1016/S1553-7250(06)32022-3](https://doi.org/10.1016/S1553-7250(06)32022-3)
+- Starmer, A. J., et al. (2014). Changes in medical errors after implementation of a handoff program. *NEJM*, 371. [doi:10.1056/NEJMsa1405556](https://doi.org/10.1056/NEJMsa1405556)
+
 ## Layout
 
 ```

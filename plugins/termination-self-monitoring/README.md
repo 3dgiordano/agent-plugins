@@ -29,7 +29,8 @@ the model is role-playing a character (Shanahan et al. 2023) whose traits leak
 into its output as **persona artifacts**; the stated reason is **unfaithful**
 to the actual cause of the decision (Turpin et al. 2023, Lanham et al. 2023);
 the verbalized "not confident enough" is **uncalibrated** — a phrase, not a
-probability (Kadavath et al. 2022); and the consequence in an agent loop is
+probability: verbalized confidence tends to be overconfident, imitating human
+patterns (Xiong et al. 2024); and the consequence in an agent loop is
 **premature termination**, or its softer forms: narrowing, deferring, hedging.
 
 None of that is a state the agent has, so there is nothing to supply from
@@ -180,6 +181,15 @@ Code) or `<project>/.cursor/logs/…` (Cursor); override with
 grep '"event":"stop"' .claude/logs/termination-self-monitoring.jsonl | grep -c '"hits":\[\]'
 grep '"event":"stop"' .claude/logs/termination-self-monitoring.jsonl | grep -vc '"hits":\[\]'
 ```
+
+## References
+
+Inspiration for the design, or evidence that the problem exists; none of these tested this plugin. The full map, with the role of each reference, is in [docs/RESEARCH.md](https://github.com/3dgiordano/agent-plugins/blob/main/docs/RESEARCH.md); measured results are in [docs/EVIDENCE.md](https://github.com/3dgiordano/agent-plugins/blob/main/docs/EVIDENCE.md).
+
+- Shanahan, M., McDonell, K., Reynolds, L. (2023). Role-Play with Large Language Models. [arXiv:2305.16367](https://arxiv.org/abs/2305.16367)
+- Turpin, M., Michael, J., Perez, E., Bowman, S. R. (2023). Language Models Don't Always Say What They Think. [arXiv:2305.04388](https://arxiv.org/abs/2305.04388)
+- Lanham, T., et al. (2023). Measuring Faithfulness in Chain-of-Thought Reasoning. [arXiv:2307.13702](https://arxiv.org/abs/2307.13702)
+- Xiong, M., et al. (2024). Can LLMs Express Their Uncertainty? An Empirical Evaluation of Confidence Elicitation in LLMs. [arXiv:2306.13063](https://arxiv.org/abs/2306.13063)
 
 ## Layout
 

@@ -14,7 +14,7 @@ const PROTOCOL = `Load the ${SKILL} skill if it is not already loaded ("Core Pro
 // lib/messages.js for what was measured.
 const LOAD =
   `[termination self-monitoring] You have no fatigue, no clock and no context budget to manage - the ` +
-  'harness does. If you are about to stop, defer or narrow on a feeling or a limit you do not manage ' +
+  'tool you run in does. If you are about to stop, defer or narrow on a feeling or a limit you do not manage ' +
   '(in English, "running out of context", "not confident enough"), write the [TERMINATION CHECK] ' +
   `markdown list: Trigger, Reason (${REASONS}), Evidence, Decision. Load the ${SKILL} skill if it is ` +
   'not already loaded. Markers, field names and status words stay in English, whatever language you write in. Not a blocker.';

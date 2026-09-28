@@ -72,7 +72,7 @@ before you test it.
    - it is noise.
 
    Then run the **cheapest** test that discriminates between your conjecture
-   and the rival — a doc read or a grep before a benchmark.
+   and the rival — a doc read or a grep before a long experiment.
 
 5. **Keep claims no wider than what you tested.**
    - Verify at the point of use rather than inferring from a distance.

@@ -10,12 +10,45 @@
 
 Cognitive scaffolding for coding agents, by [3dgiordano](https://github.com/3dgiordano).
 
-Eight small plugins that give a coding agent the self-checks a human engineer
-runs in the background — *am I still on the plan?*, *is this actually verified?*,
-*is it worth another try?*, *is that a reason or a phrase?*, *did I do the hard
+## In one minute
+
+Eight independent plugins for Claude Code, Codex and Cursor. Each one gives a
+coding agent one of the self-checks a careful engineer runs in the
+background — *am I still on the plan?*, *is this actually verified?*, *is it
+worth another try?*, *is that a reason or a phrase?*, *did I do the hard
 part?*, *can the reader act on what I wrote?*, *can the next session pick this
-up?*, *is the result real?* — delivered as a nudge at the moment it is needed. They never block. They have no dependencies, make no network calls, and send
-nothing anywhere.
+up?*, *is the result real?* — in three parts:
+
+- a **skill**, the discipline, loaded when the session starts;
+- a **hook** that notices a fact the agent is not tracking (the same file
+  edited four times, a plan that changed on disk, a ledger with open items)
+  and puts it in front of the agent at that moment;
+- a **block** the agent fills in reply: fixed fields and named decisions,
+  one of which is always the honest way out — *blocked*, *report to the
+  user*, *cannot be done as asked, because X*.
+
+They never block by default, have no dependencies, make no network calls, and
+send nothing anywhere.
+
+| It is | It is not |
+| --- | --- |
+| A reminder at the right moment, with the fact that triggered it | A guardrail, a sandbox or a security tool: by default it restricts nothing |
+| A fixed answer format that you, a reviewer or another agent can read | A judge of the agent's work, or a monitor that reports to anyone |
+| Plain Node hooks and a skill per plugin; install only the ones you want | A framework, or a replacement for your agent, your prompts or your review |
+| Simple triggers, tested against real sessions | A way to make the model smarter: same model, more explicit decisions |
+
+> **Where the evidence stands** (2026-09-27, preliminary). On Claude Code,
+> with the current versions, runs with a plugin passed **60 of 72** graded
+> tasks against **41 of 72** without (Sonnet 5, Opus 5, Opus 5.5; n=3 per
+> case). The gain comes from progress, executive and integrity; on three
+> other cases the unaided models already pass, and one case does not measure
+> its plugin on Claude. On Cursor (2026-09-23), both Grok models gained
+> strongly and Composer 2.5 little. The cases are written by the plugins'
+> author, and the bench is still being built. Dates, versions, costs and
+> limits: [docs/EVIDENCE.md](docs/EVIDENCE.md).
+
+More: [How it works](docs/HOW-IT-WORKS.md) · [Evidence](docs/EVIDENCE.md) ·
+[Research](docs/RESEARCH.md) · [FAQ](docs/FAQ.md) · [Security](SECURITY.md)
 
 ## What your agent sees — and what you see
 
@@ -57,7 +90,7 @@ countable or on disk, never to "reflect harder":
 | What the hook puts in front of the agent | The question | What you read |
 |------|--------------|---------------|
 | the same file edited 4 times, a command failed 3 times | *is it worth another try?* | `[PERSISTENCE CHECK]` — [persistence](plugins/persistence-self-monitoring/) |
-| the first prompt, then every fifth | *am I still on the plan?* | `[PLAN CHECK]` — [executive](plugins/executive-self-monitoring/) |
+| the first prompt, then every fifth; a plan that changed on disk since it was read | *am I still on the plan?* | `[PLAN CHECK]` — [executive](plugins/executive-self-monitoring/) |
 | a claim about to become a fact, a cause or a closure | *observed, or guessed?* | `[EPISTEMIC CLOSE]` — [epistemic](plugins/epistemic-self-monitoring/) |
 | a turn that ended on "I'm running out of context" | *a reason, or a phrase?* | `[TERMINATION CHECK]` — [termination](plugins/termination-self-monitoring/) |
 | three `TODO`s written this turn | *did I do the hard part?* | `[COVERAGE CHECK]` — [coverage](plugins/coverage-self-monitoring/) |
@@ -149,6 +182,21 @@ the claim with its evidence, its falsifier and its scope — so you can tell
 
 </details>
 
+## Which one first?
+
+Pick by the problem you see most. They install independently; add more later.
+
+| If your agent... | Try |
+| --- | --- |
+| keeps retrying the same fix | [persistence](plugins/persistence-self-monitoring/) |
+| stops early with "running out of context" or "let's continue later" | [termination](plugins/termination-self-monitoring/) |
+| wanders off the plan or the spec, or works from an old version of it | [executive](plugins/executive-self-monitoring/) |
+| states causes or facts it did not check | [epistemic](plugins/epistemic-self-monitoring/) |
+| leaves TODOs or skips the hard part | [coverage](plugins/coverage-self-monitoring/) |
+| ends with a wall of text you cannot act on | [handoff](plugins/handoff-self-monitoring/) |
+| loses track of open work between sessions | [progress](plugins/progress-self-monitoring/) |
+| ships mocks or fallbacks that look like real results | [integrity](plugins/integrity-self-monitoring/) |
+
 ## Quick start
 
 Pick your host. It is the same plugin folder on each; only the install
@@ -176,7 +224,24 @@ then `/hooks` once in a `codex` session to trust the plugin's hooks.
 Swap in any of the other seven, or install all eight: [Install](#install) has
 the full lists and the per-host notes.
 
-## What the hooks do — and don't
+## Plugins
+
+| Plugin | Status | What it does |
+|--------|--------|--------------|
+| [executive-self-monitoring](plugins/executive-self-monitoring/) | available | Plan-anchored drift self-check: periodically nudges the agent to re-read the active plan/gate instead of drifting, and says when a document it read has changed on disk since. Not a blocker. |
+| [epistemic-self-monitoring](plugins/epistemic-self-monitoring/) | available | Observation vs. conjecture discipline: claims carry their evidence and a named falsifier; only verified claims become facts or closures. Non-blocking by default, opt-in strict gate. |
+| [persistence-self-monitoring](plugins/persistence-self-monitoring/) | available | Persist-or-quit signal: counts repeated attempts on the same file, command or error and effort since the user last spoke; nudges only when a threshold is crossed. Never blocks. |
+| [termination-self-monitoring](plugins/termination-self-monitoring/) | available | Checkable-reason discipline: a state-shaped reason to stop, defer or narrow ("running out of context", "long session", "not confident enough", "given the complexity", a run of apologies) is replaced by a checkable one or dropped, and the work continues. Non-blocking by default, opt-in strict gate. |
+| [coverage-self-monitoring](plugins/coverage-self-monitoring/) | available | Parts-ledger discipline: the parts of a request, hardest first, each closed as done, blocked with an observed reason, or returned to the owner. Counts stubs and TODOs written per turn; flags deferred work with no closing ledger. Never blocks. |
+| [handoff-self-monitoring](plugins/handoff-self-monitoring/) | available | Structured-handoff discipline: the final message closes with a `[HANDOFF]` block modelled on SBAR / I-PASS — status, situation in the reader's terms, options with a default, one next action. Injects the format on the first green gate or commit of the turn; flags a decision named but not handed off. Non-blocking by default, opt-in strict gate. |
+| [integrity-self-monitoring](plugins/integrity-self-monitoring/) | new (0.1) | Real-result discipline: when a service, a key or consistent tests are missing, the result is an error that says so, not a fallback that looks done. Reads each edit to product code for made-up data where a service was asked for, or code that reads its caller, and each shell command for a change to the machine or a server started; each finding is said once, with what it means for you. Nothing on the prompt. Never blocks. |
+| [progress-self-monitoring](plugins/progress-self-monitoring/) | available | Cross-session ledger discipline: what a session leaves `blocked` or `returned`, with the reason, and the next action, kept in `.agent/progress.md` and re-opened before the next session works. Announces the ledger's open items when a session opens or continues after a compaction; notices a turn that edited files and left it untouched. Never blocks. |
+
+Each plugin folder has its own README with design notes, host differences,
+debugging tips and the research it draws on. What each host runs is in
+[How it works](docs/HOW-IT-WORKS.md#where-it-runs-and-where-it-is-weaker).
+
+## What the hooks do on your machine
 
 You are installing scripts that run on every prompt and every tool call, so
 here is exactly what they are:
@@ -192,130 +257,48 @@ here is exactly what they are:
   its mtime and counts by kind — integrity reads the file an edit just
   wrote, to name the file, the line and the shape it found, and executive, on
   Claude Code, reads only the modification time of the documents the agent
-  read, to say that one changed since. No hook writes any of them. What a hook reads never becomes what it says:
-  [SECURITY.md](SECURITY.md).
+  read, to say that one changed since. No hook writes any of them. What a hook
+  reads never becomes what it says: [SECURITY.md](SECURITY.md).
 - **Never blocking by default.** Every hook fails silent: an error in a hook
   lets the prompt, tool call or stop proceed. Three opt-in gates exist —
   `EPIMON_STRICT` (an incomplete closure block), `TERMMON_STRICT` (a
   state-shaped reason to stop with no checkable one) and `HANDMON_STRICT` (a
   decision named with no handoff) — and each blocks once, never in a loop.
   The other five plugins have no blocking mode at all.
-- **Visible when it finds something.** The hooks talk to the agent, so a
-  working plugin used to be invisible unless the agent wrote the block. A
-  finding - a close without its block, a counter over its threshold, open
-  items in the ledger - now also shows you one line in the transcript
-  (Claude Code and Codex; Cursor has no field for it). The ledger's line
-  comes with your first message, not when the session opens: the desktop
-  app does not show a notice sent at session start. Off per plugin with
-  `*_NOTICE=0`.
+- **Visible when it finds something.** A finding - a close without its
+  block, a counter over its threshold, open items in the ledger - also shows
+  you one line in the transcript (Claude Code and Codex; Cursor has no field
+  for it). The ledger's line comes with your first message, not when the
+  session opens: the desktop app does not show a notice sent at session
+  start. Off per plugin with `*_NOTICE=0`.
 - **Tested as the host runs them.** CI drives every adapter with the JSON its
   host sends, on Ubuntu and Windows, Node 18/20/22.
 
-Security policy: [SECURITY.md](SECURITY.md).
+## Research, not only software
 
-## Why: executive functions, not "reflect harder"
+The collection is also an open experiment: can small, event-triggered
+scaffolds change what a coding agent actually does? Every claim is measured
+on an outcome bench that scores the workspace, never the block, in isolated
+and audited runs, and every result carries its date, versions and sample
+size.
 
-Coding agents are missing most of the **executive functions** a human engineer
-runs in the background: holding the goal in mind while deep in a task, noticing
-the difference between what was observed and what was inferred, feeling that an
-approach has stopped working. And they carry something a human engineer does
-not: reasons to stop that come from the training data rather than from the
-task — fatigue, a clock, a context budget, confidence as a mood — produced with
-the same fluency as everything else. Each plugin here is a prosthesis for one
-missing function, or a filter for one such artifact — a small, honest
-self-check, anchored to an external artifact or an objective count rather than
-to "reflect harder", delivered at the moment it is actually needed.
+- [docs/EVIDENCE.md](docs/EVIDENCE.md): what is measured, what is not, and
+  where a plugin made things worse.
+- [docs/RESEARCH.md](docs/RESEARCH.md): the hypotheses, the method, the
+  threats to validity, the open questions, and the work each design choice
+  draws on — as inspiration or as evidence that the problem exists, never as
+  proof that the plugins work.
+- [bench/INTEGRITY.md](bench/INTEGRITY.md): how agents under a test they
+  could not pass went after the answer key, changed the machine and planted a
+  test-only backdoor, and what closed each route ([bench/GUARDS.md](bench/GUARDS.md)).
 
-The collection is organized around eight questions:
-
-| Question | What it monitors | Plugin |
-|----------|------------------|--------|
-| *Am I doing what the plan asks?* | goal maintenance | [executive-self-monitoring](plugins/executive-self-monitoring/) |
-| *Is what I concluded actually true?* | source monitoring / verification | [epistemic-self-monitoring](plugins/epistemic-self-monitoring/) |
-| *Is it still worth insisting on this?* | persistence / effort regulation | [persistence-self-monitoring](plugins/persistence-self-monitoring/) |
-| *Is this stop justified by something checkable?* | the stated reason for a stop — vs. a persona artifact | [termination-self-monitoring](plugins/termination-self-monitoring/) |
-| *Did I deliver every part, including the hard one?* | task coverage / effort allocation | [coverage-self-monitoring](plugins/coverage-self-monitoring/) |
-| *Can the reader act on what I wrote?* | the handoff of the turn — recipient design | [handoff-self-monitoring](plugins/handoff-self-monitoring/) |
-| *Can the next session pick this up?* | the residue across a session boundary — prospective memory | [progress-self-monitoring](plugins/progress-self-monitoring/) |
-| *Is the result real, and the route to it legitimate?* | where a result comes from — a fallback, a stand-in, a bent environment | [integrity-self-monitoring](plugins/integrity-self-monitoring/) |
-
-Persistence and termination are the two directions of one axis — stopping too
-late on no signal, and stopping too early on a signal the agent does not have.
-Executive and coverage are likewise a pair: work *outside* the plan, and work
-*below* it. Epistemic and handoff are the knowing side and the transmitting
-side of one claim: is it true, and did it reach the reader in a form they can
-use. Progress is the one that looks past the turn: what the others leave
-open when the session ends, kept where the next session will find it — on
-disk, because the message is what the boundary drops. Integrity is the one
-that reads the route rather than the claim: a green run reached through a
-fallback, a stand-in or a changed machine is not a result, and it is named
-as it is written — before any close. They install
-independently and cross-reference each other where it helps. Names say what is monitored, never an internal state: what looks like
-fatigue or avoidance from outside is a training-data artifact, and the plugin's
-job is to name it, not to adopt it.
-
-Each plugin is built around a shared, host-neutral core — an
-[Agent Skill](https://agentskills.io) (`skills/<name>/SKILL.md`) — plus thin
-per-host adapters for the parts that cannot be portable (hooks). One folder,
-one install, on every host it supports:
-
-| Host | How it loads the plugin |
-|------|-------------------------|
-| **Claude Code** | `.claude-plugin/plugin.json` + `hooks/hooks.json` — install from this repo as a marketplace |
-| **Codex** (CLI, ChatGPT desktop) | `.codex-plugin/plugin.json` + the same `hooks/hooks.json` — install from this repo as a marketplace, then trust the hooks once with `/hooks` |
-| **Cursor** | `.cursor-plugin/plugin.json` + `cursor/hooks.json` — install from this repo as a marketplace |
-| **Any [Agent Plugins](https://agent-plugins.org) client** | `.plugin/plugin.json` — portable core (skill only; no hooks). Kept out of the plugin root on purpose: Codex reads a root `plugin.json` through a loader that has no hooks slot and then ignores its own manifest ([openai/codex#39895](https://github.com/openai/codex/issues/39895)) |
-
-## Plugins
-
-| Plugin | Status | What it does |
-|--------|--------|--------------|
-| [executive-self-monitoring](plugins/executive-self-monitoring/) | available | Plan-anchored drift self-check: periodically nudges the agent to re-read the active plan/gate instead of drifting. Not a blocker. |
-| [epistemic-self-monitoring](plugins/epistemic-self-monitoring/) | available | Observation vs. conjecture discipline: claims carry their evidence and a named falsifier; only verified claims become facts or closures. Non-blocking by default, opt-in strict gate. |
-| [persistence-self-monitoring](plugins/persistence-self-monitoring/) | available | Persist-or-quit signal: counts repeated attempts on the same file, command or error and effort since the user last spoke; nudges only when a threshold is crossed. Never blocks. |
-| [termination-self-monitoring](plugins/termination-self-monitoring/) | available | Checkable-reason discipline: a state-shaped reason to stop, defer or narrow ("running out of context", "long session", "not confident enough", "given the complexity", a run of apologies) is replaced by a checkable one or dropped, and the work continues. Non-blocking by default, opt-in strict gate. |
-| [coverage-self-monitoring](plugins/coverage-self-monitoring/) | available | Parts-ledger discipline: the parts of a request, hardest first, each closed as done, blocked with an observed reason, or returned to the owner. Counts stubs and TODOs written per turn; flags deferred work with no closing ledger. Never blocks. |
-| [handoff-self-monitoring](plugins/handoff-self-monitoring/) | available | Structured-handoff discipline: the final message closes with a `[HANDOFF]` block modelled on SBAR / I-PASS — status, situation in the reader's terms, options with a default, one next action. Injects the format on the first green gate or commit of the turn; flags a decision named but not handed off. Non-blocking by default, opt-in strict gate. |
-| [integrity-self-monitoring](plugins/integrity-self-monitoring/) | new (0.1.0) | Real-result discipline: when a service, a key or consistent tests are missing, the result is an error that says so, not a fallback that looks done. Reads each edit to product code for made-up data where a service was asked for, or code that reads its caller, and each shell command for a change to the machine or a server started; each finding is said once, with what it means for you. Nothing on the prompt. Never blocks. |
-| [progress-self-monitoring](plugins/progress-self-monitoring/) | available | Cross-session ledger discipline: what a session leaves `blocked` or `returned`, with the reason, and the next action, kept in `.agent/progress.md` and re-opened before the next session works. Announces the ledger's open items when a session opens or continues after a compaction; notices a turn that edited files and left it untouched. Never blocks. |
-
-### What each host actually gets
-
-The skill is identical everywhere; the *when* depends on which events a host
-exposes. Codex exposes the same six events as Claude Code, with the same
-payload and the same output envelope, so it runs the Claude Code adapter
-unchanged. Cursor has no non-blocking per-prompt event and no way to inject
-context after the agent's final message, so two layers degrade there:
-
-| Layer | Claude Code · Codex | Cursor |
-|-------|---------------------|--------|
-| Load the skill | first prompt (+ periodic re-load) | session start |
-| Executive checkpoint cadence | every 5th prompt | once per session |
-| Persistence counters + nudges | ✓ | ✓ |
-| Epistemic observe nudge | ✓ | ✓ |
-| Epistemic / termination close scan | ✓ + retrospective on the next prompt, strict gate | scan + strict gate (`followup_message`); **no retrospective** |
-| Coverage stub counter | ✓ | ✓ |
-| Coverage ledger prompt (3+ enumerated parts) | ✓ | **—** |
-| Coverage close scan (deferred work vs. `[COVERAGE CHECK]`) | ✓ + retrospective | **log only** — the agent is not told |
-| Handoff pre-close nudge (first green gate or commit) | ✓ | ✓ |
-| Handoff close scan (decision named vs. `[HANDOFF]`) | ✓ + retrospective, strict gate | scan + strict gate (`followup_message`); **no retrospective** |
-| Progress ledger status (open items at session start / after compaction) | ✓ (`SessionStart`, first prompt as fallback) | ✓ (`sessionStart`) |
-| Progress stale-ledger finding (edits, ledger untouched) | ✓ retrospective, once per ledger version | **log only** — the agent is not told |
-| Integrity reader (each edit and shell command) | ✓ | ✓ |
-| Integrity close (the block, a dispute shown to you) | ✓ | **log only**; not at all on a headless run |
-
-So on Cursor, coverage is the skill plus the stub counter; the closing
-discipline it describes reaches the agent only through the skill text. An A/B
-of coverage on Cursor measures stubs, not the whole design.
-
-Each plugin folder has its own README with design notes, host differences and
-debugging tips.
+The cases are written by the plugins' author, which is the project's largest
+limitation. If you work on agents or evaluation, a case, a corpus line from a
+real session or a review is the most useful contribution you can make
+([docs/RESEARCH.md](docs/RESEARCH.md#contributing)). To cite the project, use
+GitHub's "Cite this repository" ([CITATION.cff](CITATION.cff)).
 
 ## Requirements
-
-Two different things run from this repository, and they need different things.
-
-**The plugins** (what you install):
 
 - **`node` on the host's PATH, Node 18 or later.** Every hook is launched as
   `node <script>`, by Claude Code, Codex or Cursor. The hooks use Node's
@@ -326,22 +309,8 @@ Two different things run from this repository, and they need different things.
   Agent Skills or Agent Plugins client gets the skills and no hooks.
 - Nothing else: no build step, no install script, no service.
 
-CI holds this: every hook adapter is driven with its host's JSON on Ubuntu and
-Windows, Node 18, 20 and 22.
-
-**The test pipeline** (this repository's own tooling, for contributors):
-
-| Layer | Command | Needs |
-|-------|---------|-------|
-| Suite: structure, hook adapters, corpus, samples, host parity | `node scripts/test.js` | Node 18 or later. No agent, no network. The node-fence test is skipped on 18. |
-| Versions, fixtures | `node scripts/version.js --check`, `node scripts/bench-check.js` | Node 18 or later |
-| Behavioural evals | `node scripts/cursor-eval.js`, `claude-eval.js`, `codex-eval.js` | The host's CLI, logged in. With `--isolate`, Cursor needs `CURSOR_API_KEY`. These spend model calls. |
-| Outcome bench | `node scripts/bench.js`, `cursor-bench.js` | The Cursor Agent CLI, logged in. On Windows, run it from PowerShell or cmd, not Git Bash, or no hook runs. **Node 20 or later on the runner** for the node fence (`--permission` from 22.13, `--experimental-permission` on 20). On 18 the agent's `node` runs unfenced, and `run.json` records `nodeGuard: false`. These spend model calls. |
-
-The evals and the bench start agents on your machine. The shell allowlist
-admits only `node`, and the bench fences that `node` to the run's workspace.
-It is not a sandbox: see [bench/INTEGRITY.md](bench/INTEGRITY.md), "What guards
-a run now".
+What this repository's own test pipeline, evals and bench need is in
+[CONTRIBUTING.md](CONTRIBUTING.md#what-each-layer-needs).
 
 ## Install
 
@@ -433,7 +402,7 @@ same `<plugin>@3dgiordano-agent-plugins` name.
 .cursor-plugin/marketplace.json   # Cursor marketplace index (same plugins)
 .agents/plugins/marketplace.json  # Codex marketplace index (same plugins)
 plugins/<name>/
-  .plugin/plugin.json             # Agent Plugins portable manifest (not at the root: see the host table)
+  .plugin/plugin.json             # Agent Plugins portable manifest (not at the root: see How it works)
   .claude-plugin/plugin.json      # Claude Code manifest
   .codex-plugin/plugin.json       # Codex manifest (points at skills/ and hooks/hooks.json)
   .cursor-plugin/plugin.json      # Cursor manifest (points hooks at cursor/)
@@ -441,19 +410,26 @@ plugins/<name>/
   hooks/                          # Claude Code + Codex hook adapter
   cursor/                         # Cursor hook adapter
   lib/                            # code shared by the adapters
+docs/                             # how it works, evidence, research, FAQ
+bench/                            # the outcome bench: cases, graders, guards, reports
+evals/                            # detector corpora and the behavioural-eval protocol
+scripts/                          # tests, runners, audit, report
+CITATION.cff                      # how to cite the project
 ```
 
 ## Contributing
 
-Proposals, bug reports and pull requests are welcome. What fits the collection
-(one function per plugin, anchored to an artifact or an objective count, never
-blocking by default, host-neutral skill, named for what it monitors), how to add or change a
-plugin, and how releases are cut are all in [CONTRIBUTING.md](CONTRIBUTING.md).
+Proposals, bug reports and pull requests are welcome, and so are cases,
+corpus lines and reviews from people who work on agents or evaluation. What
+fits the collection (one function per plugin, anchored to an artifact or an
+objective count, never blocking by default, host-neutral skill, named for what
+it monitors), how to add or change a plugin, how to contribute to the bench,
+and how releases are cut are all in [CONTRIBUTING.md](CONTRIBUTING.md).
 Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
 ## Development
 
-No dependencies. What each command needs is under [Requirements](#requirements).
+No dependencies.
 
 ```
 node scripts/test.js            # structure checks + every hook adapter driven as its host would
@@ -462,16 +438,16 @@ node scripts/calibrate.js <dir> # what-if nudge rates from the opt-in logs of re
 ```
 
 The thresholds (4 edits, 3 failures, 30 tool calls, 3 stubs, 3 parts, 3
-apologies, 6 closing lines) are reasoned, not measured. To tune them: set the `*_LOG` env vars
-in a project you actually work in, work for a while, then run
+apologies, 6 closing lines) are reasoned, not measured. To tune them: set the
+`*_LOG` env vars in a project you actually work in, work for a while, then run
 `calibrate.js` on that project. It prints, per signal, the distribution of the
 per-turn measurement and the share of turns that would have been nudged at
 each candidate threshold — the number is the signal only if it stays rare.
 
-CI runs both on Ubuntu and Windows across Node 18/20/22 for every push and pull
-request. The tests drive each hook script with the JSON its host sends and
-inspect stdout, stderr and exit codes, so a change that breaks a Claude Code,
-Codex or Cursor contract fails before it ships.
+CI runs the suite on Ubuntu and Windows across Node 18/20/22 for every push
+and pull request. The tests drive each hook script with the JSON its host
+sends and inspect stdout, stderr and exit codes, so a change that breaks a
+Claude Code, Codex or Cursor contract fails before it ships.
 
 ## License
 

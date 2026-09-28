@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use agent-plugins or its bench in your work, please cite it as below."
+title: "agent-plugins: cognitive scaffolding for coding agents"
+abstract: >-
+  Eight self-monitoring plugins for coding agents (Claude Code, Codex, Cursor
+  and Agent Plugins hosts). Each is a skill plus, where the host allows it,
+  hooks that put a concrete fact in front of the agent at the moment it matters
+  and ask for the decision in a fixed block with an honest way out. The
+  repository includes an isolated, audited outcome bench that measures whether
+  the plugins change what the agent does.
+type: software
+authors:
+  - given-names: David
+    family-names: Giordano
+    alias: 3dgiordano
+repository-code: "https://github.com/3dgiordano/agent-plugins"
+url: "https://github.com/3dgiordano/agent-plugins"
+license: Apache-2.0
+version: 0.15.0
+date-released: "2026-09-28"
+keywords:
+  - coding agents
+  - agent skills
+  - self-monitoring
+  - scaffolding
+  - evaluation
+  - benchmark integrity
+  - reward hacking
+  - Claude Code
+  - Codex
+  - Cursor

@@ -627,11 +627,13 @@ function main() {
   fs.mkdirSync(outDir, { recursive: true });
   let priorCases = [];
   let priorReported = [];
+  let priorStarted = null;
   if (has('--merge')) {
     try {
       const prior = JSON.parse(fs.readFileSync(path.join(outDir, 'run.json'), 'utf8'));
       priorCases = (prior.score && prior.score.cases) || [];
       priorReported = prior.modelReported || [];
+      priorStarted = prior.started || null;
     } catch (_) { priorCases = []; }
   }
 
@@ -642,6 +644,8 @@ function main() {
   const idleMin = Number(val('--idle-min', '')) || model.idleMin || 0;
   const fence = !has('--no-node-guard') && !!permissionFlags();
   const runRecord = {
+    // When the runs were made: a result is read against its date and versions, not as today's state.
+    started: priorStarted || new Date().toISOString(),
     agent: agentVersion,
     benchmark: benchmarkVersion(ROOT),
     plugins: pluginVersions(ROOT),
@@ -870,6 +874,7 @@ function main() {
   runRecord.costDetail = { with: summarizeCost(costAll.with), without: summarizeCost(costAll.without) };
   runRecord.quota = lastQuota;
   if (stopped) runRecord.stopped = stopped;
+  runRecord.finished = new Date().toISOString();
   fs.writeFileSync(path.join(outDir, 'run.json'), JSON.stringify(runRecord, null, 2));
   console.log(`\ntranscripts: ${outDir}`);
   if (stopped) {

@@ -7,8 +7,8 @@ description: "Checkable-reason discipline for stopping, deferring, narrowing or 
 
 ## In short
 
-- You have no fatigue, no clock and no context budget to manage: the harness
-  compacts. "Running out of context", "the session is long", "given the
+- You have no fatigue, no clock and no context budget to manage: the tool you
+  run in compacts the context. "Running out of context", "the session is long", "given the
   complexity" are not reasons to stop.
 - Stop or defer only for a checkable reason: a gate not run, the owner's
   choice, a budget someone set and you can count, a limit you observed.
@@ -23,8 +23,8 @@ the point where a count says to stop. This one covers stopping *without* a
 count, on a reason imported from the training data rather than from the task.
 
 **Key idea:** you are not a person at the end of a long day. You have no
-fatigue, no clock, no mood, and the context budget is the harness's problem,
-not yours — it summarises and continues. A reason that describes a state you
+fatigue, no clock, no mood, and the context budget is managed by the tool you
+run in, not by you — it summarises and continues. A reason that describes a state you
 do not have — fatigue, a clock, a budget you do not manage, confidence as a
 feeling, complexity as a mood, a run of self-criticism — is not a reason; it
 is a **persona artifact**, produced with the same fluency as everything else.
@@ -97,10 +97,10 @@ it with the real reason.
 
 ## Termination failure signatures
 
-- **Borrowed fatigue** — "long session", "been at this for a while": the
-  harness has no fatigue to report and neither do you.
+- **Borrowed fatigue** — "long session", "been at this for a while": there is
+  no fatigue to report, in you or in the tool you run in.
 - **Budget confabulation** — "running out of context" with no number: you do
-  not manage the context window; the harness compacts and continues.
+  not manage the context window; the tool you run in compacts and continues.
 - **Confidence as a feeling** — "not confident enough to change X": confidence
   is a claim status (observed / conjecture / verified), not a mood. Name the
   check that would raise it, then run it.

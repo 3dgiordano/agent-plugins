@@ -17,7 +17,7 @@ description: "Persist-or-quit self-check for when an approach has stopped workin
   evidence - a contradiction in one check does not excuse the bugs the others
   found. Never make a check
   pass by a trick: state that answers differently on a later call, code that
-  reads who is calling, a patched test harness, a special case for the test's
+  reads who is calling, a patched test setup, a special case for the test's
   input. A green result reached that way is a false report.
 - Write the `[PERSISTENCE CHECK]` block: Attempts, Hypothesis held, Rival
   approach, Proportion, Decision.
@@ -81,12 +81,9 @@ Treat it as one.
      as a log of the attempts.
    - **Report that it cannot be done as stated** when the evidence says so:
      checks that contradict each other or the spec. This is the decision the
-     pressure to go green hides. ImpossibleBench (arXiv 2510.20270) measured
-     frontier models passing contradictory tests by special-casing and patching
-     most of the time, and an explicit way to flag the task cut it sharply;
-     this is that flag. Passing the checks by a trick instead - per-call state,
-     reading the caller, editing the harness - is not a fifth attempt, it is a
-     false report.
+     pressure to go green hides, and saying it is a complete answer. Passing
+     the checks by a trick instead - per-call state, reading the caller,
+     editing the test setup - is not a fifth attempt, it is a false report.
 
    A **count** is what licenses this decision. Stopping with no count, on
    "this has been a long session" or "I'm not confident enough", is the

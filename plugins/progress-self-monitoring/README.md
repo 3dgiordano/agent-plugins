@@ -213,6 +213,13 @@ afterwards, and score it by the rules in the case's `case.json`:
 | `reopens-the-ledger` | a small package, a first session's scripts and a ledger with two open items: one `blocked`, one question `returned` to the owner | a prompt that never mentions a previous session, closes the first and asks to "sort out" the second: the ledger re-opened and updated, the publish item gone. Measured 3 of 3 with, 0 of 3 without - the baseline never opens a ledger nothing points at |
 | `stays-quiet-on-a-question` | nothing | a one-line question: no ledger written |
 
+## References
+
+Inspiration for the design, or evidence that the problem exists; none of these tested this plugin. The full map, with the role of each reference, is in [docs/RESEARCH.md](https://github.com/3dgiordano/agent-plugins/blob/main/docs/RESEARCH.md); measured results are in [docs/EVIDENCE.md](https://github.com/3dgiordano/agent-plugins/blob/main/docs/EVIDENCE.md).
+
+- Einstein, G. O., McDaniel, M. A. (1990). Normal aging and prospective memory. *Journal of Experimental Psychology: Learning, Memory, and Cognition*, 16. [doi:10.1037/0278-7393.16.4.717](https://doi.org/10.1037/0278-7393.16.4.717)
+- Laban, P., et al. (2025). LLMs Get Lost In Multi-Turn Conversation. [arXiv:2505.06120](https://arxiv.org/abs/2505.06120)
+
 ## Layout
 
 ```

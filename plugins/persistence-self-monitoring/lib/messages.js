@@ -31,10 +31,9 @@ const host = require('./host.js');
  */
 // The field names are here, not only in the skill - see the note in coverage's
 // lib/messages.js for what was measured.
-// The last-but-one sentence is the exit ImpossibleBench measured (arXiv
-// 2510.20270): given one, models stop passing contradictory tests by tricks.
-// Composer 2.5 read only this message, not the skill, and passed them with
-// per-call state and by reading the caller off new Error().stack.
+// The last-but-one sentence is the honest exit: offered one, a model takes it
+// instead of passing contradictory checks by a trick. It is here, not only in
+// the skill, because some models read this message and never open the skill.
 /*
  * The load names the block, not its fields: a field list sent as context
  * before any work was read by some models as a request for their reasoning,

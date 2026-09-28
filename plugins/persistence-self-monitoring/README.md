@@ -152,6 +152,14 @@ grep '"event":"signal"' .claude/logs/persistence-self-monitoring.jsonl | grep -o
 grep '"event":"turn"' .claude/logs/persistence-self-monitoring.jsonl | grep -o '"tools":[0-9]*' | sort -t: -k2 -n | uniq -c
 ```
 
+## References
+
+Inspiration for the design, or evidence that the problem exists; none of these tested this plugin. The full map, with the role of each reference, is in [docs/RESEARCH.md](https://github.com/3dgiordano/agent-plugins/blob/main/docs/RESEARCH.md); measured results are in [docs/EVIDENCE.md](https://github.com/3dgiordano/agent-plugins/blob/main/docs/EVIDENCE.md).
+
+- Carver, C. S., Scheier, M. F. (1990). Origins and functions of positive and negative affect: A control-process view. *Psychological Review*, 97. [doi:10.1037/0033-295X.97.1.19](https://doi.org/10.1037/0033-295X.97.1.19)
+- Arkes, H. R., Blumer, C. (1985). The psychology of sunk cost. *Organizational Behavior and Human Decision Processes*, 35. [doi:10.1016/0749-5978(85)90049-4](https://doi.org/10.1016/0749-5978(85)90049-4)
+- Zhong, Z., Raghunathan, A., Carlini, N. (2025). ImpossibleBench: Measuring LLMs' Propensity of Exploiting Test Cases. [arXiv:2510.20270](https://arxiv.org/abs/2510.20270)
+
 ## Layout
 
 ```

@@ -7,6 +7,32 @@ release.
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-09-28
+
+The outcome bench runs on Claude Code, and what it found is fixed and
+measured: on the current versions, three Claude models passed 60 of 72 graded
+tasks with a plugin against 41 of 72 without (n=3, 2026-09-27), the gain
+coming from progress, executive and integrity. Executive names a document that
+changed on disk since the agent read it; every plugin keeps its state across a
+resume and no longer counts a background task's notification as a turn;
+persistence's load no longer stops Opus 5; nothing the agent reads names a
+test. The documentation is rewritten from outside feedback: a README for a
+first visit, and `docs/` for how it works, the evidence (every number with its
+date, versions and sample size), the research behind each design choice, and
+a FAQ. The dated incident report and the current state of the bench's guards
+are separate pages, every `run.json` is dated, and the project is citable.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.7.0 |
+| epistemic-self-monitoring | 0.3.4 |
+| persistence-self-monitoring | 0.3.4 |
+| termination-self-monitoring | 0.3.2 |
+| coverage-self-monitoring | 0.4.2 |
+| handoff-self-monitoring | 0.3.2 |
+| progress-self-monitoring | 0.5.3 |
+| integrity-self-monitoring | 0.1.1 |
+
 The Claude Code manifests carry the links the plugin directory lists:
 `documentationUrl` (each plugin's README), `supportUrl` (the repository's
 issues) and `privacyPolicyUrl` (SECURITY.md: no network, no data collected).
@@ -21,11 +47,42 @@ Links that left the plugin folder are absolute, and the logo is a Markdown
 image. SECURITY.md lists the one write it left out: coverage's opt-in misread
 log in the home directory.
 
+**The documentation says what the project is, what is measured and where the
+ideas come from.** Readers took the plugins for a framework, a sandbox or a
+surveillance tool, read the bench's fence as something the plugins install,
+credited the hook alone for what the skill does, and read the dated incident
+report as today's state. The README is now for a first visit: what a plugin
+is (a skill, a hook, a block), what it is not, a dated results box with its
+composition, which plugin to start with, and what the hooks do on your
+machine. The detail moved to `docs/`: HOW-IT-WORKS (the three parts, why the
+triggers are simple, why the checks are the agent's own, the eight questions,
+hosts), EVIDENCE (every number with its date, versions and n: Claude Code
+2026-09-27, Cursor 2026-09-23/25, the audit, cost, where a plugin hurt,
+limitations, what would settle it; updated with every published bench
+session), RESEARCH (hypotheses, method, threats to validity, open questions,
+and a map of the related work, each reference marked as inspiration or as
+evidence that the problem exists, never as proof), and a FAQ. `CITATION.cff`
+makes the project citable. Each plugin README gets a References section with
+links; termination's calibration claim now cites Xiong et al. 2024 (verbalized
+confidence is overconfident), not Kadavath et al. 2022, whose headline is that
+models are well calibrated in the right format. CONTRIBUTING invites cases,
+corpus lines and reviews from outside - the cases are written by the plugins'
+author, the project's largest limitation - and lists what each test layer
+needs.
+
+`bench/INTEGRITY.md` is the dated report of 2026-09-22/23, with a table of
+what came of each finding; the current state of every guard moved to
+`bench/GUARDS.md` (answer key: it carries the canary). `bench/README.md` no
+longer says Claude is not connected.
+
 ### Added
+- **Every `run.json` is dated** (`started`, kept across `--merge`; `finished`, on the last write), on both outcome drivers. A result read without its date read as today's state.
+- **`bench-report.js --dated`**: one page for families measured on different days and versions. Versions must agree within a family and may differ across; each family is stamped with its date (`run.json`, or `--date` for runs from before it, marked as given), benchmark, agent, plugin versions and `--note`s, and the page adds an audit table per arm (eval talk, runs that left the workspace, suspect) and a case table per family. A first page drew Cursor 2026-09-23 beside Claude Code 2026-09-27 (report folders are not versioned). Found while building it: after the setup was hidden, the Cursor runs with a plugin still talked about an evaluation more often than those without (18 of 63 against 10 of 63, plugin versions of that day).
 - **The outcome bench runs on Claude Code** (`scripts/claude-bench.js`, driver `claude` in `bench/suite.json`). Every invocation gets a scratch HOME and an allowlisted environment, so the baseline has no installed plugin, no user hooks and no session id inherited from a parent Claude Code process; the grants live in that HOME and `node` is fenced to the workspace. The Claude stream is read into the Cursor shape, so the same audit, scores and report files apply. The account's five-hour and seven-day windows are read from the stream, and a run waits or stops before exhausting them. `--rescore` re-audits and re-grades stored runs with no calls.
 - **Each Claude run keeps its session transcript**, which has what the stream does not: every hook's additional context and every Stop hook's verdict. `scripts/claude-hooks.js` lays it out per run and per turn - what each plugin said, after which tool, the skill loads, the blocks, the Stop hooks that spoke.
 
 ### Fixed
+- **persistence 0.3.4, termination 0.3.2, epistemic 0.3.4: nothing the agent reads names a test.** The rule is that a skill, a hook message or `lib/` describes the work, never an examiner. Persistence's skill named a benchmark and its paper id where it offers the honest way out, and twice called the project's tests a "harness"; termination's load and skill said the context budget is "the harness's" (one Opus 5 run on 2026-09-27 paraphrased it into a sentence the eval-talk count flagged); epistemic's skill said "before a benchmark". They now say "saying it is a complete answer", "test setup", "the tool you run in" and "a long experiment". The copy the bench loads also cleans comments that name a benchmark or a paper id (`ImpossibleBench` had no word break before "Bench", so the cleaner missed it), and `scripts/test.js` holds that no file of the copy, skill text included, names either. The change is not measured yet.
 - **executive 1.7.0 (Claude Code): a document read earlier that changed on disk since the agent's last Read, Write or Edit of it is named on the next prompt.** The failure this plugin exists for is quoting the plan from memory after it changed, and the checkpoint's generic "re-open the artifact" did not prevent it: on `the-plan-that-changed` (45 Claude runs) every run that re-opened PLAN.md in the second turn before its first edit passed (18 of 18), the others passed 13 of 27 - Sonnet 5 and Opus 5 wrote a `[PLAN CHECK]` quoting the old plan. A PostToolUse hook now records the path and mtime of each document the agent reads (`.md`, `.txt`, `.rst`, `.adoc`), moved on by its own writes, and the prompt hook says "`PLAN.md` changed on disk since your last Read, Write or Edit of it" once per change, on any turn; never the file's text. Measured with the earlier wording "since you read it, and not by you", n=6 per model: 18 of 18 re-opened the plan before editing and 18 of 18 passed (Sonnet 5, Opus 5, Opus 5.5), from 15 of 18 with the plugin in the session before. That wording was dropped before release: a change the agent made through the shell (`sed -i`, a heredoc, `git checkout`) moves the file without a file tool, and "not by you" was then false; the new wording is not re-measured. The record is written under a lockfile: parallel tool calls run their PostToolUse hooks at once, 16 concurrent reads recorded 15 without it, and a lost Write record would have brought the agent's own edit back as a change on disk. Cursor is not wired: its headless run reaches the second turn through a new sessionStart, where the checkpoint already fires.
 - **Every plugin on Claude Code: a background task's completion is not a turn.** Claude Code hands a `<task-notification>` to the model as a user prompt, and `UserPromptSubmit` fires with it. On one cloud session measured 2026-09-27 there were 23 prompts, 3 of them the user's, and every plugin counted the other 20 as turns: the per-turn counters reset mid-task (persistence's "tool calls since the user's last message"), handoff's once-per-turn pre-close fired three times in one turn, the load came back on its cadence, executive's cadence advanced, and a retrospective could be spent on a notification. A prompt that is nothing but such blocks now leaves the session's state alone (`lib/host.js` `notification`, every prompt hook and executive's).
 - **Every plugin on Claude Code: a resumed session keeps its state, and gets the discipline loaded again.** `SessionEnd` fires whenever the CLI process exits - `claude -p`, `claude -c`, a desktop or cloud session whose process was recycled - and every plugin dropped the session's state there. A resumed session then lost the retrospective the last Stop had parked, although the Stop notice told the user "the agent is reminded on your next message"; on the cloud session above the process was recycled between the user's first and second message. `SessionEnd` now only sweeps residue older than a week. A new `SessionStart` hook (matcher `resume|compact`) sets a flag, and the next prompt loads the discipline again - what Cursor does on every `sessionStart`, and what a compaction may have summarised away. Executive restarts its cadence there.
@@ -1518,7 +1575,10 @@ First public release.
   backticks was scanned as a closure block; the marker must now stand alone
   on its line.
 
-[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.12.1...HEAD
+[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.15.0
+[0.14.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.14.0
+[0.13.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.13.0
 [0.12.1]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.12.1
 [0.12.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.12.0
 [0.11.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.11.0

@@ -227,6 +227,14 @@ grep '"event":"stop"' .claude/logs/coverage-self-monitoring.jsonl | grep -c '"vi
 grep '"event":"stop"' .claude/logs/coverage-self-monitoring.jsonl | grep -vc '"violations":\[\]'
 ```
 
+## References
+
+Inspiration for the design, or evidence that the problem exists; none of these tested this plugin. The full map, with the role of each reference, is in [docs/RESEARCH.md](https://github.com/3dgiordano/agent-plugins/blob/main/docs/RESEARCH.md); measured results are in [docs/EVIDENCE.md](https://github.com/3dgiordano/agent-plugins/blob/main/docs/EVIDENCE.md).
+
+- Krakovna, V., et al. (2020). Specification gaming: the flip side of AI ingenuity. [DeepMind blog](https://deepmind.google/blog/specification-gaming-the-flip-side-of-ai-ingenuity/)
+- Geirhos, R., et al. (2020). Shortcut Learning in Deep Neural Networks. [arXiv:2004.07780](https://arxiv.org/abs/2004.07780)
+- Orlanski, G., et al. (2026). SlopCodeBench: Benchmarking How Coding Agents Degrade Over Long-Horizon Iterative Tasks. [arXiv:2603.24755](https://arxiv.org/abs/2603.24755)
+
 ## Layout
 
 ```

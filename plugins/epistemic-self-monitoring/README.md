@@ -144,6 +144,16 @@ grep '"event":"close"' .claude/logs/epistemic-self-monitoring.jsonl | grep -c '"
 grep '"event":"close"' .claude/logs/epistemic-self-monitoring.jsonl | grep -vc '"violations":\[\]'
 ```
 
+## References
+
+Inspiration for the design, or evidence that the problem exists; none of these tested this plugin. The full map, with the role of each reference, is in [docs/RESEARCH.md](https://github.com/3dgiordano/agent-plugins/blob/main/docs/RESEARCH.md); measured results are in [docs/EVIDENCE.md](https://github.com/3dgiordano/agent-plugins/blob/main/docs/EVIDENCE.md).
+
+- Johnson, M. K., Hashtroudi, S., Lindsay, D. S. (1993). Source monitoring. *Psychological Bulletin*, 114. [doi:10.1037/0033-2909.114.1.3](https://doi.org/10.1037/0033-2909.114.1.3)
+- Croskerry, P. (2003). The importance of cognitive errors in diagnosis and strategies to minimize them. *Academic Medicine*, 78. [doi:10.1097/00001888-200308000-00003](https://doi.org/10.1097/00001888-200308000-00003)
+- Dhuliawala, S., et al. (2023). Chain-of-Verification Reduces Hallucination in Large Language Models. [arXiv:2309.11495](https://arxiv.org/abs/2309.11495)
+- Sharma, M., et al. (2023). Towards Understanding Sycophancy in Language Models. [arXiv:2310.13548](https://arxiv.org/abs/2310.13548)
+- Huang, J., et al. (2023). Large Language Models Cannot Self-Correct Reasoning Yet. [arXiv:2310.01798](https://arxiv.org/abs/2310.01798)
+
 ## Layout
 
 ```
