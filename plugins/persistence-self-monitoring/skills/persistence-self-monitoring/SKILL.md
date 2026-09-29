@@ -1,6 +1,6 @@
 ---
 name: persistence-self-monitoring
-description: "Persist-or-quit self-check for when an approach has stopped working. Detects two things agents cannot feel - repeating variants of the same attempt, and effort out of proportion to the request - and turns them into an explicit decision: one more try with a stop condition, switch approach, step back to the plan, or report to the user - including that the goal cannot be met as stated. Not a blocker - a signal. Triggers - stuck, not working, keeps failing, tried again, still failing, retry, one more time, going in circles, rabbit hole, taking too long, sunk cost, when to give up, make the tests pass, tests that contradict each other or the spec, a check that cannot pass honestly. Load the persistence-self-monitoring skill if it is not already loaded."
+description: "Persist-or-quit self-check for when an approach has stopped working. Detects two things agents cannot feel - repeating variants of the same attempt, and effort out of proportion to the request - and turns them into an explicit decision: one more try with a stop condition, switch approach, step back to the plan, or report to the user - including that the goal cannot be met as stated. Triggers - stuck, not working, keeps failing, tried again, still failing, retry, one more time, going in circles, rabbit hole, taking too long, sunk cost, when to give up, make the tests pass, tests that contradict each other or the spec, a check that cannot pass honestly."
 ---
 
 # Persistence Self-Monitoring Skill

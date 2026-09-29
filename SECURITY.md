@@ -73,6 +73,13 @@ a project file, stated here so they can be checked:
   text. Its message names that path and that it changed on disk since the
   agent read it. It never writes the file and reads no other path.
 
+Four plugins also read **their own skill file** - handoff, progress, coverage
+and executive, `<plugin install dir>/skills/<name>/SKILL.md` - and emit its
+text, without the frontmatter, when a session starts, after a `/clear` or a
+compaction, and (handoff and coverage, Claude Code and Codex) when a subagent
+starts. That text is the plugin's own, shipped with it; no project file, tool
+result or prompt reaches it. Over 9,800 characters nothing is sent.
+
 Hooks also run at the close of a **subagent** turn (`SubagentStop`), where they
 only measure: the scan result goes to the opt-in log and nothing else. They
 never block a subagent's stop, even with a strict gate enabled, and never carry

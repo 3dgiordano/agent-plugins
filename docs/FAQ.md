@@ -30,7 +30,7 @@ It is designed that way on purpose. Research on agents shows that the sense of b
 
 ### Do the detectors catch every case?
 
-**No, and they do not need to.** They are simple on purpose: counters and pattern matching. The skill, loaded at the start of the session, carries the full discipline; a detector only decides when to repeat the reminder. Their accuracy on real lines is tracked in CI, and their blind spots are listed in [EVIDENCE.md](EVIDENCE.md#the-detectors-the-triggers).
+**No, and they do not need to.** They are simple on purpose: counters and pattern matching. The skill carries the full discipline and the load message carries the block's shape; a detector only decides when to repeat the reminder. (Four plugins put their skill in context at the start of the session; for the other four the message is most of it: [HOW-IT-WORKS.md](HOW-IT-WORKS.md#three-parts-three-jobs).) Their accuracy on real lines is tracked in CI, and their blind spots are listed in [EVIDENCE.md](EVIDENCE.md#the-detectors-the-triggers).
 
 ## Does it work?
 
@@ -84,7 +84,7 @@ They install independently; add more later.
 
 ### Will they slow the agent down or fill its context?
 
-A little, and it is measured. On Claude Code, one plugin added between 1 and 15 seconds and a few hundred tokens per task (EVIDENCE.md, "Cost"). The context cost is the skill (loaded once, and again after a compaction or resume), one line each time a trigger fires, and the block the agent writes. The cost of all eight installed together is not measured yet. To see how often a trigger would fire on your own work, set the `*_LOG` variables and run `node scripts/calibrate.js`.
+A little, and it is measured. On Claude Code, one plugin added between 1 and 15 seconds and a few hundred tokens per task (EVIDENCE.md, "Cost"). The context cost is the skill: handoff, progress, coverage and executive put theirs in context at the start of every session and after a compaction (about 9,000 characters each, 5,400 for executive; handoff and coverage also in every subagent), the other four only when the agent loads them. Then one line each time a trigger fires, and the block the agent writes. The cost of all eight installed together is not measured yet. To see how often a trigger would fire on your own work, set the `*_LOG` variables and run `node scripts/calibrate.js`.
 
 ### Do they send my code anywhere?
 

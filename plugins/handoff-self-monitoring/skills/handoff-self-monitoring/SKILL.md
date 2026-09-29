@@ -1,6 +1,6 @@
 ---
 name: handoff-self-monitoring
-description: "Structured-handoff discipline for the final message of a turn. An agent that knows the state, the problem and the open decision writes its close in the register of its own trace - paths, identifiers, what it ran - and the reader, who has only the message, cannot tell what to decide or what to do next. This skill anchors the close to a [HANDOFF] block modelled on the SBAR and I-PASS handoff protocols: status first, the situation in the reader's terms, the fork as options with a default, one action asked of the reader. Not a blocker - a format. Triggers - offer to the reader, unnamed fork, closing question, reader cannot act, final message, closing the turn, wrapping up, summary, next steps, let me know, if you want, would you like me to, should I, up to you, your call, depends on, alternatively, two options, trade-off, what do you think, returned to the owner, handoff, report back. Load the handoff-self-monitoring skill if it is not already loaded."
+description: "Structured-handoff discipline for the final message of a turn. An agent that knows the state, the problem and the open decision writes its close in the register of its own trace - paths, identifiers, what it ran - and the reader, who has only the message, cannot tell what to decide or what to do next. This skill anchors the close to a [HANDOFF] block modelled on the SBAR and I-PASS handoff protocols: status first, the situation in the reader's terms, the fork as options with a default, one action asked of the reader. Triggers - offer to the reader, unnamed fork, closing question, reader cannot act, final message, closing the turn, wrapping up, summary, next steps, let me know, if you want, would you like me to, should I, up to you, your call, depends on, alternatively, two options, trade-off, what do you think, returned to the owner, handoff, report back."
 ---
 
 # Handoff Self-Monitoring Skill
@@ -74,16 +74,12 @@ is that format for an agent's turn:
    `blocked` with the reason not yet written.
 
    Neither is what you *did* a status. "Reviewed", "Analysed", "Investigated"
-   name the activity, and the reader triages on what they must do, not on what
-   you have been doing. An assessment that hands back a choice is
-   `needs-decision`; one that asks nothing of the reader is `done`. This is the
-   measured failure mode on review turns — the agent writes
-   `Status: Reviewed; <the finding>`, having already laid out `Options` and
-   `Next` correctly below it, so the block is a `needs-decision` in everything
-   but the word. The pull is real: the finding *is* the most important thing on
-   the page. It goes in `Situation`, which is the slot for it. `Status` is the
-   triage word, and it is worth more to the reader precisely because it is one
-   of three and they never have to read it twice.
+   name the activity; the reader triages on what they must do. An assessment
+   that hands back a choice is `needs-decision`; one that asks nothing of the
+   reader is `done`. On a review turn the pull is to write
+   `Status: Reviewed; <the finding>` above `Options` and `Next` that are
+   already right. The finding goes in `Situation`; `Status` stays the triage
+   word - one of three, so the reader never reads it twice.
 
 2. **The situation, in the reader's terms.** One sentence: what the reader has
    now that they did not have before. Test each word — would it mean
@@ -179,5 +175,3 @@ Rules the hooks check:
 
 Keep it short. The value is in the reader being able to act — status,
 situation, the choice with a default, one action — not in the ceremony.
-The scanner still accepts a one-line `Options: A | B` from older closes;
-do not write that form.

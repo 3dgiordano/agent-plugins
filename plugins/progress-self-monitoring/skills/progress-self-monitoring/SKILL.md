@@ -1,6 +1,6 @@
 ---
 name: progress-self-monitoring
-description: "Cross-session ledger discipline for work that outlives the session. A session boundary - a new chat, a resume that did not resume, a compaction - drops what the agent was holding: which parts are still blocked or returned and why, and what the next action was. The next session then re-does finished work, reopens a returned path, or declares done on a part nobody closed. This skill anchors that residue to one file in the project, .agent/progress.md, written by the agent and re-opened before substantive work. Not a blocker - a ledger on disk. Triggers - new session, resume, pick up where we left off, continue, where were we, what was I doing, previous session, last time, context lost, after compaction, unfinished work, leftover, still blocked, returned to the owner, next session, progress ledger, .agent/progress.md. Load the progress-self-monitoring skill if it is not already loaded."
+description: "Cross-session ledger discipline for work that outlives the session. A session boundary - a new chat, a resume that did not resume, a compaction - drops what the agent was holding: which parts are still blocked or returned and why, and what the next action was. The next session then re-does finished work, reopens a returned path, or declares done on a part nobody closed. This skill anchors that residue to one file in the project, .agent/progress.md, written by the agent and re-opened before substantive work. Triggers - new session, resume, pick up where we left off, continue, where were we, what was I doing, previous session, last time, context lost, after compaction, unfinished work, leftover, still blocked, returned to the owner, next session, progress ledger, .agent/progress.md."
 ---
 
 # Progress Self-Monitoring Skill
@@ -20,18 +20,14 @@ description: "Cross-session ledger discipline for work that outlives the session
 session as a checkable record — what is still **blocked** and why, what was
 **returned** to the owner and why, and the one **next action** — instead of
 being re-derived from a transcript that was compacted, cleared or never
-resumed. It does **not** hold the plan (the executive-self-monitoring skill
-does) and it does **not** track the parts of the current request (the
-coverage-self-monitoring skill does). It holds the *residue*: what those two
-leave open when the session ends.
+resumed. It holds the *residue*: what the plan and the parts of the request
+leave open when the session ends (see *Boundaries*).
 
 **Key idea:** every other check in this collection is written into the turn,
 and a session boundary is exactly what drops the turn. So this one lives
 outside it — a file the agent writes with its ordinary tools and re-opens
 before working, at a fixed path the next session will look at without being
-told where. **The ledger is the block.** There is no copy of it in the
-message; a copy there would be written into the one place the boundary
-erases.
+told where. **The ledger is the block.**
 
 ## When to Activate
 
@@ -58,7 +54,8 @@ silence is correct, and a ledger with nothing open is a file to leave alone.
    before touching code. Each open item is one of three things this session:
    *carried* (still blocked or returned — leave it, say so), *moved* (the
    block lifted, the owner decided — do the work, then close it), or
-   *closed* (done; remove it from `## Open`). Do not re-derive any of this
+   *closed* (done, and you can say what shows it; remove it from `## Open`).
+   Do not re-derive any of this
    from the code: the code shows what exists, not why it stopped there.
 
 2. **Residue only.** The ledger holds what the next session cannot recover
@@ -80,15 +77,17 @@ silence is correct, and a ledger with nothing open is a file to leave alone.
    from memory at the end of a session is the transcript again, one step
    removed.
 
-5. **Keep it current, then keep it small.** Change `Updated` when you
-   change the file. A closed item is **removed** — not ticked, not struck
-   through, not moved to a `## Done` or `## Closed` section. What was done
-   is in the code and in git; the ledger records only what is not. A
-   checkbox is decoration the hook ignores; an item under `## Open` is open.
-   `Next` is one line, in the imperative, for a reader who has only this
-   file. A companion hook says when the file has outgrown a page — more than
-   eight open items, or more than forty lines — and the answer is to prune,
-   not to add a heading.
+5. **Keep it current; close only what is closed.** Change `Updated` when
+   you change the file. An item leaves `## Open` two ways: the owner closes
+   it, or you did it and can say what shows it. Then it is **removed** — not
+   ticked, not moved to a `## Done` section; git has it. Age, size or a sense
+   that it no longer matters close nothing: an item you cannot close is a
+   question for the owner. `Next` is one line, in the imperative, for a
+   reader who has only this file. When the file outgrows a page — more than
+   eight open items, or forty lines — a companion hook says so. Shrink it by
+   acting, never by dropping: do what became doable, put the rest to the
+   owner, fold items with one cause into one line that keeps each reason,
+   and move long detail to a detail file (below).
 
 6. **Answer the sweep with the quote, not with a feeling.** "Is there
    anything I might be forgetting?" cannot be answered from inside the turn:
@@ -99,8 +98,8 @@ silence is correct, and a ledger with nothing open is a file to leave alone.
    back two turns on. For each: it is **done** (say what shows it), or it is
    residue for a later session (put it under `## Open` as `blocked` or
    `returned`, with the reason), or it is **dropped** (say why — "the tests
-   covered it", "the owner cut it"). What is not an answer: "I believe that
-   is covered." The quote is there so the answer is about that line.
+   covered it", "the owner cut it"). Not an answer: "I believe that is
+   covered."
 
 ## Progress failure signatures
 
@@ -112,21 +111,19 @@ silence is correct, and a ledger with nothing open is a file to leave alone.
   session of archaeology.
 - **The ledger as diary** — a session log with dates and paragraphs. The
   next session needs three things, not a story.
-- **The ledger as archive** — a `## Done` section that only ever grows. Every
-  closed item left in the file is a line the next session reads to learn
-  nothing; a ledger closed by marking instead of removing is unbounded by
-  construction. Remove it; git remembers.
+- **The ledger as archive** — a `## Done` section that only ever grows:
+  each closed item in it is a line the next session reads to learn nothing.
+- **The pruned ledger** — open items dropped to get under the cap. What was
+  lost is what nobody decided.
 - **The stale ledger** — open items from a week ago next to a codebase that
-  moved on. Once the ledger has been stale for a while, the hook stops
-  announcing it — better to be silent than to keep pointing at an untended
-  file — so a ledger you keep, you keep current.
+  moved on. Check each still holds; ask the owner about the ones you cannot
+  close.
 - **The ledger in the message** — a `[PROGRESS]` block in the reply and no
   file. The reply is what the boundary drops.
 - **The forgotten promise** — "I'll add the tests after this" in turn 3,
   the session ends in turn 7 with no tests and no word about them. The
   promise was in the one place the agent does not re-read: its own earlier
-  message. When the sweep hands it back, the answer is done, ledger, or
-  dropped with a reason — never "I think that was covered".
+  message.
 
 ## Integration
 
@@ -153,25 +150,25 @@ Next: once AUTH_SECRET is set, run `npm run smoke` and close the auth item.
 - `## Open` — exactly this heading, level two. The section ends at the next
   heading. Only `- blocked: <reason>` and `- returned: <reason>` lines under
   it are open items; `done` lines, prose and bullets elsewhere are not
-  counted. Bullet style, a checkbox, bold on the field name, capitalisation
-  and indentation are all read as the same line — the vocabulary is
-  strict, the formatting is not. The headings, field names and `blocked` /
+  counted. Formatting (bullets, checkboxes, bold, case, indentation) does
+  not matter; the vocabulary does. The headings, field names and `blocked` /
   `returned` stay in English (hooks parse them); the reasons are in the
   language of the turn.
 - `Next:` — one line.
+- **Detail files.** Every line is short: past 300 characters, keep the
+  reason on it and move the rest to `.agent/progress-<topic>.md`, linked
+  from the line. The prefix marks the ledger's own files.
 
-**Write it with your ordinary file tools.** No hook writes this file, and no
-hook reads more of it than counts: open items by kind, whether `Next:` names
-an action, how many lines are outside the format above (and which line
-numbers), and its age. Nothing in it travels anywhere. A line outside the
-format - a `## Done` section, a `- done:` item, prose, a marker of your own -
-is announced as such to the next session and to the user, so keep the file
-to the format.
+**Write it with your ordinary file tools.** No hook writes this file; hooks
+only count in it (open items by kind, whether `Next:` names an action, the
+lines outside the format and their numbers, its age), and nothing in it
+travels anywhere. A line outside the format - a `## Done` section, a
+`- done:` item, prose, a marker of your own - is announced to the next
+session and to the user, so keep the file to the format.
 
-**Do not announce the ledger.** No "per the progress skill, I have updated
-the file". Update it; the next session will read it. If something in this
-turn moved an open item, the message says what moved and the ledger says
-what is still open — the same fact, in two places for two readers.
+**Do not announce the ledger.** Update it, without "per the progress skill,
+I have updated the file". If this turn moved an open item, the message says
+what moved and the ledger what is still open.
 
 **Boundaries.**
 - The **plan** — executive-self-monitoring — says what the work is and what
@@ -180,11 +177,9 @@ what is still open — the same fact, in two places for two readers.
   closed in the `[COVERAGE CHECK]` at the end of the turn. What that check
   leaves `blocked` or `returned`, and this session will not resolve, is what
   goes under `## Open`. The vocabulary is shared so the two agree.
-- The **reader** of this turn — handoff-self-monitoring — gets the
-  `[HANDOFF]` block in the message: the fork, the default, the next action
-  for *them*. `Next:` in the ledger is the next action for the *next
-  session*. When they are the same, write it twice; they are read at
-  different times by different readers.
+- The **reader** of this turn — handoff-self-monitoring — gets their next
+  action in the `[HANDOFF]` block; `Next:` in the ledger is the *next
+  session's*. When they are the same, write it twice.
 - A **stop** that names "the next session" as its reason —
   termination-self-monitoring — is still a stop on a phrase unless the
   ledger says what is blocked and by what. The ledger records the checkable

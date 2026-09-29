@@ -15,6 +15,7 @@ bench/report-*/
 
 # The progress ledger (progress-self-monitoring): per-checkout residue, not shared history
 .agent/progress.md
+.agent/progress-*.md
 # scratch a session copies next to the ledger (a detector draft, a probe): not shared history
 .agent/integrity/
 

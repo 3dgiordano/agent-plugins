@@ -44,7 +44,7 @@ const LOAD =
   `[persistence self-monitoring] When something has already failed more than once - whichever way ` +
   'you go next - write the [PERSISTENCE CHECK] block. If the checks contradict each other or the spec, that is the ' +
   'finding: fix what can be fixed honestly, report the rest, and never pass them by a trick. ' +
-  `Load the ${SKILL} skill if it is not already loaded for the rules. Markers, field names and status words stay in English, whatever language you write in. Not a blocker - a signal.`;
+  `If you do not know what these markers ask for, load the ${SKILL} skill. Markers, field names and status words stay in English, whatever language you write in.`;
 
 /*
  * This asked for the block's contents as three prose questions and never named
@@ -59,7 +59,7 @@ const LOAD =
 const TAIL =
   ' Before the next attempt, write the [PERSISTENCE CHECK] as a markdown list: Attempts, Hypothesis held, ' +
   'Rival approach, Proportion, Decision. If nothing about the next attempt is new, say so to the user ' +
-  'instead of trying again. Load the persistence-self-monitoring skill if it is not already loaded ("Core Protocol").';
+  'instead of trying again. If you do not know what these markers ask for, load the persistence-self-monitoring skill ("Core Protocol").';
 
 // `toUser`: the same facts, addressed to the person instead of the agent.
 function said(signals, toUser) {

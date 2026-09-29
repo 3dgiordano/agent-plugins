@@ -43,6 +43,15 @@ const MAX_AGE_MS = MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
  */
 const MAX_OPEN_ITEMS = 8;
 const MAX_LINES = 40;
+/*
+ * A line of the ledger - an item, Plan, Next - is read in one glance or not
+ * at all. Past this length the detail belongs in a file of its own,
+ * `.agent/progress-<topic>.md`, linked from a short line that keeps the
+ * reason: the ledger stays a page and the detail can be as long as it needs.
+ * Reasoned, not measured, like the two above.
+ */
+const MAX_LINE_CHARS = 300;
+const DETAIL_PREFIX = '.agent/progress-';
 
 // `## Open`, exactly level two, trailing whitespace allowed. `### Open` and
 // `**Open**` are not the section: the level is part of the contract.
@@ -67,6 +76,8 @@ const MAX_FOREIGN_LINES = 5; // line numbers kept for the message; the count is 
  *   next:    boolean       a `Next:` line that names an action
  *   foreign: n             non-blank lines outside the format
  *   foreignLines: [n]      the first MAX_FOREIGN_LINES of them, 1-based
+ *   long:    n             format lines longer than MAX_LINE_CHARS
+ *   longLines: [n]         the first MAX_FOREIGN_LINES of them, 1-based
  * }
  *
  * Every non-blank line is either the format or foreign. A foreign line - a
@@ -75,8 +86,13 @@ const MAX_FOREIGN_LINES = 5; // line numbers kept for the message; the count is 
  * a count is the only thing about it the message carries.
  */
 function census(text) {
-  const out = { blocked: 0, returned: 0, next: false, foreign: 0, foreignLines: [] };
+  const out = { blocked: 0, returned: 0, next: false, foreign: 0, foreignLines: [], long: 0, longLines: [] };
   if (typeof text !== 'string' || !text) return out;
+  const long = (i) => {
+    if (lines[i].trim().length <= MAX_LINE_CHARS) return;
+    out.long += 1;
+    if (out.longLines.length < MAX_FOREIGN_LINES) out.longLines.push(i + 1);
+  };
   let inOpen = false;
   const lines = text.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
@@ -85,8 +101,9 @@ function census(text) {
     if (OPEN_RE.test(line)) { inOpen = true; continue; }
     if (TITLE_RE.test(line)) { inOpen = false; continue; }
     let m;
-    if (inOpen && (m = line.match(ITEM_RE))) { out[m[1].toLowerCase()] += 1; continue; }
+    if (inOpen && (m = line.match(ITEM_RE))) { out[m[1].toLowerCase()] += 1; long(i); continue; }
     if ((m = line.match(FIELD_RE))) {
+      long(i);
       if (m[1].toLowerCase() === 'next' && !EMPTY_NEXT_RE.test(m[2].trim())) out.next = true;
       continue;
     }
@@ -122,7 +139,8 @@ function ledgerPath(cwd) {
  *   mtimeMs: number|null  last write, per the filesystem
  *   ageMs:   number|null  now - mtime
  *   fresh:   boolean      exists and younger than MAX_AGE_MS
- *   bloated: [string]     what is over its cap: 'open' | 'lines' | 'bytes'
+ *   long, longLines: see census()
+ *   bloated: [string]     what is over its cap: 'open' | 'lines' | 'bytes' | 'long'
  * }
  *
  * The only project file any hook in this plugin reads. Everything about it
@@ -137,7 +155,7 @@ function ledgerPath(cwd) {
  * agent reads the file itself, as a file.
  */
 function inspect(cwd, now) {
-  const out = { exists: false, absent: false, open: 0, blocked: 0, returned: 0, next: false, foreign: 0, foreignLines: [], lines: 0, bytes: 0, mtimeMs: null, ageMs: null, fresh: false, bloated: [] };
+  const out = { exists: false, absent: false, open: 0, blocked: 0, returned: 0, next: false, foreign: 0, foreignLines: [], long: 0, longLines: [], lines: 0, bytes: 0, mtimeMs: null, ageMs: null, fresh: false, bloated: [] };
   const file = ledgerPath(cwd);
   if (!file) return out;
   let st;
@@ -163,6 +181,7 @@ function inspect(cwd, now) {
   if (out.open > MAX_OPEN_ITEMS) out.bloated.push('open');
   if (out.lines > MAX_LINES) out.bloated.push('lines');
   if (out.bytes > MAX_BYTES) out.bloated.push('bytes');
+  if (out.long > 0) out.bloated.push('long');
   return out;
 }
 
@@ -183,4 +202,4 @@ function isLedgerPath(p) {
   return /(^|[\\/])\.agent[\\/]progress\.md$/.test(p.trim());
 }
 
-module.exports = { LEDGER, MAX_BYTES, MAX_AGE_DAYS, MAX_AGE_MS, MAX_OPEN_ITEMS, MAX_LINES, census, openItems, inspect, ledgerPath, ageText, isLedgerPath };
+module.exports = { LEDGER, MAX_BYTES, MAX_AGE_DAYS, MAX_AGE_MS, MAX_OPEN_ITEMS, MAX_LINES, MAX_LINE_CHARS, DETAIL_PREFIX, census, openItems, inspect, ledgerPath, ageText, isLedgerPath };

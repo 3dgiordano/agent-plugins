@@ -60,7 +60,7 @@ turn's edits touched it.
 | | Claude Code | Cursor |
 |---|-------------|--------|
 | **Session boundary** — the ledger exists: say what it holds by kind (open items, a Next line, lines outside the format) and how old, or "nothing to do"; without one, the load message says it does not exist yet | `SessionStart` (startup, resume, clear, **and compact**) → text | `sessionStart` → `additional_context` |
-| **Turn boundary** — stamp the turn's start, reset the edit counter, load the skill on turn 1, carry the retrospective | `UserPromptSubmit` | `sessionStart` (load) + `afterAgentResponse` (reset) |
+| **Turn boundary** — stamp the turn's start, reset the edit counter, name the ledger's format on turn 1 (the skill's text went in at `SessionStart`), carry the retrospective | `UserPromptSubmit` | `sessionStart` (load) + `afterAgentResponse` (reset) |
 | **Boundary named in the prompt** — the user says the work continues in a later session | `UserPromptSubmit` → names the ledger | — (no per-prompt event) |
 | **The sweep** — what the agent wrote it would do later, handed back two turns on, once each | `Stop` collects → `UserPromptSubmit` asks | `afterAgentResponse` collects → **log only** |
 | **Edit counter** — did this turn write files; did it write the ledger | `PostToolUse`, no matcher, silent | `postToolUse`, silent |
@@ -79,7 +79,8 @@ other — and never repeats it when it did.
 | stale | `open ≥ 1` **and** the turn made ≥ 1 file edit **and** the ledger was not written this turn (mtime before the turn's start, and no edit-tool call on its path) | reported on the next prompt, **once per ledger version** — a rewrite changes the mtime and re-arms it |
 | spans | the prompt says the work continues in a later session ("later session", "pick this up next week", "across sessions", ...) | fenced and inline code stripped; "session" as a cookie, a store, an id or "this session" is a labelled miss (`evals/corpus/progress-prompt.jsonl`) |
 | sweep | the agent's final message commits to a later act in this session — first person, deferred, with a "when": "I'll update the docs once the tests pass", "let me come back to X after Y", "next I'll ...", "noted for later" | kept in session state (at most 8), quoted back at the prompt `SWEEP_AFTER_TURNS` (2) turns later, once each. Offers ("if you want, I'll..."), deferrals out of the delivery ("for a follow-up PR"), the past, other agents' futures, code and quotes are labelled misses (`evals/corpus/progress-commitments.jsonl`) |
-| grown | `open > MAX_OPEN_ITEMS` (8), or non-blank `lines > MAX_LINES` (40), or `bytes > 64 KB` | one clause on the status message, with the numbers: closed items are removed, not marked — a ledger is bounded by pruning, and a `## Done` section grows forever |
+| grown | `open > MAX_OPEN_ITEMS` (8), or non-blank `lines > MAX_LINES` (40), or `bytes > 64 KB` | one clause on the status message, with the numbers, asking for action rather than cuts: remove what is shown done or the owner closed, do what became doable, ask the owner about the rest, fold items with one cause into one line that keeps each reason. An open item is never dropped to get under the cap - what nobody decided is what the ledger keeps |
+| long line | an item, `Plan` or `Next` over `MAX_LINE_CHARS` (300) characters | one clause with the count and the line numbers, never the text: keep each a short line with its reason and move the detail to `.agent/progress-<topic>.md`, linked from it. On its own it is not "grown": nothing is asked of the item, only of its detail |
 | silence | no ledger; `open = 0`; older than `MAX_AGE_DAYS`; a turn with no edits; a subagent's close | a ledger nobody keeps is left alone rather than announced forever |
 
 Why the stale signal needs the edit count: without it, ten turns of
@@ -231,10 +232,11 @@ assets/                            # plugin mark (Cursor marketplace logo; shown
 skills/progress-self-monitoring/SKILL.md
 hooks/hooks.json                   # Claude Code + Codex: SessionStart, UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/prog-session-start.js        # ledger status at the session boundary (and after compaction)
-hooks/prog-prompt.js               # turn start stamp, load on turn 1, status fallback, retrospective
+hooks/prog-prompt.js               # turn start stamp, the ledger's format on turn 1, status fallback, retrospective
 hooks/prog-observe.js              # edit counter; silent
 hooks/prog-stop.js                 # edits vs. ledger mtime; parks the finding, once per ledger version
 hooks/prog-session-end.js          # logs how the session ended; the state is kept for a resume
+hooks/prog-inject.js               # the skill's text at session start, after /clear or compaction
 cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse
 cursor/prog-session-start.js       # load + status; also sweeps aged state (no session-end event)
 cursor/prog-observe-cursor.js

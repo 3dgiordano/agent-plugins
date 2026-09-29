@@ -10,10 +10,10 @@ const host = require('./host.js');
 const LOAD =
   `[epistemic self-monitoring] This session keeps what you observed apart from what you concluded. ` +
   'Before a diagnosis, a root cause or a closure, write the [EPISTEMIC CLOSE] markdown list - Claim, ' +
-  'Status (observed | conjecture | verified), Evidence, Falsifier, Verified by, Scope. Load the ' +
-  `${SKILL} skill if it is not already loaded for the rules. Markers, field names and status words stay in English, whatever language you write in. Not a blocker - a way of writing.`;
+  'Status (observed | conjecture | verified), Evidence, Falsifier, Verified by, Scope. If you do not ' +
+  `know what these markers ask for, load the ${SKILL} skill. Markers, field names and status words stay in English, whatever language you write in.`;
 
-const PROTOCOL = `Load the ${SKILL} skill if it is not already loaded ("Core Protocol").`;
+const PROTOCOL = `If you do not know what these markers ask for, load the ${SKILL} skill ("Core Protocol").`;
 
 /*
  * The most frequent message in the collection - every sixth shell command, and
@@ -31,7 +31,7 @@ const PROTOCOL = `Load the ${SKILL} skill if it is not already loaded ("Core Pro
  */
 const OBSERVE =
   '[epistemic self-monitoring] You just received an observation. Did it match what you expected? If not, ' +
-  `name the surprise and the strongest rival explanation before choosing one ${PROTOCOL}. What you saw ` +
+  `name the surprise and the strongest rival explanation before choosing one. ${PROTOCOL} What you saw ` +
   'is [observed]; what it means is [conjecture] until its falsifier ran.';
 
 function retrospective(violations) {

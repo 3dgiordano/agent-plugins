@@ -75,6 +75,7 @@ catch, but it does run the tests first.
 
 | Layer | Claude Code | Cursor |
 |-------|-------------|--------|
+| **The skill** in context | `SessionStart` (startup, `/clear`, compaction; a resume only when it never had it) and `SubagentStart` → the skill's text, `hooks/hand-inject.js` | `sessionStart` → `additional_context`, with the load message; subagents: no (`subagentStart` takes no context) |
 | **Load** the discipline | `UserPromptSubmit`: first turn, then every 10th; carries the retrospective; resets the turn | `sessionStart` → `additional_context` |
 | **Pre-close** — inject the format on the first closing-shaped tool call of the turn | `PostToolUse` → `additionalContext`, once per turn | `postToolUse` → `additional_context`, once per turn |
 | **Stop** — scan the final message for a decision not handed off and for `[HANDOFF]` blocks | `Stop` reads `last_assistant_message` | `afterAgentResponse` scans `text` and resets the turn, `stop` acts on it |
@@ -260,12 +261,13 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
 skills/handoff-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact), UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
+hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact; startup|resume|clear|compact), SubagentStart, UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/hand-prompt.js
 hooks/hand-observe.js
 hooks/hand-stop.js
 hooks/hand-session-start.js         # a resumed or compacted session loads the discipline again
 hooks/hand-session-end.js
+hooks/hand-inject.js               # the skill's text at session start, after /clear or compaction, and for a subagent
 cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse, stop
 cursor/hand-session-start.js   # also sweeps aged state (Cursor has no session-end event)
 cursor/hand-observe-cursor.js

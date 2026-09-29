@@ -9,6 +9,27 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hand-session-start.js\""
           }
         ]
+      },
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hand-inject.js\"",
+            "additionalContextLimit": 4000
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hand-inject.js\"",
+            "additionalContextLimit": 4000
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [

@@ -156,7 +156,13 @@ function field(block, name) {
  * corpus line catches and a hand-written test does not.
  */
 const FIELD_RE = /^(?:\*\*|__|\*|_)?(Status|Situation|Options|Default|Blocked-by|Next)(?:\*\*|__|\*|_)?\b/i;
-const OPTION_ITEM_RE = /^[ \t]*[-*][ \t]+(\S.*)$/;
+// An option is a list item of either kind: a bullet, or a number - `1.` or
+// `1)` - which is how a close lays out options it refers to by number. Read
+// as bullets only, three numbered options were "fewer than two alternatives".
+const ITEM = '(?:[-*+]|\\d{1,2}[.)])';
+const OPTION_ITEM_RE = new RegExp('^[ \\t]*' + ITEM + '[ \\t]+(\\S.*)$');
+const SUB_ITEM_RE = new RegExp('^[ \\t]+' + ITEM + '[ \\t]+\\S');
+const ITEM_LEAD_RE = new RegExp('^' + ITEM + '[ \\t]+');
 
 // Options as a list (the form to write): indented under Options, or sibling
 // items "- A: …" until the next field. Inline "A | B. Default: A" is still
@@ -173,14 +179,14 @@ function optionsOf(block) {
   const subs = [];
   for (let j = i + 1; j < lines.length; j++) {
     const line = lines[j];
-    if (/^[ \t]+[-*][ \t]+\S/.test(line)) { subs.push(line.trim()); continue; }
+    if (SUB_ITEM_RE.test(line)) { subs.push(line.trim()); continue; }
     const item = line.match(OPTION_ITEM_RE);
     if (item && !FIELD_RE.test(item[1])) { subs.push(line.trim()); continue; }
     break;
   }
   const alts = placeholder(inline) ? [] :
     inline.replace(/\bdefault\s*:.*$/i, '').split(/\s+\|\s+|\s+vs\.?\s+|\s+versus\s+/i).map((s) => s.trim()).filter((s) => !placeholder(s));
-  const count = subs.length ? subs.filter((s) => !placeholder(s.replace(/^[-*][ \t]+/, ''))).length : alts.length;
+  const count = subs.length ? subs.filter((s) => !placeholder(s.replace(ITEM_LEAD_RE, ''))).length : alts.length;
   const hasDefault = /\bdefault\s*:\s*\S/i.test([inline, ...subs].join('\n')) || !!field(block, 'Default');
   return { count, hasDefault };
 }

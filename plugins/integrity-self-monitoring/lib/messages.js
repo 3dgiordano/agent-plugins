@@ -19,8 +19,8 @@ const LOAD =
   'If the service, the key or the data cannot be had here, the real result is an error that says so, and ' +
   '"cannot be done as asked, because X" is a complete answer. If this is what the user asked for, say so in ' +
   'your close as `- <file or kind>: misread - <why>`. Write the [INTEGRITY CHECK] as a markdown list: Result (real | ' +
-  `shortcut | blocked), Route, Outside the task, Told the user. Load the ${SKILL} skill if it is not already ` +
-  'loaded. Markers, field names and status words stay in English, whatever language you write in. Not a blocker.';
+  `shortcut | blocked), Route, Outside the task, Told the user. If you do not know what these markers ask ` +
+  `for, load the ${SKILL} skill. Markers, field names and status words stay in English, whatever language you write in.`;
 
 /*
  * What each signal is, in the work's terms: what the code does, and what the

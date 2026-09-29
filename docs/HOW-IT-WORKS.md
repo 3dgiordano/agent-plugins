@@ -6,7 +6,7 @@ The idea behind the collection: the three parts of a plugin and what each one do
 
 Every plugin has the same three parts.
 
-1. **The skill: the discipline.** An [Agent Skill](https://agentskills.io) (`skills/<name>/SKILL.md`) that says how a careful engineer handles this moment: keep the plan open, keep what you saw apart from what you think, stop only for a reason you can check. It loads at the start of a session, and again after a compaction or resume. It is the base: on one measured case (integrity, Cursor, 2026-09-25) the skill alone turned 0 of 3 into 3 of 3, with no hook firing.
+1. **The skill: the discipline.** An [Agent Skill](https://agentskills.io) (`skills/<name>/SKILL.md`) that says how a careful engineer handles this moment: keep the plan open, keep what you saw apart from what you think, stop only for a reason you can check. Where it is read it is the base: on one measured case (integrity, Cursor, 2026-09-25) the skill alone turned 0 of 3 into 3 of 3, with no hook firing. Asked to load it, the agent seldom does: on Claude Code, 1 load for 689 requests in 30 interactive desktop sessions on one machine (2026-09-24 to 29), and 0 of 18 under `claude -p` ([evals/PROTOCOL.md](../evals/PROTOCOL.md#the-skill-is-not-a-lever-on-claude-code-headless)). So the four plugins whose moment is the start of a session - handoff, progress, coverage, executive - put the skill's text in context themselves: when a session starts, after a `/clear` and after a compaction, and (handoff and coverage) when a subagent starts. The other four ask for it in their messages, only for an agent that does not know what the block's marker asks for, and their messages carry the block's fields for the agent that never loads it.
 2. **The hook: a fact, at the moment it matters.** A small Node script the host runs on its events. It notices something countable or on disk (the same file edited four times, a plan that changed since the agent read it, a ledger with open items, a `catch` that answers a failed call with a made-up value) and puts that fact in front of the agent in one line. Hooks add most where they hand over a fact the agent does not have and would not look for: the two clearest gains on Claude Code are the two hooks that read something on disk (progress 0/9 -> 9/9, executive 2/9 -> 9/9, 2026-09-27).
 3. **The block: the decision, written.** The hook's line asks for a named block with fixed fields and a closed set of decisions, one of which is always the honest way out. The agent fills it in the reply, where you, a reviewer or another agent can read and check it.
 
@@ -20,14 +20,14 @@ The plugin never decides whether the agent is right. It supplies the discipline,
  │ red 3x this turn   │        │  [PERSISTENCE CHECK]"    │      │ Rival approach: ...  │     a reviewer,
  └────────────────────┘        └──────────────────────────┘      │ Decision: switch     │     a subagent
       (the trigger)                 (evidence + scaffold)         └──────────────────────┘
-                   the skill, loaded at session start, carries the rules behind all of it
+   the skill carries the rules behind all of it - in context from the start for four plugins
 ```
 
 ## The trigger: simple, and allowed to be imperfect
 
 The hooks use counters and plain pattern matching over the agent's text and edits. They do not try to understand the agent's reasoning, and they do not try to catch every case. That is a choice:
 
-- **The trigger decides *when*, not *whether*.** The skill already carries the whole discipline. A missed trigger means one reminder less, not the discipline gone.
+- **The trigger decides *when*, not *whether*.** The skill carries the whole discipline, and the load message carries the block's shape. A missed trigger means one reminder less, not the discipline gone. For the four plugins that do not put their skill in context, that shape is most of what the agent has.
 - **Useful beats complete.** A reminder is worth sending when the trigger is cheap, a false alarm costs little (the agent can answer it as a misreading), and the fact it carries is relevant. Detect enough to create a useful decision point; do not try to model the agent.
 - **Simple is predictable.** Each hook is one readable Node file with no dependencies and no network.
 - **Its quality is measured anyway.** Each detector has a corpus of real lines it must fire on and must stay quiet on, with recall and precision floors in CI (`node scripts/corpus.js --check`). A false reading found in a session becomes a corpus line before the pattern changes.
@@ -84,7 +84,7 @@ Keeping them separate means you install only the questions you need, each is mea
 
 ## What the agent sees versus what you see
 
-- **The agent** sees one line in its context when a trigger fires, plus the skill, loaded once and again after a compaction or resume.
+- **The agent** sees one line in its context when a trigger fires. For handoff, progress, coverage and executive it also has the skill's text from the start of the session (and after a compaction); for the other four it has the skill when it loads it (see *The skill* above).
 - **You** see the block in the agent's reply. On Claude Code and Codex, when a hook finds something (a close without its block, a counter over its threshold, open items in the ledger) you also see one short notice line in the transcript. Each plugin can turn it off with `*_NOTICE=0`.
 
 The exact lines each plugin sends are in the [README](../README.md#what-your-agent-sees--and-what-you-see) and in each plugin's own README.
@@ -104,7 +104,8 @@ The skill is the same everywhere; the *when* depends on the events a host expose
 
 | Layer | Claude Code · Codex | Cursor |
 | --- | --- | --- |
-| Load the skill | first prompt (+ periodic re-load, and after a resume or compaction) | session start |
+| The skill's text in context (handoff, progress, coverage, executive) | `SessionStart`: startup, `/clear`, compaction, and a resume that never had it; `SubagentStart` for handoff and coverage | `sessionStart`; subagents do not get it (`subagentStart` takes no context) |
+| Ask for the skill (the other four), for an agent that does not know the marker | first prompt (+ periodic reminder, and after a resume or compaction) | session start |
 | Executive checkpoint cadence | every 5th prompt | once per session |
 | Executive changed-document line | ✓ (Claude Code) | — |
 | Persistence counters + nudges | ✓ | ✓ |

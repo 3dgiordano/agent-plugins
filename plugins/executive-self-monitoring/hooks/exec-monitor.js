@@ -88,9 +88,9 @@ function main(raw) {
   process.stdout.write(context('UserPromptSubmit', (changedLine ? changedLine + '\n' : '') +
     '[executive self-monitoring] Checkpoint for long/iterative work: re-open the artifact that ' +
     'defines it and write the [PLAN CHECK] markdown list - Plan (the artifact, named), Gate (quoted ' +
-    'from it), Drift (none, or what pulls away), Decision (continue | refocus | revise-plan). Load ' +
-    'the executive-self-monitoring skill if it is not already loaded for the rules behind them. ' +
-    'Markers, field names and status words stay in English, whatever language you write in. Not a blocker; skip if this turn is trivial.'
+    'from it), Drift (none, or what pulls away), Decision (continue | refocus | revise-plan). If you ' +
+    'do not know what these markers ask for, load the executive-self-monitoring skill. ' +
+    'Markers, field names and status words stay in English, whatever language you write in. Skip it if this turn is trivial.'
   ));
 }
 

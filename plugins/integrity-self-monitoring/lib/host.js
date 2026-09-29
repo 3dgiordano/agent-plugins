@@ -87,10 +87,48 @@ function userText(prompt) {
  * pre-close again inside the same turn, bring the load back on the cadence,
  * and spend a retrospective on a notification. A prompt that is nothing
  * but such blocks is not a turn, and the prompt hooks leave the session alone.
+ *
+ * The same holds for another agent's message - a subagent handing back its
+ * report, a teammate writing in. Claude Code delivers it as a user turn that
+ * opens `Another Claude session sent a message:` and wraps the text in
+ * `<agent-message from="...">`, then appends its own paragraph about who
+ * sent it, so "nothing but the blocks" cannot be the test here: the opening
+ * is. Counted as a turn, a report's bullet list became the parts of the
+ * user's request.
  */
+const AGENT_MESSAGE_RE = /^\s*(?:Another Claude session sent a message:\s*)?<agent-message\b/;
+
 function notification(prompt) {
-  if (typeof prompt !== 'string' || !/<task-notification>/.test(prompt)) return false;
+  if (typeof prompt !== 'string') return false;
+  if (AGENT_MESSAGE_RE.test(prompt)) return true;
+  if (!/<task-notification>/.test(prompt)) return false;
   return prompt.replace(/<task-notification>[\s\S]*?<\/task-notification>/g, '').trim() === '';
 }
 
-module.exports = { cwdOf, context, notice, finding, userText, notification };
+/*
+ * The skill's own text, for the hooks that put it in context when a session
+ * or a subagent starts: SKILL.md without its frontmatter, under one line that
+ * says it is loaded. The agent does not have to reach for a skill it may never
+ * reach for, and a subagent without the Skill tool gets it too.
+ *
+ * INJECT_MAX is under the smallest ceiling of the hosts that take it. Claude
+ * Code keeps 10,000 characters of a hook's context and moves the rest to a
+ * file, leaving a preview; Codex keeps about 2,500 tokens unless the handler
+ * sets additionalContextLimit, which the inject handlers in hooks/hooks.json
+ * do. Over the ceiling the hook sends nothing: a preview of a skill is a
+ * skill with its rules cut off.
+ */
+const INJECT_MAX = 9800;
+
+function skillText(root, plugin) {
+  const name = `${plugin}-self-monitoring`;
+  let md;
+  try { md = require('fs').readFileSync(require('path').join(root, 'skills', name, 'SKILL.md'), 'utf8'); } catch (_) { return ''; }
+  const fm = md.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n/);
+  const body = (fm ? md.slice(fm[0].length) : md).trim();
+  if (!body) return '';
+  const text = `[${plugin} self-monitoring] The ${name} skill is loaded for this session. Its text:\n\n${body}`;
+  return text.length <= INJECT_MAX ? text : '';
+}
+
+module.exports = { cwdOf, context, notice, finding, userText, notification, skillText, INJECT_MAX };

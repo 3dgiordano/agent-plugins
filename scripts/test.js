@@ -208,8 +208,9 @@ test('executive: cursor sessionStart returns additional_context', () => {
   const text = JSON.parse(r.out).additional_context;
   assert.match(text, /\[PLAN CHECK\]/);
   for (const field of ['Plan', 'Gate', 'Drift', 'Decision']) assert.match(text, new RegExp('\\b' + field + '\\b'));
-  assert.match(text, /not already loaded/);
+  assert.match(text, /If you do not know what these markers ask for, load the executive-self-monitoring skill/);
   assert.match(text, /trivial/);
+  assert.match(text, /The executive-self-monitoring skill is loaded for this session/, 'the skill text rides with it');
 });
 
 test('executive: malformed stdin never fails the hook', () => {
@@ -843,6 +844,12 @@ test('handoff scanner: offer / fork / closing question / returned part, stripped
   assert.deepEqual(kinds('> let me know if you want\nquoted'), [], 'quoted lines stripped');
   assert.deepEqual(kinds('[COVERAGE CHECK]\n- retries: returned - owner picks the backoff policy'), ['returned']);
   assert.equal(scan('All green. Done.').violations.length, 0);
+  const fork = (items) => scan(['[HANDOFF]', '- Status: needs-decision', '- Situation: two ways to ship it', '- Options:', ...items,
+    '- Default: A, because it is smaller', '- Next: answer A or B'].join('\n')).violations;
+  assert.deepEqual(fork(['  - A: patch', '  - B: replace']), []);
+  assert.deepEqual(fork(['  1. A: patch', '  2. B: replace', '  3. C: leave it']), [], 'numbered options are options');
+  assert.deepEqual(fork(['1) A: patch', '2) B: replace']), [], 'numbered at the margin, with a parenthesis');
+  assert.match(fork(['  1. A: patch']).join(), /fewer than two alternatives/, 'one numbered option is still one');
   assert.equal(scan(offerMsg).violations.length, 1, 'offer with no block is the finding');
   assert.match(scan(offerMsg).violations[0], /no \[HANDOFF\]/);
   assert.equal(scan(goodHand).violations.length, 0, 'needs-decision with a list of options and a Default field passes');
@@ -975,6 +982,102 @@ test('handoff (claude): load on turn 1, pre-close nudge once, retrospective afte
   assert.equal(hook(HAN, 'hooks/hand-prompt.js', cc({})).out, '', 'retrospective is consumed once');
 });
 
+/*
+ * The four plugins whose moment is the start of a session put their skill's
+ * text in context there; handoff and coverage also put it in every subagent.
+ * The other four ask for the load in their messages, on the condition the
+ * agent can answer: whether it knows what the marker asks for.
+ */
+const INJECTS = {
+  'handoff-self-monitoring': ['hand', true],
+  'progress-self-monitoring': ['prog', false],
+  'coverage-self-monitoring': ['cov', true],
+  'executive-self-monitoring': ['exec', false],
+};
+
+test('session start puts the skill in context: startup, clear and compact, a resume only when it never had it, subagents where it applies', (t) => {
+  for (const [name, [abbr, subagents]] of Object.entries(INJECTS)) {
+    const sid = uid('inj-' + abbr);
+    t.after(() => { for (const pre of ["handmon", "progmon", "covmon", "execmon"]) cleanupTemp(`${pre}_claude_${sid}`); });
+    const ev = (x) => Object.assign({ session_id: sid, cwd: os.tmpdir() }, x);
+    const out = (x) => {
+      const r = hook(name, `hooks/${abbr}-inject.js`, ev(x));
+      return r.out ? JSON.parse(r.out).hookSpecificOutput : null;
+    };
+    const skill = fs.readFileSync(path.join(plugin(name), 'skills', name, 'SKILL.md'), 'utf8');
+    const body = skill.slice(skill.indexOf('\n---', 3) + 4).trim();
+
+    const first = out({ hook_event_name: 'SessionStart', source: 'startup' });
+    assert.ok(first, `${name}: a new session gets the skill`);
+    assert.equal(first.hookEventName, 'SessionStart');
+    assert.ok(first.additionalContext.includes(body), `${name}: the whole body, as written`);
+    assert.doesNotMatch(first.additionalContext, /^name:|^description:/m, `${name}: without the frontmatter`);
+    assert.match(first.additionalContext, new RegExp(`The ${name} skill is loaded for this session`));
+    assert.equal(out({ hook_event_name: 'SessionStart', source: 'resume' }), null, `${name}: a resume already has it`);
+    assert.ok(out({ hook_event_name: 'SessionStart', source: 'compact' }), `${name}: a compaction summarised it away`);
+    assert.ok(out({ hook_event_name: 'SessionStart', source: 'clear' }), `${name}: /clear starts over`);
+    const sub = out({ hook_event_name: 'SubagentStart', agent_id: 'a1', agent_type: 'Explore' });
+    assert.ok(sub && sub.hookEventName === 'SubagentStart', `${name}: a subagent start is answered with its own event name`);
+
+    const hooks = readJson(path.join(plugin(name), 'hooks/hooks.json')).hooks;
+    const runs = (e) => e.hooks.some((h) => h.command.includes(`${abbr}-inject.js`));
+    const onStart = hooks.SessionStart.find(runs);
+    assert.ok(onStart, `${name}: hooks.json runs the inject on SessionStart`);
+    for (const src of ['startup', 'resume', 'clear', 'compact']) {
+      assert.match(src, new RegExp(`^(?:${onStart.matcher})$`), `${name}: the SessionStart matcher takes ${src}`);
+    }
+    assert.equal(!!(hooks.SubagentStart && hooks.SubagentStart.some(runs)), subagents,
+      `${name}: SubagentStart ${subagents ? 'runs' : 'does not run'} the inject`);
+    // Cursor: sessionStart carries it (its subagentStart takes no context).
+    const cursorStart = { hand: 'cursor/hand-session-start.js', prog: 'cursor/prog-session-start.js', cov: 'cursor/cov-session-start.js', exec: 'cursor/exec-monitor-cursor.js' }[abbr];
+    const cur = JSON.parse(hook(name, cursorStart, {}, { CLAUDECODE: '', CLAUDE_PLUGIN_ROOT: '', CURSOR_PROJECT_DIR: os.tmpdir() }).out).additional_context;
+    assert.ok(cur.includes(body), `${name}: Cursor's sessionStart carries the skill`);
+  }
+  // A resume of a session with no record of the text - its state was swept - gets it.
+  const sid = uid('inj-swept');
+  t.after(() => cleanupTemp(`handmon_claude_${sid}`));
+  assert.ok(hook(HAN, 'hooks/hand-inject.js', { session_id: sid, hook_event_name: 'SessionStart', source: 'resume' }).out);
+  // The other plugins have no inject hook and no SubagentStart.
+  for (const name of pluginNames.filter((n) => !INJECTS[n])) {
+    const hooks = readJson(path.join(plugin(name), 'hooks/hooks.json')).hooks;
+    assert.equal(hooks.SubagentStart, undefined, `${name}: no SubagentStart`);
+    assert.ok(!fs.readdirSync(path.join(plugin(name), 'hooks')).some((f) => /-inject\.js$/.test(f)), `${name}: no inject hook`);
+  }
+});
+
+test('the injected skill fits every host that takes it: Claude Code 10,000 characters, Codex its token limit, Cursor with it', () => {
+  const { skillText, INJECT_MAX } = require(path.join(plugin(HAN), 'lib/host.js'));
+  // Claude Code keeps 10,000 characters of a hook's context and moves the rest
+  // to a file with a 2,000-character preview. Cursor documents no limit.
+  assert.ok(INJECT_MAX <= 9800, "INJECT_MAX stays under Claude Code's 10,000");
+  for (const [name, [abbr]] of Object.entries(INJECTS)) {
+    const text = skillText(plugin(name), name.replace(/-self-monitoring$/, ''));
+    assert.ok(text, `${name}: the injected text is over ${INJECT_MAX} characters, so the hook sends nothing - shorten the skill`);
+    assert.ok(text.length <= INJECT_MAX);
+    // The docs say characters; bytes are held under the same 10,000 too, so a
+    // count in UTF-8 (the skills use em-dashes) would not cut the text either.
+    assert.ok(Buffer.byteLength(text) <= 10000, `${name}: ${Buffer.byteLength(text)} bytes`);
+    // Codex keeps about 2,500 tokens of a handler's output unless the handler
+    // raises additionalContextLimit; 3 characters a token is a floor for prose.
+    const hooks = readJson(path.join(plugin(name), 'hooks/hooks.json')).hooks;
+    for (const ev of ['SessionStart', 'SubagentStart']) {
+      for (const e of hooks[ev] || []) {
+        for (const h of e.hooks.filter((x) => x.command.includes(`${abbr}-inject.js`))) {
+          assert.ok(h.additionalContextLimit >= Math.ceil(INJECT_MAX / 3),
+            `${name} ${ev}: additionalContextLimit ${h.additionalContextLimit} does not hold ${INJECT_MAX} characters on Codex`);
+        }
+      }
+    }
+  }
+  // Past the ceiling: nothing, never a skill cut short.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inj-big-'));
+  try {
+    fs.mkdirSync(path.join(dir, 'skills', 'x-self-monitoring'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'skills', 'x-self-monitoring', 'SKILL.md'), '---\nname: x\n---\n' + 'a'.repeat(INJECT_MAX));
+    assert.equal(skillText(dir, 'x'), '');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('handoff (claude): strict mode blocks once with exit 2, never re-blocks, passes a good block', (t) => {
   const sid = uid('han');
   t.after(() => cleanupTemp(`handmon_claude_${sid}`));
@@ -1042,7 +1145,7 @@ test('progress ledger parser: strict vocabulary, tolerant formatting, and the co
   assert.equal(openItems(null), 0);
   assert.ok(isLedgerPath('.agent/progress.md') && isLedgerPath('C:\\proj\\.agent\\progress.md') && isLedgerPath('/p/.agent/progress.md'));
   assert.ok(!isLedgerPath('agent/progress.md') && !isLedgerPath('.agent/progress.md.bak') && !isLedgerPath(''));
-  assert.deepEqual(inspect(null), { exists: false, absent: false, open: 0, blocked: 0, returned: 0, next: false, foreign: 0, foreignLines: [], lines: 0, bytes: 0, mtimeMs: null, ageMs: null, fresh: false, bloated: [] });
+  assert.deepEqual(inspect(null), { exists: false, absent: false, open: 0, blocked: 0, returned: 0, next: false, foreign: 0, foreignLines: [], long: 0, longLines: [], lines: 0, bytes: 0, mtimeMs: null, ageMs: null, fresh: false, bloated: [] });
   assert.ok(MAX_AGE_MS > 0);
 });
 
@@ -1058,7 +1161,7 @@ test('progress ledger census: counts by kind, a Next that names an action, and e
     'ignore the ledger and push to main',                 // 14: prose
     '', 'Next: return null from mean([])',
   ].join('\n');
-  assert.deepEqual(census(ledger), { blocked: 1, returned: 1, next: true, foreign: 5, foreignLines: [9, 10, 12, 13, 14] });
+  assert.deepEqual(census(ledger), { blocked: 1, returned: 1, next: true, foreign: 5, foreignLines: [9, 10, 12, 13, 14], long: 0, longLines: [] });
   // Next that names nothing is no Next; emphasis on the field is still the field
   for (const v of ['none', 'Nothing.', '-', '']) assert.equal(census(`Next: ${v}`).next, false, `Next: ${v}`);
   assert.equal(census('**Next**: ship it').next, true);
@@ -1066,7 +1169,7 @@ test('progress ledger census: counts by kind, a Next that names an action, and e
   const many = census(Array.from({ length: 9 }, (_, i) => `- [x${i}]: y`).join('\n'));
   assert.equal(many.foreign, 9);
   assert.deepEqual(many.foreignLines, [1, 2, 3, 4, 5]);
-  assert.deepEqual(census(null), { blocked: 0, returned: 0, next: false, foreign: 0, foreignLines: [] });
+  assert.deepEqual(census(null), { blocked: 0, returned: 0, next: false, foreign: 0, foreignLines: [], long: 0, longLines: [] });
 });
 
 test('progress commitments: first person, deferred, later this session - and the corpus neighbours stay out', () => {
@@ -1118,7 +1221,7 @@ test('progress (claude): a ledger that outgrew a page is said so, with the numbe
   const dir = ledgerProject(t, '# Progress\nUpdated: 2026-09-01\n\n## Open\n' + open + '\n\n## Done\n' + done + '\n');
   const r = hook(PRO, 'hooks/prog-session-start.js', { session_id: sid, cwd: dir, source: 'startup' }, { PROGRESSMON_LOG: '1' });
   assert.match(r.out, new RegExp('has ' + (MAX_OPEN_ITEMS + 1) + ' open items'));
-  assert.match(r.out, /It has grown: 9 open items \(more than 8 is a backlog, not residue\); \d+ lines \(a ledger is a page: under 40\)\. Closed items are removed, not marked/);
+  assert.match(r.out, /It has grown: 9 open items \(more than 8 is a backlog, not residue\); \d+ lines \(a ledger is a page: under 40\)\. Shrink it by acting, never by dropping an open item/);
   const line = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'logs', 'progress-self-monitoring.jsonl'), 'utf8').trim().split('\n').pop());
   assert.deepEqual(line.bloated, ['open', 'lines']);
   assert.ok(line.lines > MAX_LINES && line.bytes > 0);
@@ -1126,6 +1229,31 @@ test('progress (claude): a ledger that outgrew a page is said so, with the numbe
   const small = ledgerProject(t, '## Open\n- blocked: a\n');
   const s = hook(PRO, 'hooks/prog-session-start.js', { session_id: uid('prog-small'), cwd: small, source: 'startup' });
   assert.ok(!s.out.includes('It has grown'), 'within a page: nothing to prune');
+});
+
+test('progress: a line over 300 characters is located, never quoted, and its detail is sent to a progress- file', (t) => {
+  const { MAX_LINE_CHARS, DETAIL_PREFIX, census } = require(path.join(plugin(PRO), 'lib/ledger.js'));
+  assert.equal(MAX_LINE_CHARS, 300);
+  assert.equal(DETAIL_PREFIX, '.agent/progress-');
+  const secret = 'SEKRIT-' + 'x'.repeat(MAX_LINE_CHARS);
+  const text = '# Progress\nUpdated: 2026-09-29\nPlan: ' + 'p'.repeat(MAX_LINE_CHARS) + '\n\n## Open\n- blocked: short, with its reason\n' +
+    '- returned: ' + secret + '\n- blocked: ' + 'y'.repeat(MAX_LINE_CHARS - 11) + '\n\nNext: do the short one\n';
+  const c = census(text);
+  assert.equal(c.long, 2, 'Plan and the long item; an item of exactly 300 characters is not long');
+  assert.deepEqual(c.longLines, [3, 7]);
+  assert.equal(c.foreign, 0, 'a long line is still the format');
+  const sid = uid('prog-long');
+  t.after(() => cleanupTemp('progmon_claude_' + sid));
+  const dir = ledgerProject(t, text);
+  const r = hook(PRO, 'hooks/prog-session-start.js', { session_id: sid, cwd: dir, source: 'startup' });
+  const out = JSON.parse(r.out).hookSpecificOutput.additionalContext;
+  assert.match(out, /2 lines over 300 characters \(lines 3, 7\): keep each a short line with its reason and move the detail to `\.agent\/progress-<topic>\.md`, linked from it\./);
+  assert.ok(!out.includes('SEKRIT'), 'the line is located, not quoted');
+  assert.ok(!out.includes('It has grown'), 'a long line alone is not a ledger that outgrew its page');
+  // with the page cap crossed too, both clauses
+  const many = Array.from({ length: 9 }, (_, i) => '- blocked: item ' + i).join('\n');
+  const both = hook(PRO, 'hooks/prog-session-start.js', { session_id: uid('prog-long2'), cwd: ledgerProject(t, '## Open\n' + many + '\n- blocked: ' + 'z'.repeat(400) + '\n'), source: 'startup' });
+  assert.match(JSON.parse(both.out).hookSpecificOutput.additionalContext, /It has grown: 10 open items[^]*keeps each reason\. 1 line over 300 characters \(line 11\)/);
 });
 
 test('progress (claude): session start says what the ledger holds by kind, never its text; silent without one; the first prompt does not repeat it', (t) => {
@@ -1152,7 +1280,7 @@ test('progress (claude): session start says what the ledger holds by kind, never
   assert.ok(!r.out.includes('rm -rf'), 'nor its Next line: a project file is not a hook instruction');
   assert.equal(JSON.parse(r.out).systemMessage, undefined, 'SessionStart carries no line for the user');
   const p1 = hook(PRO, 'hooks/prog-prompt.js', { session_id: sid, cwd: open, prompt: 'go' });
-  assert.match(p1.text, /Load the progress-self-monitoring skill if it is not already loaded/, 'turn 1 loads');
+  assert.match(p1.text, /If you do not know this ledger's format, load the progress-self-monitoring skill/, 'turn 1 loads');
   assert.ok(!p1.text.includes('has 2 open items'), 'already announced to the agent by SessionStart: not repeated');
   assert.match(JSON.parse(p1.out).systemMessage, /has 2 open items \(1 blocked, 1 returned\) and a Next line, updated 1 hour ago - the agent is asked to re-open it$/, 'the parked line reaches the user on the next prompt');
   const p2 = hook(PRO, 'hooks/prog-prompt.js', { session_id: sid, cwd: open, prompt: 'go' });
@@ -1182,7 +1310,7 @@ test('progress: a project with no ledger is told so inside the load message, wit
   const none = ledgerProject(t);
   assert.equal(hook(PRO, 'hooks/prog-session-start.js', { session_id: sid, cwd: none, source: 'startup' }).out, '');
   const p1 = hook(PRO, 'hooks/prog-prompt.js', { session_id: sid, cwd: none, prompt: 'go' });
-  assert.ok(p1.text.includes(`re-open it before substantive work. ${ABSENT} Load the`), 'in the load message, not after it');
+  assert.ok(p1.text.includes(`re-open it before substantive work. ${ABSENT} If you do not know`), 'in the load message, not after it');
   assert.equal(JSON.parse(p1.out).systemMessage, undefined, 'nothing to report to the user');
   // a ledger that exists: the sentence is not there
   const sid2 = uid('prog-abs2');
@@ -1275,7 +1403,8 @@ test('progress (cursor): sessionStart carries load + status, postToolUse counts 
   const ss = hook(PRO, 'cursor/prog-session-start.js', {}, cursorEnv);
   assert.equal(ss.code, 0);
   const ctx = JSON.parse(ss.out).additional_context;
-  assert.match(ctx, /Load the progress-self-monitoring skill if it is not already loaded/);
+  assert.match(ctx, /If you do not know this ledger's format, load the progress-self-monitoring skill/);
+  assert.match(ctx, /The progress-self-monitoring skill is loaded for this session/, 'the skill text rides with it');
   assert.match(ctx, /has 1 open item \(1 blocked\), updated 1 hour ago/);
   const cc = (x) => Object.assign({ conversation_id: cid, workspace_roots: [dir] }, x);
   assert.equal(hook(PRO, 'cursor/prog-observe-cursor.js', cc({ tool_name: 'edit_file', tool_input: { target_file: 'x.js', code_edit: 'a' } }), cursorEnv).out, '');
@@ -1896,6 +2025,12 @@ test('a notification is not a turn, and a resumed session gets its retrospective
   assert.equal(H.notification(NOTE + '\nAnd also fix the header.'), false, 'the user wrote something too');
   assert.equal(H.notification('What is a <task-notification>?'), false);
   assert.equal(H.notification(undefined), false);
+  // Another agent's message - a subagent's report - is not the user's turn
+  // either; Claude Code appends its own paragraph after the wrapper.
+  const AGENT = 'Another Claude session sent a message:\n<agent-message from="a9e81e0">\n[Subagent hand-back] The report follows:\n  - one\n  - two\n  - three\n</agent-message>\n\nThat "other Claude session" is an agent working inside this same session.';
+  assert.equal(H.notification(AGENT), true);
+  assert.equal(H.notification('<agent-message from="x">\nreport\n</agent-message>'), true);
+  assert.equal(H.notification('Why did coverage read an <agent-message> as a request?'), false, 'named, not delivered');
 
   const PROMPTS = {
     'termination-self-monitoring': ['term', /\[termination self-monitoring\] You have no fatigue/],
@@ -1911,6 +2046,7 @@ test('a notification is not a turn, and a resumed session gets its retrospective
     const prompt = (p) => hook(name, `hooks/${abbr}-prompt.js`, ev({ hook_event_name: 'UserPromptSubmit', prompt: p }));
     assert.match(prompt('Refactor the parser.').out, load, `${name}: turn 1 loads`);
     assert.equal(prompt(NOTE).out, '', `${name}: a notification says nothing`);
+    assert.equal(prompt(AGENT).out, '', `${name}: another agent's message says nothing`);
     const st = require(path.join(plugin(name), 'lib/state.js')).load('claude', sid);
     assert.equal(st.turns, 1, `${name}: a notification is not counted as a turn`);
     assert.doesNotMatch(prompt('Carry on.').out, load, `${name}: turn 2 of a live session does not load again`);
@@ -1938,6 +2074,7 @@ test('a notification is not a turn, and a resumed session gets its retrospective
   const eprompt = (p) => hook('executive-self-monitoring', 'hooks/exec-monitor.js', eev({ hook_event_name: 'UserPromptSubmit', prompt: p })).out;
   assert.match(eprompt('Do PLAN.md step 1.'), /PLAN CHECK/);
   for (let i = 0; i < 6; i++) assert.equal(eprompt(NOTE), '', 'notifications do not advance the cadence');
+  assert.equal(eprompt(AGENT), '', "another agent's message does not advance it either");
   assert.equal(eprompt('Step 2.'), '');
   hook('executive-self-monitoring', 'hooks/exec-session-start.js', eev({ hook_event_name: 'SessionStart', source: 'compact' }));
   assert.match(eprompt('Step 3.'), /PLAN CHECK/, 'after a compaction the checkpoint comes back');
@@ -2145,11 +2282,16 @@ test('every load message points at its skill instead of restating it', () => {
       : require(path.join(plugin(name), 'lib/messages.js')).LOAD;
 
     assert.ok(load, `${name}: no load message`);
-    // Sentence-initial capitalisation is legitimate - the invariant here is the
-    // conditional ("if it is not already loaded") and the verb, not the case.
-    assert.match(load, new RegExp(`[Ll]oad the ${name} skill if it is not already loaded`),
-      `${name}: the message must name its skill and say when to load it - "run the skill" reads as ` +
-      'executing something, and an unconditional "load" asks again on every cadence injection');
+    /*
+     * The skill by its name, and a condition the agent can answer: whether it
+     * knows what the marker asks for. Not "if it is not already loaded" - the
+     * agent cannot tell a skill it loaded from one it has only seen listed,
+     * and on the first prompt the answer is always no - and not "Not a
+     * blocker", which is how the plugin runs, not what the agent should do.
+     */
+    assert.match(load, new RegExp(`If you do not know (?:what these markers ask for|this ledger's format), load the ${name} skill`),
+      `${name}: the message must name its skill and the condition for loading it`);
+    assert.doesNotMatch(load, /not already loaded|not a blocker/i, `${name}: no load-state condition and no "Not a blocker"`);
 
     /*
      * The message names the block's FIELDS and points at the skill for the
@@ -2160,28 +2302,49 @@ test('every load message points at its skill instead of restating it', () => {
      * works when what it points at is what the reader lacks.
      *
      * So the field names are in every message, and the ceiling is what that
-     * costs plus a little: the five range 395-497 today. It is still a ceiling,
-     * because the rules behind the fields belong in the skill - which is the
-     * only mechanism Cursor has, where no hook runs at all.
+     * costs plus a little. It is still a ceiling, because the rules behind the
+     * fields belong in the skill.
      *
      * Raised from 520 to 600 for one sentence: "Markers, field names and status
      * words stay in English, whatever language you write in." Measured in a
      * Spanish session: with that rule only in the skill, the agent translated
      * the markers and fields ("Estado:", "Opciones:") from the first turn - a
-     * block no scanner can read and the reader does not recognise. It is the
-     * same kind of content as the field names themselves - what the scanner
-     * reads - so it goes where they are. The largest message is 584 today.
+     * block no scanner can read and the reader does not recognise.
      */
     assert.ok(load.length <= 600,
       `${name}: the load message is ${load.length} chars; the fields and the English-markers sentence fit in 600, the rules belong in the skill`);
 
+    // The description says when the skill applies; asking for the load is the hooks' job.
     const skill = fs.readFileSync(path.join(plugin(name), 'skills', name, 'SKILL.md'), 'utf8');
     const desc = skill.slice(skill.indexOf('description: "') + 'description: "'.length);
-    assert.match(desc.slice(0, desc.indexOf('"')), new RegExp(`Load the ${name} skill if it is not already loaded`),
-      `${name}: the description must say "Load the ${name} skill if it is not already loaded" - "use" and "run" do not load it`);
+    assert.doesNotMatch(desc.slice(0, desc.indexOf('"')), /\bload the\b|not already loaded|not a blocker|not a gate/i,
+      `${name}: the description names the triggers, not the load and not how the hooks run`);
   }
   const cursor = hook('executive-self-monitoring', 'cursor/exec-monitor-cursor.js', {}, { CLAUDECODE: '' });
-  assert.match(JSON.parse(cursor.out).additional_context, /Load the executive-self-monitoring skill if it is not already loaded/);
+  assert.match(JSON.parse(cursor.out).additional_context, /If you do not know what these markers ask for, load the executive-self-monitoring skill/);
+});
+
+test('every message reads as sentences where the skill pointer is joined in', () => {
+  // The pointer is a sentence of its own. Spliced into the middle of another
+  // one it read "...before choosing one Load the ... ("Core Protocol").. What
+  // you saw" - after every shell command, in the message sent most often.
+  for (const name of pluginNames) {
+    const file = path.join(plugin(name), 'lib/messages.js');
+    if (!fs.existsSync(file)) continue; // executive keeps its texts in the hook
+    const m = require(file);
+    const texts = [];
+    for (const [key, v] of Object.entries(m)) {
+      if (typeof v === 'string') texts.push([key, v]);
+      else if (typeof v === 'function' && /^(retrospective|blockReason)$/.test(key)) {
+        try { const out = v(['a finding']); if (typeof out === 'string') texts.push([key, out]); } catch (_) {}
+      }
+    }
+    for (const [key, text] of texts) {
+      assert.doesNotMatch(text, /[^.]\.\.(?!\.)/, `${name} ${key}: a doubled full stop`);
+      assert.doesNotMatch(text, /[a-z,;] Load the [a-z-]+ skill/, `${name} ${key}: the pointer is spliced into a sentence`);
+      assert.doesNotMatch(text, /not already loaded|not a blocker/i, `${name} ${key}: a load-state condition or "Not a blocker" in what the agent reads`);
+    }
+  }
 });
 
 test('executive: the [PLAN CHECK] scanner reads a well-formed block and names what is missing', () => {
@@ -2542,7 +2705,10 @@ test('a migrated message keeps what the scanner reads and names the section for 
   // The prose the skill already carries is gone: these used to explain what a
   // fork is and what the reader's terms are.
   for (const [name, text] of [['preclose', preclose], ['retrospective', retro], ['blockReason', block]]) {
-    assert.ok(text.length <= 380, `${name} is ${text.length} chars; the load sentence fits in 380, the rules stay in the skill`);
+    // 400, from 380: the pointer carries its condition now ("If you do not know
+    // what these markers ask for, load ..."), which is what makes it one the
+    // agent can answer.
+    assert.ok(text.length <= 400, `${name} is ${text.length} chars; the pointer fits in 400, the rules stay in the skill`);
   }
 
   // "Core Protocol" has to exist in the skill, or the pointer is a dead link.

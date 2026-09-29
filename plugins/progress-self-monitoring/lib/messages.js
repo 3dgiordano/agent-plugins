@@ -1,11 +1,11 @@
 'use strict';
 /* Reminder texts shared by the Claude Code and Cursor adapters. */
 
-const { LEDGER, MAX_OPEN_ITEMS, MAX_LINES, MAX_BYTES, MAX_AGE_DAYS, ageText } = require('./ledger.js');
+const { LEDGER, MAX_OPEN_ITEMS, MAX_LINES, MAX_BYTES, MAX_AGE_DAYS, MAX_LINE_CHARS, DETAIL_PREFIX, ageText } = require('./ledger.js');
 
 const SKILL = 'progress-self-monitoring';
 const host = require('./host.js');
-const PROTOCOL = `Load the ${SKILL} skill if it is not already loaded ("Core Protocol").`;
+const PROTOCOL = `If you do not know this ledger's format, load the ${SKILL} skill ("Core Protocol").`;
 
 /*
  * The load message names the ledger's shape - the file, its sections, the two
@@ -22,7 +22,7 @@ const LOAD =
   'the next session re-opens: Updated, Plan, ## Open (blocked | returned, each with its reason), Next. ' +
   'When a turn leaves work blocked or returned that a later session must not lose, write or update it; ' +
   'when it has open items, re-open it before substantive work. ' +
-  `Load the ${SKILL} skill if it is not already loaded for the rules. Headings, field names and blocked | returned stay in English, whatever language you write in. Not a blocker.`;
+  `If you do not know this ledger's format, load the ${SKILL} skill. Headings, field names and blocked | returned stay in English, whatever language you write in.`;
 
 // The load message, and when the project has no ledger, that fact inside it:
 // the agent is told there is nothing to read without a line of its own.
@@ -61,10 +61,14 @@ function summary(ins) {
 const NOTHING = 'no blocked or returned item and no Next line';
 
 // "lines 3, 7 and 4 more" - numbers only, never what is on them.
-function where(ins) {
-  const shown = ins.foreignLines || [];
-  const more = ins.foreign - shown.length;
+function lineList(shown, total) {
+  shown = shown || [];
+  const more = total - shown.length;
   return `line${shown.length === 1 ? '' : 's'} ${shown.join(', ')}${more > 0 ? ` and ${more} more` : ''}`;
+}
+
+function where(ins) {
+  return lineList(ins.foreignLines, ins.foreign);
 }
 
 function foreignClause(ins) {
@@ -88,9 +92,11 @@ function status(ins) {
 }
 
 /*
- * The ledger is closed by removal, and a ledger nobody prunes grows into the
- * thing it was meant to replace: a history the next session reads around.
- * One clause, with the number, when a cap is crossed.
+ * A ledger that only grows becomes the thing it was meant to replace: a
+ * history the next session reads around. One clause, with the number, when a
+ * cap is crossed - and it asks for action, not for cuts. An item closes when
+ * the owner closes it or the work is shown done; an open item dropped to get
+ * under the cap is the one thing the ledger exists to keep.
  */
 function bloat(ins) {
   const b = ins.bloated || [];
@@ -99,8 +105,15 @@ function bloat(ins) {
   if (b.includes('open')) what.push(`${ins.open} open items (more than ${MAX_OPEN_ITEMS} is a backlog, not residue)`);
   if (b.includes('lines')) what.push(`${ins.lines} lines (a ledger is a page: under ${MAX_LINES})`);
   if (b.includes('bytes')) what.push(`${Math.round(ins.bytes / 1024)} KB (the hook reads the first ${MAX_BYTES / 1024})`);
-  return ` It has grown: ${what.join('; ')}. Closed items are removed, not marked - drop what is done, ` +
-    'fold what is stale into one line with its reason, and leave Updated, Plan, ## Open and Next.';
+  // A long line is not a reason to act on the item, only to move its detail.
+  const long = b.includes('long')
+    ? ` ${plural(ins.long, 'line')} over ${MAX_LINE_CHARS} characters (${lineList(ins.longLines, ins.long)}): keep each a short ` +
+      `line with its reason and move the detail to \`${DETAIL_PREFIX}<topic>.md\`, linked from it.`
+    : '';
+  if (!what.length) return long;
+  return ` It has grown: ${what.join('; ')}. Shrink it by acting, never by dropping an open item: remove ` +
+    'what is shown done or the owner closed, do what became doable, ask the owner about the rest, and fold ' +
+    `items with one cause into one line that keeps each reason.${long}`;
 }
 
 // Delivered on the prompt after a turn that edited files and left the ledger

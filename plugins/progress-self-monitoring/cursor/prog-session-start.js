@@ -17,7 +17,8 @@
 const { logEvent } = require('../lib/log.js');
 const ledger = require('../lib/ledger.js');
 const msg = require('../lib/messages.js');
-const { cwdOf } = require('../lib/host.js');
+const path = require('path');
+const { cwdOf, skillText } = require('../lib/host.js');
 const state = require('../lib/state.js');
 
 const workspace = cwdOf({});
@@ -33,5 +34,7 @@ const speak = ins.exists; // any age, any content: the message says which
 try { logEvent(workspace, { event: 'session_start', host: 'cursor', exists: ins.exists, open: ins.open, lines: ins.lines, bytes: ins.bytes, bloated: ins.bloated, ageMs: ins.ageMs, emitted: speak }); } catch (_) {}
 try {
   const text = speak ? msg.LOAD + '\n' + msg.status(ins) : msg.load(ins);
-  process.stdout.write(JSON.stringify({ additional_context: text }));
+  // The skill's text rides with it (lib/host.js skillText): Cursor's subagentStart
+  // cannot add context, so the session start is the one place it can go.
+  process.stdout.write(JSON.stringify({ additional_context: [text, skillText(path.join(__dirname, '..'), 'progress')].filter(Boolean).join('\n\n') }));
 } catch (_) {}

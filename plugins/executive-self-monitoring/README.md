@@ -141,12 +141,13 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .cursor-plugin/plugin.json        # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
 skills/executive-self-monitoring/SKILL.md
-hooks/hooks.json                  # Claude Code + Codex: SessionStart(resume|compact), UserPromptSubmit + PreToolUse(Skill) + PostToolUse(Read|Write|Edit) + SessionEnd
+hooks/hooks.json                  # Claude Code + Codex: SessionStart(resume|compact; startup|resume|clear|compact), UserPromptSubmit + PreToolUse(Skill) + PostToolUse(Read|Write|Edit) + SessionEnd
 hooks/exec-monitor.js
 hooks/exec-observe.js              # records the documents read and their mtime
 hooks/exec-log-skill.js
 hooks/exec-session-start.js         # a resumed or compacted session loads the discipline again
 hooks/exec-session-end.js
+hooks/exec-inject.js               # the skill's text at session start, after /clear or compaction
 cursor/hooks.json                 # Cursor: sessionStart
 cursor/exec-monitor-cursor.js
 lib/execlog.js                    # shared opt-in logger

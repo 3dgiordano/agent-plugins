@@ -9,6 +9,16 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-session-start.js\""
           }
         ]
+      },
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-inject.js\"",
+            "additionalContextLimit": 4000
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [

@@ -13,7 +13,8 @@
 
 const { logEvent } = require('../lib/log.js');
 const msg = require('../lib/messages.js');
-const { cwdOf } = require('../lib/host.js');
+const path = require('path');
+const { cwdOf, skillText } = require('../lib/host.js');
 const state = require('../lib/state.js');
 
 const workspace = cwdOf({});
@@ -23,4 +24,6 @@ const workspace = cwdOf({});
 try { state.sweep(); } catch (_) {}
 
 try { logEvent(workspace, { event: 'session_start', host: 'cursor' }); } catch (_) {}
-try { process.stdout.write(JSON.stringify({ additional_context: msg.LOAD })); } catch (_) {}
+// The skill's text rides with it (lib/host.js skillText): Cursor's subagentStart
+// cannot add context, so the session start is the one place it can go.
+try { process.stdout.write(JSON.stringify({ additional_context: [msg.LOAD, skillText(path.join(__dirname, '..'), 'coverage')].filter(Boolean).join('\n\n') })); } catch (_) {}

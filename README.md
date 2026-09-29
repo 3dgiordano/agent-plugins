@@ -20,7 +20,9 @@ worth another try?*, *is that a reason or a phrase?*, *did I do the hard
 part?*, *can the reader act on what I wrote?*, *can the next session pick this
 up?*, *is the result real?* — in three parts:
 
-- a **skill**, the discipline, loaded when the session starts;
+- a **skill**, the discipline: four plugins put its text in context when the
+  session starts, the other four ask for it, and every hook line carries the
+  block's shape too ([docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md));
 - a **hook** that notices a fact the agent is not tracking (the same file
   edited four times, a plan that changed on disk, a ledger with open items)
   and puts it in front of the agent at that moment;
@@ -69,8 +71,8 @@ runs into a turn, a hook adds this to its context:
 turn; `npm test` has failed 3 times this turn. Before the next attempt, write
 the [PERSISTENCE CHECK] as a markdown list: Attempts, Hypothesis held, Rival
 approach, Proportion, Decision. If nothing about the next attempt is new, say
-so to the user instead of trying again. Load the persistence-self-monitoring
-skill if it is not already loaded ("Core Protocol").
+so to the user instead of trying again. If you do not know what these markers
+ask for, load the persistence-self-monitoring skill ("Core Protocol").
 ```
 
 **What you see.** The agent answers in its next message with the block the
@@ -108,10 +110,10 @@ On the first turn of a session, and every fifth after that:
 [executive self-monitoring] Checkpoint for long/iterative work: re-open the
 artifact that defines it and write the [PLAN CHECK] markdown list - Plan (the
 artifact, named), Gate (quoted from it), Drift (none, or what pulls away),
-Decision (continue | refocus | revise-plan). Load the
-executive-self-monitoring skill if it is not already loaded for the rules
-behind them. Markers, field names and status words stay in English, whatever
-language you write in. Not a blocker; skip if this turn is trivial.
+Decision (continue | refocus | revise-plan). If you do not know what these
+markers ask for, load the executive-self-monitoring skill. Markers, field
+names and status words stay in English, whatever language you write in. Skip
+it if this turn is trivial.
 ```
 
 When a turn ends on "I'm running out of context, let's pick this up in a fresh
@@ -124,8 +126,9 @@ reason: a state-shaped reason (budget: "I'm running out of context") with no
 [TERMINATION CHECK] block - name the checkable reason or continue. If the work
 is unfinished, either write the [TERMINATION CHECK] as a markdown list -
 Trigger, Reason (gate-not-run | owner-choice | budget-spent | limit-observed |
-none), Evidence, Decision - or pick the work back up now. Load the
-termination-self-monitoring skill if it is not already loaded ("Core Protocol").
+none), Evidence, Decision - or pick the work back up now. If you do not know
+what these markers ask for, load the termination-self-monitoring skill ("Core
+Protocol").
 ```
 
 Three `TODO`s into a turn:
@@ -134,8 +137,8 @@ Three `TODO`s into a turn:
 [coverage self-monitoring] you have written 3 stub / placeholder / TODO
 markers this turn (src/stream.js, src/retry.js). Each one is a part of the
 request that is not done: implement it now, or close it in the [COVERAGE
-CHECK] as blocked or returned, with the reason. Load the
-coverage-self-monitoring skill if it is not already loaded ("Core Protocol").
+CHECK] as blocked or returned, with the reason. If you do not know what these
+markers ask for, load the coverage-self-monitoring skill ("Core Protocol").
 ```
 
 When a session opens — or continues after a compaction — in a project whose
@@ -147,8 +150,8 @@ returned) and a Next line, updated 2 days ago. Re-open it before substantive
 work: it is the record of what the last session left blocked or returned. What
 Next names is work for this session, alongside the request: an item whose
 block has lifted, do it and remove it; one still blocked or returned stays as
-it is. Keep Updated and Next current. Load the progress-self-monitoring skill
-if it is not already loaded ("Core Protocol").
+it is. Keep Updated and Next current. If you do not know this ledger's format,
+load the progress-self-monitoring skill ("Core Protocol").
 ```
 
 When the tests go green after a run of edits — the moment the final message is
@@ -158,8 +161,9 @@ about to be written:
 [handoff self-monitoring] `npm test` passed - this turn looks close to its
 end. Close with a [HANDOFF] markdown list, not a fenced code block: Status
 (done | needs-decision | blocked), Situation in the reader's terms, Options
-with Default on its own line, Next. Trace detail below it. Load the
-handoff-self-monitoring skill if it is not already loaded ("Core Protocol").
+with Default on its own line, Next. Trace detail below it. If you do not know
+what these markers ask for, load the handoff-self-monitoring skill ("Core
+Protocol").
 ```
 
 When an edit makes the code answer a failed call with a value of its own:
@@ -172,9 +176,9 @@ real result is an error that says so, and "cannot be done as asked, because X"
 is a complete answer. If this is what the user asked for, say so in your close
 as `- <file or kind>: misread - <why>`. Write the [INTEGRITY CHECK] as a
 markdown list: Result (real | shortcut | blocked), Route, Outside the task,
-Told the user. Load the integrity-self-monitoring skill if it is not already
-loaded. Markers, field names and status words stay in English, whatever
-language you write in. Not a blocker.
+Told the user. If you do not know what these markers ask for, load the
+integrity-self-monitoring skill. Markers, field names and status words stay in
+English, whatever language you write in.
 ```
 
 The epistemic line arrives when a claim is about to be closed on, and asks for

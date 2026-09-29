@@ -44,7 +44,7 @@ same file does the job the feeling would have done.
 
 | | Claude Code | Cursor |
 |---|-------------|--------|
-| **Turn boundary** (reset counters; first turn loads the skill) | `UserPromptSubmit` | `sessionStart` (load) + `afterAgentResponse` (reset) |
+| **Turn boundary** (reset counters; first turn names the block and the skill) | `UserPromptSubmit` | `sessionStart` (load) + `afterAgentResponse` (reset) |
 | **Count every tool call**, nudge on threshold | `PostToolUse`, no matcher → `additionalContext` | `postToolUse` → `additional_context` |
 | **Turn summary** to the log | `Stop` (log only, never blocks) | `afterAgentResponse` |
 

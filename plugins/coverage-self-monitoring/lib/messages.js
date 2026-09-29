@@ -35,9 +35,9 @@ const LOAD =
   'the hard one included: a stub, a fallback or invented data, a postponed or excluded part is a part ' +
   'that is not done, in any language. For a multi-part task write the [COVERAGE LEDGER] first - the ' +
   'parts, which is hardest, the order - and close each one in a [COVERAGE CHECK]: done | blocked | ' +
-  `returned. Load the ${SKILL} skill if it is not already loaded for the rules. Markers, field names and status words stay in English, whatever language you write in. Not a blocker.`;
+  `returned. If you do not know what these markers ask for, load the ${SKILL} skill. Markers, field names and status words stay in English, whatever language you write in.`;
 
-const PROTOCOL = `Load the ${SKILL} skill if it is not already loaded ("Core Protocol").`;
+const PROTOCOL = `If you do not know what these markers ask for, load the ${SKILL} skill ("Core Protocol").`;
 
 /*
  * This block is the odd one in the collection: its list items are the parts of

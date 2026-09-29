@@ -39,12 +39,20 @@ const host = require('./host.js');
 // message named only the field. If a later measurement shows the enum hurting
 // LOAD the way the protocol did, take it out of LOAD first - the three below
 // fire at the writing, LOAD fires far from it.
+/*
+ * The skill is named, and the condition for loading it is one the agent can
+ * answer: whether it knows what the marker asks for. Where the session start
+ * puts the skill in context (hooks/hand-inject.js) the answer is yes and the
+ * sentence costs nothing; where it did not, the agent that does not know the
+ * block has the one step that tells it.
+ */
+const POINTER = `If you do not know what these markers ask for, load the ${SKILL} skill ("Core Protocol").`;
 const LOAD =
-  `[handoff self-monitoring] The reader of your final message has the message, not your trace. When the ` +
+  '[handoff self-monitoring] The reader of your final message has the message, not your trace. When the ' +
   'ask is one they will act on - which of these, is this ready, look at this before I run it - close ' +
-  'with a [HANDOFF] markdown list: Status (done | needs-decision | blocked), Situation in the ' +
-  'reader\'s terms, Options with Default on ' +
-  `its own line, Next. Load the ${SKILL} skill if it is not already loaded for the rules. Markers, field names and status words stay in English, whatever language you write in. Not a blocker.`;
+  'with a [HANDOFF] markdown list: Status (done | needs-decision | blocked), Situation in the reader\'s ' +
+  `terms, Options with Default on its own line, Next. If you do not know what these markers ask for, load ` +
+  `the ${SKILL} skill. Markers, field names and status words stay in English, whatever language you write in.`;
 
 /*
  * These three used to restate the protocol they point at. What stays is what
@@ -64,20 +72,18 @@ const LOAD =
  * makes loading the skill look redundant. LOAD fires far from the writing; the
  * three below fire at it.
  */
-const PROTOCOL = `Load the ${SKILL} skill if it is not already loaded ("Core Protocol").`;
-
 function preclose(signal) {
   const seen = signal.what === 'commit' ? `\`${signal.label}\` ran` : `\`${signal.label}\` passed`;
   return `[handoff self-monitoring] ${seen} - this turn looks close to its end. Close with a [HANDOFF] ` +
     'markdown list, not a fenced code block: Status (done | needs-decision | blocked), Situation in ' +
     'the reader\'s terms, Options with ' +
-    `Default on its own line, Next. Trace detail below it. ${PROTOCOL}`;
+    `Default on its own line, Next. Trace detail below it. ${POINTER}`;
 }
 
 function retrospective(violations) {
   return '[handoff self-monitoring] Your previous close left the reader without a handoff: ' +
     violations.join('; ') + '. Unless the owner\'s message already settles it, open this turn with the ' +
-    `[HANDOFF] block for where the work stood, then continue. ${PROTOCOL}`;
+    `[HANDOFF] block for where the work stood, then continue. ${POINTER}`;
 }
 
 function blockReason(violations) {
@@ -87,7 +93,7 @@ function blockReason(violations) {
     // for retrospective. The enum belongs in the messages that fire BEFORE the
     // agent writes, not in the ones that fire after it got the word wrong.
     'block: Status, Situation, Options with Default when needs-decision, Blocked-by when blocked, Next. ' +
-    `Keep paths, identifiers and what you ran below it. Then finish. ${PROTOCOL}`;
+    `Keep paths, identifiers and what you ran below it. Then finish. ${POINTER}`;
 }
 
 // The one line the user sees when the stop scan finds something (lib/host.js):

@@ -49,7 +49,7 @@ markers it wrote, and the deferral phrases it used.
 
 | | Claude Code | Cursor |
 |---|-------------|--------|
-| **Turn boundary** — reset counters; first turn loads the skill | `UserPromptSubmit` | `sessionStart` (load) + `afterAgentResponse` (reset) |
+| **Turn boundary** — reset counters; first turn names the block; the skill's text went in at `SessionStart` / `SubagentStart` | `UserPromptSubmit` | `sessionStart` (load) + `afterAgentResponse` (reset) |
 | **Ledger prompt** — the user's message enumerates ≥ 3 items | `UserPromptSubmit` → text | — (no non-blocking per-prompt event) |
 | **Stub counter** — markers written per turn, nudge on threshold | `PostToolUse`, no matcher → `additionalContext` | `postToolUse` → `additional_context` |
 | **Close scan** — deferral phrases vs. `[COVERAGE CHECK]` | `Stop` → findings to state; next prompt carries the retrospective | `afterAgentResponse` → log only |
@@ -244,12 +244,13 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
 skills/coverage-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact), UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
+hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact; startup|resume|clear|compact), SubagentStart, UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/cov-prompt.js
 hooks/cov-observe.js
 hooks/cov-stop.js
 hooks/cov-session-start.js          # a resumed or compacted session loads the discipline again
 hooks/cov-session-end.js
+hooks/cov-inject.js                # the skill's text at session start, after /clear or compaction, and for a subagent
 cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse
 cursor/cov-session-start.js   # also sweeps aged state (Cursor has no session-end event)
 cursor/cov-observe-cursor.js

@@ -28,16 +28,19 @@
 'use strict';
 
 const { logEvent } = require('../lib/execlog.js');
-const { cwdOf } = require('../lib/host.js');
+const path = require('path');
+const { cwdOf, skillText } = require('../lib/host.js');
 
 const MSG =
   '[executive self-monitoring] For long or iterative work, re-open the artifact that defines ' +
   'it and write the [PLAN CHECK] markdown list: Plan (the artifact, named), Gate (quoted from ' +
-  'it), Drift (none, or what pulls away), Decision (continue | refocus | revise-plan). Load the ' +
-  'executive-self-monitoring skill if it is not already loaded for the rules behind them. Skip ' +
-  'this when the turn is trivial. Markers, field names and status words stay in English, whatever language you write in. Not a blocker - the plan defines the work.';
+  'it), Drift (none, or what pulls away), Decision (continue | refocus | revise-plan). If you do ' +
+  'not know what these markers ask for, load the executive-self-monitoring skill. Skip this when ' +
+  'the turn is trivial. Markers, field names and status words stay in English, whatever language you write in.';
 
 const workspace = cwdOf({});
 
 try { logEvent(workspace, { event: 'session_start', host: 'cursor' }); } catch (_) {}
-try { process.stdout.write(JSON.stringify({ additional_context: MSG })); } catch (_) {}
+// The skill's text rides with it (lib/host.js skillText): Cursor's subagentStart
+// cannot add context, so the session start is the one place it can go.
+try { process.stdout.write(JSON.stringify({ additional_context: [MSG, skillText(path.join(__dirname, '..'), 'executive')].filter(Boolean).join('\n\n') })); } catch (_) {}

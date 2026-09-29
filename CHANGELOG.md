@@ -7,25 +7,39 @@ release.
 
 ## [Unreleased]
 
-- Claude plugin directory readiness: `scripts/directory-check.js` mirrors the
-  portal's pre-submission checks (block / hold / warn) and runs in CI; holds we
-  accept are recorded with their reason in `scripts/directory-holds.json`;
-  `docs/DIRECTORY.md` reviews the repository against the Directory Policy and
-  Terms and holds the per-release checklist. Each plugin README's *Layout* no
-  longer writes the bundled logo's path in a code block (a portal hold).
-- Claude outcome bench: thinking blocks carry a summary of the reasoning
-  (`--thinking-display summarized`, both arms). Before, every block was
-  signature-only - the API omits the text by default on these models and
-  `showThinkingSummaries` does not reach `-p` - so the eval-talk audit read
-  only written text on Claude and thinking plus text on Cursor. Subagent text
-  and thinking are forwarded, `cost.json` records thinking tokens, and the
-  report's redaction note names only sessions run without the flag.
-- Claude outcome bench runs locally on Windows: `--restricted
-  --strict-mcp-config` with the owner's HOME replaces the scratch HOME, which
-  hid the login there. No settings file, installed plugin or MCP server reaches
-  either arm; `--tools` names the scratch-HOME set (Artifact and Workflow are not
-  offered under `--restricted`); grants come in a per-invocation `--settings`
-  file; TEMP stays per invocation. `--probe` now checks all of it.
+## [0.16.0] — 2026-09-29
+
+The skill now reaches the agent without waiting for it to ask. A report from use in another project found that on Claude Code the agent almost never loads the skill a hook message points at, and the transcripts confirm it: 1 load for 689 requests in 30 interactive sessions (2026-09-24 to 29), after 0 of 18 under `claude -p`. Handoff, progress, coverage and executive, whose moment is the start of a session, now put their skill's text in context themselves, and handoff and coverage do it for every subagent too; verified live, a new session received all four whole and a subagent received both. Every message asks for the skill on a condition the agent can answer, and "Not a blocker" is gone from everything the agent reads. Progress closes an open item only when the owner does or the work is shown done, and keeps its lines short with the detail in files of their own. Three misreadings are fixed: another agent's message counted as the user's turn, numbered handoff options read as none, and a spliced sentence in epistemic's most frequent message. The behaviour with the skill always in context is not measured yet.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.8.0 |
+| epistemic-self-monitoring | 0.3.5 |
+| persistence-self-monitoring | 0.3.5 |
+| termination-self-monitoring | 0.3.3 |
+| coverage-self-monitoring | 0.5.0 |
+| handoff-self-monitoring | 0.4.0 |
+| progress-self-monitoring | 0.6.2 |
+| integrity-self-monitoring | 0.1.2 |
+
+### Added
+- **The skill's text in context at the start of a session** (coverage 0.5.0, executive 1.8.0, handoff 0.4.0, progress 0.6.2). A new `SessionStart` hook, `hooks/<p>-inject.js` (matcher `startup|resume|clear|compact`), sends `SKILL.md` without its frontmatter at a new session, after a `/clear` and after a compaction, and on a resume only to a session with no record of having it. handoff and coverage also send it on `SubagentStart`, so a subagent without the Skill tool has it. On Cursor, `sessionStart` carries it with the load message; its `subagentStart` takes no context, so subagents there do not get it. Epistemic, persistence, termination and integrity do not inject: their moment comes mid-session. Verified in a live session on 2026-09-29: the four arrived whole in one `SessionStart` attachment (34,465 characters, no spill to a file), the first request created about 11k more cache tokens than before (26,069 against 14,910), and a subagent received handoff (9,580 characters) and coverage (9,017). Not measured yet: whether the blocks come when they should and stay away when they should not.
+- **Within every host's limit, by test.** Claude Code keeps 10,000 characters of a hook's context and moves the rest to a file behind a 2,000-character preview; Codex keeps about 2,500 tokens unless the handler sets `additionalContextLimit`, which the inject handlers do (4000); Cursor documents no limit. `lib/host.js` `skillText` sends nothing over 9,800 characters rather than a skill cut short, and `scripts/test.js` fails when a skill grows past 9,800 characters or 10,000 bytes. handoff's and progress's skills were shortened to fit, without a rule dropped.
+- **progress 0.6.2: a ledger line stays short, and its detail gets a file of its own.** An item, `Plan` or `Next` over 300 characters keeps its reason on the line and moves the rest to `.agent/progress-<topic>.md`, linked from it; the prefix marks the ledger's own files, so they are found together and can be as detailed as they need. The hook counts such lines and names their line numbers, never their text (`MAX_LINE_CHARS`, reasoned, not measured); a long line alone does not count as a ledger that outgrew its page.
+- **Claude plugin directory readiness:** `scripts/directory-check.js` mirrors the portal's pre-submission checks (block / hold / warn) and runs in CI; holds we accept are recorded with their reason in `scripts/directory-holds.json`; `docs/DIRECTORY.md` reviews the repository against the Directory Policy and Terms and holds the per-release checklist. Each plugin README's *Layout* no longer writes the bundled logo's path in a code block (a portal hold).
+- **Claude outcome bench: thinking blocks carry a summary of the reasoning** (`--thinking-display summarized`, both arms). Before, every block was signature-only - the API omits the text by default on these models and `showThinkingSummaries` does not reach `-p` - so the eval-talk audit read only written text on Claude and thinking plus text on Cursor. Subagent text and thinking are forwarded, `cost.json` records thinking tokens, and the report's redaction note names only sessions run without the flag.
+- **The Claude outcome bench runs locally on Windows:** `--restricted --strict-mcp-config` with the owner's HOME replaces the scratch HOME, which hid the login there. No settings file, installed plugin or MCP server reaches either arm; `--tools` names the scratch-HOME set (Artifact and Workflow are not offered under `--restricted`); grants come in a per-invocation `--settings` file; TEMP stays per invocation. `--probe` now checks all of it.
+
+### Changed
+- **Every message names the skill on a condition the agent can answer** (all eight plugins, every host). "Load the X skill if it is not already loaded" became "If you do not know what these markers ask for, load the X skill" (progress: "this ledger's format"): the agent cannot tell a skill it loaded from one it has only seen listed, but it knows whether it knows a marker. The skill is named by its short name, which every host resolves; the Skill tool also accepts the plugin-qualified one (checked on 2.1.283).
+- **"Not a blocker" is gone from everything the agent reads:** the load messages of all eight plugins and the skill descriptions. It says how the plugins run, which is for the person installing them; the READMEs and manifests keep it. The descriptions no longer ask for their own load either: they say when the skill applies, and asking for the load is the hooks' job. integrity 0.1.2 for its message.
+- **progress 0.6.2: an open item closes only when the owner closes it or the work is shown done.** The skill said a ledger over its cap is answered by pruning, and the hook said "drop what is done, fold what is stale"; read that way, age or size was reason enough to delete an item nobody had decided. Now rule 5 is "close only what is closed": age, size or a sense that it no longer matters close nothing, an item the agent cannot close is a question for the owner, and a ledger over its cap shrinks by acting - do what became doable, put the rest to the owner, fold items with one cause into one line that keeps each reason, move long detail to a detail file. A new failure signature names the pruned ledger, and the stale-ledger signature no longer says the hook goes silent (it announces the age since 0.5.0).
+- **The docs no longer say the skill loads at session start.** `docs/HOW-IT-WORKS.md`, `README.md`, `docs/FAQ.md`, the plugin READMEs' hook tables and `evals/PROTOCOL.md` say how the skill reaches the agent now: injected for four plugins, asked for by the other four, with the interactive measurement beside the `claude -p` one. `SECURITY.md` names the one new file a hook reads: the plugin's own `SKILL.md`.
+
+### Fixed
+- **Every plugin on Claude Code: another agent's message is not a turn** (coverage 0.5.0, epistemic 0.3.5, executive 1.8.0, handoff 0.4.0, persistence 0.3.5, progress 0.6.2, termination 0.3.3). A subagent's report or a teammate's message reaches the session as a user prompt that opens `Another Claude session sent a message:` and wraps the text in `<agent-message>`. `lib/host.js` `notification()` knew only `<task-notification>`, so the prompt hooks counted the report as the user's turn: coverage read a subagent's bullet list as "the request enumerates 102 parts", and the per-turn counters, cadences and retrospectives moved on it. Integrity has no prompt hook and gets the same copy of `host.js`.
+- **handoff 0.4.0: numbered options are options.** `Options:` followed by `1.`, `2.`, `3.` (or `1)`) read as "fewer than two alternatives", because an option had to be a `-` or `*` item. Two real Spanish closes of 2026-09-29 drew that finding; both pass now, and the shape is in the corpus.
+- **epistemic 0.3.5: the observe nudge reads as sentences.** The skill pointer was spliced into the middle of a sentence ("before choosing one Load the epistemic-self-monitoring skill … ("Core Protocol").. What you saw"), in the message sent after every shell command it samples. `scripts/test.js` now checks every plugin's messages for a doubled full stop and for the pointer joined into a sentence.
 
 ## [0.15.0] — 2026-09-28
 

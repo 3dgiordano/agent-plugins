@@ -1,6 +1,6 @@
 ---
 name: epistemic-self-monitoring
-description: "Observation-vs-conjecture discipline for diagnosis and closure. Every claim carries its evidence and a named falsifier; only a verified claim may become a fact, a defect entry or a closure. Not a blocker - a way of writing that keeps what you saw apart from what you think it means. Triggers - debugging, root cause, diagnose, investigate, why does this happen, regression, metric moved, flaky test, 'this is the cause', 'this is a defect', closing an issue, declaring done, verify, confirm. Load the epistemic-self-monitoring skill if it is not already loaded."
+description: "Observation-vs-conjecture discipline for diagnosis and closure. Every claim carries its evidence and a named falsifier; only a verified claim may become a fact, a defect entry or a closure. Triggers - debugging, root cause, diagnose, investigate, why does this happen, regression, metric moved, flaky test, 'this is the cause', 'this is a defect', closing an issue, declaring done, verify, confirm."
 ---
 
 # Epistemic Self-Monitoring Skill

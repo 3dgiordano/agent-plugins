@@ -7,7 +7,7 @@ const host = require('./host.js');
 // Declared before LOAD, which names them: the scanner matches on these tokens,
 // so they are the part of the protocol a message cannot delegate to the skill.
 const REASONS = 'gate-not-run | owner-choice | budget-spent | limit-observed | none';
-const PROTOCOL = `Load the ${SKILL} skill if it is not already loaded ("Core Protocol").`;
+const PROTOCOL = `If you do not know what these markers ask for, load the ${SKILL} skill ("Core Protocol").`;
 
 // A pointer, not a paraphrase - see the note in coverage's messages.js.
 // The field names are here, not only in the skill - see the note in coverage's
@@ -16,8 +16,8 @@ const LOAD =
   `[termination self-monitoring] You have no fatigue, no clock and no context budget to manage - the ` +
   'tool you run in does. If you are about to stop, defer or narrow on a feeling or a limit you do not manage ' +
   '(in English, "running out of context", "not confident enough"), write the [TERMINATION CHECK] ' +
-  `markdown list: Trigger, Reason (${REASONS}), Evidence, Decision. Load the ${SKILL} skill if it is ` +
-  'not already loaded. Markers, field names and status words stay in English, whatever language you write in. Not a blocker.';
+  `markdown list: Trigger, Reason (${REASONS}), Evidence, Decision. If you do not know what these markers ` +
+  `ask for, load the ${SKILL} skill. Markers, field names and status words stay in English, whatever language you write in.`;
 
 /*
  * The field names, as a list, and the rules named rather than copied - see the
