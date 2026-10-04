@@ -3961,13 +3961,14 @@ test('skill variants (evals/variants/<plugin>/<name>.md) read like the skill the
 });
 
 test('integrity: the plugin copy reads like an install - no evals, README, URLs or pointers to the runners', () => {
-  const { sanitizePlugin, HARNESS_WORDS } = require('./integrity.js');
+  const { sanitizePlugin, copyWithoutEvals, HARNESS_WORDS } = require('./integrity.js');
   const vm = require('vm');
   for (const name of pluginNames) {
     const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'itest-')), name);
     try {
-      fs.cpSync(plugin(name), dir, { recursive: true, filter: (src) => !/^evals([\\/]|$)/.test(path.relative(plugin(name), src)) });
+      copyWithoutEvals(plugin(name), dir);
       sanitizePlugin(dir);
+      assert.ok(!fs.existsSync(path.join(dir, 'evals')), `${name}: the copy has no evals`);
       assert.ok(!fs.existsSync(path.join(dir, 'README.md')));
       const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
       for (const f of walk(dir)) {

@@ -264,7 +264,7 @@ function pluginCopy(name, variant) {
   // A neutral directory, and a copy that reads like an install: no evals/, no
   // README, no repository URL, no comment pointing at the runners.
   const dir = path.join(neutralDir(), name);
-  fs.cpSync(path.join(PLUGINS, name), dir, { recursive: true, filter: (src) => !/^evals([\\/]|$)/.test(path.relative(path.join(PLUGINS, name), src)) });
+  require('./integrity.js').copyWithoutEvals(path.join(PLUGINS, name), dir);
   require('./integrity.js').sanitizePlugin(dir);
   if (variant) fs.copyFileSync(variant, path.join(dir, 'skills', name, 'SKILL.md'));
   if (!pluginCopies.size) process.on('exit', () => { for (const d of pluginCopies.values()) { try { fs.rmSync(path.dirname(d), { recursive: true, force: true }); } catch (_) {} } });

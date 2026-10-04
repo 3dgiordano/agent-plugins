@@ -159,6 +159,16 @@ function childEnv(extra, source = process.env, platform = process.platform) {
 // has no word break before "Bench", so it is named.
 const TELLTALE = /\b(evals?|bench(mark)?|grader|fixture|harness|arxiv)\b|\w+Bench\b|scripts\/|cursor-eval|claude-eval|codex-eval|test\.js/i;
 
+// A copy of a plugin without its evals/. fs.cpSync hands the filter the path in
+// the form the platform call takes, not the one it was given: Node 18 and 20 on
+// Windows pass the namespaced form (\\?\C:\...), which path.relative cannot
+// place under the source, so a filter that tests the relative path let evals/
+// through there (CI, 2026-10-04). The prefix comes off before the comparison.
+function copyWithoutEvals(from, to) {
+  const plain = (p) => p.replace(/^\\\\\?\\/, '');
+  fs.cpSync(from, to, { recursive: true, filter: (src) => !/^evals([\\/]|$)/.test(path.relative(from, plain(src))) });
+}
+
 function sanitizePlugin(dir) {
   const vm = require('vm');
   try { fs.rmSync(path.join(dir, 'README.md'), { force: true }); } catch (_) {}
@@ -597,7 +607,7 @@ function gradeOf(dir, file, regrade) {
   try { return JSON.parse(fs.readFileSync(path.join(dir, `${base}.grade.json`), 'utf8')); } catch (_) { return null; }
 }
 
-module.exports = { codeBodies, CANARY, CANARY_GUID, HARNESS_WORDS, answerKeyFiles, hasCanary, stamp, childEnv, sanitizePlugin, auditRun, scanWorkspace, auditStored, norm, replaySignals, gradeOf };
+module.exports = { codeBodies, CANARY, CANARY_GUID, HARNESS_WORDS, answerKeyFiles, hasCanary, stamp, childEnv, copyWithoutEvals, sanitizePlugin, auditRun, scanWorkspace, auditStored, norm, replaySignals, gradeOf };
 
 if (require.main === module) {
   const files = answerKeyFiles();
