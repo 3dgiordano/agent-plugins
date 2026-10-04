@@ -808,6 +808,8 @@ function loadDir(dir) {
   if (!fs.existsSync(file)) throw new Error(`no run.json in ${dir}`);
   const record = JSON.parse(fs.readFileSync(file, 'utf8'));
   if (!record.score || !record.costDetail) throw new Error(`${file} has no score yet`);
+  // A skill-variant run measures a text that has not shipped: never drawn as the plugin's result.
+  if (record.skillVariant) throw new Error(`${file} ran the skill variant "${record.skillVariant.name}" of ${record.skillVariant.plugin}: an experiment, not a plugin result`);
   record.audit = auditOf(dir);
   return record;
 }

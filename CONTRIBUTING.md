@@ -26,10 +26,11 @@ five rules the existing plugins follow:
    in the user's `CLAUDE.md` or rules, not in the skill.
 5. **Name the monitored decision or variable, never an internal state.**
    `executive`, `epistemic`, `persistence`, `termination`, `coverage`,
-   `handoff`, `progress`, `integrity` name what is checked — alignment to the
-   plan, the status of a claim, the persist-or-quit decision, the reason for a
-   stop, the parts delivered, the handoff to the reader, the residue across
-   sessions, where a result comes from. A
+   `handoff`, `progress`, `integrity`, `aspiration`, `hygiene` name what is checked —
+   alignment to the plan, the status of a claim, the persist-or-quit decision,
+   the reason for a stop, the parts delivered, the handoff to the reader, the
+   residue across sessions, where a result comes from, the bar a result is
+   held to. A
    name like *affective* or *avoidance* would assert a state the agent does
    not have; what looks like one from outside is a training-data artifact,
    and the plugin's job is to name the artifact, not to adopt it. The same
@@ -111,7 +112,7 @@ questions — so the design is agreed before code is written.
    ones: drive each hook with the JSON its host sends and assert on stdout,
    stderr and exit code, for both hosts.
 5. Add it everywhere the collection is listed: the tables in the root README
-   (the eight moments, which one first, plugins), `docs/HOW-IT-WORKS.md` (the
+   (the ten moments, which one first, plugins), `docs/HOW-IT-WORKS.md` (the
    questions and the blocks), `docs/FAQ.md` (what you get, which one first),
    `docs/RESEARCH.md` (its related work), and `CHANGELOG.md` under
    *Unreleased*.
@@ -313,6 +314,8 @@ On Windows the `codex` on PATH is a `.cmd` shim, and a shell would mangle
 the quoted TOML, so the runner starts the package's `bin/codex.js` with node
 directly. Transcripts use the same file names as the other runners, so
 `--rescore` works across all three.
+
+**A skill text before it ships** is measured with `--skill-variant <name>` on `claude-bench.js` or `claude-eval.js`: the WITH arm loads `evals/variants/<plugin>/<name>.md` in place of the plugin's `SKILL.md`. Run the shipped text and each variant against the same baseline, then adopt the variant only if it wins on the case it was written for and loses nothing on the plugin's canonical case.
 
 One more constraint worth knowing before you read a delta: these plugins are
 usually installed globally under `~/.cursor/plugins/local`, the CLI loads them

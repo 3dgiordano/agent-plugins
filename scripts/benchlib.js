@@ -111,6 +111,9 @@ function loadCases(filter) {
         intent: meta.intent || 'work',
         metric: meta.metric || 'checks passed',
         shell: Array.isArray(meta.shell) ? meta.shell : null,
+        // A case whose source is on the web (an official document, a paper's
+        // record) opts in to the web tools where a host grants tools one by one.
+        web: meta.web === true,
         // A case's own guard, by name under bench/guards/ (scripts/cursor-bench.js).
         guard: typeof meta.guard === 'string' ? meta.guard : null,
         why: meta.why || '',

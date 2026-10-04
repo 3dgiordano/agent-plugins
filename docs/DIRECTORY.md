@@ -44,7 +44,7 @@ and pull request; it fails on any block and on any hold not recorded, with its
 reason, in `scripts/directory-holds.json`. `scripts/test.js` proves it still
 catches each rule on a deliberately broken plugin.
 
-State on 2026-09-28: **0 blocking findings** on all eight plugins;
+State on 2026-10-04: **0 blocking findings** on all ten plugins;
 `claude plugin validate` passes on each plugin and on the marketplace.
 
 ### Holds we expect, and accept
@@ -56,7 +56,7 @@ A hold is not a rejection: a reviewer reads the version before it goes live.
 | Scripts the validator couldn't follow | every `hooks/hooks.json` entry | The hooks are Node.js files that `require` `../lib/*.js`, in a plugin that is a subfolder of the repository. The validator follows only plain shell scripts there. Goes away only with each plugin at the root of its own repository (*Decisions*, 1). |
 | Uses a credential from the user's machine | `progress-self-monitoring/evals/*/files/scripts/publish.js` | Eval fixture: a sample project's release script reads `NPM_TOKEN`. No hook runs it, no eval asks the agent to. `claude plugin eval` only reads `evals/` inside the plugin folder, so it ships. |
 | (possible) Uses a credential from the user's machine | `integrity-self-monitoring` README and `lib/code.js` | The text `process.env.API_KEY \|\| 'dev-key'` names a shape the hook detects; nothing reads `API_KEY`. |
-| (possible) Name may be confused with an existing listing | all eight names | Names built only from generic words (`executive`, `self`, `monitoring`) are held; the portal decides (*Decisions*, 2). |
+| (possible) Name may be confused with an existing listing | all ten names | Names built only from generic words (`executive`, `self`, `monitoring`) are held; the portal decides (*Decisions*, 2). |
 
 Fixed on 2026-09-28: each README's *Layout* block wrote `assets/logo.svg`
 inside a code block, which holds a version ("don't write bundled image paths
@@ -67,21 +67,21 @@ in backticks or a code block").
 | § | Rule (short) | Status |
 | --- | --- | --- |
 | 1.A | Usage Policy | Meets. |
-| 1.B | No circumventing guardrails, system instructions or sandbox | Meets. Hooks add context and a one-line notice; they never alter output. The three strict gates are opt-in env vars and block a stop at most once per turn. |
+| 1.B | No circumventing guardrails, system instructions or sandbox | Meets. Hooks add context and a one-line notice; they never alter output. The four strict gates are opt-in env vars and block a stop at most once per turn. |
 | 1.C | Privacy first | Meets: nothing leaves the machine; no network calls, no child processes (SECURITY.md, checked by `scripts/test.js`). |
 | 1.D | Only necessary data; no extraneous conversation data, **including for logging** | **Risk.** The opt-in debug logs (`*_LOG`) and the opt-in coverage misread log store clipped phrases of the agent's own messages on the user's disk. Off by default, local, documented, but the rule names logging (*Decisions*, 3). |
 | 1.E | No IP infringement | Meets: own code, Apache-2.0; research is cited, not copied. |
-| 1.F | Never query or extract Claude memory, chat history, summaries or user files | Meets, disclosed: hooks read only the event the host sends (no `transcript_path` read anywhere). Three read a project file and emit only counts and metadata: progress (`.agent/progress.md`), integrity (the file an edit just wrote), executive (mtimes only). |
+| 1.F | Never query or extract Claude memory, chat history, summaries or user files | Meets, disclosed: hooks read only the event the host sends (no `transcript_path` read anywhere). Four read a project file and emit only counts and metadata: progress (`.agent/progress.md`), integrity (the file an edit just wrote), executive (mtimes only), hygiene (the JavaScript and TypeScript files near the root at session start and a code file the agent reads or edits, kept as exported names, line numbers and hashes; it emits a path, lines and a count). |
 | 2.A-B | Narrow, exact descriptions | **Risk, low.** Skill descriptions end with long trigger lists (e.g. "debugging, root cause, ... verify, confirm"); a reviewer may read them as broader than the skill. |
 | 2.C | No confusion with other listings | See name hold above. |
-| 2.D-E | No coercing calls to external software; no interfering with tools | Meets: the prompt hooks point at the plugin's own skill only; no hook blocks a tool call. Note: with all eight installed, each prompt carries up to eight reminders. |
+| 2.D-E | No coercing calls to external software; no interfering with tools | Meets: the prompt hooks point at the plugin's own skill only; no hook blocks a tool call. Note: with all ten installed, each prompt carries up to ten reminders. |
 | 2.F | No behavioural instructions pulled from external sources | Meets: every message is static text in `lib/messages.js`; session values are counts, paths and the agent's own short phrases (SECURITY.md, *Scope notes*). |
 | 2.G | No hidden, obfuscated or encoded instructions | Meets: readable unminified source; the check fails on invisible/bidi characters, long encoded runs and over-long lines. |
 | 3.A | Privacy policy link | Partial: `privacyPolicyUrl` points at `SECURITY.md`, which states the data behaviour but is not titled a privacy policy (*Decisions*, 5). |
 | 3.B | Verified contact and support channel | Meets: `supportUrl` (issues), private vulnerability reporting (SECURITY.md), the portal's contact email. |
-| 3.C | Document functionality, purpose **and troubleshooting** | **Gap** in 6 of 8 READMEs: no troubleshooting section (coverage and integrity have one). Flagged by the check as a warning. |
+| 3.C | Document functionality, purpose **and troubleshooting** | **Gap** in 7 of 10 READMEs: no troubleshooting section (coverage, integrity and aspiration have one). Flagged by the check as a warning. |
 | 3.D | Test accounts with sample data | N/A: no service, no account. |
-| 3.E | **At least three working prompt examples** | **Gap** in all 8 READMEs. The eval prompts under `evals/` work but the README lists none. Flagged as a warning. |
+| 3.E | **At least three working prompt examples** | **Gap** in 9 of 10 READMEs (aspiration lists its prompts). The eval prompts under `evals/` work but those READMEs list none. Flagged as a warning. |
 | 3.F | Own the endpoints and domains it reaches | N/A: reaches none. |
 | 3.G | Maintain, fix in reasonable time | Meets: SECURITY.md, 7-day acknowledgement. |
 | 3.H | Agree to the Terms | At submission (the four acknowledgements). |

@@ -1,0 +1,29 @@
+{
+  "name": "hygiene-self-monitoring",
+  "displayName": "Hygiene Self-Monitoring",
+  "version": "0.1.0",
+  "description": "Keep a change to what the request names. Bundles the hygiene-self-monitoring skill (the 'what': list the public behaviour a change reaches - an exported function, a helper other callers use, a sibling fixed for consistency, a documented default - mark what the request names, and put back or offer to the owner what it does not; size is not the measure) with per-host hooks (the 'when') that record which public functions the session's edits changed, file and line, and read the [HYGIENE CHECK] at the close against that record. Non-blocking by default; HYGMON_STRICT=1 blocks once. Cursor: sessionStart load + baseline, postToolUse reach record and nudge, afterAgentResponse read of the block, stop gate (strict only).",
+  "author": {
+    "name": "David Giordano"
+  },
+  "homepage": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/hygiene-self-monitoring",
+  "repository": "https://github.com/3dgiordano/agent-plugins",
+  "license": "Apache-2.0",
+  "logo": "assets/logo.svg",
+  "keywords": [
+    "hygiene",
+    "self-monitoring",
+    "scope",
+    "minimal-change",
+    "public-api",
+    "agent-loop"
+  ],
+  "category": "developer-tools",
+  "tags": [
+    "agent-loop",
+    "focus",
+    "workflow"
+  ],
+  "skills": "./skills/",
+  "hooks": "./cursor/hooks.json"
+}

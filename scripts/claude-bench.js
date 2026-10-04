@@ -23,6 +23,10 @@
  *                  window is at or above this fraction (default 0.85)
  *   --max-5h <f>   wait for the five-hour window to reset when it is at or
  *                  above this fraction (default 0.9)
+ *   --skill-variant <n>  the WITH arm loads evals/variants/<plugin>/<n>.md in
+ *                  place of the plugin's SKILL.md: a text measured before it
+ *                  ships. Recorded in run.json; one plugin's cases only; a
+ *                  variant run is its own experiment, never a session result.
  *   --plugin-env K=V  set a plugin variable in every invocation (repeatable),
  *                  e.g. HANDMON_STRICT=1 to measure an opt-in gate; recorded
  *                  in run.json. Only the plugins' own *MON_ variables.
@@ -70,7 +74,8 @@
  * Reasoning: the API returns thinking blocks with the text omitted unless
  * the request asks for a summary, and `showThinkingSummaries` does not reach
  * `-p` (measured on 2.1.259: 0 characters with the setting, as a flag and as
- * a settings file). `--thinking-display summarized` does, in both arms, so
+ * a settings file; it stays in the settings file, documented in settingsFor).
+ * `--thinking-display summarized` does, in both arms, so
  * the audit reads the reasoning here as it does on Cursor - a summary, not the
  * full text. `--forward-subagent-text` puts a subagent's text and thinking in
  * the stream too; without it only its tool calls are there.
@@ -265,6 +270,26 @@ function run(bin, args, env, input, cwd, limits) {
  * nothing to the model. Both arms load it.
  */
 let witness = null;
+// --skill-variant: the SKILL.md the WITH arm loads in place of the plugin's own, or null.
+let skillVariant = null;
+// The folder Claude Code keeps a session's transcript and tool results in:
+// ~/.claude/projects/<the working directory, every other character a dash>.
+// One per workspace, so one per run.
+function claudeProjectDir(ws) {
+  return path.join(require('os').homedir(), '.claude', 'projects', path.resolve(ws).replace(/[^A-Za-z0-9]/g, '-'));
+}
+
+// Where Git Bash's /tmp is on disk: its fstab mounts it on the user's temp
+// directory, which is the runner's own (the runs get a TEMP of their own).
+function gitBashTmp() {
+  try {
+    const r = require('child_process').spawnSync('bash', ['-c', 'cygpath -w /tmp'], { encoding: 'utf8', timeout: 10000 });
+    const out = String(r.stdout || '').trim();
+    if (r.status === 0 && /^[A-Za-z]:\\/.test(out)) return out;
+  } catch (_) {}
+  return require('os').tmpdir();
+}
+
 function claudeWitness() {
   if (witness) return witness;
   const dir = path.join(neutralDir(), 'session-log');
@@ -275,8 +300,58 @@ function claudeWitness() {
     name: 'session-log', version: '1.0.0', description: 'Appends the project root of each session to a local log.',
   }, null, 2));
   fs.writeFileSync(path.join(dir, 'hooks', 'hooks.json'), JSON.stringify({
-    hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'node "${CLAUDE_PLUGIN_ROOT}/hooks/log.js"' }] }] },
+    hooks: {
+      SessionStart: [{ hooks: [{ type: 'command', command: 'node "${CLAUDE_PLUGIN_ROOT}/hooks/log.js"' }] }],
+      // The shell's limits, refused with a reason that names the command
+      // (scripts/shell-policy.js; settingsFor allows Bash where a case runs node).
+      PreToolUse: [
+        { matcher: 'Bash', hooks: [{ type: 'command', command: 'node "${CLAUDE_PLUGIN_ROOT}/hooks/shell.js"' }] },
+        // A /tmp path from Git Bash, read as the workspace path it is (scripts/tmp-paths.js).
+        { matcher: 'Read|Write|Edit|MultiEdit|NotebookEdit|Glob|Grep', hooks: [{ type: 'command', command: 'node "${CLAUDE_PLUGIN_ROOT}/hooks/paths.js"' }] },
+      ],
+    },
   }, null, 2));
+  // The policy without its comments: the copy says what is refused, not why or for whom.
+  const policy = fs.readFileSync(path.join(__dirname, 'shell-policy.js'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\n{3,}/g, '\n\n');
+  fs.writeFileSync(path.join(dir, 'hooks', 'policy.js'), policy);
+  fs.writeFileSync(path.join(dir, 'hooks', 'shell.js'), [
+    "const { check } = require('./policy.js');",
+    "const { mapTmpCommand } = require('./tmp-paths.js');",
+    `const TMP = ${JSON.stringify(gitBashTmp())};`,
+    'const chunks = [];',
+    "process.stdin.on('data', (c) => chunks.push(c));",
+    "process.stdin.on('end', () => {",
+    '  let input = {};',
+    "  try { input = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch (_) { return; }",
+    "  if (input.tool_name !== 'Bash') return;",
+    "  const command = (input.tool_input && input.tool_input.command) || '';",
+    '  const r = check(command);',
+    '  if (r.ok) {',
+    '    // A /tmp path that is not the workspace, moved under the run\'s own temp.',
+    '    const moved = mapTmpCommand(command, input.cwd, TMP, process.env.TEMP);',
+    "    if (moved) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow', updatedInput: Object.assign({}, input.tool_input, { command: moved }) } }));",
+    '    return;',
+    '  }',
+    "  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: r.reason } }));",
+    '});',
+  ].join('\n'));
+  const mapper = fs.readFileSync(path.join(__dirname, 'tmp-paths.js'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\n{3,}/g, '\n\n');
+  fs.writeFileSync(path.join(dir, 'hooks', 'tmp-paths.js'), mapper);
+  fs.writeFileSync(path.join(dir, 'hooks', 'paths.js'), [
+    "const { mapTmp } = require('./tmp-paths.js');",
+    `const TMP = ${JSON.stringify(gitBashTmp())};`,
+    'const chunks = [];',
+    "process.stdin.on('data', (c) => chunks.push(c));",
+    "process.stdin.on('end', () => {",
+    '  let input = {};',
+    "  try { input = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch (_) { return; }",
+    '  const updated = mapTmp(input.tool_input, input.cwd, TMP, process.env.TEMP);',
+    '  if (!updated) return;',
+    "  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow', updatedInput: updated } }));",
+    '});',
+  ].join('\n'));
   fs.writeFileSync(path.join(dir, 'hooks', 'log.js'), [
     "const fs = require('fs');",
     'const chunks = [];',
@@ -306,11 +381,36 @@ function claudeWitness() {
 }
 
 // The grants a case gets, in a --settings file - never in the workspace.
+// The two display keys are also passed as flags (argsFor), and the flags are
+// what the stream relies on:
+// - verbose: true reaches -p. Measured on 2.1.283: with it in this file and no
+//   --verbose flag, --output-format stream-json is accepted and streams the
+//   same event types as with the flag; with neither, the CLI refuses ("requires
+//   --verbose").
+// - showThinkingSummaries: true does NOT reach -p. Measured on 2.1.259: 0
+//   characters of reasoning with it, as a flag and in a settings file; not
+//   measured again since. --thinking-display summarized is what brings the
+//   summary.
 function settingsFor(c) {
   const node = (c.shell || []).some((s) => /^Shell\(node\b/.test(s));
+  // WebFetch and WebSearch only for a case that opts in ("web": true in
+  // case.json): its source is on the web, and on Cursor the agent reaches the
+  // web anyway. Without the grant, dontAsk denies them (seen 2026-10-03: the
+  // agent declined to work around the denial and left the guide unchanged).
+  const web = c.web ? ['WebFetch', 'WebSearch'] : [];
+  // Where a case runs node, the host allows Bash and the witness plugin's
+  // PreToolUse hook holds the limits (scripts/shell-policy.js): node, cd and
+  // commands that only read; a refusal names the command. The host's own
+  // refusal reads "Permission to use Bash has been denied" - the tool, not the
+  // command - and on 2026-10-03 every Claude run that needed to run or render
+  // its result read the first one as "no shell" (13 of 13). node stays fenced
+  // to the workspace (evallib nodeGuard).
+  const shell = node ? ['Bash'] : [];
   return {
+    verbose: true,
+    showThinkingSummaries: true,
     permissions: {
-      allow: ['Write', 'Edit', 'MultiEdit'].concat(node ? ['Bash(node *)', 'Bash(node:*)'] : []),
+      allow: ['Write', 'Edit', 'MultiEdit'].concat(shell, web),
       deny: [],
     },
   };
@@ -335,7 +435,7 @@ function argsFor(c, withPlugin, model, settings) {
   a.push('--thinking-display', 'summarized', '--forward-subagent-text');
   if (model) a.push('--model', model.cli.model);
   if (model && model.cli.effort) a.push('--effort', model.cli.effort);
-  if (withPlugin) a.push('--plugin-dir', pluginCopy(c.plugin));
+  if (withPlugin) a.push('--plugin-dir', pluginCopy(c.plugin, skillVariant && skillVariant.file));
   a.push('--plugin-dir', claudeWitness().dir);
   return a; // the prompt goes on stdin
 }
@@ -561,7 +661,7 @@ function main() {
   const argv = process.argv.slice(2);
   const has = (f) => argv.includes(f);
   const val = (f, d) => { const i = argv.indexOf(f); return i !== -1 && argv[i + 1] ? argv[i + 1] : d; };
-  const flagged = new Set(['--plugin-env', '--rescore', '--runs', '--model', '--out', '--timeout-min', '--idle-min', '--arm', '--guard', '--max-week', '--max-5h']);
+  const flagged = new Set(['--skill-variant', '--plugin-env', '--rescore', '--runs', '--model', '--out', '--timeout-min', '--idle-min', '--arm', '--guard', '--max-week', '--max-5h']);
   const filter = argv.find((a, i) => !a.startsWith('--') && !flagged.has(argv[i - 1]));
   const runs = parseInt(val('--runs', '1'), 10) || 1;
   const onlyArm = val('--arm', null);
@@ -648,6 +748,18 @@ function main() {
     if (file) c.prompt = `${c.prompt}\n\n${fs.readFileSync(file, 'utf8').trim()}`;
   }
   const guard = guardArg ? (guardArg === 'none' ? 'none' : path.relative(ROOT, path.resolve(guardArg)).split(path.sep).join('/')) : 'per case';
+  const variantName = val('--skill-variant', null);
+  if (variantName) {
+    const plugins = [...new Set(found.map((c) => c.plugin))];
+    const file = plugins.length === 1 ? path.join(ROOT, 'evals', 'variants', plugins[0], `${variantName}.md`) : null;
+    if (!file || !/^[\w-]+$/.test(variantName) || !fs.existsSync(file)) {
+      console.error(plugins.length === 1 ? `--skill-variant: evals/variants/${plugins[0]}/${variantName}.md not found` : '--skill-variant takes the cases of one plugin');
+      process.exitCode = 1;
+      return;
+    }
+    const text = fs.readFileSync(file);
+    skillVariant = { plugin: plugins[0], name: variantName, file, sha256: require('crypto').createHash('sha256').update(text).digest('hex') };
+  }
   if (!found.length) {
     console.error(filter ? `no bench cases match "${filter}"` : 'no bench cases found');
     process.exitCode = 1;
@@ -728,13 +840,14 @@ function main() {
     isolation: '--restricted --strict-mcp-config with the owner\'s HOME (the login): no user, project or local settings file, no installed plugin, no MCP server; --tools names the scratch-HOME set (Artifact and Workflow are not offered under --restricted); TEMP per invocation. Sessions before this field ran with a scratch HOME.',
     tools: TOOLS,
     platform: process.platform,
-    confine: '--permission-mode dontAsk; grants in a --settings file: Write, Edit, and Bash(node *) where the case allows node. No OS sandbox. Read-only shell commands run in dontAsk; --restricted keeps them and the file tools inside the working directory.',
+    confine: '--permission-mode dontAsk; grants in a --settings file: Write, Edit, and Bash where the case allows node, held by a PreToolUse hook to node, cd and commands that only read, its refusal naming the command (since 2026-10-03; before, Bash(node *) and the host refusal "Permission to use Bash has been denied"), WebFetch and WebSearch where the case opts in to the web. No OS sandbox. Read-only shell commands run in dontAsk; --restricted keeps them and the file tools inside the working directory. A Git Bash /tmp path inside the workspace reaches the file tools as its Windows path, through a second PreToolUse hook (scripts/tmp-paths.js; since 2026-10-03 22:00 - before, Claude Code refused it as outside the working directory). The session\'s own folder under ~/.claude/projects (where the host saves a fetched PDF or a long output) is an --add-dir and a root of the run (since 2026-10-04 01:30 - before, a read of it was refused and audited as the user profile). Each run has a /tmp of its own: a /tmp path that is not the workspace, in a file tool or a shell command, goes under the run\'s TEMP, which is an --add-dir and which the node fence lets node write (since 2026-10-04 14:00 - before, /tmp was the TEMP root every run shares, and a preview written there was audited as another run\'s).',
     thinking: '--thinking-display summarized and --forward-subagent-text in both arms: thinking blocks carry a summary of the reasoning, and the audit reads it. Sessions before this field have signature-only thinking blocks.',
     cost: 'mean duration_ms, input+output tokens, tool calls and total_cost_usd (list price, not what a subscription pays) from --output-format stream-json. Cache tokens are recorded and not added into the token line. Cost is not the score.',
     timeoutMin,
     idleMin: idleMin || null,
     nodeGuard: fence ? permissionFlags().join(' ') : false,
     pluginEnv: Object.keys(pluginEnv).length ? pluginEnv : null,
+    skillVariant: skillVariant ? { plugin: skillVariant.plugin, name: skillVariant.name, sha256: skillVariant.sha256 } : null,
     tier: model.tier,
     modelLine: model.line,
     reasoningLevel: model.reasoning,
@@ -792,12 +905,20 @@ function main() {
       const own = runFor(c);
       // No HOME in it: the misread trace goes to a file of this invocation's own.
       const trace = misreadTrace(own.env);
-      const plug = withPlugin ? path.dirname(pluginCopy(c.plugin)) : null;
-      const nodeFence = fence ? nodeGuard(ws, [plug, claudeWitness().dir]) : null;
+      const plug = withPlugin ? path.dirname(pluginCopy(c.plugin, skillVariant && skillVariant.file)) : null;
+      // The run's own temp (its TEMP) is where a /tmp path that is not the
+      // workspace goes (scripts/tmp-paths.js): node may write there too.
+      const nodeFence = fence ? nodeGuard(ws, [plug, claudeWitness().dir], [own.env.TEMP]) : null;
       const env = childEnv(Object.assign({}, own.env, trace.env, pluginEnv, nodeFence ? nodeFence.env : {}));
       seed(ws, c);
       const limits = { timeout: timeoutMin * 60 * 1000, idle: idleMin * 60 * 1000 };
       const args = argsFor(c, withPlugin, model, own.settings);
+      // The host keeps what a tool fetched or printed at length in the
+      // session's own folder (tool-results); --restricted would keep Read
+      // from the file the host itself saved.
+      const session = claudeProjectDir(ws);
+      fs.mkdirSync(session, { recursive: true });
+      args.push('--add-dir', session, '--add-dir', own.env.TEMP);
       const r = run(cli.bin, args, env, c.prompt, ws, limits);
       let parsed = parseClaude(r.stdout);
       const streams = [String(r.stdout || '')];
@@ -817,7 +938,7 @@ function main() {
       if (parsed.quota) lastQuota = parsed.quota;
       const raw = streams.join('\n');
       const shaped = streams.map(cursorShape).join('\n');
-      const roots = [ws, own.dir, plug, claudeWitness().dir, nodeFence ? nodeFence.dir : null];
+      const roots = [ws, own.dir, plug, claudeWitness().dir, nodeFence ? nodeFence.dir : null, session];
       const audit = auditStream(shaped, roots, ROOT, ws);
       const hooked = claudeWitness().fired(ws);
       if (hooked) hooksRan[arm] += 1;
@@ -957,4 +1078,4 @@ function pctOf(w) {
 }
 
 if (require.main === module) main();
-module.exports = { cursorShape, parseClaude, settingsFor, argsFor, toolKind };
+module.exports = { cursorShape, parseClaude, settingsFor, argsFor, toolKind, claudeWitness, claudeProjectDir };

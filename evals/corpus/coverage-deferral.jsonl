@@ -143,3 +143,4 @@
 {"text": "Rival hypotheses are still open, so the cause stays a conjecture.", "expect": "miss", "why": "hypotheses still open: epistemic status"}
 {"text": "The export works. The retry path is still open.", "expect": "hit", "why": "a part of the work still open"}
 {"text": "Found it: the stale cache key. The root cause still needs a fix.", "expect": "hit", "why": "a cause that still needs work is work left; only \"still open\" is an epistemic status"}
+{"text": "Added the column.\n\n[ASPIRATION CHECK]\n- Criterion: every row lines up under its header\n- Reviewed: ran the report on the data file\n- Found: the rows line up; the header rule still needs one more dash, which no reader would reject\n- Remainder: meets", "expect": "miss", "why": "an [ASPIRATION CHECK] is a report: its Found line describes the result, not work deferred"}

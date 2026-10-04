@@ -158,11 +158,11 @@ Next: once AUTH_SECRET is set, run `npm run smoke` and close the auth item.
 - **Detail files.** Every line is short: past 300 characters, keep the
   reason on it and move the rest to `.agent/progress-<topic>.md`, linked
   from the line. The prefix marks the ledger's own files.
+- **Claims.** An item a session is working carries its `- claim:` line,
+  indented under it; the session-start message gives the steps.
 
 **Write it with your ordinary file tools.** No hook writes this file; hooks
-only count in it (open items by kind, whether `Next:` names an action, the
-lines outside the format and their numbers, its age), and nothing in it
-travels anywhere. A line outside the format - a `## Done` section, a
+only count in it, and nothing in it travels anywhere. A line outside the format - a `## Done` section, a
 `- done:` item, prose, a marker of your own - is announced to the next
 session and to the user, so keep the file to the format.
 

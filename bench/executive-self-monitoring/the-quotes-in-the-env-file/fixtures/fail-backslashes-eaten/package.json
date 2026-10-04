@@ -1,0 +1,10 @@
+{
+  "name": "confkit",
+  "version": "1.4.2",
+  "description": "Read .env and .ini text into plain objects, and write .env back",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "test": "node test/run.js"
+  }
+}

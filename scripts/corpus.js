@@ -213,6 +213,26 @@ const DETECTORS = [
     fire: (t) => lib('integrity', 'commands.js').marks(t).length > 0,
     floors: { recall: 1.0, precision: 1.0 },
   },
+  {
+    id: 'aspiration-lexicon',
+    file: 'aspiration-lexicon.jsonl',
+    what: 'a close with no valid check, a defect at the close, edited files nobody reviewed, or a close short of the objective (defect, unverified, blocked)',
+    plugin: 'aspiration-self-monitoring',
+    fire: (t, row) => lib('aspiration', 'lexicon.js').scan(t, row && row.edits !== undefined ? { edits: row.edits, unreviewed: row.unreviewed || 0, looked: row.looked } : {}).violations.length > 0,
+    // Sentence-anchored on purpose: "Status: done" and "the user said this is
+    // done" stay misses. Precision is the guard rail.
+    floors: { recall: 1.0, precision: 1.0 },
+  },
+  {
+    id: 'hygiene-close',
+    file: 'hygiene-close.jsonl',
+    what: 'a close that does not account for the public functions the edits reached',
+    plugin: 'hygiene-self-monitoring',
+    fire: (t, row) => lib('hygiene', 'block.js').scan(t, (row && row.reached) || []).violations.length > 0,
+    // The record comes from the edit hook; here each line carries its own.
+    // A false hit costs a correct close a rewrite, so precision is the rail.
+    floors: { recall: 1.0, precision: 1.0 },
+  },
 ];
 
 function loadCorpus(file) {

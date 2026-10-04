@@ -184,7 +184,7 @@ function drive(name, host, event, script, sid) {
   if (!fs.existsSync(file)) return { ok: false, why: 'script declared in the manifest does not exist' };
   const env = Object.assign({}, process.env, host === 'claude' ? { CLAUDECODE: '1' } : { CLAUDECODE: '' });
   // Never let an opt-in strict gate turn a smoke run into a block.
-  for (const k of ['EPIMON_STRICT', 'TERMMON_STRICT', 'HANDMON_STRICT']) delete env[k];
+  for (const k of ['EPIMON_STRICT', 'TERMMON_STRICT', 'HANDMON_STRICT', 'ASPMON_STRICT']) delete env[k];
   const r = spawnSync(process.execPath, [file], {
     input: JSON.stringify(payload(host, event, sid)), encoding: 'utf8', env, cwd: dirOf(name), timeout: 15000,
   });

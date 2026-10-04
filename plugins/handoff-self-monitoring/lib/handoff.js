@@ -112,7 +112,63 @@ const CLOSING_LINES = 6; // a question this close to the end is asked of the rea
  * star of a `**[HANDOFF]**` and the emphasis branch below would never see it.
  */
 const BLOCK_RE = /^[ \t]*(?:[-*+][ \t]+)?(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[HANDOFF\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$(?:\n[ \t]*(?=\n))?([\s\S]*?)(?=\n[ \t]*\n|^[ \t]*(?:[-*+][ \t]+)?(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[HANDOFF\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$|(?![\s\S]))/gm;
-const STATUSES = ['done', 'needs-decision', 'blocked'];
+/*
+ * `waiting` is the close of a turn whose result is still out: a run, a
+ * subagent, a job started this turn, whose result decides what happens next.
+ * Measured before it existed: in the owner's sessions 30 of 283 blocks were
+ * written in that position with only the other three to choose from - 7 said
+ * `done` with `Next: nothing`, 15 put the agent's own plan for the result in
+ * Next, and one wrote `in-progress`, which this scanner then rejected. Each is
+ * a wrong word for the reader to triage on: `done` says nothing is coming,
+ * `blocked` says something stops the work.
+ */
+const STATUSES = ['done', 'waiting', 'needs-decision', 'blocked'];
+
+/*
+ * What a run still out sounds like in a block that does not say `waiting`.
+ * Read on the block only, after inline code is dropped, and only under `done`
+ * or `blocked` with no Waiting-on: under `waiting` or `needs-decision` these
+ * words are expected.
+ *
+ * Measured on the same 259 distinct blocks: 19 of the 20 `done` closes
+ * written while something was running, and one false alarm ("this session
+ * keeps running the old versions until you restart"). The Spanish "cuando
+ * termine" asks for a second-person object near it ("te traigo la tabla
+ * cuando termine"), because on its own it also describes a product ("el
+ * spinner desaparece cuando termine la carga"); that cost the one miss, a
+ * third-person "se lanzan cuando terminen las corridas actuales".
+ */
+const WHEN_ES = '(?:cuando|apenas|en\\s+cuanto)\\s+(?:termine|terminen|llegue|lleguen|cierre|cierren|vuelva|vuelvan)(?!\\p{L})';
+const TO_YOU_ES = '(?<!\\p{L})(?:te|le|les)\\s+\\p{L}+';
+const IN_FLIGHT = [
+  /\bstill\s+(?:running|in\s+progress|loading|executing|going)\b/i,
+  /\b(?:is|are)\s+(?:now\s+)?running\s+in\s+the\s+background\b/i,
+  /\b(?:started|launched|kicked\s+off|left\s+running)\b[^.\n]{0,40}\bin\s+the\s+background\b/i,
+  /\b(?:is|are)\s+(?:still\s+)?in\s+(?:flight|progress)\b/i,
+  /\bI'?(?:ll| will)\s+be\s+notified\b/i,
+  /\b(?:I'?m|I\s+am|we'?re|we\s+are|still)\s+waiting\s+(?:for|on)\b/i,
+  /\bI'?(?:ll| will)\b[^.\n]{0,60}\b(?:when|once|after)\s+(?:it|the\s+\w+|they)\s+(?:finishes|finish|completes|complete|lands|land|ends|exits|is\s+done|comes\s+back)\b/i,
+  /\b(?:when|once)\s+(?:it|the\s+\w+|they)\s+(?:finishes|finish|completes|complete|lands|land|ends|exits|is\s+done)\b[^.\n]{0,40}\bI'?(?:ll| will)\b/i,
+  /\b(?:has\s*n[o']t|have\s*n[o']t|not)\s+(?:finished|completed|landed)\s+yet\b/i,
+
+  /(?<!\p{L})(?:est[aá]n?|sigue|siguen)\s+corriendo(?!\p{L})/iu,
+  /(?<!\p{L})en\s+(?:curso|vuelo)(?!\p{L})/iu,
+  /(?<!\p{L})(?:corre|corren|corriendo|lanzad[oa]s?|qued[oó]|quedaron)\s+en\s+(?:segundo\s+plano|background)(?!\p{L})/iu,
+  new RegExp(TO_YOU_ES + '[^.\\n]{0,60}(?<!\\p{L})' + WHEN_ES, 'iu'),
+  new RegExp('(?<!\\p{L})' + WHEN_ES + '[^.\\n]{0,60}' + TO_YOU_ES, 'iu'),
+  /(?<!\p{L})al\s+(?:terminar|cerrar)\s+(?:la|el|las|los)\s+(?:corrida|corridas|suite|tanda|run|job|import)(?!\p{L})/iu,
+  /(?<!\p{L})(?:estoy|quedo|sigo|seguimos|quedamos)\s+esperando(?!\p{L})/iu,
+  /(?<!\p{L})(?:todav[ií]a|a[uú]n)\s+no\s+(?:termin[oó]|terminaron|lleg[oó]|llegaron)(?!\p{L})/iu,
+];
+
+function inFlight(block) {
+  const text = block.replace(/`[^`\n]*`/g, ' ');
+  for (const re of IN_FLIGHT) {
+    const m = text.match(re);
+    if (m) return m[0].replace(/\s+/g, ' ').slice(0, 60);
+  }
+  return null;
+}
 
 const COVERAGE_BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[COVERAGE CHECK\](?:[ \t]*:)?(?:\*\*|__)?(?:[ \t]*:)?[ \t]*$(?:\n[ \t]*(?=\n))?([\s\S]*?)(?=\n[ \t]*\n|(?![\s\S]))/gm;
 const RETURNED_LINE_RE = /^[ \t]*[-*][ \t]*.+?:[ \t]*returned\b/im;
@@ -155,7 +211,7 @@ function field(block, name) {
  * The `**` form worked and the `__` form did not, which is the kind of split a
  * corpus line catches and a hand-written test does not.
  */
-const FIELD_RE = /^(?:\*\*|__|\*|_)?(Status|Situation|Options|Default|Blocked-by|Next)(?:\*\*|__|\*|_)?\b/i;
+const FIELD_RE = /^(?:\*\*|__|\*|_)?(Status|Situation|Options|Default|Waiting-on|Blocked-by|Next)(?:\*\*|__|\*|_)?\b/i;
 // An option is a list item of either kind: a bullet, or a number - `1.` or
 // `1)` - which is how a close lays out options it refers to by number. Read
 // as bullets only, three numbered options were "fewer than two alternatives".
@@ -296,6 +352,20 @@ function scan(text) {
     // with any observation ("ls shows the directory is empty") and still
     // nothing delivered.
     if (known === 'blocked' && !field(b, 'Blocked-by')) out.violations.push('Status is blocked but Blocked-by is empty - blocked needs a limit you observed that stops the ask, and the tool that showed it; with none, it is needs-decision, delivered with its default');
+    // Waiting-on is required under waiting and allowed under needs-decision
+    // (a choice for the reader while a run is out). Under done it contradicts
+    // the status; under done or blocked without it, a run still out in the
+    // block's own words is the same contradiction, unstated.
+    const waitingOn = field(b, 'Waiting-on');
+    if (known === 'waiting' && !waitingOn) out.violations.push('Status is waiting but Waiting-on is empty - what is still out (its id), who picks it up when it ends, and what is done with the result');
+    // Read with the status alone - what a person looks at first - a bare
+    // "nothing" says finished: in a triage reading of 0.5.0 blocks, 6 of 42
+    // took `waiting` + `Next: nothing` to mean something was still to come,
+    // 17 of 18 when Next said until when (bench/studies/handoff-fidelity/).
+    if (known === 'waiting' && /^(?:nothing|nada)[.!]?$/i.test(String(field(b, 'Next') || '').trim())) out.violations.push('Status is waiting but Next is a bare nothing, which reads as finished - say until when: nothing until <what is out> ends');
+    if (known === 'done' && waitingOn) out.violations.push('Status is done but Waiting-on names something still out - while it runs, the turn is waiting');
+    const running = (known === 'done' || known === 'blocked') && !waitingOn ? inFlight(b) : null;
+    if (running) out.violations.push(`Status is ${known} but the block says something is still out ("${running}") - that is waiting, with Waiting-on: what is out, who picks it up, what is done with the result`);
     if (!field(b, 'Next')) out.violations.push('Next is empty - the one action asked of the reader, or: nothing');
   }
 

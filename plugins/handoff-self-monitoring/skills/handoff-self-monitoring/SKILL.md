@@ -1,6 +1,6 @@
 ---
 name: handoff-self-monitoring
-description: "Structured-handoff discipline for the final message of a turn. An agent that knows the state, the problem and the open decision writes its close in the register of its own trace - paths, identifiers, what it ran - and the reader, who has only the message, cannot tell what to decide or what to do next. This skill anchors the close to a [HANDOFF] block modelled on the SBAR and I-PASS handoff protocols: status first, the situation in the reader's terms, the fork as options with a default, one action asked of the reader. Triggers - offer to the reader, unnamed fork, closing question, reader cannot act, final message, closing the turn, wrapping up, summary, next steps, let me know, if you want, would you like me to, should I, up to you, your call, depends on, alternatively, two options, trade-off, what do you think, returned to the owner, handoff, report back."
+description: "Structured-handoff discipline for the final message of a turn. An agent that knows the state, the problem and the open decision writes its close in the register of its own trace - paths, identifiers, what it ran - and the reader, who has only the message, cannot tell what to decide or what to do next. This skill anchors the close to a [HANDOFF] block modelled on the SBAR and I-PASS handoff protocols: status first, the situation in the reader's terms, the fork as options with a default, one action asked of the reader. Triggers - offer to the reader, unnamed fork, closing question, reader cannot act, final message, closing the turn, wrapping up, summary, next steps, let me know, if you want, would you like me to, should I, up to you, your call, depends on, alternatively, two options, trade-off, what do you think, returned to the owner, handoff, report back, still running, in the background, when it finishes."
 ---
 
 # Handoff Self-Monitoring Skill
@@ -8,8 +8,10 @@ description: "Structured-handoff discipline for the final message of a turn. An 
 ## In short
 
 - Whatever the reader will act on - your final message, or a file written for
-  someone who will not see this chat - opens with a status: done,
+  someone who will not see this chat - opens with a status: done, waiting,
   needs-decision or blocked.
+- Something you started still running at the close makes it waiting, not
+  done: Waiting-on names it and what happens with its result.
 - A choice is written as a decision: the options, and a Default on its own
   line, even when a fact is still unknown - the default is what to do if it
   stays unknown. No "let me know", no "it depends" left for the reader.
@@ -20,8 +22,8 @@ description: "Structured-handoff discipline for the final message of a turn. An 
 **Purpose:** Make sure that when a turn ends, the reader can act on the
 message — see where the work stands, see what has to be decided, see what to
 do next — without reading your trace. The epistemic-self-monitoring skill
-covers whether what you concluded is true; this one covers whether what you
-concluded reached the reader in a form they can use.
+covers whether a conclusion is true; this one, whether it reached the reader
+in a form they can use.
 
 **Key idea:** you have the whole trace; the reader has the message. The paths
 you read, the commands you ran, the names of the things that failed are
@@ -62,12 +64,13 @@ is that format for an agent's turn:
 - The close is a **question to the reader** — a `?` in the last lines, in any
   language.
 - The coverage-self-monitoring ledger has a `returned` part.
-- A companion hook reports that the turn is closing (a green gate, a commit),
-  or that your previous close named a decision without formulating it.
+- A companion hook reports that the turn is closing, or that your previous
+  close named a decision without formulating it.
 
 ## Core Protocol
 
-1. **Status first.** `done`, `needs-decision` or `blocked` — one of three.
+1. **Status first.** `done`, `waiting`, `needs-decision` or `blocked` — one
+   of four.
    I-PASS opens with a one-word severity for the same reason: the reader
    triages on it before reading anything else. "Mostly done", "done except",
    "basically works" are not statuses; they are `needs-decision` or
@@ -79,7 +82,7 @@ is that format for an agent's turn:
    reader is `done`. On a review turn the pull is to write
    `Status: Reviewed; <the finding>` above `Options` and `Next` that are
    already right. The finding goes in `Situation`; `Status` stays the triage
-   word - one of three, so the reader never reads it twice.
+   word - one of four, so the reader never reads it twice.
 
 2. **The situation, in the reader's terms.** One sentence: what the reader has
    now that they did not have before. Test each word — would it mean
@@ -102,11 +105,14 @@ is that format for an agent's turn:
    English, "let me know your thoughts"). When the status is `done` and
    nothing is asked, write `Next: nothing` — the explicit nothing is what
    tells the reader the turn is closed and they are not waiting for anything.
+   When waiting, Next is `nothing until <it> ends`, never a bare `nothing`,
+   which reads as finished. Your plan goes in `Waiting-on`.
 
 5. **Blocked means observed.** Same rule as the coverage-self-monitoring
    skill: `blocked` carries the observed limit and the tool that showed it.
    A `blocked` with no observation is a `needs-decision`, or a
-   termination-self-monitoring case — test the reason there.
+   termination-self-monitoring case — test the reason there. A run still
+   going stops nothing: that is `waiting`.
 
 6. **The block is the close, not an appendix.** Put it where the reader will
    read it: at the end, after the detail, or first when the message is long.
@@ -124,8 +130,6 @@ is that format for an agent's turn:
   subordinate clause: *"…which assumes the API is idempotent"*.
 - **The one-line fork** — Options packed with `|` so the choice is a
   horizontal scroll. One option per line; `Default` on its own line.
-- **The fenced block** — wrapping `[HANDOFF]` in a code fence. Fences do
-  not wrap; the reader has to scroll. Write it as a markdown list.
 - **Done except** — *"done, except the migration still needs…"*: that is
   `needs-decision` or `blocked` with the reason not yet written.
 - **The identifier close** — *"Fixed in `resolveConfig`, see
@@ -150,28 +154,27 @@ block whose marker is missing is not a block.
 
 
 [HANDOFF]
-- Status: done | needs-decision | blocked
+- Status: done | waiting | needs-decision | blocked
 - Situation: <what the reader has now, in their terms - one sentence>
 - Options:   *(needs-decision — one alternative per line)*
   - A: <choice> — <consequence>
   - B: <choice> — <consequence>
 - Default: A, because <why>   *(needs-decision)*
+- Waiting-on: <what is still out, its id, what you do with its result>   *(waiting)*
 - Blocked-by: <the observed limit, and the tool that showed it>   *(blocked)*
-- Next: <the one action asked of the reader, or: nothing>
+- Next: <the one action asked of the reader, or: nothing (until <it> ends, if waiting)>
 
 Rules the hooks check:
-- `Status` is one of the three.
+- `Status` is one of the four.
 - `needs-decision` **requires** `Options` with at least two alternatives
   (a list under `Options`, not a `|`-separated line) and a `Default` (own
   line, or trailing on `Options`).
-- `blocked` **requires** `Blocked-by`.
+- `blocked` **requires** `Blocked-by`; `waiting` **requires** `Waiting-on`.
 - `Situation` and `Next` are required; a template placeholder counts as
   empty.
 - No blank line inside the block — the scanner stops at the first one.
 - The act — an offer, a fork, a question to the reader, or a `returned` part
   in a `[COVERAGE CHECK]` — with no `[HANDOFF]` block is the finding.
-  Companion hooks also scan an English and Spanish lexicon for offer/fork language as a
-  backstop.
 
 Keep it short. The value is in the reader being able to act — status,
 situation, the choice with a default, one action — not in the ceremony.

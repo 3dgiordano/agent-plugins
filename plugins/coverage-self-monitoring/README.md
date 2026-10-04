@@ -109,6 +109,13 @@ is written. A part it finds becomes a `blocked` line here, with the reason.
 Its `[INTEGRITY CHECK]` is a report, and coverage's close scan does not read
 it as deferred work.
 
+**Boundary with aspiration-self-monitoring.** A part the request states and
+the result lacks is coverage's, even when a review of the result is what
+shows it. [aspiration-self-monitoring](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/aspiration-self-monitoring/)
+holds the delivered result to the objective, reviewed after the last change
+in the medium it is used in. Its `[ASPIRATION CHECK]` is a report too, and the
+close scan does not read its `Found` line as deferred work.
+
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 prompt, a tool call, or a stop.
 

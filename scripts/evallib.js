@@ -29,18 +29,23 @@ const MARKER = {
   'handoff-self-monitoring': /\[HANDOFF\]/,
   'persistence-self-monitoring': /\[PERSISTENCE CHECK\]/,
   'termination-self-monitoring': /\[TERMINATION CHECK\]/,
+  'aspiration-self-monitoring': /\[ASPIRATION CHECK\]/,
   'executive-self-monitoring': /\[PLAN CHECK\]/,
   'integrity-self-monitoring': /\[INTEGRITY CHECK\]/,
+  'hygiene-self-monitoring': /\[HYGIENE CHECK\]/,
 };
 
 const SCANNER = {
   'coverage-self-monitoring': ['signals.js', (m, t) => { const r = m.scanClose(t); return r.blocks >= 1 && r.violations.length === 0; }],
   'epistemic-self-monitoring': ['scan.js', (m, t) => { const r = m.scan(t); return r.blocks >= 1 && r.violations.length === 0; }],
-  'handoff-self-monitoring': ['handoff.js', (m, t) => { const r = m.scan(t); return r.blocks >= 1 && r.violations.length === 0; }],
+  'handoff-self-monitoring': ['handoff.js', (m, t) => { const r = m.scan(t); return r.blocks >= 1 && r.violations.length === 0; }, (m, t) => m.scan(t).status],
   'termination-self-monitoring': ['lexicon.js', (m, t) => { const r = m.scan(t); return r.blocks >= 1 && r.violations.length === 0; }],
+  'aspiration-self-monitoring': ['lexicon.js', (m, t) => { const r = m.scan(t); return r.blocks >= 1 && r.violations.length === 0; }],
   'executive-self-monitoring': ['plan.js', (m, t) => { const r = m.scan(t); return r.blocks >= 1 && r.violations.length === 0; }],
   // a block whose Result is one of the three words, and every field present
   'integrity-self-monitoring': ['signals.js', (m, t) => { const b = m.block(t); return !!b && !!b.status && !!b.route && !!b.outside && !!b.told; }],
+  // a block with every field and one of the three decisions
+  'hygiene-self-monitoring': ['block.js', (m, t) => { const b = m.parse(t); return !!b && !!b.request && !!b.reach && b.outside !== undefined && /^(keep|revert-extra|ask-owner)\b/i.test(String(b.decision || '').replace(/[`*]/g, '')); }],
 };
 
 /*
@@ -79,7 +84,11 @@ function graderFor(plugin) {
   const s = SCANNER[plugin];
   if (!s) return { how: `marker ${marker}`, test: (t) => marker.test(t) };
   const mod = require(path.join(PLUGINS, plugin, 'lib', s[0]));
-  return { how: `well-formed block per lib/${s[0]}`, test: (t) => marker.test(t) && s[1](mod, t) };
+  const g = { how: `well-formed block per lib/${s[0]}`, test: (t) => marker.test(t) && s[1](mod, t) };
+  // The third element, where a scanner has one, reads the block's Status - what
+  // a case's `close` rules are about (see cases()).
+  if (s[2]) g.status = (t) => s[2](mod, t);
+  return g;
 }
 
 /*
@@ -136,14 +145,36 @@ function cases(filter) {
        * two-session failure.
        */
       let artifact = null;
+      /*
+       * close: rules on the block beyond being well-formed, for a case whose
+       * question is which Status the close carries rather than whether it has
+       * one. `status_not` lists the statuses that fail it: a turn whose result
+       * is still running is not `done` to the reader, however well-formed the
+       * block that says so. Read only for a plugin whose scanner reports a
+       * Status (SCANNER's third element).
+       */
+      let close = null;
       try {
         const j = JSON.parse(fs.readFileSync(path.join(dir, 'case.json'), 'utf8'));
         intent = j.intent || 'answer';
         expect = j.expect || 'block';
         artifact = j.artifact || null;
+        close = j.close || null;
       } catch (_) {}
       const files = fs.existsSync(path.join(dir, 'files')) ? path.join(dir, 'files') : null;
-      out.push({ plugin: name, id: c, dir, intent, expect, artifact, files, prompt: fs.readFileSync(prompt, 'utf8').trim(), grader: graderFor(name) });
+      /*
+       * turns/01.md, 02.md, ...: earlier messages of the same session, sent
+       * one by one before prompt.md, which is always the last turn. That is how
+       * a case reaches the end of a long session - the distance between what
+       * the writer holds and what a reader of the last message has - without
+       * changing the last request. Same convention as the bench's turns/.
+       */
+      const turnsDir = path.join(dir, 'turns');
+      const before = fs.existsSync(turnsDir)
+        ? fs.readdirSync(turnsDir).filter((n) => /^\d+\.md$/.test(n)).sort().map((n) => fs.readFileSync(path.join(turnsDir, n), 'utf8').trim())
+        : [];
+      const last = fs.readFileSync(prompt, 'utf8').trim();
+      out.push({ plugin: name, id: c, dir, intent, expect, artifact, close, files, prompt: before.length ? before[0] : last, turns: before.length ? before.concat([last]) : null, grader: graderFor(name) });
     }
   }
   return out;
@@ -154,8 +185,11 @@ function cases(filter) {
 function gradingOf(c) {
   if (!c.grader) return 'SKIPPED - no protocol block, needs a judge model';
   if (c.expect === 'quiet') return ARTIFACT[c.plugin] ? `${ARTIFACT[c.plugin].file} absent, or exactly as seeded` : `no ${MARKER[c.plugin]} block at all`;
-  return c.grader.how;
+  const not = statusNot(c);
+  return not.length ? `${c.grader.how}, Status not ${not.join(' | ')}` : c.grader.how;
 }
+
+const statusNot = (c) => (c.close && Array.isArray(c.close.status_not) ? c.close.status_not : []);
 
 /*
  * Is this transcript an ANSWER at all?
@@ -201,6 +235,9 @@ const NOT_AN_ANSWER = [
   /authentication (?:required|failed)/i,
   /invalid api key/i,
   /credit balance is too low/i,
+  // The login's token could not be renewed (2026-10-02 and 10-03): six runs
+  // of one batch came back as this notice and were counted as answers.
+  /\b(?:failed|unable) to refresh (?:the |your )?(?:oauth )?(?:access )?token\b/i,
 ];
 
 /*
@@ -263,7 +300,10 @@ function verdict(c, text, artifact) {
     return true;
   }
   if (c.expect === 'quiet') return !MARKER[c.plugin].test(text || '');
-  return c.grader.test(text || '');
+  if (!c.grader.test(text || '')) return false;
+  const not = statusNot(c);
+  if (not.length && c.grader.status) return !not.includes(c.grader.status(text || ''));
+  return true;
 }
 
 // The artifact as the case seeded it, or null when the case seeds none.
@@ -299,21 +339,61 @@ function readArtifact(outDir, base) {
 }
 
 /*
+ * Wilson score interval, 95%: [low, high] for k passes in n runs. At the n
+ * these runners use, a rate without its interval reads as more than it is:
+ * 3/3 is 44-100%, 0/3 is 0-56%, and the two overlap.
+ */
+function wilson(k, n, z = 1.96) {
+  if (!n) return [0, 1];
+  const p = k / n;
+  const d = 1 + (z * z) / n;
+  const centre = p + (z * z) / (2 * n);
+  const half = z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n));
+  return [Math.max(0, (centre - half) / d), Math.min(1, (centre + half) / d)];
+}
+
+/*
+ * A block case graded on the plugin's own marker: the arm without the plugin
+ * has no skill and no message, so it cannot write the marker and scores 0 by
+ * construction. Its rate is a leak check, not a baseline; a delta against it
+ * measures that the block appeared, not that the work came out better. A case
+ * graded on a file the unaided agent can also write (ARTIFACT) keeps a real
+ * baseline, and so does a quiet case in its own way (docs: evals/PROTOCOL.md).
+ */
+function markerGraded(c) {
+  return c.expect !== 'quiet' && !ARTIFACT[c.plugin] && !!MARKER[c.plugin];
+}
+
+/*
  * Both runners print this, so a number means the same thing on either host.
  *
  * A quiet case has no delta to report: the baseline writes no blocks, so it is
  * silent by construction and scores 100% for free. What that case measures is
  * the plugin's cost - how much of the baseline's silence it spends.
+ *
+ * `n`, when given, is the number of scored runs per arm ({with, without}), and
+ * each rate is printed with its interval.
  */
-function reportLine(c, w, wo, dead) {
-  const pct = (n) => `${(n * 100).toFixed(0)}%`;
+function reportLine(c, w, wo, dead, n) {
+  const pct = (x) => `${(x * 100).toFixed(0)}%`;
+  const ci = (rate, runs) => {
+    if (!runs) return '';
+    const [lo, hi] = wilson(Math.round(rate * runs), runs);
+    return ` [${(lo * 100).toFixed(0)}-${(hi * 100).toFixed(0)}, n=${runs}]`;
+  };
+  const W = pct(w) + ci(w, n && n.with);
+  const WO = pct(wo) + ci(wo, n && n.without);
   // A rate over a denominator that excludes dead runs is still a rate, but the
   // reader has to be told what it was computed over.
   const over = dead ? `  (${dead} run(s) never reached the model, excluded)` : '';
   if (c.expect === 'quiet') {
-    return `  with: ${pct(w)} quiet   without: ${pct(wo)} quiet   cost: ${((wo - w) * 100).toFixed(0)} pts${over}`;
+    return `  with: ${W} quiet   without: ${WO} quiet   cost: ${((wo - w) * 100).toFixed(0)} pts${over}`;
   }
-  return `  with: ${pct(w)}   without: ${pct(wo)}   delta: ${((w - wo) * 100).toFixed(0)} pts${over}`;
+  if (markerGraded(c)) {
+    const leak = wo > 0 ? `${pct(wo)} - LEAK: the marker reached the arm without the plugin` : '0% (leak check: the marker cannot appear unaided)';
+    return `  with: ${W}   without: ${leak}${over}`;
+  }
+  return `  with: ${W}   without: ${WO}   delta: ${((w - wo) * 100).toFixed(0)} pts${over}`;
 }
 
 /*
@@ -358,10 +438,28 @@ function summaryLines(rows, subject, incomplete) {
     out.push('');
   }
 
-  if (block.length) {
-    const proved = block.filter((r) => r.with > r.without);
-    out.push(`${proved.length}/${block.length} case(s) show ${subject} changing the output.`);
-    if (proved.length < block.length) {
+  /*
+   * Two kinds of block case, two sentences. On a marker-graded case the arm
+   * without the plugin cannot pass, so "with > without" is true whenever the
+   * block appears at all and says nothing about the work; what it reports is
+   * delivery, and a leak when the baseline shows the marker. Only a case whose
+   * baseline can pass (a file the unaided agent may write) supports "changing
+   * the output", and only there is a tie a reason to look at the prompt.
+   */
+  const marker = block.filter((r) => markerGraded(r.c));
+  const graded = block.filter((r) => !markerGraded(r.c));
+  if (marker.length) {
+    const reached = marker.filter((r) => r.with > 0);
+    out.push(`${reached.length}/${marker.length} marker-graded case(s): the block reached the output with ${subject}.`);
+    out.push('These compare versions of the plugin, not the plugin against none: unaided,');
+    out.push('the marker cannot appear (evals/PROTOCOL.md, "What this eval can and cannot say").');
+    const leaked = marker.filter((r) => r.without > 0);
+    if (leaked.length) out.push(`${leaked.length} case(s) LEAKED: the marker reached the arm without the plugin - check the isolation.`);
+  }
+  if (graded.length) {
+    const proved = graded.filter((r) => r.with > r.without);
+    out.push(`${proved.length}/${graded.length} case(s) graded on what the unaided agent can also do show ${subject} changing the output.`);
+    if (proved.length < graded.length) {
       out.push('A case both arms score the same on proves nothing - rewrite its prompt so the');
       out.push('failure it targets is the likely answer without the plugin.');
     }
@@ -679,11 +777,13 @@ function permissionFlags() {
   return permission;
 }
 
-function nodeGuard(workspace, passThrough) {
+// also: further directories the fenced node may read and write (a run's own temp).
+function nodeGuard(workspace, passThrough, also) {
   const perm = permissionFlags();
   if (!perm) return null;
   const dir = neutralDir();
-  const cfg = { node: process.execPath, perm, root: path.resolve(workspace), pass: (passThrough || []).filter(Boolean).map((p) => path.resolve(p)) };
+  const cfg = { node: process.execPath, perm, root: path.resolve(workspace), pass: (passThrough || []).filter(Boolean).map((p) => path.resolve(p)),
+    also: (also || []).filter(Boolean).map((p) => path.resolve(p)) };
   fs.writeFileSync(path.join(dir, 'launch.json'), JSON.stringify(cfg, null, 2));
   fs.writeFileSync(path.join(dir, 'launch.js'), [
     "'use strict';",
@@ -701,7 +801,8 @@ function nodeGuard(workspace, passThrough) {
     '}',
     'const env = {};',
     "for (const [k, v] of Object.entries(process.env)) if (k.toUpperCase() !== 'NODE_OPTIONS') env[k] = v;",
-    "const flags = pass ? [] : cfg.perm.concat(['--allow-fs-read=' + cfg.root + path.sep + '*', '--allow-fs-write=' + cfg.root + path.sep + '*']);",
+    "const roots = [cfg.root].concat(cfg.also || []);",
+    "const flags = pass ? [] : cfg.perm.concat(...roots.map((r) => ['--allow-fs-read=' + r + path.sep + '*', '--allow-fs-write=' + r + path.sep + '*']));",
     "const r = spawnSync(cfg.node, flags.concat(args), { stdio: 'inherit', env });",
     'process.exit(r.status === null ? 1 : r.status);',
     '',
@@ -779,4 +880,4 @@ function dropWorkspace(ws) {
 
 const quote = (s) => (/[\s"]/.test(s) ? `"${s.replace(/"/g, '\\"')}"` : s);
 
-module.exports = { ROOT, PLUGINS, MARKER, SCANNER, ARTIFACT, seed, harvest, readArtifact, graderFor, cases, gradingOf, usable, reached, verdict, reportLine, summaryLines, scratchWorkspace, sweepWorkspaces, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, neutralDir, quote, stallOf, nodeGuard, permissionFlags };
+module.exports = { ROOT, PLUGINS, MARKER, SCANNER, ARTIFACT, wilson, markerGraded, seed, harvest, readArtifact, graderFor, cases, gradingOf, usable, reached, verdict, reportLine, summaryLines, scratchWorkspace, sweepWorkspaces, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, neutralDir, quote, stallOf, nodeGuard, permissionFlags };

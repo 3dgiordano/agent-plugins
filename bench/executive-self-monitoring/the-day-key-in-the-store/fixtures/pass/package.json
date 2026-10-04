@@ -1,0 +1,10 @@
+{
+  "name": "datekit",
+  "version": "3.2.0",
+  "private": true,
+  "description": "Dates for the orders service",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test/run.js"
+  }
+}

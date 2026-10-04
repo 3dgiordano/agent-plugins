@@ -417,7 +417,8 @@ function contextOf(body, index, length) {
  * Coverage's own blocks are read as they always were.
  */
 // [INTEGRITY CHECK] too: the Route of a blocked part says what it still needs.
-const REPORT_MARKER_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[(?:HANDOFF|TERMINATION CHECK|EPISTEMIC CLOSE|PLAN CHECK|PERSISTENCE CHECK|INTEGRITY CHECK)\]/;
+// [ASPIRATION CHECK] too: its Found line says what the review still found.
+const REPORT_MARKER_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[(?:HANDOFF|TERMINATION CHECK|EPISTEMIC CLOSE|PLAN CHECK|PERSISTENCE CHECK|INTEGRITY CHECK|ASPIRATION CHECK)\]/;
 function reports(text) {
   const lines = text.split('\n');
   let inside = false;

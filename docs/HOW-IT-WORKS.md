@@ -1,12 +1,12 @@
 # How it works
 
-The idea behind the collection: the three parts of a plugin and what each one does, why the triggers are simple on purpose, why the checks are the agent's own, and the questions the eight plugins answer. For what has and has not been measured, see [EVIDENCE.md](EVIDENCE.md). For the research behind each design choice, see [RESEARCH.md](RESEARCH.md). For common misreadings, see [FAQ.md](FAQ.md).
+The idea behind the collection: the three parts of a plugin and what each one does, why the triggers are simple on purpose, why the checks are the agent's own, and the questions the ten plugins answer. For what has and has not been measured, see [EVIDENCE.md](EVIDENCE.md). For the research behind each design choice, see [RESEARCH.md](RESEARCH.md). For common misreadings, see [FAQ.md](FAQ.md).
 
 ## Three parts, three jobs
 
 Every plugin has the same three parts.
 
-1. **The skill: the discipline.** An [Agent Skill](https://agentskills.io) (`skills/<name>/SKILL.md`) that says how a careful engineer handles this moment: keep the plan open, keep what you saw apart from what you think, stop only for a reason you can check. Where it is read it is the base: on one measured case (integrity, Cursor, 2026-09-25) the skill alone turned 0 of 3 into 3 of 3, with no hook firing. Asked to load it, the agent seldom does: on Claude Code, 1 load for 689 requests in 30 interactive desktop sessions on one machine (2026-09-24 to 29), and 0 of 18 under `claude -p` ([evals/PROTOCOL.md](../evals/PROTOCOL.md#the-skill-is-not-a-lever-on-claude-code-headless)). So the four plugins whose moment is the start of a session - handoff, progress, coverage, executive - put the skill's text in context themselves: when a session starts, after a `/clear` and after a compaction, and (handoff and coverage) when a subagent starts. The other four ask for it in their messages, only for an agent that does not know what the block's marker asks for, and their messages carry the block's fields for the agent that never loads it.
+1. **The skill: the discipline.** An [Agent Skill](https://agentskills.io) (`skills/<name>/SKILL.md`) that says how a careful engineer handles this moment: keep the plan open, keep what you saw apart from what you think, stop only for a reason you can check. Where it is read it is the base: on one measured case (integrity, Cursor, 2026-09-25) the skill alone turned 0 of 3 into 3 of 3, with no hook firing. Asked to load it, the agent seldom does: on Claude Code, 1 load for 689 requests in 30 interactive desktop sessions on one machine (2026-09-24 to 29), and 0 of 18 under `claude -p` ([evals/PROTOCOL.md](../evals/PROTOCOL.md#the-skill-is-not-a-lever-on-claude-code-headless)). So the five plugins whose moment is the start of a session - handoff, progress, coverage, executive, hygiene - put the skill's text in context themselves: when a session starts, after a `/clear` and after a compaction, and (handoff, coverage and hygiene) when a subagent starts. Aspiration does too, although its moment is the close: asked, the agent loaded it in 1 of 20 `claude -p` runs (2026-10-03), and what it needs at the close - compare with a source it did not write, review with the project's own tools - is in the text, not in the message. The other four ask for it in their messages, only for an agent that does not know what the block's marker asks for, and their messages carry the block's fields for the agent that never loads it.
 2. **The hook: a fact, at the moment it matters.** A small Node script the host runs on its events. It notices something countable or on disk (the same file edited four times, a plan that changed since the agent read it, a ledger with open items, a `catch` that answers a failed call with a made-up value) and puts that fact in front of the agent in one line. Hooks add most where they hand over a fact the agent does not have and would not look for: the two clearest gains on Claude Code are the two hooks that read something on disk (progress 0/9 -> 9/9, executive 2/9 -> 9/9, 2026-09-27).
 3. **The block: the decision, written.** The hook's line asks for a named block with fixed fields and a closed set of decisions, one of which is always the honest way out. The agent fills it in the reply, where you, a reviewer or another agent can read and check it.
 
@@ -20,7 +20,7 @@ The plugin never decides whether the agent is right. It supplies the discipline,
  │ red 3x this turn   │        │  [PERSISTENCE CHECK]"    │      │ Rival approach: ...  │     a reviewer,
  └────────────────────┘        └──────────────────────────┘      │ Decision: switch     │     a subagent
       (the trigger)                 (evidence + scaffold)         └──────────────────────┘
-   the skill carries the rules behind all of it - in context from the start for four plugins
+   the skill carries the rules behind all of it - in context from the start for six plugins
 ```
 
 ## The trigger: simple, and allowed to be imperfect
@@ -51,9 +51,11 @@ Field names and status words stay in English in every language, so the blocks st
 | persistence | `[PERSISTENCE CHECK]` | Attempts, Hypothesis held, Rival approach, Proportion, Decision (`one more (stop condition: ...) \| switch \| step back \| report`) |
 | termination | `[TERMINATION CHECK]` | Trigger (quoted), Reason (`gate-not-run \| owner-choice \| budget-spent \| limit-observed \| none`), Evidence, Decision (`continue \| stop \| ask owner`) |
 | coverage | `[COVERAGE LEDGER]`, then `[COVERAGE CHECK]` | one line per part: `done - <check run>`, `blocked - <observed limit>`, `returned - <the owner's choice>` |
-| handoff | `[HANDOFF]` | Status (`done \| needs-decision \| blocked`), Situation, Options and Default (when a decision is needed), Blocked-by (when blocked), Next |
-| progress | `.agent/progress.md` | Updated, Plan, `## Open` (each item `blocked` or `returned`, with its reason), Next |
+| handoff | `[HANDOFF]` | Status (`done \| waiting \| needs-decision \| blocked`), Situation, Options and Default (when a decision is needed), Waiting-on (when a result is still out), Blocked-by (when blocked), Next |
+| progress | `.agent/progress.md` (from a worktree, the main checkout's) | Updated, Plan, `## Open` (each item `blocked` or `returned`, with its reason; an item a session is working carries a `- claim:` line under it), Next |
 | integrity | `[INTEGRITY CHECK]` | Result (`real \| shortcut \| blocked`), Route, Outside the task, Told the user (`yes \| no`) |
+| aspiration | `[ASPIRATION CHECK]` | Criterion, Reviewed, Found, Remainder (`meets \| defect \| unverified \| blocked`) |
+| hygiene | `[HYGIENE CHECK]` | Request names, Change reaches, Outside (`none` or what the change reaches that the request does not name), Decision (`keep \| revert-extra \| ask-owner`) |
 
 ## Why the checks are the agent's own
 
@@ -63,7 +65,7 @@ Agents behave differently when they believe they are being tested: told to asses
 
 So the plugins never judge, punish or report; their messages talk about the work rather than an examiner; and every block has an honest way out. The same findings shape the bench: a test the agent can recognise as a test overestimates good behaviour, so the bench hides its setup and counts, per arm, how often the agent talks about being evaluated. What that count shows today is in [EVIDENCE.md](EVIDENCE.md#evaluation-awareness).
 
-## The idea behind the eight plugins
+## The idea behind the ten plugins
 
 Coding agents are missing most of the **executive functions** a human engineer runs in the background: holding the goal in mind while deep in a task, noticing the difference between what was observed and what was inferred, feeling that an approach has stopped working. And they carry something a human engineer does not: reasons to stop that come from the training data rather than from the task (fatigue, a clock, a context budget, confidence as a mood), produced with the same fluency as everything else. Each plugin is a prosthesis for one missing function, or a filter for one such artifact, anchored to an external artifact or an objective count rather than to "reflect harder".
 
@@ -73,18 +75,20 @@ Coding agents are missing most of the **executive functions** a human engineer r
 | *Is what I concluded actually true?* | source monitoring, verification | [epistemic](../plugins/epistemic-self-monitoring/) | `[EPISTEMIC CLOSE]` |
 | *Is it still worth insisting on this?* | persistence, effort regulation | [persistence](../plugins/persistence-self-monitoring/) | `[PERSISTENCE CHECK]` |
 | *Is this stop justified by something checkable?* | the stated reason for a stop, vs. a persona artifact | [termination](../plugins/termination-self-monitoring/) | `[TERMINATION CHECK]` |
+| *Did I review the result after my last change, and does it meet the objective?* | a close with an edited file nobody reviewed in its medium (a document read, an image viewed, code run), or with a defect still in it | [aspiration](../plugins/aspiration-self-monitoring/) | `[ASPIRATION CHECK]` |
 | *Did I deliver every part, including the hard one?* | task coverage, effort allocation | [coverage](../plugins/coverage-self-monitoring/) | `[COVERAGE CHECK]` |
 | *Can the reader act on what I wrote?* | the handoff of the turn, recipient design | [handoff](../plugins/handoff-self-monitoring/) | `[HANDOFF]` |
 | *Can the next session pick this up?* | the residue across a session boundary, prospective memory | [progress](../plugins/progress-self-monitoring/) | `.agent/progress.md` |
 | *Is the result real, and the route to it legitimate?* | where a result comes from: a fallback, a stand-in, a bent environment | [integrity](../plugins/integrity-self-monitoring/) | `[INTEGRITY CHECK]` |
+| *Did the change stay inside what the request names?* | public behaviour a change reaches that the request does not name: a sibling fixed for consistency, a fix in a helper other callers use | [hygiene](../plugins/hygiene-self-monitoring/) | `[HYGIENE CHECK]` |
 
-They come in pairs. Persistence and termination are the two directions of one axis: stopping too late on no signal, and stopping too early on a signal the agent does not have. Executive and coverage are work *outside* the plan and work *below* it. Epistemic and handoff are the knowing side and the transmitting side of one claim: is it true, and did it reach the reader in a form they can use. Progress looks past the turn and keeps what the others leave open on disk, because the message is what a session boundary drops. Integrity reads the route rather than the claim: a green run reached through a fallback, a stand-in or a changed machine is not a result.
+They come in pairs, and one trio. Persistence, termination and aspiration are one axis: stopping too late on no signal, stopping too early on a signal the agent does not have, and stopping on a result nobody reviewed against its objective after the last change, or while a defect someone could point at is still in it. Executive and coverage are work *outside* the plan and work *below* it; hygiene is work *inside* the plan that reaches past the request - a change that keeps the request's check green, so executive's gate cannot see it. Epistemic and handoff are the knowing side and the transmitting side of one claim: is it true, and did it reach the reader in a form they can use. Progress looks past the turn and keeps what the others leave open on disk, because the message is what a session boundary drops. Integrity reads the route rather than the claim: a green run reached through a fallback, a stand-in or a changed machine is not a result.
 
 Keeping them separate means you install only the questions you need, each is measured on its own, and one plugin's noise does not hide another's signal. Names say what is monitored, never an internal state: what looks like fatigue or avoidance from outside is a training-data artifact, and the plugin's job is to name it, not to adopt it.
 
 ## What the agent sees versus what you see
 
-- **The agent** sees one line in its context when a trigger fires. For handoff, progress, coverage and executive it also has the skill's text from the start of the session (and after a compaction); for the other four it has the skill when it loads it (see *The skill* above).
+- **The agent** sees one line in its context when a trigger fires. For handoff, progress, coverage, executive, hygiene and aspiration it also has the skill's text from the start of the session (and after a compaction); for the other four it has the skill when it loads it (see *The skill* above).
 - **You** see the block in the agent's reply. On Claude Code and Codex, when a hook finds something (a close without its block, a counter over its threshold, open items in the ledger) you also see one short notice line in the transcript. Each plugin can turn it off with `*_NOTICE=0`.
 
 The exact lines each plugin sends are in the [README](../README.md#what-your-agent-sees--and-what-you-see) and in each plugin's own README.
@@ -104,7 +108,7 @@ The skill is the same everywhere; the *when* depends on the events a host expose
 
 | Layer | Claude Code · Codex | Cursor |
 | --- | --- | --- |
-| The skill's text in context (handoff, progress, coverage, executive) | `SessionStart`: startup, `/clear`, compaction, and a resume that never had it; `SubagentStart` for handoff and coverage | `sessionStart`; subagents do not get it (`subagentStart` takes no context) |
+| The skill's text in context (handoff, progress, coverage, executive, hygiene, aspiration) | `SessionStart`: startup, `/clear`, compaction, and a resume that never had it; `SubagentStart` for handoff, coverage and hygiene | `sessionStart`; subagents do not get it (`subagentStart` takes no context) |
 | Ask for the skill (the other four), for an agent that does not know the marker | first prompt (+ periodic reminder, and after a resume or compaction) | session start |
 | Executive checkpoint cadence | every 5th prompt | once per session |
 | Executive changed-document line | ✓ (Claude Code) | — |
@@ -118,7 +122,10 @@ The skill is the same everywhere; the *when* depends on the events a host expose
 | Handoff close scan (decision named vs. `[HANDOFF]`) | ✓ + retrospective, strict gate | scan + strict gate (`followup_message`); **no retrospective** |
 | Progress ledger status (open items at session start / after compaction) | ✓ (`SessionStart`, first prompt as fallback) | ✓ (`sessionStart`) |
 | Progress stale-ledger finding (edits, ledger untouched) | ✓ retrospective, once per ledger version | **log only**: the agent is not told |
+| Progress claim watch (the session's own claim runs out, ran out, is gone, or shares its item) | ✓ (`PostToolUse` while it holds one, and the next prompt) | **—**: claims are counted in the session-start status; no token, the agent picks its own |
 | Integrity reader (each edit and shell command) | ✓ | ✓ |
 | Integrity close (the block, a dispute shown to you) | ✓ | **log only**; not at all on a headless run |
+| Hygiene edit record + nudge (public functions the edits changed, path and lines) | ✓ | ✓ |
+| Hygiene close (the block against the record) | ✓ + retrospective, strict gate | scan + strict gate (`followup_message`); not at all on a headless run |
 
 So on Cursor, coverage is the skill plus the stub counter; the closing discipline reaches the agent only through the skill text. Any other Agent Skills client gets the skills and no hooks. Each plugin's README has its design notes, host differences and debugging tips.

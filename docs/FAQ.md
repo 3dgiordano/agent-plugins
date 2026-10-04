@@ -30,13 +30,13 @@ It is designed that way on purpose. Research on agents shows that the sense of b
 
 ### Do the detectors catch every case?
 
-**No, and they do not need to.** They are simple on purpose: counters and pattern matching. The skill carries the full discipline and the load message carries the block's shape; a detector only decides when to repeat the reminder. (Four plugins put their skill in context at the start of the session; for the other four the message is most of it: [HOW-IT-WORKS.md](HOW-IT-WORKS.md#three-parts-three-jobs).) Their accuracy on real lines is tracked in CI, and their blind spots are listed in [EVIDENCE.md](EVIDENCE.md#the-detectors-the-triggers).
+**No, and they do not need to.** They are simple on purpose: counters and pattern matching. The skill carries the full discipline and the load message carries the block's shape; a detector only decides when to repeat the reminder. (Six plugins put their skill in context at the start of the session; for the other four the message is most of it: [HOW-IT-WORKS.md](HOW-IT-WORKS.md#three-parts-three-jobs).) Their accuracy on real lines is tracked in CI, and their blind spots are listed in [EVIDENCE.md](EVIDENCE.md#the-detectors-the-triggers).
 
 ## Does it work?
 
 ### Is there evidence they improve results?
 
-**Preliminary results are published, with their dates and sample sizes.** On Claude Code with the current versions, runs with a plugin passed 60 of 72 graded tasks against 41 of 72 without (three models, n=3, 2026-09-27). The gain comes from three plugins (progress, executive, integrity); on the others the unaided models already pass, or the case does not measure the plugin. On Cursor the same design helped both Grok models strongly and Composer 2.5 little. The cases are written by the plugins' author, and the bench is still being built. [EVIDENCE.md](EVIDENCE.md) says exactly what is known and what is not.
+**Exploratory results are published, with their dates, sample sizes and intervals; no confirmatory study has run yet** ([STUDY-PROTOCOL.md](STUDY-PROTOCOL.md)). On Claude Code, runs with a plugin passed 60 of 72 graded tasks (73-90%) against 41 of 72 without (45-68%; three models, n=3, 2026-09-27). The gain comes from three plugins (progress, executive, integrity); on the others the unaided models already pass, or the case does not measure the plugin. On Cursor the same design helped both Grok models strongly and Composer 2.5 little. The cases are written by the plugins' author, and the bench is still being built. [EVIDENCE.md](EVIDENCE.md) says exactly what is known and what is not.
 
 ### Do they work because the agent thinks it is being watched?
 
@@ -71,8 +71,10 @@ Pick by the problem you see most:
 | --- | --- |
 | keeps retrying the same fix | persistence |
 | stops early with "running out of context" or "let's continue later" | termination |
+| calls the work done without reviewing the result against what was asked - reading the document, viewing the image, running the code | aspiration |
 | wanders off the plan or the spec, or works from an old version of it | executive |
 | states causes or facts it did not check | epistemic |
+| fixes the bug and also changes a function you did not mention, "for consistency" | hygiene |
 | leaves TODOs or skips the hard part | coverage |
 | ends with a wall of text you cannot act on | handoff |
 | loses track of open work between sessions | progress |
@@ -84,7 +86,7 @@ They install independently; add more later.
 
 ### Will they slow the agent down or fill its context?
 
-A little, and it is measured. On Claude Code, one plugin added between 1 and 15 seconds and a few hundred tokens per task (EVIDENCE.md, "Cost"). The context cost is the skill: handoff, progress, coverage and executive put theirs in context at the start of every session and after a compaction (about 9,000 characters each, 5,400 for executive; handoff and coverage also in every subagent), the other four only when the agent loads them. Then one line each time a trigger fires, and the block the agent writes. The cost of all eight installed together is not measured yet. To see how often a trigger would fire on your own work, set the `*_LOG` variables and run `node scripts/calibrate.js`.
+A little, and it is measured. On Claude Code, one plugin added between 1 and 15 seconds and a few hundred tokens per task (EVIDENCE.md, "Cost"). The context cost is the skill: handoff, progress, coverage, executive, hygiene and aspiration put theirs in context at the start of every session and after a compaction (about 9,000 characters each, 5,400 for executive and 5,000 for hygiene; handoff, coverage and hygiene also in every subagent), the other four only when the agent loads them. Then one line each time a trigger fires, and the block the agent writes. The cost of all ten installed together is not measured yet. To see how often a trigger would fire on your own work, set the `*_LOG` variables and run `node scripts/calibrate.js`.
 
 ### Do they send my code anywhere?
 
@@ -92,7 +94,7 @@ A little, and it is measured. On Claude Code, one plugin added between 1 and 15 
 
 ### Can they block my agent?
 
-Only if you ask. Three plugins have an opt-in strict gate (`EPIMON_STRICT`, `TERMMON_STRICT`, `HANDMON_STRICT`), and each blocks once, never in a loop. Any error inside a hook lets the agent continue.
+Only if you ask. Five plugins have an opt-in strict gate (`EPIMON_STRICT`, `TERMMON_STRICT`, `HANDMON_STRICT`, `ASPMON_STRICT`, `HYGMON_STRICT`), and each blocks once, never in a loop. Any error inside a hook lets the agent continue.
 
 ### Can I turn off the notices?
 

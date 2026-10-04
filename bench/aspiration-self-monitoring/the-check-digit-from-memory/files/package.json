@@ -1,0 +1,1 @@
+{ "name": "invoicing", "private": true, "scripts": { "test": "node --test" } }

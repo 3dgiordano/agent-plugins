@@ -365,7 +365,7 @@ function main() {
       }
       const w = a.with / a.valid.with;
       const wo = a.without / a.valid.without;
-      console.log(reportLine(c, w, wo, a.dead));
+      console.log(reportLine(c, w, wo, a.dead, a.valid));
       rows.push({ c, with: w, without: wo });
     }
     console.log('');
@@ -467,7 +467,7 @@ function main() {
     }
     const w = score.with / valid.with;
     const wo = score.without / valid.without;
-    console.log(reportLine(c, w, wo, dead));
+    console.log(reportLine(c, w, wo, dead, valid));
     rows.push({ c, with: w, without: wo, dead });
   }
 

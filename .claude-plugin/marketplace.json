@@ -46,6 +46,16 @@
       "name": "integrity-self-monitoring",
       "source": "./plugins/integrity-self-monitoring",
       "description": "Real-result discipline: when a service, a key or consistent tests are missing, the result is an error that says so, not a fallback that looks done. Hooks read each edit to product code for made-up data where a service was asked for (a rate table, a catch that answers, a missing key answered, a second host) or code that reads its caller, and each shell command for a change to the machine or a server started; each finding is said once, with what it means for the user. Shared skill + per-host hooks. No message on the prompt. Never blocks."
+    },
+    {
+      "name": "aspiration-self-monitoring",
+      "source": "./plugins/aspiration-self-monitoring",
+      "description": "Review-before-you-close self-check: a close with an edited file nobody reviewed in its medium (a document read, an image viewed, code run) is named, and the result is compared, point by point, with a source the agent did not write - the original, the specification, the real input, the owner's words. Shared skill + per-host hooks. Non-blocking by default, opt-in strict gate."
+    },
+    {
+      "name": "hygiene-self-monitoring",
+      "source": "./plugins/hygiene-self-monitoring",
+      "description": "Change-scope self-check: the public functions a change reaches - an exported function, a helper other callers use, a sibling fixed for consistency - are recorded file by file, and the close names what the request does not and puts it back or to the owner. Shared skill + per-host hooks. Non-blocking by default, opt-in strict gate."
     }
   ]
 }

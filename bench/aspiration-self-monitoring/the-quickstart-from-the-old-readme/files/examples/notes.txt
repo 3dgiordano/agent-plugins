@@ -1,0 +1,5 @@
+The agent reads the request, then the code, then the tests. The agent writes a
+plan before it writes code, and it reviews the plan when the request changes.
+A review is not a reading: the agent runs the code and reads what the run
+returns. When the run fails, the agent changes the code and runs it again.
+The owner reads the result last, and the owner decides what ships.

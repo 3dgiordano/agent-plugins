@@ -50,7 +50,7 @@ const POINTER = `If you do not know what these markers ask for, load the ${SKILL
 const LOAD =
   '[handoff self-monitoring] The reader of your final message has the message, not your trace. When the ' +
   'ask is one they will act on - which of these, is this ready, look at this before I run it - close ' +
-  'with a [HANDOFF] markdown list: Status (done | needs-decision | blocked), Situation in the reader\'s ' +
+  'with a [HANDOFF] markdown list: Status (done | waiting | needs-decision | blocked), Situation in the reader\'s ' +
   `terms, Options with Default on its own line, Next. If you do not know what these markers ask for, load ` +
   `the ${SKILL} skill. Markers, field names and status words stay in English, whatever language you write in.`;
 
@@ -75,7 +75,7 @@ const LOAD =
 function preclose(signal) {
   const seen = signal.what === 'commit' ? `\`${signal.label}\` ran` : `\`${signal.label}\` passed`;
   return `[handoff self-monitoring] ${seen} - this turn looks close to its end. Close with a [HANDOFF] ` +
-    'markdown list, not a fenced code block: Status (done | needs-decision | blocked), Situation in ' +
+    'markdown list, not a fenced code block: Status (done | waiting | needs-decision | blocked), Situation in ' +
     'the reader\'s terms, Options with ' +
     `Default on its own line, Next. Trace detail below it. ${POINTER}`;
 }

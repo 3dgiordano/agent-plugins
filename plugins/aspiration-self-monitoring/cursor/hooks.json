@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "node ./cursor/aspir-session-start.js"
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "node ./cursor/aspir-observe-cursor.js"
+      }
+    ],
+    "afterAgentResponse": [
+      {
+        "command": "node ./cursor/aspir-response-cursor.js"
+      }
+    ],
+    "stop": [
+      {
+        "command": "node ./cursor/aspir-stop-cursor.js",
+        "loop_limit": 1
+      }
+    ]
+  }
+}

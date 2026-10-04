@@ -132,6 +132,30 @@ const PLUGINS = {
       { name: 'sessions ending with open items and a stale ledger (the unreachable last turn - the case for a strict gate)', filter: (e) => e.event === 'session_end', hit: (e) => e.exists && e.open > 0 && !!e.stale },
     ],
   },
+  'aspiration-self-monitoring': {
+    env: 'ASPMON_LOG',
+    // Claude Code logs the close as stop; Cursor as response (its stop adapter logs the gate only).
+    turns: (e) => (e.event === 'stop' && Array.isArray(e.claims)) || e.event === 'response',
+    rates: [
+      { name: 'turns closing on a claim or an [ASPIRATION CHECK]', filter: (e) => (e.event === 'stop' && Array.isArray(e.claims)) || e.event === 'response', hit: (e) => (e.claims || []).length > 0 || e.blocks > 0 },
+      { name: '  ... with edited files nobody reviewed', filter: (e) => ((e.event === 'stop' && Array.isArray(e.claims)) || e.event === 'response') && ((e.claims || []).length > 0 || e.blocks > 0), hit: (e) => e.unreviewed > 0 && e.remainder !== 'blocked' },
+      { name: '  ... with a claim and no [ASPIRATION CHECK]', filter: (e) => ((e.event === 'stop' && Array.isArray(e.claims)) || e.event === 'response') && (e.claims || []).length > 0, hit: (e) => !e.blocks },
+      { name: 'stops blocked (strict mode)', filter: (e) => e.event === 'stop', hit: (e) => !!e.blocked },
+    ],
+  },
+  'hygiene-self-monitoring': {
+    env: 'HYGMON_LOG',
+    // Claude Code logs the close as stop; Cursor as response (its stop adapter logs the gate only).
+    turns: (e) => (e.event === 'stop' && typeof e.reached === 'number') || e.event === 'response',
+    rates: [
+      { name: 'edits that grew the public functions reached past one (nudged)', filter: (e) => e.event === 'observe' && e.kind === 'edit', hit: (e) => !!e.nudge },
+      { name: 'closes after edits that reached two or more public functions', filter: (e) => (e.event === 'stop' && typeof e.reached === 'number') || e.event === 'response', hit: (e) => e.reached >= 2 },
+      { name: '  ... with a [HYGIENE CHECK]', filter: (e) => ((e.event === 'stop' && typeof e.reached === 'number') || e.event === 'response') && e.reached >= 2, hit: (e) => !!e.block },
+      { name: '  ... whose block does not account for what the edits reached', filter: (e) => ((e.event === 'stop' && typeof e.reached === 'number') || e.event === 'response') && e.reached >= 2, hit: (e) => e.violations > 0 },
+      { name: 'stops blocked (strict mode)', filter: (e) => e.event === 'stop', hit: (e) => !!e.blocked },
+    ],
+  },
+
 };
 
 function readLogs(dirs, plugin) {
@@ -195,6 +219,8 @@ function crossPlugin(dirs) {
     'handoff-self-monitoring': (e) => (e.load ? 1 : 0) + (e.retrospective ? 1 : 0),
     'progress-self-monitoring': (e) => (e.turn === 1 ? 1 : 0) + (e.retrospective ? 1 : 0) + (e.spans ? 1 : 0) + (e.swept ? 1 : 0),
     'integrity-self-monitoring': () => 0, // says nothing on the prompt, by design
+    'aspiration-self-monitoring': (e) => (e.load ? 1 : 0) + (e.retrospective ? 1 : 0),
+    'hygiene-self-monitoring': (e) => (e.retrospective ? 1 : 0),
   };
   const midTurn = {
     'epistemic-self-monitoring': (e) => e.event === 'observe' && !!e.emitted,
@@ -202,6 +228,7 @@ function crossPlugin(dirs) {
     'coverage-self-monitoring': (e) => e.event === 'signal',
     'handoff-self-monitoring': (e) => e.event === 'signal',
     'integrity-self-monitoring': (e) => e.event === 'signal' && (e.said || []).length > 0,
+    'hygiene-self-monitoring': (e) => e.event === 'observe' && !!e.nudge,
   };
   const prompts = new Map(); // "session\tturn" -> blocks
   const sessions = new Map(); // session -> { turns, nudges }
@@ -266,7 +293,7 @@ function main() {
 
   if (!any) {
     console.log('\nNo logs found. Enable logging in the projects you work in (EXECMON_LOG, EPIMON_LOG, PERSISTMON_LOG,');
-    console.log('TERMMON_LOG, COVMON_LOG, HANDMON_LOG, PROGRESSMON_LOG, INTMON_LOG = 1), work normally for a while, then run this against those');
+    console.log('TERMMON_LOG, COVMON_LOG, HANDMON_LOG, PROGRESSMON_LOG, INTMON_LOG, ASPMON_LOG = 1), work normally for a while, then run this against those');
     console.log('project dirs.');
     process.exitCode = 1;
     return;

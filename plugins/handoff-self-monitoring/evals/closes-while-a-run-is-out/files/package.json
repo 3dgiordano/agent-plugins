@@ -1,0 +1,6 @@
+{
+  "name": "customers-sync",
+  "version": "1.4.0",
+  "private": true,
+  "description": "Loads the monthly customer file into the staging customer store."
+}

@@ -25,6 +25,7 @@
 const { logEvent, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const ledger = require('../lib/ledger.js');
+const claims = require('../lib/claims.js');
 const msg = require('../lib/messages.js');
 const { cwdOf, context } = require('../lib/host.js');
 
@@ -38,6 +39,11 @@ function main(raw) {
 
   const ins = ledger.inspect(cwd);
   const speak = ins.exists; // any age, any content: the message says which
+  // The token the session claims with; the same after a compaction or a
+  // resume, which is how it recognises its own line (lib/claims.js).
+  const mine = claims.token(sid);
+  const now = Date.now();
+  const tl = claims.tally(ins.claims, now, mine);
 
   // Remember that this session was told, so the first prompt does not repeat
   // it: the prompt hook is the fallback for a host mode where SessionStart
@@ -56,10 +62,12 @@ function main(raw) {
     // A resumed or compacted session loads the discipline again on its next
     // prompt; the state is kept across the resume (prog-session-end.js).
     if (data.source === 'resume' || data.source === 'compact') st.reload = true;
+    // The status says what it holds; the watch starts from here.
+    st.claim = Object.assign({}, st.claim, { held: claims.holds(ins, mine) });
   });
 
-  logEvent(cwd, { event: 'session_start', session: sid, source: data.source || null, exists: ins.exists, open: ins.open, lines: ins.lines, bytes: ins.bytes, bloated: ins.bloated, ageMs: ins.ageMs, emitted: speak });
-  if (speak) process.stdout.write(context('SessionStart', msg.status(ins), ''));
+  logEvent(cwd, { event: 'session_start', session: sid, source: data.source || null, exists: ins.exists, shared: ins.shared, open: ins.open, lines: ins.lines, bytes: ins.bytes, bloated: ins.bloated, ageMs: ins.ageMs, claims: tl.total, mine: tl.mine.length, dead: tl.dead, emitted: speak });
+  if (speak) process.stdout.write(context('SessionStart', msg.status(ins, mine, now), ''));
 }
 
 let buf = '';

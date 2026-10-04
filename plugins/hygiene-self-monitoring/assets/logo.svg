@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="hygiene-self-monitoring: an open loop around a mark that stays inside its frame - the change kept to what was asked">
+  <rect width="64" height="64" rx="14" fill="#F4F6F9"/>
+  <path d="M51.05 43 A22 22 0 1 1 51.05 21" stroke="#1F2933" stroke-width="6"/>
+  <rect x="23" y="23" width="18" height="18" rx="3" stroke="#4F46E5" stroke-width="4"/>
+  <path d="M28.5 32 L31 34.5 L36 29" stroke="#4F46E5" stroke-width="4"/>
+</svg>

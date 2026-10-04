@@ -1,0 +1,10 @@
+{
+  "name": "textkit",
+  "version": "1.6.0",
+  "description": "Small string helpers for product copy and identifiers",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "test": "node test/run.js"
+  }
+}

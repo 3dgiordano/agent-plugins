@@ -12,14 +12,28 @@ already happened four times — a truncated prompt, a shared workspace leaking
 one arm into the other, a permission mode that made the case unmeasurable, a
 scanner that did not recognise its own block.
 
-## Read the result as one of four shapes
+## What this eval can and cannot say
 
-| with | without | What it means | Where to look |
-|---|---|---|---|
-| 0% | 0% | The discipline never reached the output | Delivery: did the hook fire? was the skill available? is the case even runnable in this permission mode? |
-| high | high | The case does not discriminate | The **prompt**: the model does this unaided, so the case measures the baseline, not the plugin |
-| high | 0% | Working as intended | Nothing — record it |
-| **partial** | 0% | **The instruction is not clear enough** | The **instruction**: skill text and injected message |
+Most block cases are graded on the plugin's own block: the marker, read by the plugin's own scanner (`scripts/evallib.js`, `SCANNER`). That makes the instrument part of the treatment, and it fixes what the two arms mean:
+
+- **The arm without the plugin cannot pass.** It has no skill and no message, so it does not know the marker exists. Its 0% is by construction, not a baseline. In 600+ such runs stored by 2026-10-02 it passed 11 times, every time with the marker in the reply: the plugin leaked into the baseline. Read that arm as a leak check, exactly as for a quiet case below. Whether the unaided model did the right thing in its own words is not graded, and on `handoff/closes-while-a-run-is-out` it did, 6 of 6, read by hand.
+- **The comparison this eval supports is the plugin against itself**: one version, wording or skill variant against another, with the same case, model and n, and the grader frozen across both (re-score the older transcripts with the newer grader, or the change measures the grader too). That is how a message or a skill text is tuned.
+- **Whether a plugin beats no plugin is the outcome bench's question** (`bench/README.md`), where the score is the workspace and the same grader runs on both arms. The exceptions here are the cases graded on a file the unaided agent can write too (progress's ledger) - their without arm is a real baseline.
+- **Intervals.** At n=3 a cell of 0/3 spans 0-56% and 3/3 spans 44-100% (Wilson 95%); the runners print the interval beside each rate.
+
+A confirmatory claim follows [docs/STUDY-PROTOCOL.md](../docs/STUDY-PROTOCOL.md), not this page.
+
+## Read the with arm as one of three shapes
+
+For a block case graded on the marker, compared across two versions of the plugin:
+
+| with | What it means | Where to look |
+|---|---|---|
+| 0% | The discipline never reached the output | Delivery: did the hook fire? was the skill available? is the case even runnable in this permission mode? |
+| high | Working as intended | Nothing — record it, with the version |
+| **partial** | **The instruction is not clear enough** | The **instruction**: skill text and injected message |
+
+The without arm of these cases is read only as a leak check: anything above 0% means the plugin reached the baseline. For a case graded on a file the unaided agent can also write, high in both arms means the case does not discriminate - the model does this unaided - and the place to look is the prompt.
 
 That table is a case where the block is due. A quiet case (`expect: quiet`, the `stays-quiet-*` prompts) is a different score. `100% quiet` means the marker was absent from the reply.
 
@@ -29,7 +43,7 @@ The with arm is the measurement. A marker on a turn that did not call for one is
 
 The outcome bench does not include these turns. `bench/README.md` grades the workspace the plugin's purpose is supposed to change. The discipline block is printed beside that score and does not decide it. A question with nothing to deliver has no such workspace, so the silence check stays in this eval.
 
-The fourth row is the interesting one, and the easiest to waste.
+The partial row is the interesting one, and the easiest to waste.
 
 ## A partial score is a controlled experiment, not noise
 
@@ -148,6 +162,12 @@ agent's own loop — a hook count, *you* about to retry, *your* quick fix growin
 *you* fighting the tooling. None covered the commonest real shape: the owner
 arrives already in the loop. Fix the skill first, then make the message point
 at it.
+
+### The grant refuses the commands the agent actually writes
+
+**Observed (2026-10-02):** a control case whose prompt says "run the dry run" closed on "Bash is blocked in this session" in 3 of 6 runs with the plugin and 1 of 6 without. Two replays with the stream kept showed why: the first command was `node scripts/dry-run-import.js ...; echo "EXIT=$?"` (and `cd "<workspace>" && node ...`), and under dontAsk a compound command needs every part granted. Only `node *` was. The run then hand-checked the CSV with Grep and graded as a different trajectory from the one the criterion assumed.
+
+**The fix class:** grant what the agent composes commands with, not only the command the case is about (`cd`, `echo`, the read-only text tools; scripts/claude-eval.js `SHELL_HELPERS`), keep every run's stream so a refusal is read from the tool result and not from the agent's prose, and state the case's premise in `case.json` so a run that did not meet it is left out of a label sheet. The stored runs before 2026-10-02 had the narrower grant; a word count over their final text finds the refusal more often with the plugin than without on four of five work cases, which is a confound to check before comparing them.
 
 ### The block is crowded out by a caveat about the environment
 

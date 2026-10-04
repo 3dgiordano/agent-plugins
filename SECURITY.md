@@ -28,8 +28,9 @@ Every hook in this repository, on every host:
   session - a Claude Code session is resumed, and its state carries the
   retrospective the last close parked for the next prompt - then lists
   `<os-temp-dir>/3dgiordano-agent-plugins/` — never the bare temp dir — and
-  removes entries whose name begins with its own prefix (`covmon_`, `epimon_`,
-  `execmon_`, `handmon_`, `intmon_`, `persistmon_`, `progmon_`, `termmon_`) whose mtime is more than
+  removes entries whose name begins with its own prefix (`aspmon_`, `covmon_`,
+  `epimon_`, `execmon_`, `handmon_`, `hygmon_`, `intmon_`, `persistmon_`,
+  `progmon_`, `termmon_`) whose mtime is more than
   seven days old. That one directory is the only one a hook enumerates, it
   never deletes a path outside it, and it never touches the log files;
 - prints a short, fixed text (or JSON wrapping it) to stdout for the host to
@@ -56,8 +57,13 @@ a project file, stated here so they can be checked:
   whether a `Next:` line names an action, and how many lines are outside that
   format, with the first five line numbers. A line outside the format - a
   marker someone made up included - is counted, never parsed further and never
-  repeated. It never writes that file, never emits its text, and reads no
-  other path in the project.
+  repeated. A `- claim:` line under an item is parsed for its token, which is
+  compared with the session's own and never emitted, and its `until` time.
+  When the project is a linked git worktree, the ledger is the main
+  checkout's: to find it the hook reads `<project>/.git` (a file, in a
+  worktree) and the `commondir` file of the git directory it names, nothing
+  else of either. It never writes the ledger, never emits its text, and reads
+  no other path in the project.
 - `integrity-self-monitoring` reads **the file an edit tool has just
   written**, after the edit, when it is JavaScript or TypeScript product code
   inside the project (not tests, mocks, fixtures, `node_modules` or build
@@ -67,17 +73,25 @@ a project file, stated here so they can be checked:
   other path in the project. The matched text, at most 80 characters, goes only
   to the opt-in log, and so do the paths outside the project a read or a
   command named.
+- `hygiene-self-monitoring` reads, at session start, the JavaScript and
+  TypeScript files near the project root (at most 200, five levels deep,
+  skipping `node_modules`, `.git` and build output, each under 256 KB), and
+  afterwards a code file the agent reads or edits, to record its public
+  surface: the names it exports, their line numbers and a hash of each
+  definition. Its state file holds those, never the code. Its message names a
+  path, line numbers and a count; never a function's name or the code. It
+  never writes a project file.
 - `executive-self-monitoring`, on Claude Code, reads **the modification time**
   of each document the agent read or wrote with a file tool (`.md`,
   `.markdown`, `.txt`, `.rst`, `.adoc`), at most 50 per session; never its
   text. Its message names that path and that it changed on disk since the
   agent read it. It never writes the file and reads no other path.
 
-Four plugins also read **their own skill file** - handoff, progress, coverage
-and executive, `<plugin install dir>/skills/<name>/SKILL.md` - and emit its
-text, without the frontmatter, when a session starts, after a `/clear` or a
-compaction, and (handoff and coverage, Claude Code and Codex) when a subagent
-starts. That text is the plugin's own, shipped with it; no project file, tool
+Six plugins also read **their own skill file** - handoff, progress, coverage,
+executive, hygiene and aspiration, `<plugin install dir>/skills/<name>/SKILL.md` -
+and emit its text, without the frontmatter, when a session starts, after a
+`/clear` or a compaction, and (handoff, coverage and hygiene, Claude Code and
+Codex) when a subagent starts. That text is the plugin's own, shipped with it; no project file, tool
 result or prompt reaches it. Over 9,800 characters nothing is sent.
 
 Hooks also run at the close of a **subagent** turn (`SubagentStop`), where they
@@ -89,12 +103,14 @@ The eval scripts under `scripts/` are **not** hooks and are not covered by the
 list above — `scripts/cursor-eval.js` starts the Cursor Agent CLI on purpose.
 Nothing in CI runs them, and `scripts/test.js` fails if that ever changes.
 
-Three hooks can block: `epistemic-self-monitoring`'s closure gate (only when
+Five hooks can block: `epistemic-self-monitoring`'s closure gate (only when
 `EPIMON_STRICT` is set), `termination-self-monitoring`'s termination gate
-(only when `TERMMON_STRICT` is set) and `handoff-self-monitoring`'s handoff
-gate (only when `HANDMON_STRICT` is set). Each does so at most once per turn,
-and only by exit code / a documented host response — never by altering the
-agent's output. The other five plugins have no blocking mode.
+(only when `TERMMON_STRICT` is set), `handoff-self-monitoring`'s handoff
+gate (only when `HANDMON_STRICT` is set), `aspiration-self-monitoring`'s
+close gate (only when `ASPMON_STRICT` is set) and `hygiene-self-monitoring`'s
+close gate (only when `HYGMON_STRICT` is set). Each does so at most once per
+turn, and only by exit code / a documented host response — never by altering
+the agent's output. The other five plugins have no blocking mode.
 
 If you find any behaviour outside this list, treat it as a vulnerability and
 report it.
@@ -130,13 +146,25 @@ plugin (see each `plugin.json`); the repository release lists them.
 - **Prompt content.** The skills (`SKILL.md`) and the hook messages are
   instructions to the agent and are static text in this repository. The only
   session-derived values interpolated into a message are: the counts, and
-  line numbers of `.agent/progress.md` lines outside its format; a file
+  line numbers of `.agent/progress.md` lines outside its format, and of claim
+  lines and their items; the main checkout's ledger path, from a worktree; the
+  session's own claim token (a hash of its session id) and its claim's
+  `until`, as a UTC time and minutes from now; a file
   path or shell command the agent itself issued; and, from the agent's own final message, the `Claim` text of a closure
   block, the trigger phrase (≤80 chars) and the `Reason` / `Decision` values
   of a termination block, the deferral phrase (≤80 chars) and the part names
   of a coverage block, the offer / fork / question phrase (≤80 chars) and the
-  `Status` value of a handoff block; for integrity, a line number and the name
-  of a shape in a file the agent edited, and a count of hosts. From the user's prompt only a number is derived (how
+  `Status` value of a handoff block; the completion phrase (≤80 chars) and a
+  malformed `Remainder` value (≤40 chars) of an aspiration block, with the
+  count of edited files nobody reviewed since their change (aspiration reads a
+  tool's name, the path it names and a shell command's text to match them,
+  never its output, and emits none of them), and on a close short of the
+  objective two counts: the project files the session read, and the files the
+  project has (it lists the project's folders to count them, up to 2,000,
+  opens none and names none); for integrity, a line number and
+  the name of a shape in a file the agent edited, and a count of hosts; for
+  hygiene, a path, line numbers and a count of public functions the agent's
+  edits changed. From the user's prompt only a number is derived (how
   many enumerated items it has); no user prompt text and no file contents are
   ever echoed back. The one-line notice to the user is cut from the same
   message and carries no value that message does not, with one addition that

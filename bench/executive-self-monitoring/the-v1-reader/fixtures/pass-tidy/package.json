@@ -1,0 +1,10 @@
+{
+  "name": "csvlite",
+  "version": "2.4.0",
+  "description": "CSV rows for the reporting jobs",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "test": "node test/run.js"
+  }
+}

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 330 492">
+  <!-- sky and distance -->
+  <rect width="330" height="492" fill="#6f7c50"/>
+  <rect width="330" height="70" fill="#7b8757"/>
+  <path d="M0 70 Q40 60 70 78 T130 72 L130 110 L0 120 Z" fill="#6b7a62"/>
+  <path d="M200 60 Q250 55 290 70 T330 66 L330 110 L200 110 Z" fill="#76825e"/>
+  <ellipse cx="285" cy="125" rx="60" ry="22" fill="#86906a"/>
+  <ellipse cx="40" cy="150" rx="45" ry="14" fill="#7a8566" opacity="0.8"/>
+  <!-- land, left -->
+  <path d="M0 115 Q30 105 60 118 Q90 128 110 120 L112 260 Q60 250 0 270 Z" fill="#5a5b40"/>
+  <path d="M0 175 Q40 160 80 172 Q100 180 112 176 L112 215 Q60 208 0 225 Z" fill="#4d5038"/>
+  <path d="M20 250 Q50 238 80 246 Q95 252 100 262 Q70 258 45 268 Q30 280 15 300 L5 296 Q12 272 20 250 Z" fill="#6a412d"/>
+  <path d="M0 265 Q50 250 105 262 L105 300 L0 315 Z" fill="#4b3a2c"/>
+  <!-- land, right -->
+  <path d="M225 140 Q260 150 300 145 Q318 143 330 148 L330 250 Q280 244 225 252 Z" fill="#5b563d"/>
+  <path d="M235 180 Q270 172 330 180 L330 205 Q280 200 235 208 Z" fill="#6a6a4a"/>
+  <path d="M232 225 Q270 214 330 222 L330 262 Q280 252 232 262 Z" fill="#4e3e2e"/>
+  <!-- dress and shoulders -->
+  <path d="M0 330 Q30 300 70 285 Q100 262 120 262 L215 258 Q245 262 275 285 Q305 300 330 320 L330 492 L0 492 Z" fill="#2a1c26"/>
+  <path d="M112 270 Q165 300 222 266 L232 320 Q165 345 102 322 Z" fill="#221620"/>
+  <!-- veil and hair -->
+  <path d="M160 30 Q112 32 104 90 Q96 150 100 215 Q98 255 86 285 Q110 290 124 268 L128 150 Q130 70 160 62 Q192 66 194 150 L198 268 Q214 292 240 282 Q224 250 226 200 Q230 120 214 70 Q200 32 160 30 Z" fill="#4a2c20"/>
+  <path d="M160 30 Q120 34 110 70 Q140 52 160 52 Q184 52 208 70 Q198 34 160 30 Z" fill="#6c5d36"/>
+  <path d="M100 150 Q94 210 88 270 Q76 286 70 300 Q92 296 104 276 Q112 240 112 190 Z" fill="#3a2219"/>
+  <path d="M220 150 Q228 220 236 270 Q246 288 258 296 Q236 298 222 280 Q212 240 212 190 Z" fill="#35201a"/>
+  <path d="M128 70 Q160 58 194 70 L200 270 Q160 280 122 270 Z" fill="#3e2519"/>
+  <!-- face -->
+  <ellipse cx="158" cy="140" rx="37" ry="54" fill="#b08a45"/>
+  <ellipse cx="156" cy="104" rx="30" ry="22" fill="#c29a4a"/>
+  <ellipse cx="146" cy="150" rx="18" ry="24" fill="#bd9549" opacity="0.8"/>
+  <ellipse cx="186" cy="146" rx="11" ry="40" fill="#7e5a2e" opacity="0.7"/>
+  <path d="M136 124 Q144 119 152 124 Q144 128 136 124 Z" fill="#3a2618"/>
+  <path d="M166 122 Q175 117 183 122 Q175 126 166 122 Z" fill="#3a2618"/>
+  <path d="M133 117 Q143 112 153 116" stroke="#7a5a2e" stroke-width="1.5" fill="none"/>
+  <path d="M165 115 Q175 110 185 114" stroke="#7a5a2e" stroke-width="1.5" fill="none"/>
+  <path d="M160 128 Q156 146 152 152 Q158 156 166 152" stroke="#7e5a2e" stroke-width="2" fill="none"/>
+  <path d="M146 168 Q160 173 176 164" stroke="#6b3a22" stroke-width="2.2" fill="none"/>
+  <ellipse cx="160" cy="184" rx="14" ry="6" fill="#9c763c" opacity="0.6"/>
+  <!-- neck and chest -->
+  <path d="M140 182 Q160 198 182 182 Q186 210 200 226 Q214 238 216 250 Q212 266 206 280 Q165 294 122 284 Q116 262 116 248 Q122 234 128 226 Q138 210 140 182 Z" fill="#c6a050"/>
+  <path d="M176 188 Q182 214 198 230 L208 250 Q190 236 178 212 Z" fill="#a07c3e"/>
+  <ellipse cx="165" cy="262" rx="38" ry="14" fill="#b89248" opacity="0.6"/>
+  <path d="M120 280 Q165 296 208 276 L210 288 Q165 306 118 292 Z" fill="#6a4a26"/>
+  <!-- sleeves -->
+  <path d="M30 330 Q60 305 100 300 Q120 330 128 380 Q110 420 60 440 Q30 430 18 400 Z" fill="#6e4530"/>
+  <path d="M44 340 Q70 330 96 338" stroke="#a06a3a" stroke-width="4" fill="none"/>
+  <path d="M40 362 Q70 350 104 360" stroke="#9a643a" stroke-width="4" fill="none"/>
+  <path d="M36 385 Q70 372 110 382" stroke="#a06a3a" stroke-width="4" fill="none"/>
+  <path d="M40 408 Q70 398 108 404" stroke="#8e5a34" stroke-width="4" fill="none"/>
+  <path d="M225 300 Q270 305 305 330 Q320 380 300 410 Q260 420 228 400 Q222 350 225 300 Z" fill="#35202a"/>
+  <path d="M240 330 Q270 336 296 352" stroke="#4e2e2e" stroke-width="4" fill="none"/>
+  <!-- hands -->
+  <path d="M140 372 Q180 360 226 366 Q238 380 232 398 Q200 400 160 396 Z" fill="#8e6232"/>
+  <path d="M78 392 Q120 378 170 384 Q214 388 226 400 Q228 420 212 430 Q170 440 120 436 Q88 432 76 416 Z" fill="#b88a4a"/>
+  <path d="M170 398 Q196 402 218 412" stroke="#8a6232" stroke-width="2" fill="none"/>
+  <path d="M168 410 Q194 414 214 424" stroke="#8a6232" stroke-width="2" fill="none"/>
+  <path d="M90 404 Q120 396 150 400" stroke="#d0a25a" stroke-width="3" fill="none"/>
+  <!-- the arm of the chair and the dark below -->
+  <path d="M0 430 Q60 436 110 440 Q200 446 330 420 L330 492 L0 492 Z" fill="#1a0e20"/>
+</svg>

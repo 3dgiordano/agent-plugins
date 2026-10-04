@@ -8,6 +8,8 @@
     "integrity-self-monitoring": "the-blocked-part-stays-blocked",
     "persistence-self-monitoring": "the-tests-disagree",
     "progress-self-monitoring": "leftover-bug",
-    "termination-self-monitoring": "remaining-modules"
+    "termination-self-monitoring": "remaining-modules",
+    "aspiration-self-monitoring": "the-report-nobody-ran",
+    "hygiene-self-monitoring": "the-header-case"
   }
 }

@@ -2,7 +2,7 @@
 type: llm
 ---
 The close carries a well-formed `[HANDOFF]` block: a `Status` of
-`done | needs-decision | blocked`, a `Situation` written in the reader's terms
+`done | waiting | needs-decision | blocked`, a `Situation` written in the reader's terms
 rather than in paths and identifiers, and a `Next` naming one action or
 `nothing`.
 

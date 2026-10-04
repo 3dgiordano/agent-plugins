@@ -1,0 +1,145 @@
+---
+name: executive-self-monitoring
+description: "Keeps work inside the plan that defines it, by re-opening that artifact rather than recalling it. Writes a [PLAN CHECK] naming the plan, the gate quoted from it, any drift, and a decision. Triggers - an agreed plan or ticket or spec, ship this branch narrow, out of scope, scope creep, a bug noticed while doing something else, should I fix this too, while I was in there, unrelated problem spotted, what are you going to do first, stay on track, avoid drift, long task, agent loop, multi-step reasoning, iterative process."
+---
+
+# Executive Self-Monitoring Skill
+
+## In short
+
+- Before working, open the artifact that defines the work - the plan, the
+  ticket, the spec, the ADR, the agreement the request refers to - and read
+  it. Do not work from memory or from the request's paraphrase of it.
+- Quote the gate from it: the line that says what done means.
+- Anything that does not serve that gate - a fix noticed on the way, a
+  teammate's "while you are in there" - is out of this change. Name it and
+  leave it.
+- A change can keep the gate green and still reach past the request. Before
+  you close, list every public behaviour your change alters - a function, an
+  option, a documented result - and mark the ones the request names. One it
+  does not name is left as it was, or put to the owner as a decision; write
+  the `[HYGIENE CHECK]`.
+- Write the `[PLAN CHECK]` block: Plan, Gate, Drift, Decision.
+
+**Purpose:** A short, honest self-check that keeps effort aligned with what the
+**plan** actually asks for. It does **not** force a decision or block work — the
+plan defines the work; this is just a moment to notice when you're about to
+invest time in something the plan didn't ask for.
+
+**Key idea:** the check is not "reflect harder." It's **go read the plan.** Drift
+is only visible against an external artifact, so every activation touches one.
+
+## When to Activate
+
+Not on every task — reserve it for where drift actually happens:
+- Long or multi-step tasks, and loop iterations (ReAct / Reflexion / agent loops)
+- Before opening a new line of investigation, tuning, or "quick optimization"
+- Whenever a result tempts you to chase a number instead of the objective
+
+## Core Protocol (artifact-anchored)
+
+1. **Name the plan.** State which artifact defines the active work — a plan doc
+   (e.g. `PLAN-*.md`), a roadmap entry, an issue/ticket, a task spec, or the
+   user's original request. If you can't name it, that is itself the finding —
+   stop and find it before continuing.
+2. **Quote the objective + the gate.** Copy the one line that states the goal and
+   the specific gate — the test, metric, acceptance criterion, or condition that
+   defines success. Success is defined *outside* your own judgment — anchor to
+   it, don't paraphrase from memory.
+3. **Compare.** Do your last few actions serve that objective and move toward
+   that gate? Name any tangent, attractive optimization, or secondary
+   exploration pulling away from it.
+4. **Calibrate effort.** Does the depth match what the gate needs — would a quick
+   check settle it, or is exhaustive work genuinely required?
+5. **Decide, don't force.** Continue, gently refocus, or adjust course. The plan
+   is the authority; if the plan and your instinct disagree, the plan wins or the
+   plan gets explicitly revised — not silently drifted from.
+
+## Common drift signatures
+
+Patterns that reliably pull work away from the plan, regardless of domain:
+- **Chasing a proxy instead of the gate** — a passing smoke test, a green build,
+  or a better-looking number is not the objective unless the plan says it is.
+  Measure the thing the change actually affects.
+- **Restoring something that was reverted** because it once produced a better
+  result — the reason it was reverted still applies until shown otherwise.
+- **Declaring done on an unverified assumption** — closing on "this should
+  work" or on a zero/no-op result without checking empirically.
+- **Re-litigating a documented dead end** — if the project keeps a decision log,
+  dead-ends ledger, or ADRs, check it before reopening a settled question.
+- **"While I'm here" scope creep** — refactors, cleanups, or improvements the
+  plan didn't ask for, however cheap they look.
+- **Scope shrink** — the mirror image: delivering the tractable subset of what
+  the plan asks and reporting it as done. The coverage-self-monitoring skill
+  tracks the parts; here the check is that the gate you quote is the plan's,
+  not a smaller one you substituted.
+- **Investigation without an exit condition** — digging into a curiosity with no
+  stated question the plan needs answered.
+
+Projects can extend this list with their own recurring patterns (a `CLAUDE.md`
+note or a project rule is a good place).
+
+## Behaviour the request does not name
+
+The gate tests what the request names, so it cannot see a change to anything
+else: a fix that keeps the gate green and also alters another public function
+passes every check you have, and `Drift: none` is still true of it. Two shapes
+carry most of it:
+
+- **The fix in the shared place** — the defect sits in a helper that other
+  public functions, or callers outside this code, also use. Fixing it there
+  fixes the request and changes them too.
+- **The fix copied to the sibling** — another function has the same defect,
+  and fixing it there too "for consistency" changes what its callers get.
+
+Neither is wrong in itself; each is a change the owner did not ask for, made
+on their behalf. What is public is what callers can reach and rely on:
+exports, documented options and results, what the README or the changelog
+promises. A behaviour the request does not name keeps its contract. A line
+in the summary saying the change reaches it too reports the change; it does
+not ask for it.
+
+Size is not the measure: a one-line change can reach three public functions,
+and a long tidy-up can reach none.
+
+## Integration
+
+Insert naturally — a brief internal executive voice, not a mechanical
+checklist. Write it as a markdown list in the message, **not inside a fenced
+code block**. Fences do not wrap. No blank line inside the block. The marker,
+field names and decision stay in English (hooks parse them); the rest is in
+the language of the turn.
+
+**Write the block. Do not announce writing it.** No "I loaded this skill", no
+"per the protocol" — the reader wants the work, not a status report about the
+rules you were given. And the `[PLAN CHECK]` line opens the block, always: four
+fields with no marker above them are prose, and they read as a turn that never
+re-opened the plan.
+
+[PLAN CHECK]
+- Plan: <the artifact that defines the active work, named>
+- Gate: <the line from it that defines success, quoted>
+- Drift: none | <what is pulling away from that gate>
+- Decision: continue | refocus | revise-plan
+
+`Plan` names an artifact, not a memory — if you cannot name one, that is the
+finding, and the decision is to go find it. `Gate` is quoted from that artifact
+rather than paraphrased. `Drift: none` and `Decision: continue` go together: if
+nothing is pulling away, there is nothing to correct.
+
+Then continue normal work. Keep it short and honest — the value is the re-read,
+not the ritual. If you find yourself writing "✓ still aligned" without opening
+the plan, you have skipped the only step that matters.
+
+When the turn changed code, close with a second block, the same way:
+
+[HYGIENE CHECK]
+- Request names: <the functions, options or behaviours the request asks to change>
+- Change reaches: <every public function, option or documented behaviour whose result this change alters>
+- Outside: none | <what it reaches that the request does not name>
+- Decision: keep | revert-extra | ask-owner
+
+`Outside: none` goes with `keep`. Anything under `Outside` is never kept on
+your own call: `revert-extra` puts it back as it was, and `ask-owner` puts it
+back too and offers the change to the owner as an option, with what it would
+change for their callers.

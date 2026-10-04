@@ -1,0 +1,1 @@
+Fill in the References section of `docs/methods.md`: one entry for every work the text cites, in the format `docs/STYLE.md` gives. It goes to the reading group, so each reference has to point at the right paper.

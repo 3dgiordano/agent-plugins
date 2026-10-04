@@ -1,0 +1,9 @@
+{
+  "name": "weekly-report",
+  "version": "1.3.0",
+  "private": true,
+  "scripts": {
+    "report": "node src/cli.js data/week-39.json",
+    "test": "node test/report.test.js"
+  }
+}

@@ -24,6 +24,14 @@
  *
  * The hook never writes this file, never emits its content, and reads at most
  * MAX_BYTES of it.
+ *
+ * Several sessions can work one ledger at once - two terminals, a fan-out of
+ * agents, sessions in separate worktrees of one repository. So the ledger is
+ * the repository's, not the checkout's: from a linked worktree it is the main
+ * checkout's file (ledgerRoot), and an item a session is working carries a
+ * claim line under it (CLAIM_RE). There is no lock: the protocol
+ * (lib/claims.js, lib/messages.js) has each session write its own line,
+ * re-read, and back off when it is not alone.
  */
 
 const fs = require('fs');
@@ -71,6 +79,26 @@ const EMPTY_NEXT_RE = /^(?:none|nothing|-)?\.?$/i;
 const MAX_FOREIGN_LINES = 5; // line numbers kept for the message; the count is exact
 
 /*
+ * A claim: one session working the open item above it, now.
+ *   - claim: c1a2b3c4 since 2026-10-03T14:05Z alive 2026-10-03T14:35Z until 2026-10-03T15:05Z at wt-2/claims - step: ...
+ * The token is the first word after the colon. `until` is the one field the
+ * hook needs - when the claim runs out - and it has to name its zone (`Z` or
+ * an offset): a time without one reads differently on every machine, so it
+ * is no time at all. The rest is for the session that takes the item over.
+ * Same tolerance on bullets and emphasis as an item. A claim belongs to the
+ * last item above it under `## Open`; anywhere else it is a foreign line.
+ */
+const CLAIM_RE = new RegExp('^[ \\t]*[-*+][ \\t]+' + EM + 'claim' + EM + '[ \\t]*:[ \\t]*([^\\s,;]+)', 'i');
+const UNTIL_RE = /\buntil[ \t]*:?[ \t]*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2}))(?![\w:])/i;
+
+function untilOf(line) {
+  const m = line.match(UNTIL_RE);
+  if (!m) return null;
+  const t = Date.parse(m[1].toUpperCase().replace(/([+-]\d{2})(\d{2})$/, '$1:$2'));
+  return Number.isFinite(t) ? t : null;
+}
+
+/*
  * census(text) -> {
  *   blocked, returned: n   items under `## Open` (several sections add up)
  *   next:    boolean       a `Next:` line that names an action
@@ -78,6 +106,10 @@ const MAX_FOREIGN_LINES = 5; // line numbers kept for the message; the count is 
  *   foreignLines: [n]      the first MAX_FOREIGN_LINES of them, 1-based
  *   long:    n             format lines longer than MAX_LINE_CHARS
  *   longLines: [n]         the first MAX_FOREIGN_LINES of them, 1-based
+ *   claims:  [{ line, item, token, until }]   claim lines under their items:
+ *                          the claim's line, its item's line (1-based), the
+ *                          token, `until` in ms or null when it cannot be read.
+ *                          The token stays in this process: compared, never emitted.
  * }
  *
  * Every non-blank line is either the format or foreign. A foreign line - a
@@ -86,7 +118,7 @@ const MAX_FOREIGN_LINES = 5; // line numbers kept for the message; the count is 
  * a count is the only thing about it the message carries.
  */
 function census(text) {
-  const out = { blocked: 0, returned: 0, next: false, foreign: 0, foreignLines: [], long: 0, longLines: [] };
+  const out = { blocked: 0, returned: 0, next: false, foreign: 0, foreignLines: [], long: 0, longLines: [], claims: [] };
   if (typeof text !== 'string' || !text) return out;
   const long = (i) => {
     if (lines[i].trim().length <= MAX_LINE_CHARS) return;
@@ -94,14 +126,20 @@ function census(text) {
     if (out.longLines.length < MAX_FOREIGN_LINES) out.longLines.push(i + 1);
   };
   let inOpen = false;
+  let item = 0; // the line of the last item under ## Open: what a claim belongs to
   const lines = text.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (!line.trim()) continue;
-    if (OPEN_RE.test(line)) { inOpen = true; continue; }
+    if (OPEN_RE.test(line)) { inOpen = true; item = 0; continue; }
     if (TITLE_RE.test(line)) { inOpen = false; continue; }
     let m;
-    if (inOpen && (m = line.match(ITEM_RE))) { out[m[1].toLowerCase()] += 1; long(i); continue; }
+    if (inOpen && (m = line.match(ITEM_RE))) { out[m[1].toLowerCase()] += 1; item = i + 1; long(i); continue; }
+    if (inOpen && item && (m = line.match(CLAIM_RE))) {
+      out.claims.push({ line: i + 1, item, token: m[1].toLowerCase(), until: untilOf(line) });
+      long(i);
+      continue;
+    }
     if ((m = line.match(FIELD_RE))) {
       long(i);
       if (m[1].toLowerCase() === 'next' && !EMPTY_NEXT_RE.test(m[2].trim())) out.next = true;
@@ -124,8 +162,35 @@ function openItems(text) {
   return c.blocked + c.returned;
 }
 
+/*
+ * The directory whose `.agent/` holds the ledger: the main checkout of the
+ * repository, when `cwd` is a linked worktree; `cwd` otherwise. A worktree's
+ * `.git` is a file - `gitdir: <main>/.git/worktrees/<name>` - and that
+ * directory's `commondir` names the shared `.git`, whose parent is the main
+ * checkout. Read from the files, not by running git: a hook does not spawn
+ * processes. A submodule (no commondir), a bare repository (no checkout) or
+ * anything unreadable keeps `cwd`.
+ */
+function ledgerRoot(cwd) {
+  if (!cwd) return null;
+  try {
+    const dotgit = path.join(cwd, '.git');
+    if (!fs.statSync(dotgit).isFile()) return cwd;
+    const m = fs.readFileSync(dotgit, 'utf8').match(/^gitdir:[ \t]*(.+?)[ \t]*$/m);
+    if (!m) return cwd;
+    const gitdir = path.resolve(cwd, m[1]);
+    const common = path.resolve(gitdir, fs.readFileSync(path.join(gitdir, 'commondir'), 'utf8').trim());
+    if (path.basename(common) !== '.git') return cwd;
+    const main = path.dirname(common);
+    return fs.statSync(main).isDirectory() ? main : cwd;
+  } catch (_) {
+    return cwd;
+  }
+}
+
 function ledgerPath(cwd) {
-  return cwd ? path.join(cwd, LEDGER) : null;
+  const root = ledgerRoot(cwd);
+  return root ? path.join(root, LEDGER) : null;
 }
 
 /*
@@ -141,6 +206,9 @@ function ledgerPath(cwd) {
  *   fresh:   boolean      exists and younger than MAX_AGE_MS
  *   long, longLines: see census()
  *   bloated: [string]     what is over its cap: 'open' | 'lines' | 'bytes' | 'long'
+ *   claims:  see census()
+ *   file:    string|null   the ledger's path
+ *   shared:  boolean       the ledger is the main checkout's, not cwd's
  * }
  *
  * The only project file any hook in this plugin reads. Everything about it
@@ -155,9 +223,12 @@ function ledgerPath(cwd) {
  * agent reads the file itself, as a file.
  */
 function inspect(cwd, now) {
-  const out = { exists: false, absent: false, open: 0, blocked: 0, returned: 0, next: false, foreign: 0, foreignLines: [], long: 0, longLines: [], lines: 0, bytes: 0, mtimeMs: null, ageMs: null, fresh: false, bloated: [] };
-  const file = ledgerPath(cwd);
-  if (!file) return out;
+  const out = { exists: false, absent: false, open: 0, blocked: 0, returned: 0, next: false, foreign: 0, foreignLines: [], long: 0, longLines: [], claims: [], lines: 0, bytes: 0, mtimeMs: null, ageMs: null, fresh: false, bloated: [], file: null, shared: false };
+  const root = ledgerRoot(cwd);
+  if (!root) return out;
+  const file = path.join(root, LEDGER);
+  out.file = file;
+  out.shared = path.resolve(root) !== path.resolve(cwd);
   let st;
   try { st = fs.statSync(file); } catch (e) { out.absent = !!(e && e.code === 'ENOENT'); return out; }
   if (!st.isFile()) return out;
@@ -202,4 +273,4 @@ function isLedgerPath(p) {
   return /(^|[\\/])\.agent[\\/]progress\.md$/.test(p.trim());
 }
 
-module.exports = { LEDGER, MAX_BYTES, MAX_AGE_DAYS, MAX_AGE_MS, MAX_OPEN_ITEMS, MAX_LINES, MAX_LINE_CHARS, DETAIL_PREFIX, census, openItems, inspect, ledgerPath, ageText, isLedgerPath };
+module.exports = { LEDGER, MAX_BYTES, MAX_AGE_DAYS, MAX_AGE_MS, MAX_OPEN_ITEMS, MAX_LINES, MAX_LINE_CHARS, DETAIL_PREFIX, census, openItems, inspect, ledgerRoot, ledgerPath, ageText, isLedgerPath };

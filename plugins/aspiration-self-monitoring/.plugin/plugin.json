@@ -1,0 +1,21 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "aspiration-self-monitoring",
+  "version": "0.1.0",
+  "description": "Review before you close. Bundles the aspiration-self-monitoring skill (the 'what': after the last change, review the result in the medium it is used in - read the document, view the image, run the code, play the audio - and compare it, point by point, with a source the agent did not write - the original it reproduces, the specification it follows, the real input, the owner's words; meets only when that comparison shows it, a difference still there is a defect, a source out of reach is unverified) with per-host hooks (the 'when') that record which edited files nobody reviewed since their change and scan the final message for a completion claim and the [ASPIRATION CHECK] block. Non-blocking by default; ASPMON_STRICT=1 blocks once. Portable core: the skill only; hooks are host-specific (hooks/ for Claude Code and Codex, cursor/ for Cursor).",
+  "author": {
+    "name": "David Giordano",
+    "url": "https://github.com/3dgiordano"
+  },
+  "homepage": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/aspiration-self-monitoring",
+  "repository": "https://github.com/3dgiordano/agent-plugins",
+  "license": "Apache-2.0",
+  "keywords": [
+    "aspiration",
+    "self-monitoring",
+    "satisficing",
+    "criterion",
+    "metacognition",
+    "agent-loop"
+  ]
+}

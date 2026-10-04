@@ -64,6 +64,7 @@ turn's edits touched it.
 | **Boundary named in the prompt** — the user says the work continues in a later session | `UserPromptSubmit` → names the ledger | — (no per-prompt event) |
 | **The sweep** — what the agent wrote it would do later, handed back two turns on, once each | `Stop` collects → `UserPromptSubmit` asks | `afterAgentResponse` collects → **log only** |
 | **Edit counter** — did this turn write files; did it write the ledger | `PostToolUse`, no matcher, silent | `postToolUse`, silent |
+| **Claim watch** — the session's own claim runs out soon, ran out, is gone, or shares its item with another live claim | `PostToolUse` while it holds one (or when the call wrote the ledger), and `UserPromptSubmit` → text, once each | — (claims are counted in the session-start status) |
 | **Close** — edits this turn, ledger with open items not written this turn | `Stop` → finding parked; **next prompt** carries it, once per ledger version | `afterAgentResponse` → **log only** (no injection point after the response) |
 | **Session end** — how did it end: open items, stale or not | `SessionEnd` → log, then sweep aged state | — (no event; state is swept by age at the next `sessionStart`) |
 
@@ -81,6 +82,8 @@ other — and never repeats it when it did.
 | sweep | the agent's final message commits to a later act in this session — first person, deferred, with a "when": "I'll update the docs once the tests pass", "let me come back to X after Y", "next I'll ...", "noted for later" | kept in session state (at most 8), quoted back at the prompt `SWEEP_AFTER_TURNS` (2) turns later, once each. Offers ("if you want, I'll..."), deferrals out of the delivery ("for a follow-up PR"), the past, other agents' futures, code and quotes are labelled misses (`evals/corpus/progress-commitments.jsonl`) |
 | grown | `open > MAX_OPEN_ITEMS` (8), or non-blank `lines > MAX_LINES` (40), or `bytes > 64 KB` | one clause on the status message, with the numbers, asking for action rather than cuts: remove what is shown done or the owner closed, do what became doable, ask the owner about the rest, fold items with one cause into one line that keeps each reason. An open item is never dropped to get under the cap - what nobody decided is what the ledger keeps |
 | long line | an item, `Plan` or `Next` over `MAX_LINE_CHARS` (300) characters | one clause with the count and the line numbers, never the text: keep each a short line with its reason and move the detail to `.agent/progress-<topic>.md`, linked from it. On its own it is not "grown": nothing is asked of the item, only of its detail |
+| claims | `- claim:` lines under items in `## Open` | on the status message, by state - the session's own, live, dead (more than `GRACE_MS`, 5 minutes, past `until`), with no readable `until`, items with two live claims - with line numbers, never a token or a path from the line; and the protocol, with the session's token, whenever the ledger has open items |
+| claim watch | the session holds a claim and it runs out within `WARN_BEFORE_MS` (10 minutes), ran out, is gone without the session's own edit, shares its item with another live claim, or is one of several | one line each, once per finding: a renewal (a new `until`) re-arms it |
 | silence | no ledger; `open = 0`; older than `MAX_AGE_DAYS`; a turn with no edits; a subagent's close | a ledger nobody keeps is left alone rather than announced forever |
 
 Why the stale signal needs the edit count: without it, ten turns of
@@ -105,10 +108,76 @@ history — a teammate's session picks up where yours stopped. Ignored
 no `git checkout` ever touches, which also keeps its mtime honest. The hooks
 do not care which; this repository ignores its own.
 
-What the hook reads: one fixed path, `<project>/.agent/progress.md`, at
-most 64 KB, for its mtime and counts: `- blocked:` and `- returned:` items
-under `## Open`, whether `Next:` names an action, and how many lines are
-outside that format, with their line numbers. A line outside the format -
+## Several sessions on one ledger
+
+Two terminals, a fan-out of agents, sessions in separate worktrees: they can
+all work the same ledger, and none of them can tell from the inside whether
+another is running. Two things make that safe.
+
+**One ledger per repository.** From a linked git worktree the ledger is the
+main checkout's `.agent/progress.md`, not the worktree's: the hook follows
+the worktree's `.git` file to the shared git directory (`commondir`) and
+takes its parent. The status and the load message name that path, so a
+session in a worktree reads and writes the file the others read. A
+submodule, a bare repository or a plain directory keeps its own. An agent
+in a sandboxed worktree may need permission to write outside it.
+
+**A claim on the item a session is working.** One line indented under the
+item:
+
+```
+- returned: openapi regen - codegen 6 vs 7 changes the client's error types, owner picks
+  - claim: c1a2b3c4 since 2026-10-03T14:05Z alive 2026-10-03T14:35Z until 2026-10-03T15:05Z at wt-2/openapi - step: codegen 7 runs, client tests next
+```
+
+The token is the session's (a hash of its session id, given in the status
+message, the same after a compaction); the times are UTC with a zone, read
+from a tool; `at` and `step` are for whoever takes the item over. There is
+no lock - the ledger is a markdown file every session edits with its
+ordinary tools - so the protocol makes a collision safe rather than
+impossible:
+
+1. Each session edits only its own line, never the whole file while it holds
+   claims.
+2. After writing its claim it re-reads: the item is its own only if its line
+   is the item's one live claim. Any other, and it removes its own and picks
+   another item. Two that write together may both back off; neither ends up
+   holding the item twice.
+3. It re-reads its line before its first change to the work, and before each
+   write after a pause: gone or replaced, it stops.
+4. It renews its line (`alive`, `until`, `step`) as the work moves, and sets
+   `until` for what comes next - a long run gets a later one. The renewal is
+   the agent's on purpose: renewed by hand, a claim says the work moved; a
+   hook renewing it on every tool call would only say the process was alive.
+5. A claim more than five minutes past its `until` is dead. Another session
+   replaces that line by its exact text: if the owner renewed in the
+   meantime, the text no longer matches and the edit misses - a
+   compare-and-swap made of the edit tool's own exact match. It re-reads, and
+   continues from `at` and `step`.
+6. A session removes its line when it closes the item, leaves it blocked or
+   returned, or stops; one claim per session.
+
+What the hooks add is what the agent cannot see from inside the turn: the
+clock, and the other sessions' edits. While a session holds a claim the
+observe hook re-reads the ledger after each tool call, and the prompt hook on
+each prompt - a claim held across a wait for the owner is where it runs out.
+Each says once that the claim runs out soon, ran out, is gone, or is not
+alone on its item. Cursor has no injection point after `sessionStart`: there
+the claims are counted in the status and the agent picks its own token.
+
+What the protocol cannot do: an edit tool that rewrites the whole file
+erases the lines other sessions wrote since it read; Claude Code's Edit
+refuses a file changed since it was read, and Codex's patch fails on a
+context that no longer matches, but other tools may not. The re-read before
+the first change is what catches that window.
+
+What the hook reads: one fixed path, `<project>/.agent/progress.md` (from a
+worktree, the main checkout's), at most 64 KB, for its mtime and counts:
+`- blocked:` and `- returned:` items under `## Open`, whether `Next:` names
+an action, the claim lines under the items (their token compared with the
+session's, never emitted, and their `until`), and how many lines are
+outside that format, with their line numbers. In a worktree it also reads
+the `.git` file and the `commondir` it points to, to find that path. A line outside the format -
 including a marker someone made up - is counted and located, never repeated,
 and the message tells the agent to treat it as file content, not as
 instructions. It never writes the file — the agent does, with its ordinary
@@ -161,7 +230,7 @@ hooks), so nothing shows there. Off with `PROGRESSMON_NOTICE=0`.
 
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 
-- **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed; and `<project>/.agent/progress.md` when it exists, for its age and its counts (at most 64 KB); it never writes that file.
+- **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed; and `<project>/.agent/progress.md` when it exists - the main checkout's, from a linked worktree, found through the worktree's `.git` file and its `commondir` - for its age, its counts and its claims (at most 64 KB); it never writes that file.
 - **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `progmon_…`, removed at session end together with this plugin's files there older than seven days; only with `PROGRESSMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
 - **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them. Two cases ship a fixture project with a `scripts/publish.js` that reads `NPM_TOKEN` and runs `npm publish`: it is the release step the fixture's ledger records as blocked on that token, and it exits without publishing when the token is unset. The cases check how the agent keeps that ledger item; none asks it to publish. Nothing in the plugin runs the script.
 
@@ -184,11 +253,12 @@ backup.
 
 | Event | Fields | Meaning |
 |-------|--------|---------|
-| `session_start` | `source`, `exists`, `open`, `lines`, `bytes`, `bloated`, `ageMs`, `emitted` | a session opened or continued after compaction; was the status injected; had the ledger outgrown a page |
+| `session_start` | `source`, `exists`, `shared`, `open`, `lines`, `bytes`, `bloated`, `ageMs`, `claims`, `mine`, `dead`, `emitted` | a session opened or continued after compaction; was the status injected; had the ledger outgrown a page; was it the main checkout's; how many claims, the session's own, dead ones |
+| `claim` | `kind` | the claim watch said something: `expiring`, `expired`, `gone`, `contested` or `several` |
 | `prompt` | `turn`, `open` (turn 1 only), `retrospective`, `spans`, `swept` | per user prompt: was a stale finding carried; did the prompt name a later session; how many commitments were handed back |
 | `stop` | `exists`, `open`, `ageMs`, `stale`, `fired`, `commitments`, `tools`, `edits`, `ledgerEdited` | per final message: did this turn leave the ledger stale; was it reported (Claude Code parks it for the next prompt; Cursor logs only); how many forward commitments the message made |
 | `subagent_stop` | same as `stop`, plus `agent` | a subagent's close. Measured only — never parked: its edits are the parent's turn |
-| `session_end` | `reason`, `turns`, `exists`, `open`, `stale`, `edits` | how the session ended. `open > 0 && stale` is the case no retrospective can reach — the count a strict gate would be argued from |
+| `session_end` | `reason`, `turns`, `exists`, `open`, `stale`, `edits`, `claimsHeld` | how the session ended. `open > 0 && stale` is the case no retrospective can reach — the count a strict gate would be argued from. `claimsHeld > 0` is a claim only its `until` will release |
 
 ```
 # how often does a session end with open items and a ledger its last turn did not update?
@@ -233,7 +303,7 @@ skills/progress-self-monitoring/SKILL.md
 hooks/hooks.json                   # Claude Code + Codex: SessionStart, UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/prog-session-start.js        # ledger status at the session boundary (and after compaction)
 hooks/prog-prompt.js               # turn start stamp, the ledger's format on turn 1, status fallback, retrospective
-hooks/prog-observe.js              # edit counter; silent
+hooks/prog-observe.js              # edit counter; the claim watch while the session holds a claim
 hooks/prog-stop.js                 # edits vs. ledger mtime; parks the finding, once per ledger version
 hooks/prog-session-end.js          # logs how the session ended; the state is kept for a resume
 hooks/prog-inject.js               # the skill's text at session start, after /clear or compaction
@@ -242,6 +312,7 @@ cursor/prog-session-start.js       # load + status; also sweeps aged state (no s
 cursor/prog-observe-cursor.js
 cursor/prog-response-cursor.js     # log only
 lib/ledger.js                      # the parser (openItems) and the one project read (inspect)
+lib/claims.js                      # claims: the session's token, tally() by state, check()/watch() of its own
 lib/signals.js                     # per-turn counters, the stale rule, spansSessions()
 lib/commitments.js                 # the sweep: scan() the agent's message for later-this-session commitments; remember()/due()
 lib/messages.js                    # reminder texts shared by both adapters

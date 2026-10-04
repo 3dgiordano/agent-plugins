@@ -54,6 +54,9 @@ const SAMPLES = {
     return JSON.parse(out).hookSpecificOutput.additionalContext;
   },
 
+  aspiration: () => lib('aspiration', 'messages.js').retrospective(
+    lib('aspiration', 'lexicon.js').scan('This is done.', { edits: 1, unreviewed: 1 }).violations),
+
   termination: () => lib('termination', 'messages.js').retrospective(
     lib('termination', 'lexicon.js').scan(
       "I'm running out of context, let's pick this up in a fresh session."
@@ -68,6 +71,8 @@ const SAMPLES = {
   // The session-boundary status: counts and the path, never the ledger's text.
   progress: () => lib('progress', 'messages.js').status({ open: 2, blocked: 1, returned: 1, next: true, fresh: true, ageMs: 2 * 24 * 3600 * 1000 }),
 
+  // The edit record: how many public functions and where, never their names.
+  hygiene: () => lib('hygiene', 'messages.js').nudge(3, 'src/headers.js lines 17, 30, 35'),
   // A finding, with what it means for the user; the rule rides on it (no load message).
   integrity: () => lib('integrity', 'messages.js').nudge([
     { kind: 'catch returns', file: 'src/rates.js', line: 8, at: 'return amount * 1.08;' },

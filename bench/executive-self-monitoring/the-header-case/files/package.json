@@ -1,0 +1,10 @@
+{
+  "name": "headerbag",
+  "version": "2.1.0",
+  "description": "A Fetch-style Headers class for Node services that do not run fetch",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "test": "node test/run.js"
+  }
+}

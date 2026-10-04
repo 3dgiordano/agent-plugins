@@ -256,19 +256,24 @@ const chooseModels = (val) => suite.chooseModels('cursor', val);
  * process, removed on exit.
  */
 const pluginCopies = new Map();
-function pluginCopy(name) {
-  if (pluginCopies.has(name)) return pluginCopies.get(name);
+// variant: a SKILL.md put in place of the plugin's own (evals/variants/), for
+// an arm that measures a text before it ships. The copy reads like an install.
+function pluginCopy(name, variant) {
+  const key = variant ? `${name} ${variant}` : name;
+  if (pluginCopies.has(key)) return pluginCopies.get(key);
   // A neutral directory, and a copy that reads like an install: no evals/, no
   // README, no repository URL, no comment pointing at the runners.
   const dir = path.join(neutralDir(), name);
   fs.cpSync(path.join(PLUGINS, name), dir, { recursive: true, filter: (src) => !/^evals([\\/]|$)/.test(path.relative(path.join(PLUGINS, name), src)) });
   require('./integrity.js').sanitizePlugin(dir);
+  if (variant) fs.copyFileSync(variant, path.join(dir, 'skills', name, 'SKILL.md'));
   if (!pluginCopies.size) process.on('exit', () => { for (const d of pluginCopies.values()) { try { fs.rmSync(path.dirname(d), { recursive: true, force: true }); } catch (_) {} } });
-  pluginCopies.set(name, dir);
+  pluginCopies.set(key, dir);
   return dir;
 }
 
-function argsFor(c, withPlugin, model, workspace, outputFormat) {
+// variant: a SKILL.md the WITH arm loads in place of the plugin's own (pluginCopy).
+function argsFor(c, withPlugin, model, workspace, outputFormat, variant) {
   /*
    * --mode takes only `plan` and `ask`; omitting it IS agent mode, which is
    * what a case that asks the agent to DO the work needs - the failure it
@@ -290,7 +295,7 @@ function argsFor(c, withPlugin, model, workspace, outputFormat) {
   if (process.platform === 'darwin' || process.platform === 'linux') a.push('--sandbox', 'enabled');
   if (c.intent !== 'work') a.push('--mode', 'ask');
   if (model) a.push('--model', model);
-  if (withPlugin) a.push('--plugin-dir', pluginCopy(c.plugin));
+  if (withPlugin) a.push('--plugin-dir', pluginCopy(c.plugin, variant));
   // Both arms: records whether this invocation ran hooks at all (evallib.js).
   a.push('--plugin-dir', hookWitness().dir);
   return a; // the prompt is NOT here - it goes on stdin, see run()
@@ -597,7 +602,7 @@ function main() {
       }
       const w = score.with / valid.with;
       const wo = score.without / valid.without;
-      console.log(reportLine(c, w, wo, dead));
+      console.log(reportLine(c, w, wo, dead, valid));
       if (contaminated) console.log(`  ${contaminated} contaminated run(s) excluded - they read outside their workspace (evallib.js auditStream)`);
       rows.push({ c, with: w, without: wo, dead });
     }

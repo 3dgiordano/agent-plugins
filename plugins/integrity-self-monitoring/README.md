@@ -244,6 +244,9 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 - Gomez, F. (2025). From surveillance to signalling: escalation channels as environmental controls for agentic AI. [arXiv:2510.05192](https://arxiv.org/abs/2510.05192)
 - Denison, C., et al. (2024). Sycophancy to Subterfuge: Investigating Reward-Tampering in Large Language Models. [arXiv:2406.10162](https://arxiv.org/abs/2406.10162)
 - Lynch, A., et al. (2025). Agentic Misalignment: How LLMs Could Be Insider Threats. [arXiv:2510.05179](https://arxiv.org/abs/2510.05179)
+- MacDiarmid, M., et al. (2025). Natural Emergent Misalignment from Reward Hacking in Production RL. [arXiv:2511.18397](https://arxiv.org/abs/2511.18397)
+- Taylor, M., Chua, J., Betley, J., Treutlein, J., Evans, O. (2025). School of Reward Hacks: Hacking harmless tasks generalizes to misaligned behavior in LLMs. [arXiv:2508.17511](https://arxiv.org/abs/2508.17511)
+- Manheim, D., Garrabrant, S. (2018). Categorizing Variants of Goodhart's Law. [arXiv:1803.04585](https://arxiv.org/abs/1803.04585)
 
 ## Layout
 

@@ -61,6 +61,15 @@ function observe(turn, toolName, toolInput) {
  * saying "written this turn" is enough, so a filesystem that reports a coarse
  * mtime still gets the answer right when the hook saw the write.
  */
+// Did this one tool call write the ledger - an edit tool on its path, or a
+// shell command that names it? Read by the claim watch: a claim that vanished
+// in the session's own edit was released, not lost.
+function editsLedger(toolName, toolInput) {
+  if (EDIT_TOOL_RE.test(String(toolName || ''))) return isLedgerPath(filePathOf(toolInput));
+  const cmd = toolInput && typeof toolInput.command === 'string' ? toolInput.command : '';
+  return /\.agent[\\/]progress\.md\b/.test(cmd);
+}
+
 function stale(turn, ins, turnStartMs, flaggedMtime) {
   const t = turn || freshTurn();
   const out = { stale: false, fire: false };
@@ -150,4 +159,4 @@ function spansSessions(prompt) {
   return t.split(/[.!?¿¡\n]+/).some((s) => BACK_RE.some((re) => re.test(s)) && RESUME_RE.some((re) => re.test(s)));
 }
 
-module.exports = { freshTurn, observe, stale, summary, spansSessions, EDIT_TOOL_RE };
+module.exports = { freshTurn, observe, editsLedger, stale, summary, spansSessions, EDIT_TOOL_RE };

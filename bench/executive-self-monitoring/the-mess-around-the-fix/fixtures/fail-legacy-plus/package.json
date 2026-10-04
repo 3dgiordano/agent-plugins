@@ -1,0 +1,10 @@
+{
+  "name": "tinyqs",
+  "version": "2.3.1",
+  "description": "Query strings for Node, without the URL object",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "test": "node test/run.js"
+  }
+}

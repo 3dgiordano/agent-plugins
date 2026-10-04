@@ -31,6 +31,7 @@ const { logEvent, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const ledger = require('../lib/ledger.js');
+const claims = require('../lib/claims.js');
 const commitments = require('../lib/commitments.js');
 const msg = require('../lib/messages.js');
 const { cwdOf, context, notification } = require('../lib/host.js');
@@ -51,7 +52,9 @@ function main(raw) {
   let announced = null;
   let sweep = [];
   let parked = null; // the ledger line SessionStart could not show (prog-session-start.js)
+  let held = false;
   state.update(HOST, sid, (st) => {
+    held = !!(st.claim && st.claim.held);
     parked = st.notice || null;
     st.notice = null;
     st.turns = (st.turns || 0) + 1;
@@ -72,15 +75,27 @@ function main(raw) {
   const out = [];
   const notes = []; // what the user sees: the ledger status and the sweep, not the load or the reminders
   if (parked) notes.push(parked);
+  const mine = claims.token(sid);
   let ins = null;
   if (turns === 1 || reload) {
     ins = ledger.inspect(cwd);
     out.push(msg.load(ins));
     if (ins.exists && announced !== ins.mtimeMs) {
-      out.push(msg.status(ins));
+      out.push(msg.status(ins, mine, Date.now()));
       const note = msg.statusNotice(ins);
       if (note) notes.push(note);
       state.update(HOST, sid, (st) => { st.announced = ins.mtimeMs; });
+    }
+  }
+  // A claim held across the wait for this prompt: the wait is where it runs
+  // out, and where another session takes the item over (lib/claims.js).
+  if (mine && held) {
+    if (!ins) ins = ledger.inspect(cwd);
+    const f = state.update(HOST, sid, (st) => claims.watch(st, ins, Date.now(), mine, false));
+    if (f) {
+      out.push(msg.claimWarning(f, ins, mine));
+      const n = msg.claimNotice(f, ins);
+      if (n) notes.push(n);
     }
   }
   if (pending) out.push(msg.retrospective(pending));

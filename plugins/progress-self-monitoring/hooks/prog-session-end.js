@@ -19,6 +19,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const ledger = require('../lib/ledger.js');
+const claims = require('../lib/claims.js');
 const { cwdOf } = require('../lib/host.js');
 
 function main(raw) {
@@ -31,9 +32,12 @@ function main(raw) {
     const st = state.load('claude', sid);
     const ins = ledger.inspect(cwd);
     const res = signals.stale(st.turn, ins, st.turnStart, null);
+    // A claim still in the file when the session ends is one only its
+    // `until` releases: how often that happens is what the grace is argued from.
+    const held = claims.tally(ins.claims, Date.now(), claims.token(sid)).mine.length;
     logEvent(cwd, Object.assign({
       event: 'session_end', session: sid, reason: data.reason || null, turns: st.turns || 0,
-      exists: ins.exists, open: ins.open, ageMs: ins.ageMs, stale: res.stale
+      exists: ins.exists, open: ins.open, ageMs: ins.ageMs, stale: res.stale, claimsHeld: held
     }, signals.summary(st.turn)));
   } catch (_) {}
 

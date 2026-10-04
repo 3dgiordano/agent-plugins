@@ -1,0 +1,29 @@
+{
+  "name": "aspiration-self-monitoring",
+  "displayName": "Aspiration Self-Monitoring",
+  "version": "0.1.0",
+  "description": "Review before you close. Bundles the aspiration-self-monitoring skill (the 'what': after the last change, review the result in the medium it is used in - read the document, view the image, run the code, play the audio - and compare it, point by point, with a source the agent did not write - the original it reproduces, the specification it follows, the real input, the owner's words; meets only when that comparison shows it, a difference still there is a defect, a source out of reach is unverified) with per-host hooks (the 'when') that record which edited files nobody reviewed since their change and scan the final message for a completion claim and the [ASPIRATION CHECK] block. Non-blocking by default; ASPMON_STRICT=1 blocks once. Cursor: sessionStart load, postToolUse edit/review record, afterAgentResponse scan, stop gate (strict only).",
+  "author": {
+    "name": "David Giordano"
+  },
+  "homepage": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/aspiration-self-monitoring",
+  "repository": "https://github.com/3dgiordano/agent-plugins",
+  "license": "Apache-2.0",
+  "logo": "assets/logo.svg",
+  "keywords": [
+    "aspiration",
+    "self-monitoring",
+    "satisficing",
+    "criterion",
+    "metacognition",
+    "agent-loop"
+  ],
+  "category": "developer-tools",
+  "tags": [
+    "agent-loop",
+    "focus",
+    "workflow"
+  ],
+  "skills": "./skills/",
+  "hooks": "./cursor/hooks.json"
+}

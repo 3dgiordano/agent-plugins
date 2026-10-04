@@ -47,9 +47,9 @@ for an agent's turn:
 
 | SBAR | I-PASS | `[HANDOFF]` |
 |------|--------|-------------|
-| Situation | Illness severity | `Status: done \| needs-decision \| blocked` — one word the reader triages on |
+| Situation | Illness severity | `Status: done \| waiting \| needs-decision \| blocked` — one word the reader triages on |
 | Background | Patient summary | `Situation` — what the reader has now, in their terms; the trace-register detail goes *below* the block |
-| Assessment | Situation awareness / contingency | `Options` as a list, `Default` on its own line, or `Blocked-by` |
+| Assessment | Situation awareness / contingency | `Options` as a list, `Default` on its own line, or `Waiting-on`, or `Blocked-by` |
 | Recommendation | Action list | `Next` — the one action asked of the reader, or `nothing` |
 | — | Synthesis by receiver | the reader's reply; a hook cannot do it for them |
 
@@ -100,12 +100,29 @@ quoted lines and the `[HANDOFF]` block itself:
 Any hit with no `[HANDOFF]` block is the finding. When there is a block, the
 rules are:
 
-- `Status` is one of `done | needs-decision | blocked` (a qualifier may follow)
+- `Status` is one of `done | waiting | needs-decision | blocked` (a qualifier may follow)
 - `needs-decision` needs `Options` with at least two alternatives (a list
   under `Options`, one choice per line; a `|` / `vs` line is still accepted)
   and a `Default` (own line, or trailing on `Options`)
 - `blocked` needs `Blocked-by`
+- `waiting` needs `Waiting-on`: what is still out and its id, how its end
+  reaches the agent or the reader, what is done with the result. It may also
+  ride on `needs-decision`. `done` with a `Waiting-on`, or a `done` or
+  `blocked` block whose own words say a run is still out, is a finding
 - `Situation` and `Next` are required; a template placeholder counts as empty
+
+`waiting` is the close of a turn whose result is still out: a command in the
+background, a subagent, a job whose result decides what comes next. It comes
+from the owner's sessions, where 30 of 283 `[HANDOFF]` blocks were written in
+that position with only the other three statuses to choose from: 7 closed
+`done` with `Next: nothing`, 15 put the agent's own plan for the result in
+`Next`, 7 were `needs-decision` with a run out, and one invented
+`in-progress`, which the scanner rejected. The words a run still out leaves
+in a `done` or `blocked` block ("still running", "I'll … when it finishes",
+"sigue corriendo", "te traigo la tabla cuando termine") are read on the
+block only; on those blocks they find 19 of the 20 `done` closes written
+while something ran, with one false alarm. No hook watches the run itself,
+so the check is the same on every host.
 
 The lexicon is English and Spanish, like the sibling plugins'; the question
 and `returned` signals are language-neutral, and the block's marker, field
@@ -155,7 +172,8 @@ Nor does it judge the *content* of a block — the rules are structural.
 The closing blocks coexist in one message and each plugin reads only its
 own: `[EPISTEMIC CLOSE]` (is the claim true), `[COVERAGE CHECK]` (which parts
 are open), `[TERMINATION CHECK]` (why the stop is justified), `[INTEGRITY
-CHECK]` (whether the result is real) and `[HANDOFF]` (what the reader does
+CHECK]` (whether the result is real), `[ASPIRATION CHECK]` (whether the
+result was reviewed against its objective) and `[HANDOFF]` (what the reader does
 with it). The only cross-read is this
 plugin's scanner looking for `returned` lines in the `[COVERAGE CHECK]`.
 Coverage's deferral scan reads the whole prose, a `[HANDOFF]` included — so a

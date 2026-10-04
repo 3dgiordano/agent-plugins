@@ -1,0 +1,1 @@
+Update `docs/qr-bill-guide.md` to the current Swiss Implementation Guidelines for the QR-bill. Finance checks tonight's invoices against it, so every rule in it has to be the rule the banks apply now.
