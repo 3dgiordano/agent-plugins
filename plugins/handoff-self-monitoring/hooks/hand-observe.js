@@ -17,7 +17,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const msg = require('../lib/messages.js');
-const { cwdOf, context } = require('../lib/host.js');
+const { cwdOf, context, actorOf } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -25,6 +25,9 @@ function main(raw) {
   let data = {};
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
   const sid = data.session_id || 'nosession';
+  // Each actor has its own close to prepare: a subagent's commit or green gate
+  // is told to the subagent, and does not spend the main agent's one nudge.
+  const actor = actorOf(data);
 
   const out = data.tool_response !== undefined ? data.tool_response : data.tool_output;
   let st;
@@ -32,10 +35,10 @@ function main(raw) {
     st = s;
     if (!st.turn) st.turn = signals.freshTurn();
     return signals.observe(st.turn, data.tool_name, data.tool_input, out);
-  });
+  }, actor);
 
   if (!fired.length) return;
-  logEvent(cwdOf(data), { event: 'signal', session: sid, tools: st.turn.tools, signals: fired });
+  logEvent(cwdOf(data), { event: 'signal', session: sid, actor, tools: st.turn.tools, signals: fired });
   process.stdout.write(context('PostToolUse', msg.preclose(fired[0])));
 }
 

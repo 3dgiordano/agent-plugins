@@ -115,11 +115,10 @@ const BLOCK_RE = /^[ \t]*(?:[-*+][ \t]+)?(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[HANDOFF\
 /*
  * `waiting` is the close of a turn whose result is still out: a run, a
  * subagent, a job started this turn, whose result decides what happens next.
- * Measured before it existed: in the owner's sessions 30 of 283 blocks were
- * written in that position with only the other three to choose from - 7 said
- * `done` with `Next: nothing`, 15 put the agent's own plan for the result in
- * Next, and one wrote `in-progress`, which this scanner then rejected. Each is
- * a wrong word for the reader to triage on: `done` says nothing is coming,
+ * Before it existed, blocks written in that position had only the other three
+ * to choose from: `done` with `Next: nothing`, the agent's own plan for the
+ * result in Next, or an invented `in-progress`, which this scanner rejected.
+ * Each is a wrong word for the reader to triage on: `done` says nothing is coming,
  * `blocked` says something stops the work.
  */
 const STATUSES = ['done', 'waiting', 'needs-decision', 'blocked'];

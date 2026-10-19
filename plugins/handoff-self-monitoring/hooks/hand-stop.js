@@ -27,7 +27,7 @@ const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const { scan } = require('../lib/handoff.js');
 const msg = require('../lib/messages.js');
-const { cwdOf, context } = require('../lib/host.js');
+const { cwdOf, context, actorOf } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -48,9 +48,11 @@ function main(raw) {
   const res = scan(data.last_assistant_message || '');
   const blocking = strict() && res.violations.length > 0 && !data.stop_hook_active && !subagent;
 
-  const st = state.load(HOST, sid);
+  // Each close is measured on its own actor's turn (hand-observe.js).
+  const actor = actorOf(data);
+  const st = state.load(HOST, sid, actor);
   logEvent(cwdOf(data), Object.assign({
-    event: subagent ? 'subagent_stop' : 'stop', session: sid, agent: data.agent_type || null, hits: res.hits, blocks: res.blocks, status: res.status,
+    event: subagent ? 'subagent_stop' : 'stop', session: sid, actor, agent: data.agent_type || null, hits: res.hits, blocks: res.blocks, status: res.status,
     violations: res.violations, strict: strict(), blocked: blocking
   }, signals.summary(st.turn || signals.freshTurn())));
 

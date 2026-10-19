@@ -124,5 +124,56 @@
   ],
   "cli": "cli.model is what the host CLI receives as --model. cli.effort is passed as the host's effort setting (claude --effort, codex -c model_reasoning_effort); null means the effort is part of the Cursor id. The Claude and Codex ids are unverified until a run reaches the model.",
   "timeoutMin": "Per-invocation ceiling in minutes for the outcome bench (default 15). A run that reaches it has no result and is dropped as dead, so a slow model needs a higher one rather than a lower score.",
-  "idleMin": "Per-model idle cut in minutes for the outcome bench: an invocation that writes nothing for this long is stopped and counted dead (scripts/idle-watchdog.js), and one that stopped after a finished thinking block is named a stall. Set from the longest silence in finished runs: Composer 2.5 25 s in 161, Grok 4.6 High 153 s, Grok 4.7 High 460 s. None when unset."
+  "idleMin": "Per-model idle cut in minutes for the outcome bench: an invocation that writes nothing for this long is stopped and counted dead (scripts/idle-watchdog.js), and one that stopped after a finished thinking block is named a stall. Set from the longest silence in finished runs: Composer 2.5 25 s in 161, Grok 4.6 High 153 s, Grok 4.7 High 460 s. None when unset.",
+  "judgesNote": "Judge-only rows: read by the judge drivers (scripts/cursor-judge.js, scripts/judge-selftest.js) through suite.js chooseJudgeModels, never by the bench, the eval or a bench session. For a one-time panel of vendors (bench/studies/false-assurance-judge/PREREG.md, panel amendment).",
+  "judges": [
+    {
+      "host": "cursor",
+      "id": "cursor-gpt-5.6-sol-high",
+      "line": "GPT-5.6 Sol",
+      "tier": null,
+      "reasoning": "High",
+      "driver": "cursor",
+      "cli": {
+        "model": "gpt-5.6-sol-high",
+        "effort": null
+      }
+    },
+    {
+      "host": "cursor",
+      "id": "gemini-4-argon-high",
+      "line": "Gemini 4 Argon",
+      "tier": null,
+      "reasoning": "High",
+      "driver": "cursor",
+      "cli": {
+        "model": "gemini-4-argon-high",
+        "effort": null
+      }
+    },
+    {
+      "host": "cursor",
+      "id": "kimi-k3-high",
+      "line": "Kimi K3",
+      "tier": null,
+      "reasoning": "High",
+      "driver": "cursor",
+      "cli": {
+        "model": "kimi-k3-high",
+        "effort": null
+      }
+    },
+    {
+      "host": "cursor",
+      "id": "glm-5.2-high",
+      "line": "GLM 5.2",
+      "tier": null,
+      "reasoning": "High",
+      "driver": "cursor",
+      "cli": {
+        "model": "glm-5.2-high",
+        "effort": null
+      }
+    }
+  ]
 }

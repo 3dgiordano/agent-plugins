@@ -37,3 +37,15 @@
 {"text": "**[EPISTEMIC CLOSE]**\n- Claim: the parser drops the last chunk\n- Status: verified\n- Verified by: node scripts/test.js, the 'chunked input' case\n- Scope: src/parser.js", "expect": "miss", "why": "bolded and complete"}
 {"text": "Write a `**[EPISTEMIC CLOSE]**` when you close a diagnosis.", "expect": "miss", "why": "a decorated marker inside inline code is documentation"}
 {"text": "**[EPISTEMIC CLOSE]**\n- **Claim:** the installed trees match the repo\n- **Status:** verified\n- **Verified by:** diff -rq of all six\n- **Scope:** Claude Code only; Cursor not checked", "expect": "miss", "why": "decorated field names are the same fields"}
+
+// --- a field written only as inline code is filled, not empty ---
+// The inline-code strip that keeps documentation out must not reach the
+// fields of a real block: `npm test` is the natural way to name a check.
+
+{"text": "[EPISTEMIC CLOSE]\n- Claim: the retry loop double-counts\n- Status: verified\n- Verified by: `npm test`\n- Scope: `src/retry.js`", "expect": "miss", "why": "Verified by and Scope written only as inline code are filled"}
+{"text": "[EPISTEMIC CLOSE]\n- Claim: the leak is in the pool\n- Status: conjecture\n- Falsifier: `node scripts/heap.js --after-deploy`\n- Scope: staging", "expect": "miss", "why": "a Falsifier written only as inline code is filled"}
+{"text": "[EPISTEMIC CLOSE]\n- Claim: the parser drops the last chunk\n- Status: verified\n- **Verified by:** `node scripts/test.js`\n- Scope: src/parser.js", "expect": "miss", "why": "decorated field name, code-only value"}
+{"text": "> [EPISTEMIC CLOSE]\n> - Claim: the cache is cold\n> - Status: verified\n> - Verified by: `npm test`\n\n[EPISTEMIC CLOSE]\n- Claim: the index is unused\n- Status: verified\n- Verified by: `EXPLAIN` on the three slow queries\n- Scope: `orders`", "expect": "miss", "why": "a quoted block before a real one: only the real one is judged, and its code-only Scope is filled"}
+{"text": "[EPISTEMIC CLOSE]\n- Claim: the retry loop double-counts\n- Status: verified\n- Verified by: ``\n- Scope: src/retry.js", "expect": "hit", "why": "empty inline code is still empty"}
+{"text": "[EPISTEMIC CLOSE]\r\n- Claim: the retry loop double-counts\r\n- Status: verified\r\n- Verified by: `npm test`\r\n- Scope: src/retry.js\r\n", "expect": "miss", "why": "CRLF line ends, code-only Verified by"}
+{"text": "[EPISTEMIC CLOSE]\r\n- Claim: the retry loop double-counts\r\n- Status: verified\r\n- Scope: src/retry.js\r\n", "expect": "hit", "why": "CRLF line ends, no Verified by"}

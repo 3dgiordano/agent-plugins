@@ -94,6 +94,7 @@ const clip = (s) => String(s).replace(/\s+/g, ' ').slice(0, 40);
 /*
  * opts.edits       edits this turn (undefined: unknown)
  * opts.unreviewed files edited and not reviewed since (undefined: unknown)
+ * opts.delegated  how many of those a subagent edited (lib/signals.js delegated)
  * opts.looked     { read, files, more }: project files the session opened,
  *                 and the project's file count (lib/signals.js looked)
  */
@@ -133,12 +134,15 @@ function scan(text, opts) {
   // it gives up the review: a refusal is about the command refused, and the
   // project usually documents how its work is run.
   const how = (n) => ` - read, view, run or render ${n === 1 ? 'it' : 'them'} the way the project documents - one refused command says that command is not allowed, not that nothing runs`;
+  // Files a subagent changed, which the subagent's own look does not review
+  // for the agent that hands the result over (opts.delegated, lib/signals.js).
+  const by = o.delegated > 0 ? ` (${o.delegated === o.unreviewed ? (o.delegated === 1 ? 'it was' : 'all were') : `${o.delegated} were`} edited by a subagent: its own review is its claim, not yours)` : '';
   if (closing && o.unreviewed > 0 && out.remainder !== 'blocked') {
-    out.violations.unshift(`${o.unreviewed} edited file${o.unreviewed === 1 ? '' : 's'} not reviewed since the last change${how(o.unreviewed)}`);
+    out.violations.unshift(`${o.unreviewed} edited file${o.unreviewed === 1 ? '' : 's'} not reviewed since the last change${by}${how(o.unreviewed)}`);
   } else if (!closing && o.edits > 0 && o.unreviewed > 0) {
     // A hand-over with no claim and no block still hands the result over:
     // "please open it and check it" passes the review to the reader.
-    out.violations.unshift(`${o.unreviewed} edited file${o.unreviewed === 1 ? '' : 's'} handed over with no review since the last change${how(o.unreviewed)}`);
+    out.violations.unshift(`${o.unreviewed} edited file${o.unreviewed === 1 ? '' : 's'} handed over with no review since the last change${by}${how(o.unreviewed)}`);
   }
   // A close short of the objective - a defect left, a review that could not
   // be done, a source that could not be had - is where the search stopped. The

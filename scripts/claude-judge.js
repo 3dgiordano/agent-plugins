@@ -6,7 +6,7 @@
  * wrote - each reply already blinded, with its case's written criterion - and
  * asks the model for pass or fail on each, one `claude -p` per item.
  *
- *   node scripts/claude-judge.js --model sonnet-5-high --pass 1 [--prereg <file>] <dir under evals/results>
+ *   node scripts/claude-judge.js --model sonnet-5-high --pass 1 [--prereg <file>] [--skip-selftest] <dir under evals/results>
  *
  * Writes judges/<model>__pass<k>.json and .run.json beside the sheet;
  * `node scripts/blind-labels.js --agree <dir>` reads every judge there.
@@ -54,12 +54,20 @@ function main() {
   const picked = chooseModels('claude', val);
   if (picked.error) { console.error(picked.error); process.exit(2); }
   if (!dir || picked.models.length !== 1 || !(pass >= 1)) {
-    console.error(`usage: node scripts/claude-judge.js --model <${(picked.known || []).map((m) => m.id).join(' | ')}> --pass <k> [--prereg <file>] <dir under evals/results>`);
+    console.error(`usage: node scripts/claude-judge.js --model <${(picked.known || []).map((m) => m.id).join(' | ')}> --pass <k> [--prereg <file>] [--skip-selftest] <dir under evals/results>`);
     process.exit(2);
   }
   if (!path.resolve(dir).startsWith(path.join(ROOT, 'evals', 'results') + path.sep)) { console.error('the directory must be under evals/results'); process.exit(2); }
   const model = picked.models[0];
   const items = JSON.parse(fs.readFileSync(path.join(dir, 'items.json'), 'utf8'));
+  // The judge applies a criterion only after passing its self-test (evals/judge-selftest/README.md).
+  const gate = J.selftestGate(items, 'claude', model.id);
+  const skipSelftest = argv.includes('--skip-selftest');
+  if (!gate.ok && !skipSelftest) {
+    for (const p of gate.problems) console.error(`self-test: ${p}`);
+    console.error(`run node scripts/judge-selftest.js --run --host claude --model ${model.id} first, or pass --skip-selftest (recorded in the run record)`);
+    process.exit(3);
+  }
   const cli = findCli();
   if (!cli) { console.error('Claude Code CLI not found'); process.exit(1); }
   const version = (run(cli.bin, ['--version']).stdout || '').trim();
@@ -100,6 +108,7 @@ function main() {
     host: 'claude', model: model.id, cli: model.cli, cliVersion: version, modelReported: [...reported], pass,
     isolation: '--restricted --strict-mcp-config --tools "" --permission-mode dontAsk; childEnv; TEMP and an empty cwd per item',
     unreadable: unread, flagged,
+    selftest: gate.ok ? { record: gate.record } : { skipped: true, problems: gate.problems },
   }, items, prereg), null, 2) + '\n');
   console.log(`${items.length} item(s), ${model.id} pass ${pass}: ${unread} unreadable, ${flagged} flagged -> ${out.verdicts}`);
 }

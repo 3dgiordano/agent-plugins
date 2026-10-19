@@ -5,7 +5,7 @@
  * the same prompt (judgelib.js), so a panel can hold models of more than one
  * family (docs/STUDY-PROTOCOL.md, section 4, point 4).
  *
- *   node scripts/cursor-judge.js --model grok-4.7-high --pass 1 [--prereg <file>] <dir under evals/results>
+ *   node scripts/cursor-judge.js --model grok-4.7-high --pass 1 [--prereg <file>] [--skip-selftest] <dir under evals/results>
  *
  * Isolation, as the outcome bench's Cursor driver: a scratch HOME per item
  * (evallib isolatedHome: no installed plugin, no chat history, a TEMP of its
@@ -26,7 +26,7 @@ const AGENT_CLI_DRIVER = true;
 
 const ROOT = path.resolve(__dirname, '..');
 const { findCli, run } = require('./cursor-eval.js');
-const { chooseModels } = require('./suite.js');
+const { chooseJudgeModels } = require('./suite.js');
 const { scratchWorkspace, dropWorkspace, isolatedHome, dropHome, auditStream } = require('./evallib.js');
 const J = require('./judgelib.js');
 
@@ -59,15 +59,23 @@ function main() {
   const dir = argv.filter((x, i) => !x.startsWith('--') && !flags.has(argv[i - 1]))[0];
   const pass = Number(val('--pass', '1'));
   const prereg = val('--prereg', null);
-  const picked = chooseModels('cursor', val);
+  const picked = chooseJudgeModels('cursor', val);
   if (picked.error) { console.error(picked.error); process.exit(2); }
   if (!dir || picked.models.length !== 1 || !(pass >= 1)) {
-    console.error(`usage: node scripts/cursor-judge.js --model <${(picked.known || []).map((m) => m.id).join(' | ')}> --pass <k> [--prereg <file>] <dir under evals/results>`);
+    console.error(`usage: node scripts/cursor-judge.js --model <${(picked.known || []).map((m) => m.id).join(' | ')}> --pass <k> [--prereg <file>] [--skip-selftest] <dir under evals/results>`);
     process.exit(2);
   }
   if (!path.resolve(dir).startsWith(path.join(ROOT, 'evals', 'results') + path.sep)) { console.error('the directory must be under evals/results'); process.exit(2); }
   const model = picked.models[0];
   const items = JSON.parse(fs.readFileSync(path.join(dir, 'items.json'), 'utf8'));
+  // The judge applies a criterion only after passing its self-test (evals/judge-selftest/README.md).
+  const gate = J.selftestGate(items, 'cursor', model.id);
+  const skipSelftest = argv.includes('--skip-selftest');
+  if (!gate.ok && !skipSelftest) {
+    for (const p of gate.problems) console.error(`self-test: ${p}`);
+    console.error(`run node scripts/judge-selftest.js --run --host cursor --model ${model.id} first, or pass --skip-selftest (recorded in the run record)`);
+    process.exit(3);
+  }
   const cli = findCli();
   if (!cli) { console.error('Cursor Agent CLI not found'); process.exit(1); }
   const version = (run(cli.bin, ['--version'], isolatedHome('.cursor')).stdout || '').trim();
@@ -109,6 +117,7 @@ function main() {
     host: 'cursor', model: model.id, cli: model.cli, cliVersion: version, modelReported: [...reported], pass,
     isolation: 'scratch HOME per item, --mode ask, an empty --workspace and cwd; stream audited for tool calls and reads outside',
     unreadable: unread, flagged,
+    selftest: gate.ok ? { record: gate.record } : { skipped: true, problems: gate.problems },
   }, items, prereg), null, 2) + '\n');
   console.log(`${items.length} item(s), ${model.id} pass ${pass}: ${unread} unreadable, ${flagged} flagged -> ${out.verdicts}`);
 }

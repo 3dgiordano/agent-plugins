@@ -44,7 +44,7 @@ A finding carries the path, the lines and the count - never a function's name, n
 ## What it does on your machine
 
 - **Reads:** the hook event's JSON; the code files near the project root at session start (at most 200, five levels deep, skipping `node_modules`, `.git`, `dist`, `build` and the like, each under 256 KB); a code file the agent reads or edits. JavaScript and TypeScript only.
-- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `hygmon_…`, holding each file's public names, line numbers and a hash of each definition - never the code; kept for a resume and swept after seven days. Only with `HYGMON_LOG` set, the debug log below.
+- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins/`, named `hygmon_…`, holding each file's public names, line numbers and a hash of each definition - never the code; kept for a resume and swept after seven days. Only with `HYGMON_LOG` set, the debug log below.
 - **Sends:** nothing. No network.
 
 ## Debug log (opt-in, off by default)
@@ -61,9 +61,9 @@ JSONL under `<project>/.claude/logs/hygiene-self-monitoring.jsonl` (Claude Code)
 | `session_start` | `source`, `files` | the baseline: how many code files had a public surface |
 | `prompt` | `turn`, `retrospective` | a parked finding carried forward |
 | `observe` | `kind` (`read` or `edit`), `reached`, `nudge` | a code file read or edited; how many public functions the session has reached |
-| `stop` | `block`, `decision`, `reached`, `violations`, `strict`, `blocked` | the final message (Claude Code); on Cursor, the stop adapter's `status`, `violations`, `blocked` |
+| `stop` | `actor`, `block`, `decision`, `reached` (every actor's), `bySubagents`, `violations`, `strict`, `blocked` | the final message (Claude Code); on Cursor, the stop adapter's `status`, `violations`, `blocked` |
 | `response` | as `stop`, without `blocked` | Cursor's final message |
-| `subagent_stop` | as `stop` | measured only: never blocks, never parks |
+| `subagent_stop` | as `stop`, on the subagent's own record | measured only: never blocks, never parks |
 
 ## Evidence so far
 
@@ -78,6 +78,8 @@ Bench cases under `bench/executive-self-monitoring/` (run with the skill's text 
 Five more cases pass unaided (30/30) and are kept as exercises. The hook has not been measured yet. Details: `bench/README.md` and the CHANGELOG.
 
 ## Limits
+
+- **Subagents** (0.2.0) keep their own record, measured against the session's snapshot (the main agent's), so a subagent that rewrites a file whole still has a baseline. The subagent is nudged on its own reach. The main agent's close accounts for every public function any actor changed, and names the files a subagent changed (`, by a subagent`). On Cursor, where the plugins read no subagent id yet (whether its tool events carry one is not probed), everything stays in one record as before.
 
 - The reading is lexical, not a parse: definitions at the start of a line, brackets matched outside strings and regular expressions. A re-export from another file, code built at run time, or a definition indented at the top level is not seen - the hook stays silent rather than guess.
 - A changed function is not a changed behaviour: a refactor that keeps every result still counts as reaching. The block is where the agent says which of them change a result.

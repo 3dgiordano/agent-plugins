@@ -16,8 +16,8 @@ authors:
 repository-code: "https://github.com/3dgiordano/agent-plugins"
 url: "https://github.com/3dgiordano/agent-plugins"
 license: Apache-2.0
-version: 0.17.0
-date-released: "2026-10-04"
+version: 0.18.0
+date-released: "2026-10-19"
 keywords:
   - coding agents
   - agent skills

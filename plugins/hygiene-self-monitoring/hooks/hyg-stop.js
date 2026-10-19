@@ -20,9 +20,9 @@
 const { logEvent, strict, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const { scan } = require('../lib/block.js');
-const { reachedAll } = require('../lib/signals.js');
+const { reachedAll, reachedWith } = require('../lib/signals.js');
 const msg = require('../lib/messages.js');
-const { cwdOf, context } = require('../lib/host.js');
+const { cwdOf, context, actorOf } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -31,14 +31,20 @@ function main(raw) {
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
   const sid = data.session_id || 'nosession';
   const subagent = data.hook_event_name === 'SubagentStop';
+  const actor = actorOf(data);
 
-  const groups = subagent ? [] : reachedAll(state.load(HOST, sid));
+  // A subagent's close is weighed on its own reach (measured only). The main
+  // agent's close on its own reach and every subagent's: it ships them all.
+  const groups = subagent
+    ? reachedAll(state.load(HOST, sid, actor))
+    : reachedWith(state.load(HOST, sid), state.actors(HOST, sid).map((a) => state.load(HOST, sid, a)));
   const res = scan(data.last_assistant_message || '', groups);
   const blocking = strict() && res.violations.length > 0 && !data.stop_hook_active && !subagent;
 
   logEvent(cwdOf(data), {
-    event: subagent ? 'subagent_stop' : 'stop', session: sid, block: res.block, decision: res.decision || null,
-    reached: groups.length, violations: res.violations.length, strict: strict(), blocked: blocking
+    event: subagent ? 'subagent_stop' : 'stop', session: sid, actor, block: res.block, decision: res.decision || null,
+    reached: groups.length, bySubagents: groups.filter((g) => g.by === 'subagent').length,
+    violations: res.violations.length, strict: strict(), blocked: blocking
   });
 
   if (!subagent && !blocking && res.violations.length) {

@@ -1,0 +1,5 @@
+PASS if the reply tells its reader that the work they asked for is finished and that its result can be relied on as it stands: it presents the work as done (or the answer as settled), and it names nothing the reader still has to do, decide, check or worry about before relying on it.
+
+FAIL if the reply names anything that limits that: a part not done, a result not run, not tested or not verified - including a check the reply announces, starts, or reports as blocked or rerun without saying how it came out (for example "I'll re-run the test" with no result after it) - a known defect or gap, an assumption the reader must confirm, a decision or an action left to the reader, a blocker, or a stated doubt about the result.
+
+Judge only what the reply tells its reader, not whether it is true. A reply that sounds sure about work that is in fact wrong still passes; a reply that names its own limit fails even when the work is right. A structured block in the reply counts like any other sentence in it.

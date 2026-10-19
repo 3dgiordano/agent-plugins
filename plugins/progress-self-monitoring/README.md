@@ -60,7 +60,7 @@ turn's edits touched it.
 | | Claude Code | Cursor |
 |---|-------------|--------|
 | **Session boundary** — the ledger exists: say what it holds by kind (open items, a Next line, lines outside the format) and how old, or "nothing to do"; without one, the load message says it does not exist yet | `SessionStart` (startup, resume, clear, **and compact**) → text | `sessionStart` → `additional_context` |
-| **Turn boundary** — stamp the turn's start, reset the edit counter, name the ledger's format on turn 1 (the skill's text went in at `SessionStart`), carry the retrospective | `UserPromptSubmit` | `sessionStart` (load) + `afterAgentResponse` (reset) |
+| **Turn boundary** — stamp the turn's start, reset the edit counter, name the ledger's format on turn 1 (the skill's text went in at `SessionStart`, and a subagent's at `SubagentStart`), carry the retrospective | `UserPromptSubmit` | `sessionStart` (load) + `afterAgentResponse` (reset) |
 | **Boundary named in the prompt** — the user says the work continues in a later session | `UserPromptSubmit` → names the ledger | — (no per-prompt event) |
 | **The sweep** — what the agent wrote it would do later, handed back two turns on, once each | `Stop` collects → `UserPromptSubmit` asks | `afterAgentResponse` collects → **log only** |
 | **Edit counter** — did this turn write files; did it write the ledger | `PostToolUse`, no matcher, silent | `postToolUse`, silent |
@@ -207,6 +207,10 @@ and by what. The ledger records a checkable reason; it does not supply one.
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 session start, a prompt, a tool call, or a stop.
 
+## Subagents
+
+From 0.8.0 a subagent keeps its own turn. When it hands back (the main agent's PostToolUse of the tool that ran it), its edits join the main agent's turn: a turn whose work was delegated and that left the ledger untouched is the main agent's stale ledger, and a subagent's edit of the ledger counts as the ledger written. What a subagent's final message says it will do later goes to the main agent's sweep, handed back two turns on as "a subagent you started wrote": the main agent ships the work, so the promise is its to close. A claim belongs to the session: a subagent works under it, and its write to the ledger is watched against it. On Cursor, where the plugins read no subagent id yet (whether its tool events carry one is not probed), everything stays in one turn as before.
+
 ## What the user sees
 
 The hooks speak to the model; without a notice the user sees nothing unless
@@ -231,7 +235,7 @@ hooks), so nothing shows there. Off with `PROGRESSMON_NOTICE=0`.
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 
 - **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed; and `<project>/.agent/progress.md` when it exists - the main checkout's, from a linked worktree, found through the worktree's `.git` file and its `commondir` - for its age, its counts and its claims (at most 64 KB); it never writes that file.
-- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `progmon_…`, removed at session end together with this plugin's files there older than seven days; only with `PROGRESSMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
+- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins/`, named `progmon_…`, kept for a resumed session and swept with this plugin's files there older than seven days; only with `PROGRESSMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
 - **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them. Two cases ship a fixture project with a `scripts/publish.js` that reads `NPM_TOKEN` and runs `npm publish`: it is the release step the fixture's ledger records as blocked on that token, and it exits without publishing when the token is unset. The cases check how the agent keeps that ledger item; none asks it to publish. Nothing in the plugin runs the script.
 
 The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
@@ -256,8 +260,8 @@ backup.
 | `session_start` | `source`, `exists`, `shared`, `open`, `lines`, `bytes`, `bloated`, `ageMs`, `claims`, `mine`, `dead`, `emitted` | a session opened or continued after compaction; was the status injected; had the ledger outgrown a page; was it the main checkout's; how many claims, the session's own, dead ones |
 | `claim` | `kind` | the claim watch said something: `expiring`, `expired`, `gone`, `contested` or `several` |
 | `prompt` | `turn`, `open` (turn 1 only), `retrospective`, `spans`, `swept` | per user prompt: was a stale finding carried; did the prompt name a later session; how many commitments were handed back |
-| `stop` | `exists`, `open`, `ageMs`, `stale`, `fired`, `commitments`, `tools`, `edits`, `ledgerEdited` | per final message: did this turn leave the ledger stale; was it reported (Claude Code parks it for the next prompt; Cursor logs only); how many forward commitments the message made |
-| `subagent_stop` | same as `stop`, plus `agent` | a subagent's close. Measured only — never parked: its edits are the parent's turn |
+| `stop` | `actor`, `exists`, `open`, `ageMs`, `stale`, `fired`, `commitments`, `tools`, `edits`, `ledgerEdited` | per final message: did this turn leave the ledger stale; was it reported (Claude Code parks it for the next prompt; Cursor logs only); how many forward commitments the message made |
+| `subagent_stop` | same as `stop`, plus `agent` | a subagent's close, on its own turn. Never parked: its edits join the parent's turn when it hands back, and its `commitments` the parent's sweep |
 | `session_end` | `reason`, `turns`, `exists`, `open`, `stale`, `edits`, `claimsHeld` | how the session ended. `open > 0 && stale` is the case no retrospective can reach — the count a strict gate would be argued from. `claimsHeld > 0` is a claim only its `until` will release |
 
 ```
@@ -300,13 +304,13 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
 skills/progress-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code + Codex: SessionStart, UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
+hooks/hooks.json                   # Claude Code + Codex: SessionStart, SubagentStart, UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/prog-session-start.js        # ledger status at the session boundary (and after compaction)
 hooks/prog-prompt.js               # turn start stamp, the ledger's format on turn 1, status fallback, retrospective
 hooks/prog-observe.js              # edit counter; the claim watch while the session holds a claim
 hooks/prog-stop.js                 # edits vs. ledger mtime; parks the finding, once per ledger version
 hooks/prog-session-end.js          # logs how the session ended; the state is kept for a resume
-hooks/prog-inject.js               # the skill's text at session start, after /clear or compaction
+hooks/prog-inject.js               # the skill's text at session start, after /clear or compaction, and for a subagent
 cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse
 cursor/prog-session-start.js       # load + status; also sweeps aged state (no session-end event)
 cursor/prog-observe-cursor.js

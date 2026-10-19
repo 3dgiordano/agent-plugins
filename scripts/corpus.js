@@ -114,9 +114,8 @@ const DETECTORS = [
     what: 'a shell command that is a test / build run or a commit - the moment a close is near',
     plugin: 'handoff-self-monitoring',
     fire: (t) => lib('handoff', 'signals.js').observe({ tools: 0, fired: { closing: false } }, 'Bash', { command: t }, '').length > 0,
-    // New in the third review cycle (2026-09-25): 185 pre-close notices in the
-    // owner's sessions, 8 of them fired by a runner's name inside a string or
-    // a heredoc. The label and the red runs are pinned in scripts/test.js.
+    // New in the third review cycle (2026-09-25): pre-close notices fired by a
+    // runner's name inside a string or a heredoc. The label and the red runs are pinned in scripts/test.js.
     floors: { recall: 1.0, precision: 1.0 },
   },
   {
@@ -166,6 +165,16 @@ const DETECTORS = [
     // The one detector whose miss is silent: a refused line is a session that
     // opens with no reminder. The grammar was fixed before the parser and the
     // corpus written first, so the floors start at 1.0 / 1.0 and stay there.
+    floors: { recall: 1.0, precision: 1.0 },
+  },
+  {
+    id: 'plan-decision',
+    file: 'plan-decision.jsonl',
+    what: "the owner's prompt decides something - a pick or an approval",
+    plugin: 'executive-self-monitoring',
+    fire: (t) => lib('executive', 'writeback.js').isDecision(t),
+    // Counted, never answered on its own: the plan reminder comes at the third
+    // decision since the plan last changed. Anchored at the prompt's start.
     floors: { recall: 1.0, precision: 1.0 },
   },
   {

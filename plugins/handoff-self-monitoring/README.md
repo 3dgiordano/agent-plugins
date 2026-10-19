@@ -113,14 +113,14 @@ rules are:
 
 `waiting` is the close of a turn whose result is still out: a command in the
 background, a subagent, a job whose result decides what comes next. It comes
-from the owner's sessions, where 30 of 283 `[HANDOFF]` blocks were written in
-that position with only the other three statuses to choose from: 7 closed
-`done` with `Next: nothing`, 15 put the agent's own plan for the result in
-`Next`, 7 were `needs-decision` with a run out, and one invented
-`in-progress`, which the scanner rejected. The words a run still out leaves
+from real use, where blocks written in that position had only the other
+three statuses to choose from: some closed `done` with `Next: nothing`, some
+put the agent's own plan for the result in `Next`, some were
+`needs-decision` with a run out, and one invented `in-progress`, which the
+scanner rejected. The words a run still out leaves
 in a `done` or `blocked` block ("still running", "I'll … when it finishes",
 "sigue corriendo", "te traigo la tabla cuando termine") are read on the
-block only; on those blocks they find 19 of the 20 `done` closes written
+block only; on real blocks they find nearly every `done` close written
 while something ran, with one false alarm. No hook watches the run itself,
 so the check is the same on every host.
 
@@ -197,6 +197,10 @@ them from firing twice.
   transmitting side. A `done` in the block carries the same evidence rule as
   a `[verified]` line.
 
+## Subagents
+
+From 0.6.0 each agent keeps its own turn: a subagent's commit or green gate brings the pre-close nudge to the subagent, and the main agent's one nudge for the turn is still ahead of its own close. A subagent's close is measured only, on its own turn. On Cursor, where the plugins read no subagent id yet (whether its tool events carry one is not probed), everything stays in one turn as before.
+
 ## What the user sees
 
 The hooks speak to the model; without a notice the user sees nothing unless
@@ -221,7 +225,7 @@ hooks), so nothing shows there. Off with `HANDMON_NOTICE=0`.
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 
 - **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed.
-- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `handmon_…`, removed at session end together with this plugin's files there older than seven days; only with `HANDMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
+- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins/`, named `handmon_…`, kept for a resumed session and swept with this plugin's files there older than seven days; only with `HANDMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
 - **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them.
 
 The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
@@ -244,8 +248,8 @@ Code) or `<project>/.cursor/logs/…` (Cursor); override with
 |-------|--------|---------|
 | `prompt` | `turn`, `load`, `retrospective` | cadence decision per user prompt (Claude Code) |
 | `session_start` | — | once per Cursor session |
-| `signal` | `tools`, `signals: [{kind: closing, what: gate\|commit, label}]` | the pre-close nudge fired |
-| `stop` | `hits`, `blocks`, `status`, `violations`, `preclose`, `tools`, `strict`, `blocked` | per final message: which kinds hit, whether a block was there and complete, whether the pre-close nudge had fired this turn |
+| `signal` | `actor`, `tools`, `signals: [{kind: closing, what: gate\|commit, label}]` | the pre-close nudge fired |
+| `stop` | `actor`, `hits`, `blocks`, `status`, `violations`, `preclose`, `tools`, `strict`, `blocked` | per final message: which kinds hit, whether a block was there and complete, whether the pre-close nudge had fired this turn |
 | `subagent_stop` | same as `stop`, plus `agent` | a subagent's final message. Measured only: never blocks even under `HANDMON_STRICT`, and never parks a retrospective |
 
 ```
@@ -295,7 +299,7 @@ lib/handoff.js                     # final-message scanner + [HANDOFF] rules
 lib/signals.js                     # pre-close signal: first green gate or commit of the turn
 lib/fail.js                        # did a shell output look like a failure? (copy shared with persistence / epistemic)
 lib/messages.js                    # reminder texts shared by both adapters
-lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); remove()/sweep() drop it at session end
+lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); sweep() drops its files older than seven days
 lib/host.js                        # cwdOf(): the project dir from the event, else the host env var, else null
 lib/log.js                         # opt-in logger (per-plugin copy; plugins are self-contained)
 ```

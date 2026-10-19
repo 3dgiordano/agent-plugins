@@ -58,7 +58,7 @@ const path = require('path');
 const AGENT_CLI_DRIVER = true;
 
 const { findCli, authState, argsFor, globalInstalls, run, pluginCopy } = require('./cursor-eval.js');
-const { reached, seed, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, quote, MARKER, stallOf, nodeGuard, permissionFlags } = require('./evallib.js');
+const { reached, seed, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, quote, MARKER, stallOf, nodeGuard, permissionFlags, assuranceTally, tallyAssurance, assuranceLine, assuranceFields } = require('./evallib.js');
 const { ROOT, loadCases } = require('./benchlib.js');
 const { benchmarkVersion, pluginVersions } = require('./benchsession.js');
 
@@ -421,6 +421,7 @@ function main() {
     const score = { with: 0, without: 0 };
     const metric = { with: 0, without: 0 };
     const blocks = { with: 0, without: 0 };
+    const assured = assuranceTally();
     const valid = { with: 0, without: 0 };
     const costCase = { with: blankCost(), without: blankCost() };
     const hooksRan = { with: 0, without: 0 };
@@ -527,6 +528,7 @@ function main() {
         metric[arm] += graded.metric;
         metricMax = graded.metricMax;
         const side = sideChannel(c, parsed.text, ws);
+        tallyAssurance(assured, arm, c.plugin, parsed.text, graded.pass);
         dropWorkspace(ws);
         sideLabel = side.label;
         if (side.seen) blocks[arm] += 1;
@@ -559,6 +561,7 @@ function main() {
     const max = metricMax == null ? '?' : metricMax;
     console.log(`  metric avg with ${avg(metric.with, valid.with)}/${max}   without ${avg(metric.without, valid.without)}/${max}`);
     console.log(`  ${sideLabel.padEnd(14)} with ${pct(blocks.with, valid.with)}   without ${pct(blocks.without, valid.without)}   (not the score)`);
+    if (assuranceLine(c.plugin, assured)) console.log(assuranceLine(c.plugin, assured));
     console.log(`  cost       with ${fmtCost(costCase.with)}   without ${fmtCost(costCase.without)}   ${fmtDelta(costCase.with, costCase.without)}   (not the score)`);
     if (dead) console.log(`  ${dead} dead run(s) excluded`);
     if (contaminated) console.log(`  ${contaminated} contaminated run(s) excluded`);
@@ -568,6 +571,7 @@ function main() {
       without: score.without,
       validWith: valid.with,
       validWithout: valid.without,
+      ...assuranceFields(c.plugin, assured),
       guard: c.guardFile,
       cost: { with: summarizeCost(costCase.with), without: summarizeCost(costCase.without) },
     });

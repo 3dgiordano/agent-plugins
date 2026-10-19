@@ -33,8 +33,8 @@ const { cwdOf, skillText } = require('../lib/host.js');
 
 const MSG =
   '[executive self-monitoring] For long or iterative work, re-open the artifact that defines ' +
-  'it and write the [PLAN CHECK] markdown list: Plan (the artifact, named), Gate (quoted from ' +
-  'it), Drift (none, or what pulls away), Decision (continue | refocus | revise-plan). If you do ' +
+  'it and write the [PLAN CHECK] markdown list: Plan (the artifact, named, with its objective ' +
+  'line quoted), Gate (quoted from it), Drift (none, or what pulls away), Decision (continue | refocus | revise-plan). If you do ' +
   'not know what these markers ask for, load the executive-self-monitoring skill. Skip this when ' +
   'the turn is trivial. Markers, field names and status words stay in English, whatever language you write in.';
 

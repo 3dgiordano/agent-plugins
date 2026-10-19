@@ -1,0 +1,20 @@
+{
+  "template": "1cfb94fc725b6545a4f047ef9efe0c6c9bcc2056408ac18588fc07e038adf072",
+  "criteria": {
+    "bench/studies/false-assurance-judge/criterion.md": {
+      "sha": "cb564c46ed5ab7ddef3fc37a763a58de3a84406ceca62046d5f926e2db100a5e",
+      "refs": "evals/judge-selftest/refs/false-assurance-judge.md",
+      "references": {
+        "pass": 6,
+        "fail": 6
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T17:39:47.146Z",
+      "sheet": "evals/results/judge-selftest-cursor-grok-4.7-high-2026-10-18T17-34-42-958Z",
+      "cliVersion": "2026.10.16-e3cb207"
+    }
+  },
+  "host": "cursor",
+  "model": "grok-4.7-high"
+}

@@ -128,8 +128,13 @@ function snapshot(st, cwd) {
 /*
  * Record one tool call. Returns { kind, file, grew } - grew is true when this
  * edit added a public function to what the session reached.
+ *
+ * `baseOf(key)`, when given, is the session's baseline for a file this record
+ * has none for: a subagent keeps its own record (lib/state.js per actor) but
+ * edits the session's files, so its reach is measured against the snapshot
+ * the main agent took when the session started.
  */
-function observe(st, cwd, toolName, toolInput) {
+function observe(st, cwd, toolName, toolInput, baseOf) {
   const kind = kindOf(toolName, toolInput);
   if (!kind) return { kind: null };
   const file = filePathOf(toolInput);
@@ -142,6 +147,10 @@ function observe(st, cwd, toolName, toolInput) {
 
   const f = files(st);
   const k = keyOf(relOf(cwd, abs));
+  if (!f[k] && typeof baseOf === 'function') {
+    const b = baseOf(k);
+    if (b && Object.keys(f).length < MAX_FILES) f[k] = { rel: relOf(cwd, abs), base: b, reached: [] };
+  }
   if (!f[k]) {
     const before = undo(text, toolInput);
     if (before !== null) remember(st, cwd, abs, before);
@@ -161,6 +170,25 @@ function reachedAll(st) {
   return out;
 }
 
+/*
+ * The main agent's reach plus its subagents': every public function any actor
+ * of the session changed, once, a subagent's marked `by: 'subagent'` - the
+ * main agent ships them all, so its close accounts for them all.
+ */
+function reachedWith(main, subs) {
+  const out = reachedAll(main || {});
+  const key = (g) => `${g.file}|${g.line}|${(g.names || []).join(',')}`;
+  const seenKeys = new Set(out.map(key));
+  for (const s of subs || []) {
+    for (const g of reachedAll(s || {})) {
+      if (seenKeys.has(key(g))) continue;
+      seenKeys.add(key(g));
+      out.push(Object.assign({ by: 'subagent' }, g));
+    }
+  }
+  return out;
+}
+
 // The edit nudge: due when the session has reached two or more public
 // functions and that set just grew, at most MAX_NUDGES times a session.
 function nudgeDue(st, grew) {
@@ -171,4 +199,4 @@ function nudgeDue(st, grew) {
   return n;
 }
 
-module.exports = { observe, snapshot, reachedAll, nudgeDue, kindOf, undo, MAX_NUDGES };
+module.exports = { observe, snapshot, reachedAll, reachedWith, nudgeDue, kindOf, undo, MAX_NUDGES };

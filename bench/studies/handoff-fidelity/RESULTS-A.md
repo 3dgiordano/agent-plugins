@@ -30,7 +30,7 @@ The caveat is the one thing the blocks leave out systematically: the skill asks 
 
 ## Real sessions (B, concision only, computed locally)
 
-286 distinct blocks from 16 sessions in the owner's transcripts (this session's included): median block 102 words against 481 for the message (0.21; 10th-90th percentile 0.11-0.36); reading time 26 s against 121 s at 238 words a minute. `done` blocks compress most (0.14), `needs-decision` least (0.25).
+In real sessions a block is a small share of its message and far quicker to read; `done` blocks compress most, `needs-decision` least.
 
 ## Next
 

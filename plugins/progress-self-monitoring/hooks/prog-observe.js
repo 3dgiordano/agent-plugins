@@ -25,7 +25,7 @@ const signals = require('../lib/signals.js');
 const ledger = require('../lib/ledger.js');
 const claims = require('../lib/claims.js');
 const msg = require('../lib/messages.js');
-const { cwdOf, context } = require('../lib/host.js');
+const { cwdOf, context, actorOf, MAIN_ACTOR } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -35,12 +35,33 @@ function main(raw) {
   const sid = data.session_id || 'nosession';
   const mine = claims.token(sid);
   const selfEdit = signals.editsLedger(data.tool_name, data.tool_input);
+  // A subagent's tool call goes to its own turn; the claim is the session's,
+  // so it is watched on the main agent's record whoever wrote the ledger.
+  const actor = actorOf(data);
   let watch = false;
   state.update(HOST, sid, (st) => {
     if (!st.turn) st.turn = signals.freshTurn();
     signals.observe(st.turn, data.tool_name, data.tool_input);
-    watch = !!mine && (selfEdit || !!(st.claim && st.claim.held));
-  });
+    if (actor === MAIN_ACTOR) watch = !!mine && (selfEdit || !!(st.claim && st.claim.held));
+  }, actor);
+
+  // A subagent handed back: its edits join the main agent's turn.
+  if (actor === MAIN_ACTOR && signals.SUBAGENT_TOOL_RE.test(String(data.tool_name || ''))) {
+    const subs = state.actors(HOST, sid).map((a) => [a, state.load(HOST, sid, a)]);
+    if (subs.length) {
+      state.update(HOST, sid, (st) => {
+        if (!st.turn) st.turn = signals.freshTurn();
+        if (!st.relayed || typeof st.relayed !== 'object') st.relayed = {};
+        for (const [a, sub] of subs) {
+          if (!sub.turn) continue;
+          if (!st.relayed[a]) st.relayed[a] = {};
+          signals.relay(st.turn, sub.turn, st.relayed[a]);
+        }
+      });
+    }
+  }
+  // A subagent's write to the ledger is the session's write: the claim watch reads it.
+  if (actor !== MAIN_ACTOR) watch = !!mine && selfEdit;
   if (!watch) return;
 
   const cwd = cwdOf(data);

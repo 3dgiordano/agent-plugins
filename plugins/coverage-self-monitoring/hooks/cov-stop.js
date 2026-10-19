@@ -19,7 +19,7 @@ const { logEvent, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const msg = require('../lib/messages.js');
-const { cwdOf, context } = require('../lib/host.js');
+const { cwdOf, context, actorOf } = require('../lib/host.js');
 const misread = require('../lib/misread.js');
 
 const HOST = 'claude';
@@ -39,7 +39,10 @@ function main(raw) {
   // often it happens before deciding a gate is worth its cost.
   const subagent = data.hook_event_name === 'SubagentStop';
 
-  const st = state.load(HOST, sid);
+  // A subagent's close reads its own turn (lib/state.js per actor); the main
+  // agent's turn already holds what its subagents handed back (cov-observe.js).
+  const actor = actorOf(data);
+  const st = state.load(HOST, sid, actor);
   const turn = st.turn || signals.freshTurn();
   const disputed = Array.isArray(st.disputed) ? st.disputed : [];
   const report = signals.reportTurn(st.parts, turn);
@@ -55,7 +58,7 @@ function main(raw) {
   const taken = subagent ? [] : signals.disputes(res.misreads, (Array.isArray(st.raised) ? st.raised : []).concat(res.found));
 
   logEvent(cwdOf(data), Object.assign({
-    event: subagent ? 'subagent_stop' : 'stop', session: sid, agent: data.agent_type || null, turn: st.turns || 0, deferrals: res.deferrals, blocks: res.blocks,
+    event: subagent ? 'subagent_stop' : 'stop', session: sid, actor, agent: data.agent_type || null, turn: st.turns || 0, deferrals: res.deferrals, blocks: res.blocks,
     parts: res.parts, violations: res.violations, misreads: taken.map((d) => d.phrase)
   }, signals.summary(turn)));
 

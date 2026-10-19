@@ -30,7 +30,7 @@ Every miss in a close is on q3 ("Do you have to do or decide something now?"). R
 ## What the pilot says about the theory
 
 - **The difficulty the theory predicts is not there for this writer.** Opus 5.5's closes without the plugin, short or long, were read as right as its closes with it; no reader took a run that was out for a finished one, in either arm. P1 is contradicted, and with q3 set aside every cell is at the ceiling. The plugin cannot show an effect where the unaided close already reads correctly.
-- **The failure the owner saw came from the plugin's earlier format.** In the owner's sessions the misleading closes were handoff blocks (`Status: done`, `Next: nothing` while a run was out, handoff 0.4.0); in this pilot no unaided close produced that misreading. Every one of the owner's sessions had the plugin installed, so whether the unaided close would have misled there is not known.
+- **The failure seen in real use came from the plugin's earlier format.** In real sessions the misleading closes were handoff blocks (`Status: done`, `Next: nothing` while a run was out, handoff 0.4.0); in this pilot no unaided close produced that misreading. Every one of those sessions had the plugin installed, so whether the unaided close would have misled there is not known.
 
 Rival explanations, not separated by this pilot:
 

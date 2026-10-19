@@ -53,7 +53,7 @@ function commandOf(input) {
  * The shell the command runs, without the text it carries: a heredoc body,
  * a quoted string. "node -e \"...jest...\"" runs no suite, and a heredoc
  * that writes "surefire test" into a note runs no build - yet the gate
- * patterns found them there (2026-09-25 review of the owner's sessions).
+ * patterns found them there (2026-09-25 review).
  * Blanked character by character, so segment offsets stay the command's.
  */
 function shellCode(cmd) {
@@ -68,8 +68,7 @@ function shellCode(cmd) {
  * The segments of a command line, split on |, ||, &&, ; and newlines outside
  * quotes, each with its own text. The label is the segment the pattern
  * matched - "node --test", not the "head -20" or the `fail)"` a pipeline
- * ends on, which is what the last-segment label showed in 182 of 184
- * pre-close notices in the owner's sessions.
+ * ends on, which is what the last-segment label used to show.
  */
 function segments(cmd) {
   const code = shellCode(cmd);

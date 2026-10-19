@@ -59,7 +59,8 @@ function nudge(signals) {
     switch (s.kind) {
       case 'stubs': {
         const files = s.files.length ? ` (${s.files.slice(0, 4).join(', ')}${s.files.length > 4 ? ', ...' : ''})` : '';
-        return `you have written ${s.count} stub / placeholder / TODO markers this turn${files}. Each one is a ` +
+        // delegated: the count includes what subagents wrote and handed back (lib/signals.js relay)
+        return `${s.delegated ? 'you and your subagents have' : 'you have'} written ${s.count} stub / placeholder / TODO markers this turn${files}. Each one is a ` +
           'part of the request that is not done: implement it now, or close it in the [COVERAGE CHECK] as ' +
           'blocked or returned, with the reason';
       }
@@ -101,7 +102,7 @@ function disputeNotice(disputes) {
 }
 function stubNotice(signals) {
   const s = signals.find((x) => x.kind === 'stubs');
-  return host.notice('coverage self-monitoring', [`${s.count} stub / placeholder / TODO markers written this turn`],
+  return host.notice('coverage self-monitoring', [`${s.count} stub / placeholder / TODO markers written this turn${s.delegated ? ', subagents\' included' : ''}`],
     'the agent is asked to implement them or close them in a [COVERAGE CHECK]');
 }
 

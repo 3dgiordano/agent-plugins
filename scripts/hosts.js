@@ -92,9 +92,16 @@ const ACCEPTED = {
     // once per session, because beforeSubmitPrompt can only BLOCK a prompt and
     // sessionStart is the only non-blocking injection point. Both are documented
     // in the plugin README's cadence table.
+    //
+    // `close`: on Claude Code the Stop hook (hooks/exec-stop.js) records a
+    // [PLAN CHECK] that decided revise-plan, for the plan write-back said on a
+    // later prompt (lib/writeback.js). Cursor has no non-blocking per-prompt
+    // event to say it on, so the write-back - like the changed-document line -
+    // is Claude Code and Codex only.
     note: "observe = the PreToolUse(Skill) calibration logger; Cursor has no " +
-      "skill-invocation event. Nothing user-visible differs. See the README cadence table.",
-    capabilities: { observe: 'no Cursor skill-invocation event' },
+      "skill-invocation event. close = the plan write-back's revise-plan record, said on a later " +
+      "prompt; Cursor has no per-prompt injection. See the README cadence table.",
+    capabilities: { observe: 'no Cursor skill-invocation event', close: 'no Cursor per-prompt injection for the plan write-back' },
   },
   'coverage-self-monitoring': {
     note: "Never blocks on either host, so it wires no Cursor `stop` gate - " +

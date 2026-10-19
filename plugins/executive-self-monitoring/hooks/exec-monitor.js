@@ -24,6 +24,7 @@ const path = require('path');
 const { logEvent } = require('../lib/execlog.js');
 const { cwdOf, context, notification } = require('../lib/host.js');
 const reads = require('../lib/reads.js');
+const writeback = require('../lib/writeback.js');
 
 const EVERY_N_TURNS = 5; // after the session-start fire, remind every N turns
 
@@ -58,14 +59,24 @@ function main(raw) {
   const cwd = cwdOf(data);
   const moved = reads.changed('claude', sid).map((p) => (cwd && !path.relative(cwd, p).startsWith('..') ? path.relative(cwd, p) : p).split(path.sep).join('/'));
 
-  logEvent(cwd, { event: 'prompt', session: sid, count: count, emitted: fire, changed: moved.length });
 
   const changedLine = moved.length
     ? `[executive self-monitoring] ${moved.slice(0, 3).map((p) => '`' + p + '`').join(', ')}${moved.length > 3 ? ` and ${moved.length - 3} more` : ''} changed on disk since your last Read, Write or Edit of ${moved.length === 1 ? 'it' : 'them'}. ` +
-      'Re-open before you go on: what you remember of it is not what it says now.'
+      'Re-open before you go on: what you remember of it is not what it says now. If the change moves ' +
+      'the work to another part, or drops one, quote the objective again and check that the gate still ' +
+      'needs the part the objective names.'
     : '';
+  // Whether the plan keeps up with what is decided on it (lib/writeback.js):
+  // the third decision since a plan document last changed, or a revise-plan
+  // the owner has answered with the plan still unchanged.
+  let writebackLine = '';
+  try {
+    writebackLine = reads.update('claude', sid, (st) => ({ line: writeback.onPrompt(st, data.prompt, cwd) })).line || '';
+  } catch (_) {}
+  const news = [changedLine, writebackLine].filter(Boolean).join('\n');
+  logEvent(cwd, { event: 'prompt', session: sid, count: count, emitted: fire, changed: moved.length, writeback: writebackLine ? (/revise-plan/.test(writebackLine) ? 'revision' : 'decisions') : null });
   if (!fire) {
-    if (changedLine) process.stdout.write(context('UserPromptSubmit', changedLine));
+    if (news) process.stdout.write(context('UserPromptSubmit', news));
     return;
   }
 
@@ -85,10 +96,10 @@ function main(raw) {
    * pre-close message from 0 of 3 to 3 of 3. The rules behind them stay in the
    * skill and are referenced.
    */
-  process.stdout.write(context('UserPromptSubmit', (changedLine ? changedLine + '\n' : '') +
+  process.stdout.write(context('UserPromptSubmit', (news ? news + '\n' : '') +
     '[executive self-monitoring] Checkpoint for long/iterative work: re-open the artifact that ' +
-    'defines it and write the [PLAN CHECK] markdown list - Plan (the artifact, named), Gate (quoted ' +
-    'from it), Drift (none, or what pulls away), Decision (continue | refocus | revise-plan). If you ' +
+    'defines it and write the [PLAN CHECK] markdown list - Plan (the artifact, named, with its objective ' +
+    'line quoted), Gate (quoted from it), Drift (none, or what pulls away), Decision (continue | refocus | revise-plan). If you ' +
     'do not know what these markers ask for, load the executive-self-monitoring skill. ' +
     'Markers, field names and status words stay in English, whatever language you write in. Skip it if this turn is trivial.'
   ));

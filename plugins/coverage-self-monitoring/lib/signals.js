@@ -169,6 +169,38 @@ function observe(turn, toolName, toolInput, toolResponse) {
   return [{ kind: 'stubs', count: turn.stubs, files: Object.keys(turn.files) }];
 }
 
+/*
+ * A subagent handed back to the main agent (the main agent's PostToolUse of the
+ * tool that ran it): what the subagent's own turn gained since the last
+ * hand-back joins the main agent's turn. Its edits count, so a turn whose work
+ * was delegated is not read as a report; its stubs count toward the same
+ * threshold, so stubs split across the main agent and its subagents still
+ * reach it. `done` is what was already folded from this subagent (kept in the
+ * main agent's record, changed in place). Returns the signals fired, marked
+ * `delegated`.
+ */
+function relay(turn, sub, done) {
+  const fired = [];
+  if (!turn || !sub || !done) return fired;
+  const delta = (now, then) => Math.max(0, (now || 0) - (then || 0));
+  turn.tools += delta(sub.tools, done.tools);
+  turn.edits = (turn.edits || 0) + delta(sub.edits, done.edits);
+  const before = done.files || {};
+  for (const [f, n] of Object.entries(sub.files || {})) {
+    const d = delta(n, before[f]);
+    if (d) bump(turn.files, f, d);
+  }
+  const stubs = delta(sub.stubs, done.stubs);
+  Object.assign(done, { tools: sub.tools || 0, edits: sub.edits || 0, stubs: sub.stubs || 0, files: Object.assign({}, sub.files || {}) });
+  if (!stubs) return fired;
+  turn.stubs += stubs;
+  if (crossed(turn.stubs, STUBS_STEP, turn.fired)) fired.push({ kind: 'stubs', count: turn.stubs, files: Object.keys(turn.files), delegated: true });
+  return fired;
+}
+
+// The tool that runs a subagent, as the main agent's PostToolUse names it.
+const SUBAGENT_TOOL_RE = /^(?:agent|task)$/i;
+
 // How many enumerated items a prompt carries: bullet or numbered lines, in
 // what the user wrote - not in a pasted transcript (host.js userText).
 function partsOf(prompt) {
@@ -551,4 +583,4 @@ function disputes(misreads, raised) {
   return out;
 }
 
-module.exports = { freshTurn, observe, partsOf, scanClose, reportTurn, disputes, phraseKey, countStubs, summary, PARTS_MIN, STUBS_STEP };
+module.exports = { freshTurn, observe, relay, partsOf, scanClose, reportTurn, disputes, phraseKey, countStubs, summary, PARTS_MIN, STUBS_STEP, SUBAGENT_TOOL_RE };

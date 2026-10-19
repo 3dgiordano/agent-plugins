@@ -138,6 +138,8 @@ user-visible field on the events this plugin uses (`sessionStart`,
 `postToolUse`, `afterAgentResponse` - `user_message` exists only on permission
 hooks), so nothing shows there. Off with `COVMON_NOTICE=0`.
 
+**Subagents** (0.6.0) keep their own turn: a subagent's stubs nudge the subagent at its own threshold. When it hands back (the main agent's PostToolUse of the tool that ran it), what its turn gained joins the main agent's turn - its edits, so a turn whose work was delegated is not read as a report, and its stubs, so stubs split between the main agent and its subagents still cross the threshold ("you and your subagents have written ..."). On Cursor, where the plugins read no subagent id yet (whether its tool events carry one is not probed), everything stays in one turn as before.
+
 ## When the scan misreads
 
 The close scan reads a lexicon of words, not what a sentence does with them:
@@ -201,7 +203,7 @@ the test suite as a miss, and only then change the pattern.
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 
 - **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed.
-- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `covmon_…`, removed at session end together with this plugin's files there older than seven days; only with `COVMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`; and, only with `COVMON_MISREAD_LOG` set, the misread log described above, in `~/.3dgiordano-agent-plugins/misreads/`.
+- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins/`, named `covmon_…`, kept for a resumed session and swept with this plugin's files there older than seven days; only with `COVMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`; and, only with `COVMON_MISREAD_LOG` set, the misread log described above, in `~/.3dgiordano-agent-plugins/misreads/`.
 - **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them.
 
 The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
@@ -224,7 +226,7 @@ Code) or `<project>/.cursor/logs/…` (Cursor); override with
 |-------|--------|---------|
 | `prompt` | `turn`, `parts`, `ledger`, `retrospective` | per user prompt: enumerated items, ledger asked, findings carried (Claude Code) |
 | `session_start` | — | once per Cursor session |
-| `signal` | `stubs`, `signals` | stub threshold crossed: count and files |
+| `signal` | `actor`, `stubs`, `signals` | stub threshold crossed: count and files; `delegated` on a signal when a subagent's hand-back made it cross |
 | `stop` | `deferrals`, `blocks`, `parts`, `violations`, `misreads`, `tools`, `stubs`, `stubFiles` | per final message: deferral phrases, closing ledger, phrases answered as misread, turn totals |
 | `subagent_stop` | same as `stop`, plus `agent` | a subagent's final message. Measured only: never blocks, and never parks a retrospective — a subagent has no next user prompt to carry one, so parking would deliver it to the parent's turn |
 
@@ -264,7 +266,7 @@ cursor/cov-observe-cursor.js
 cursor/cov-response-cursor.js
 lib/signals.js                     # stub counter, prompt parts, close scan + [COVERAGE CHECK] rules
 lib/messages.js                    # reminder texts shared by both adapters
-lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); remove()/sweep() drop it at session end
+lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); sweep() drops its files older than seven days
 lib/host.js                        # cwdOf(): the project dir from the event, else the host env var, else null
 lib/log.js                         # opt-in logger (per-plugin copy; plugins are self-contained)
 ```

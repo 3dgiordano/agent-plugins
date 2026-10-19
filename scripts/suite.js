@@ -41,4 +41,22 @@ function chooseModels(host, val) {
   return { known, models };
 }
 
-module.exports = { SUITE, suiteModels, modelLine, chooseModels };
+/*
+ * The judge drivers also take the suite's judge-only rows (suite.json
+ * `judges`): models used to read replies, never to run a task. Kept apart so
+ * a judge panel cannot change what the bench, the eval or a bench session
+ * sees as the suite.
+ */
+function chooseJudgeModels(host, val) {
+  const suite = JSON.parse(fs.readFileSync(SUITE, 'utf8'));
+  const judges = (suite.judges || []).filter((m) => m.host === host && m.cli && m.cli.model);
+  const known = suiteModels(host).concat(judges);
+  const picked = chooseModels(host, val);
+  if (!picked.error) return Object.assign(picked, { known });
+  const one = val('--model', null);
+  const m = judges.find((item) => item.id === one);
+  if (!m || val('--models', null)) return { error: picked.error.replace(/This eval runs: .*/, `Judges: ${known.map((item) => item.id).join(', ')}`) };
+  return { known, models: [m] };
+}
+
+module.exports = { SUITE, suiteModels, modelLine, chooseModels, chooseJudgeModels };

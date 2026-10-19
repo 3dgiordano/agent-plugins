@@ -125,6 +125,10 @@ how that choice is put to them — options with consequences, a default, one
 action asked, in the reader's register — is
 [handoff-self-monitoring](https://github.com/3dgiordano/agent-plugins/tree/main/plugins/handoff-self-monitoring/)'s `[HANDOFF]` block.
 
+## Subagents
+
+From 0.4.0 a subagent gets the load the main agent gets on its prompts at its start (`SubagentStart`): it has no prompt of its own. Its close is measured only and logged under its `actor`. On Cursor, whose subagentStart takes no context, nothing changes.
+
 ## What the user sees
 
 The hooks speak to the model; without a notice the user sees nothing unless
@@ -150,7 +154,7 @@ there. Off with `TERMMON_NOTICE=0`.
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 
 - **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed.
-- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `termmon_…`, removed at session end together with this plugin's files there older than seven days; only with `TERMMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
+- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `termmon_…`, kept for a resumed session and swept with this plugin's files there older than seven days; only with `TERMMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
 - **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them.
 
 The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
@@ -173,7 +177,7 @@ Code) or `<project>/.cursor/logs/…` (Cursor); override with
 |-------|--------|---------|
 | `prompt` | `turn`, `load`, `retrospective` | cadence decision per user prompt (Claude Code) |
 | `session_start` | — | once per Cursor session |
-| `stop` | `hits`, `apologies`, `blocks`, `violations`, `strict`, `blocked` | per final message: which trigger phrases, how many apologies, block rules broken |
+| `stop` | `actor`, `hits`, `apologies`, `blocks`, `violations`, `strict`, `blocked` | per final message: which trigger phrases, how many apologies, block rules broken |
 | `subagent_stop` | same as `stop`, plus `agent` | a subagent's final message. Measured only: never blocks even under `TERMMON_STRICT`, and never parks a retrospective |
 
 ```
@@ -200,8 +204,9 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
 skills/termination-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact), UserPromptSubmit, Stop, SubagentStop, SessionEnd
+hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact), SubagentStart, UserPromptSubmit, Stop, SubagentStop, SessionEnd
 hooks/term-prompt.js
+hooks/term-subagent-start.js       # a subagent, which has no prompt of its own, gets the load at its start
 hooks/term-stop.js
 hooks/term-session-start.js         # a resumed or compacted session loads the discipline again
 hooks/term-session-end.js
@@ -211,7 +216,7 @@ cursor/term-response-cursor.js
 cursor/term-stop-cursor.js
 lib/lexicon.js                     # trigger-phrase scanner + [TERMINATION CHECK] rules
 lib/messages.js                    # reminder texts shared by both adapters
-lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); remove()/sweep() drop it at session end
+lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); sweep() drops its files older than seven days
 lib/host.js                        # cwdOf(): the project dir from the event, else the host env var, else null
 lib/log.js                         # opt-in logger (per-plugin copy; plugins are self-contained)
 ```

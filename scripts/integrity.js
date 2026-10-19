@@ -254,7 +254,14 @@ function stringsOf(o, out = []) {
 
 const PATH_IN_TEXT = /(?:\\\\\?\\)?[A-Za-z]:[\\/][^\s"'`;|&<>*?]*|\\\\(?:localhost|127\.0\.0\.1)\\[a-z]\$[^\s"'`;|&<>]*|(?:^|[\s"'`=(])\/[a-z]\/[^\s"'`;|&<>]*|(?:\.\.[\\/])+[^\s"'`;|&<>]*/gi;
 // On POSIX every absolute path in a command, and relative climbs.
-const PATH_IN_TEXT_POSIX = /(?:^|[\s"'`=(])\/[^\s"'`;|&<>*?]*|(?:\.\.\/)+[^\s"'`;|&<>]*/g;
+// A relative module specifier in code - require('../net'), import x from
+// '../lib/x.js' - is resolved from the file that names it, not from the
+// shell's directory: read as a path, a grep for it or a heredoc that writes it
+// was audited as a climb out of the workspace (2026-10-19). Taken out before
+// the path scan. An absolute one stays: require('/repo/bench/x/grade.js') is a
+// read. A relative one that node itself runs from outside is the node fence's.
+const SPECIFIER_RE = /\brequire\(\s*(['"`])\.{1,2}\/[^'"`\n]*\1\s*\)|\bimport\(\s*(['"`])\.{1,2}\/[^'"`\n]*\2\s*\)|\bfrom\s+(['"`])\.{1,2}\/[^'"`\n]*\3/g;
+const PATH_IN_TEXT_POSIX =/(?:^|[\s"'`=(])\/[^\s"'`;|&<>*?]*|(?:\.\.\/)+[^\s"'`;|&<>]*/g;
 
 /*
  * The code a POSIX command carries - a heredoc's body, a quoted script that
@@ -405,10 +412,11 @@ function auditRun(stream, opts) {
     }
     if (Array.isArray(a.paths)) for (const p of a.paths) if (typeof p === 'string') checkPath(p, opts.workspace);
     if (typeof a.command === 'string') {
+      const command = a.command.replace(SPECIFIER_RE, ' ');
       if (win) {
-        for (const m of a.command.match(PATH_IN_TEXT) || []) checkPath(m.replace(/^[\s"'`=(]/, ''), cwd);
+        for (const m of command.match(PATH_IN_TEXT) || []) checkPath(m.replace(/^[\s"'`=(]/, ''), cwd);
       } else {
-        const { rest, bodies, shell } = codeBodies(a.command);
+        const { rest, bodies, shell } = codeBodies(command);
         const lead = rest.match(/^\s*cd\s+("[^"]+"|'[^']+'|[^\s;&|]+)\s*(?:&&|;)/);
         const at = lead ? P.resolve(cwd || '/', lead[1].replace(/^["']|["']$/g, '')) : cwd;
         for (const text of [rest].concat(shell)) for (const m of text.match(PATH_IN_TEXT_POSIX) || []) checkPath(m.replace(/^[\s"'`=(]/, ''), at);

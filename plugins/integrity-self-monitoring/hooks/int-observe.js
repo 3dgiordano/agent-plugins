@@ -19,7 +19,7 @@ const { logEvent, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const msg = require('../lib/messages.js');
-const { cwdOf, context } = require('../lib/host.js');
+const { cwdOf, context, actorOf, MAIN_ACTOR } = require('../lib/host.js');
 const { ownRoots } = require('../lib/roots.js');
 
 const HOST = 'claude';
@@ -29,14 +29,27 @@ function main(raw) {
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
   const sid = data.session_id || 'nosession';
   const cwd = cwdOf(data);
+  // A subagent's tool call goes to the subagent's record, and its finding to
+  // the subagent: it is the one editing. The main agent hears it when the
+  // subagent hands back (below).
+  const actor = actorOf(data);
 
   const out = data.tool_response !== undefined ? data.tool_response : data.tool_output;
-  const r = state.update(HOST, sid, (st) => signals.observe(st, data.tool_name, data.tool_input, out, cwd, ownRoots()));
+  const r = state.update(HOST, sid, (st) => signals.observe(st, data.tool_name, data.tool_input, out, cwd, ownRoots()), actor);
 
-  if (r.said.length || r.logged.length) logEvent(cwd, { event: 'signal', session: sid, tool: data.tool_name || null, said: r.said, logged: r.logged });
-  if (r.outside.length) logEvent(cwd, { event: 'outside', session: sid, tool: data.tool_name || null, paths: r.outside });
-  if (!r.said.length) return;
-  process.stdout.write(context('PostToolUse', msg.nudge(r.said), notices() && msg.notice(r.said)));
+  // A subagent handed back to the main agent: what its work raised, said to
+  // the agent that will hand the result to the user.
+  let relayed = [];
+  if (actor === MAIN_ACTOR && signals.SUBAGENT_TOOL_RE.test(String(data.tool_name || ''))) {
+    const subs = state.actors(HOST, sid).map((a) => state.load(HOST, sid, a));
+    if (subs.length) relayed = state.update(HOST, sid, (st) => signals.relay(st, subs));
+  }
+
+  if (r.said.length || r.logged.length) logEvent(cwd, { event: 'signal', session: sid, actor, tool: data.tool_name || null, said: r.said, logged: r.logged });
+  if (relayed.length) logEvent(cwd, { event: 'relay', session: sid, said: relayed });
+  if (r.outside.length) logEvent(cwd, { event: 'outside', session: sid, actor, tool: data.tool_name || null, paths: r.outside });
+  if (r.said.length) process.stdout.write(context('PostToolUse', msg.nudge(r.said), notices() && msg.notice(r.said)));
+  else if (relayed.length) process.stdout.write(context('PostToolUse', msg.relayNudge(relayed), notices() && msg.relayNotice(relayed)));
 }
 
 let buf = '';

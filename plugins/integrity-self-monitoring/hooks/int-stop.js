@@ -21,7 +21,7 @@ const { logEvent, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const msg = require('../lib/messages.js');
-const { cwdOf, context } = require('../lib/host.js');
+const { cwdOf, context, actorOf } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -31,6 +31,9 @@ function main(raw) {
   const sid = data.session_id || 'nosession';
   const subagent = data.hook_event_name === 'SubagentStop';
   const text = data.last_assistant_message || '';
+  // Each close reads its own actor's record: a subagent's findings stay in
+  // its record until the main agent is told them (int-observe.js relay).
+  const actor = actorOf(data);
 
   let taken = [];
   let raisedCount = 0;
@@ -43,11 +46,11 @@ function main(raw) {
       st.disputed = [...new Set((st.disputed || []).concat(taken.map((d) => d.key)))].slice(-signals.MAX_RAISED);
       st.raised = raised.filter((x) => !taken.some((d) => d.key === x.key));
     }
-  });
+  }, actor);
 
   const b = signals.block(text);
   logEvent(cwdOf(data), {
-    event: subagent ? 'subagent_stop' : 'stop', session: sid, agent: data.agent_type || null,
+    event: subagent ? 'subagent_stop' : 'stop', session: sid, actor, agent: data.agent_type || null,
     raised: raisedCount, block: b, disputes: taken,
   });
   if (taken.length && notices()) process.stdout.write(context('Stop', '', msg.disputeNotice(taken)));

@@ -25,5 +25,5 @@ If P1 holds with P2, the first reading of A2 is supported: the misreadings came 
 ## Known limits
 
 - Not committed before the run; every reader pass stores this file's SHA-256.
-- One writer (Opus 5.5) and short runs; the owner's sessions are longer.
+- One writer (Opus 5.5) and short runs; real sessions are longer.
 - The triage rule is a rule about what a person reads first, taken from the skill's own design; it is not a measurement of a person.

@@ -96,10 +96,46 @@ function observe(turn, toolName, toolInput, toolOutput) {
   return fired;
 }
 
+/*
+ * A subagent handed back to the main agent (the main agent's PostToolUse of the
+ * tool that ran it): what the subagent's turn counted since the last hand-back
+ * joins the main agent's turn, one by one, through the same thresholds - the
+ * same failure retried by a subagent the main agent re-delegates to is the
+ * main agent's loop too. `done` is what was already folded from this subagent
+ * (kept in the main agent's record, changed in place). Returns the signals
+ * fired, marked `delegated`.
+ */
+function relay(turn, sub, done) {
+  const fired = [];
+  if (!turn || !sub || !done) return fired;
+  const gain = (now, then) => Math.max(0, (now || 0) - (then || 0));
+  for (let i = gain(sub.tools, done.tools); i > 0; i--) {
+    turn.tools += 1;
+    if (crossed(turn.tools, TOOL_CALLS_STEP, turn.fired, 'effort')) fired.push({ kind: 'effort', count: turn.tools, delegated: true });
+  }
+  const fold = (kind, limit, extra) => {
+    const was = done[kind] || {};
+    for (const [k, now] of Object.entries(sub[kind] || {})) {
+      for (let i = gain(now, was[k]); i > 0; i--) {
+        const n = bump(turn[kind], k);
+        if (n && crossed(n, limit, turn.fired[kind], k)) fired.push(Object.assign({ kind, key: k, count: n, delegated: true }, extra || {}));
+      }
+    }
+  };
+  fold('edits', EDITS_SAME_FILE);
+  fold('cmds', REPEAT_FAILURES);
+  fold('errs', REPEAT_FAILURES, { cmd: null });
+  Object.assign(done, { tools: sub.tools || 0, edits: Object.assign({}, sub.edits), cmds: Object.assign({}, sub.cmds), errs: Object.assign({}, sub.errs) });
+  return fired;
+}
+
+// The tool that runs a subagent, as the main agent's PostToolUse names it.
+const SUBAGENT_TOOL_RE = /^(?:agent|task)$/i;
+
 // Compact per-turn summary for the log.
 function summary(turn) {
   const max = (m) => Object.keys(m).reduce((a, k) => Math.max(a, m[k]), 0);
   return { tools: turn.tools, maxEditsSameFile: max(turn.edits), maxRepeatCmd: max(turn.cmds), maxRepeatErr: max(turn.errs) };
 }
 
-module.exports = { freshTurn, observe, summary, EDITS_SAME_FILE, REPEAT_FAILURES, TOOL_CALLS_STEP };
+module.exports = { freshTurn, observe, relay, summary, EDITS_SAME_FILE, REPEAT_FAILURES, TOOL_CALLS_STEP, SUBAGENT_TOOL_RE };

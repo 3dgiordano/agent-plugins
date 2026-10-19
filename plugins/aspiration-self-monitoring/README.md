@@ -33,7 +33,7 @@ The level is an aspiration level in Simon's sense: the bar a search stops at (Si
 
 | Layer | Claude Code / Codex | Cursor |
 |-------|---------------------|--------|
-| **The skill** in context | `SessionStart` (startup, `/clear`, compaction; a resume only when it never had it) → the skill's text, `hooks/aspir-inject.js` | `sessionStart` → `additional_context`, with the load message |
+| **The skill** in context | `SessionStart` (startup, `/clear`, compaction; a resume only when it never had it) and `SubagentStart` → the skill's text, `hooks/aspir-inject.js` | `sessionStart` → `additional_context`, with the load message; subagents: no (`subagentStart` takes no context) |
 | **Load** the discipline | `UserPromptSubmit`: first turn, then every 10th, and after a resume or compaction; carries the retrospective | `sessionStart` → `additional_context` |
 | **Record** edits and reviews | `PostToolUse`: the tool's name, the path it names and a command's text, never its output | `postToolUse` |
 | **Close** - scan the final message for a claim and the block | `Stop` reads `last_assistant_message` with the turn's counts | `afterAgentResponse` scans `text`; `stop` acts on it |
@@ -105,7 +105,7 @@ And one where it stays quiet: "What does Herbert Simon mean by an aspiration lev
 The hooks are Node scripts in `hooks/`, `cursor/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 
 - **Reads:** the JSON event the host sends on stdin - the session id, a tool's name, the path its input names, a shell command's text (to see which edited files it names), the assistant's final message - measured and never executed. It also reads the plugin's own `skills/aspiration-self-monitoring/SKILL.md`, whose text it puts in context when a session starts. It never reads the user's prompt into a message, a tool's output, or any project file; no path or command reaches a message.
-- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `aspmon_…`, kept for a resume and swept after seven days; only with `ASPMON_LOG` set, the debug log below.
+- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins/`, named `aspmon_…`, kept for a resume and swept after seven days; only with `ASPMON_LOG` set, the debug log below.
 - **Says:** fixed text, with counts and, from the agent's own final message, the claim phrase (≤80 characters) and a malformed `Remainder` value (≤40).
 - **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and a small fixture project. The plugin never runs them.
 
@@ -123,11 +123,11 @@ JSONL under `<project>/.claude/logs/aspiration-self-monitoring.jsonl` (Claude Co
 | Event | Fields | Meaning |
 |-------|--------|---------|
 | `prompt` | `turn`, `load`, `retrospective` | cadence and a parked finding |
-| `observe` | `kind` (`edit`, `read`, `run` or `render`), `unreviewed` | a tool call that counts |
+| `observe` | `actor` (`main` or a subagent's id), `kind` (`edit`, `read`, `run` or `render`), `unreviewed` | a tool call that counts, in its actor's record |
 | `session_start` | - | once per Cursor session |
-| `stop` | `claims`, `blocks`, `remainder`, `edits`, `unreviewed`, `violations`, `strict`, `blocked` | the final message (Claude Code); on Cursor, the stop adapter's `status`, `violations`, `blocked` |
+| `stop` | `actor`, `claims`, `blocks`, `remainder`, `edits`, `unreviewed`, `delegated` (of those, edited by a subagent), `subagents`, `violations`, `strict`, `blocked` | the final message (Claude Code); on Cursor, the stop adapter's `status`, `violations`, `blocked` |
 | `response` | as `stop`, without `blocked` | Cursor's final message |
-| `subagent_stop` | as `stop`, plus `agent` | measured only: never blocks, never parks |
+| `subagent_stop` | as `stop`, plus `agent`, on the subagent's own record | measured only: never blocks, never parks |
 
 ```
 node scripts/calibrate.js <project dirs>
@@ -159,7 +159,7 @@ Without the plugin the agent goes to the web, draws once and hands the file over
 
 ## Limits
 
-- **Subagents** do not get the skill's text: a subagent's close is measured, never gated.
+- **Subagents** keep their own record (0.2.0): a subagent's edits count at the main agent's close as edits it has not reviewed, until it reviews them itself; a subagent's read, run or render is its own, never the main agent's review. The finding says how many were a subagent's. A subagent's close is measured against its own record, never gated, and does not get the skill's text yet. On Cursor, where the plugins read no subagent id yet (whether its tool events carry one is not probed), everything stays in one record as before.
 - **Silence.** An agent that ships the first version and never says it is done writes no claim and gets no nudge.
 - **The review is counted, not judged.** The hook knows the result was read, run or rendered after the edit - not that it was reviewed on the right input, nor compared with a source the agent did not write. The skill asks for both; the hook cannot check them.
 - **Audio and video** have no review tool on most hosts: a run of a tool that plays or analyses them counts; otherwise the close is `blocked`, with the limit named.
@@ -184,12 +184,12 @@ Inspiration for the design; none of these tested this plugin. The map is in [doc
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
 skills/aspiration-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code + Codex: SessionStart, UserPromptSubmit, PostToolUse, Stop, SessionEnd, SubagentStop
+hooks/hooks.json                   # Claude Code + Codex: SessionStart, SubagentStart, UserPromptSubmit, PostToolUse, Stop, SessionEnd, SubagentStop
 hooks/aspir-prompt.js              # load, retrospective, the turn's count starts
 hooks/aspir-observe.js             # edits and reviews
 hooks/aspir-stop.js                # the close
 hooks/aspir-session-start.js       # reload after a resume or compaction
-hooks/aspir-inject.js              # the skill's text at session start, after /clear or compaction
+hooks/aspir-inject.js              # the skill's text at session start, after /clear or compaction, and for a subagent
 hooks/aspir-session-end.js         # sweeps aged state
 cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse, stop
 cursor/aspir-session-start.js

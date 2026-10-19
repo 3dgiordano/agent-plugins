@@ -1,0 +1,32 @@
+// Corpus for executive-self-monitoring/lib/writeback.js - isDecision().
+// The OWNER's prompt decides something: it opens on a pick or an approval.
+// Counted towards "decisions since the plan last changed"; a miss costs one
+// count, a false hit brings the plan reminder a decision early.
+// Misses: a question about an option, a letter inside a sentence, "a" as a word.
+{"text": "A", "expect": "hit", "why": "a bare option letter"}
+{"text": "B: keep the old endpoint and add the new one beside it.", "expect": "hit", "why": "letter and colon"}
+{"text": "A, adelante", "expect": "hit", "why": "letter and the go-ahead"}
+{"text": "C, dale", "expect": "hit", "why": "letter and dale"}
+{"text": "B, but keep the flag off by default.", "expect": "hit", "why": "letter, comma and a condition"}
+{"text": "Option A.", "expect": "hit", "why": "option A"}
+{"text": "opción B: migrar primero la tabla de usuarios", "expect": "hit", "why": "opción B"}
+{"text": "adelante con A", "expect": "hit", "why": "adelante con A"}
+{"text": "go with B", "expect": "hit", "why": "go with B"}
+{"text": "Go ahead with option C, and write the migration first.", "expect": "hit", "why": "go ahead with option C"}
+{"text": "sí, adelante", "expect": "hit", "why": "sí, adelante"}
+{"text": "Sí: implementa el cambio tal como está propuesto.", "expect": "hit", "why": "sí: implementa"}
+{"text": "Yes, go ahead.", "expect": "hit", "why": "yes, go ahead"}
+{"text": "Apruebo los tres cambios con tus recomendaciones.", "expect": "hit", "why": "apruebo"}
+{"text": "Approved - ship it behind the flag.", "expect": "hit", "why": "approved"}
+{"text": "Mi decisión: la serie queda cerrada y seguimos con la etapa siguiente.", "expect": "hit", "why": "mi decisión"}
+{"text": "My decision is to drop the cache layer for now.", "expect": "hit", "why": "my decision"}
+{"text": "Can you explain option A in more detail?", "expect": "miss", "why": "a question about an option"}
+{"text": "What would B change for the callers?", "expect": "miss", "why": "a question that names B"}
+{"text": "a ver, ¿qué quedó pendiente?", "expect": "miss", "why": "'a' as a Spanish word"}
+{"text": "A few things before we go on: the tests are red on Windows.", "expect": "miss", "why": "'A few' is not an option"}
+{"text": "Run the tests again and tell me what fails.", "expect": "miss", "why": "an instruction, no pick"}
+{"text": "I think option B is cleaner, but what does it cost?", "expect": "miss", "why": "a leaning with a question, not a pick"}
+{"text": "¿Por qué elegiste A en vez de B?", "expect": "miss", "why": "a question about a past choice"}
+{"text": "Decisions are recorded in docs/DECISIONS.md, read it first.", "expect": "miss", "why": "the word decision, not a decision"}
+{"text": "que esta corriendo ahora?", "expect": "miss", "why": "a status question"}
+{"text": "The approval flow breaks when the token expires.", "expect": "miss", "why": "'approval' inside a bug report"}

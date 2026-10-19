@@ -21,6 +21,17 @@
         ]
       }
     ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/aspir-inject.js\"",
+            "additionalContextLimit": 4000
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [

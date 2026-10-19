@@ -240,7 +240,8 @@ function spanning() {
 function sweep(items, turn) {
   const lines = items.map((c) => {
     const ago = turn - c.turn;
-    return `${ago} turn${ago === 1 ? '' : 's'} ago you wrote: "${c.text}"`;
+    // A subagent's promise is the main agent's to close: it ships the work (prog-stop.js).
+    return `${ago} turn${ago === 1 ? '' : 's'} ago ${c.by === 'subagent' ? 'a subagent you started wrote' : 'you wrote'}: "${c.text}"`;
   });
   return `[progress self-monitoring] ${lines.join('; ')}. What you said you would do is the one list you ` +
     `cannot re-read: for each, say done, or put it in \`${LEDGER}\` as blocked or returned with the reason, ` +
@@ -266,7 +267,7 @@ function staleNotice(p) {
     'the agent is reminded on your next message');
 }
 function sweepNotice(items) {
-  return host.notice(LABEL, [`${items.length} commitment${items.length === 1 ? '' : 's'} from earlier turns handed back: ${items.map((c) => `"${c.text}"`).join('; ')}`],
+  return host.notice(LABEL, [`${items.length} commitment${items.length === 1 ? '' : 's'} from earlier turns handed back: ${items.map((c) => `"${c.text}"${c.by === 'subagent' ? ' (a subagent\'s)' : ''}`).join('; ')}`],
     'the agent is asked to close each one');
 }
 

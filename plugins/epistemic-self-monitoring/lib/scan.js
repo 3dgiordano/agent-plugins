@@ -38,8 +38,10 @@ function field(block, name) {
   const m = block.match(re);
   if (!m) return null;
   const v = unemphasise(m[1].trim());
-  // Treat placeholders left from the template as empty.
-  if (!v || /^<.*>$/.test(v) || /^(n\/a|none|tbd|-|\?)$/i.test(v)) return '';
+  // Treat placeholders left from the template as empty. Inline code is read
+  // as its content: `npm test` is filled, an empty `` is not.
+  const bare = v.replace(/`/g, '').trim();
+  if (!bare || /^<.*>$/.test(bare) || /^(n\/a|none|tbd|-|\?)$/i.test(bare)) return '';
   return v;
 }
 
@@ -56,12 +58,22 @@ function field(block, name) {
  * BLOCK_RE is line-anchored (^...$ with /m), so fenced content is blanked
  * character by character with the newlines kept, rather than collapsed to a
  * space: the lines survive, the markers on them do not.
+ *
+ * Every blanking keeps the length, so a block found in the stripped text
+ * sits at the same offsets in the original, and its fields are read from
+ * the original. Reading them from the stripped text emptied a field written
+ * only as inline code - `- Verified by: \`npm test\`` drew "Verified by is
+ * empty" - while the strip is only there to find the marker.
  */
+const blank = (s) => s.replace(/[^\n]/g, ' ');
+
 function prose(text) {
   return text
-    .replace(/```[\s\S]*?```/g, (fence) => fence.replace(/[^\n]/g, ' '))
-    .replace(/`[^`\n]*`/g, ' ')
-    .split(/\r?\n/).map((l) => (/^\s*>/.test(l) ? '' : l)).join('\n');
+    .replace(/```[\s\S]*?```/g, blank)
+    .replace(/`[^`\n]*`/g, blank)
+    .split('\n').map((l) => (/^\s*>/.test(l) ? blank(l) : l)).join('\n')
+    // A CRLF line end as a trailing space: the marker regex ends at `[ \t]*$`.
+    .replace(/\r/g, ' ');
 }
 
 function scan(text) {
@@ -77,7 +89,9 @@ function scan(text) {
   let m;
   while ((m = BLOCK_RE.exec(body0)) !== null) {
     out.blocks += 1;
-    const body = m[1];
+    // The block's body is the tail of the match; read it from the original.
+    const end = m.index + m[0].length;
+    const body = text.slice(end - m[1].length, end);
     const claim = field(body, 'Claim') || '(unnamed claim)';
     const status = (field(body, 'Status') || '').toLowerCase();
     const falsifier = field(body, 'Falsifier');

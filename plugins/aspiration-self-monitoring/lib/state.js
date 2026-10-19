@@ -35,17 +35,26 @@ function ensureDir() {
 
 ensureDir();
 
-function fileFor(host, id) {
-  const safe = String(id || 'nosession').replace(/[^0-9A-Za-z_-]/g, '_');
-  return path.join(DIR, `${PREFIX}${host}_${safe}.json`);
+/*
+ * One file per actor of a session (lib/host.js actorOf): the main agent's file
+ * keeps the name it always had, and a subagent's adds `--<agent id>`, so a
+ * subagent's counters are its own and a host that sends no agent id behaves
+ * as before. A caller that passes no actor reads and writes the main agent's.
+ */
+const MAIN = 'main';
+const safeId = (s, fallback) => String(s || fallback).replace(/[^0-9A-Za-z_-]/g, '_');
+
+function fileFor(host, id, actor) {
+  const base = `${PREFIX}${host}_${safeId(id, 'nosession')}`;
+  return path.join(DIR, !actor || actor === MAIN ? `${base}.json` : `${base}--${safeId(actor, MAIN)}.json`);
 }
 
-function load(host, id) {
-  try { return JSON.parse(fs.readFileSync(fileFor(host, id), 'utf8')) || {}; } catch (_) { return {}; }
+function load(host, id, actor) {
+  try { return JSON.parse(fs.readFileSync(fileFor(host, id, actor), 'utf8')) || {}; } catch (_) { return {}; }
 }
 
-function save(host, id, state) {
-  const file = fileFor(host, id);
+function save(host, id, state, actor) {
+  const file = fileFor(host, id, actor);
   const tmp = `${file}.${process.pid}.tmp`;
   const json = JSON.stringify(state);
   try {
@@ -75,22 +84,34 @@ function release(lock) {
   try { fs.unlinkSync(lock); } catch (_) {}
 }
 
-function update(host, id, fn) {
-  const lock = fileFor(host, id) + '.lock';
+function update(host, id, fn, actor) {
+  const lock = fileFor(host, id, actor) + '.lock';
   const locked = acquire(lock);
   try {
-    const st = load(host, id);
+    const st = load(host, id, actor);
     const out = fn(st);
-    save(host, id, st);
+    save(host, id, st, actor);
     return out;
   } finally {
     if (locked) release(lock);
   }
 }
 
-function remove(host, id) {
-  const f = fileFor(host, id);
-  for (const p of [f, f + '.lock']) { try { fs.unlinkSync(p); } catch (_) {} }
+function remove(host, id, actor) {
+  const files = actor ? [fileFor(host, id, actor)] : [fileFor(host, id)].concat(actors(host, id).map((a) => fileFor(host, id, a)));
+  for (const f of files) for (const p of [f, f + '.lock']) { try { fs.unlinkSync(p); } catch (_) {} }
+}
+
+/*
+ * The subagents that have a record in this session: their agent ids, as the
+ * file names carry them (safeId form). Without an actor, remove() drops the
+ * main agent's file and all of these - the session is over for every actor.
+ */
+function actors(host, id) {
+  const head = `${PREFIX}${host}_${safeId(id, 'nosession')}--`;
+  try {
+    return fs.readdirSync(DIR).filter((n) => n.indexOf(head) === 0 && /\.json$/.test(n)).map((n) => n.slice(head.length, -'.json'.length));
+  } catch (_) { return []; }
 }
 
 function sweep(now) {
@@ -108,4 +129,4 @@ function sweep(now) {
   return dropped;
 }
 
-module.exports = { load, save, update, remove, sweep };
+module.exports = { load, save, update, remove, actors, sweep, MAIN };

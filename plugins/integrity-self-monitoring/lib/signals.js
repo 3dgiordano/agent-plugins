@@ -144,6 +144,40 @@ function observe(st, toolName, toolInput, toolResponse, cwd, own, read) {
   return { said, logged, outside: out };
 }
 
+/*
+ * What the main agent's subagents raised that it has not been told yet. A
+ * subagent's finding was said to the subagent, in its own record (lib/state.js
+ * per actor); the main agent ships the result, so the finding is said to it
+ * too, once, when a subagent hands back (the PostToolUse of the tool that ran
+ * it). Each relayed finding joins the main agent's `raised`, so its close can
+ * answer it as `misread`, and its `seen`, so its own later edit of the same
+ * shape is not said twice. A finding the main agent already disputed is left.
+ *
+ * parent: the main agent's state (changed in place); subs: subagent states.
+ * Returns the findings to say, in the order they were raised.
+ */
+function relay(parent, subs) {
+  if (!parent.seen) Object.assign(parent, freshSession());
+  const relayed = new Set(Array.isArray(parent.relayed) ? parent.relayed : []);
+  const disputed = parent.disputed || [];
+  const out = [];
+  for (const s of subs || []) {
+    for (const r of (s && Array.isArray(s.raised) ? s.raised : [])) {
+      if (!r || !r.key || relayed.has(r.key) || disputed.includes(r.key) || out.some((o) => o.key === r.key)) continue;
+      relayed.add(r.key);
+      out.push(Object.assign({ delegated: true }, r));
+    }
+  }
+  if (!out.length) return out;
+  parent.relayed = [...relayed].slice(-MAX_SEEN);
+  for (const r of out) if (Object.keys(parent.seen).length < MAX_SEEN || parent.seen[r.key]) parent.seen[r.key] = 1;
+  parent.raised = (parent.raised || []).filter((x) => !out.some((r) => r.key === x.key)).concat(out).slice(-MAX_RAISED);
+  return out;
+}
+
+// The tool that runs a subagent, as the main agent's PostToolUse names it.
+const SUBAGENT_TOOL_RE = /^(?:agent|task)$/i;
+
 // --- the close ------------------------------------------------------------
 
 /*
@@ -195,4 +229,4 @@ function block(text) {
   return out;
 }
 
-module.exports = { observe, disputes, block, freshSession, filePathOf, writtenLines, before, codeSignals, EDIT_TOOL_RE, SHELL_TOOL_RE, MAX_RAISED };
+module.exports = { observe, relay, disputes, block, freshSession, filePathOf, writtenLines, before, codeSignals, EDIT_TOOL_RE, SHELL_TOOL_RE, SUBAGENT_TOOL_RE, MAX_RAISED };

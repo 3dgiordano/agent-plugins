@@ -20,8 +20,8 @@ const { logEvent, strict, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const { scan } = require('../lib/lexicon.js');
 const msg = require('../lib/messages.js');
-const { cwdOf, context } = require('../lib/host.js');
-const { unreviewed, looked } = require('../lib/signals.js');
+const { cwdOf, context, actorOf } = require('../lib/host.js');
+const { unreviewed, looked, delegated } = require('../lib/signals.js');
 
 const HOST = 'claude';
 
@@ -30,17 +30,28 @@ function main(raw) {
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
   const sid = data.session_id || 'nosession';
   const subagent = data.hook_event_name === 'SubagentStop';
+  const actor = actorOf(data);
 
-  // A subagent's tool calls land in the parent's session state, so its own
-  // close is scanned on its words alone.
-  const st = subagent ? {} : state.load(HOST, sid);
-  const counts = subagent ? {} : { edits: st.edits || 0, unreviewed: unreviewed(st), looked: looked(st, cwdOf(data)) };
+  // Each close is weighed on its own actor's record. A subagent's close: what
+  // the subagent edited and reviewed itself. The main agent's close: its own
+  // edits, plus what its subagents changed this turn that it has not reviewed
+  // since - a subagent's look is its claim, not the parent's review.
+  const st = state.load(HOST, sid, actor);
+  const subs = subagent ? [] : state.actors(HOST, sid).map((a) => state.load(HOST, sid, a));
+  const d = delegated(st, subs);
+  const counts = {
+    edits: (st.edits || 0) + d.edited,
+    unreviewed: unreviewed(st) + d.unreviewed,
+    delegated: d.unreviewed,
+    looked: looked(st, cwdOf(data)),
+  };
   const res = scan(data.last_assistant_message || '', counts);
   const blocking = strict() && res.violations.length > 0 && !data.stop_hook_active && !subagent;
 
   logEvent(cwdOf(data), {
-    event: subagent ? 'subagent_stop' : 'stop', session: sid, agent: data.agent_type || null,
+    event: subagent ? 'subagent_stop' : 'stop', session: sid, actor, agent: data.agent_type || null,
     claims: res.claims, blocks: res.blocks, remainder: res.remainder, edits: counts.edits, unreviewed: counts.unreviewed,
+    delegated: counts.delegated, subagents: subs.length,
     violations: res.violations, strict: strict(), blocked: blocking
   });
 

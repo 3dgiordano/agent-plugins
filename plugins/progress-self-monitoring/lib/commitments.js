@@ -106,9 +106,10 @@ function scan(text) {
  * remember(list, quotes, turn) -> the bounded list with the new commitments
  * appended, each stamped with the turn it was made in.
  */
-function remember(list, quotes, turn) {
+// `by` marks a promise a subagent wrote ('subagent'); the main agent's carry none.
+function remember(list, quotes, turn, by) {
   const kept = Array.isArray(list) ? list.slice() : [];
-  for (const q of quotes) kept.push({ text: q, turn });
+  for (const q of quotes) kept.push(by ? { text: q, turn, by } : { text: q, turn });
   return kept.slice(-MAX_KEPT);
 }
 

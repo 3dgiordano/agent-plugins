@@ -16,7 +16,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const msg = require('../lib/messages.js');
-const { cwdOf, context } = require('../lib/host.js');
+const { cwdOf, context, actorOf, MAIN_ACTOR } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -25,18 +25,23 @@ function main(raw) {
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
   const sid = data.session_id || 'nosession';
   const cwd = cwdOf(data);
+  // A subagent's tool call goes to its own record, measured against the
+  // session's snapshot (the main agent's), and its nudge to the subagent.
+  const actor = actorOf(data);
+  const sessionFiles = actor === MAIN_ACTOR ? null : (state.load(HOST, sid).files || {});
+  const baseOf = sessionFiles ? (k) => sessionFiles[k] && sessionFiles[k].base : undefined;
   let res = { kind: null };
   let due = 0;
   let groups = [];
   state.update(HOST, sid, (st) => {
-    res = signals.observe(st, cwd, data.tool_name, data.tool_input);
+    res = signals.observe(st, cwd, data.tool_name, data.tool_input, baseOf);
     if (res.kind === 'edit') {
       due = signals.nudgeDue(st, res.grew);
       groups = signals.reachedAll(st);
     }
-  });
+  }, actor);
   if (!res.kind) return;
-  logEvent(cwd, { event: 'observe', session: sid, kind: res.kind, reached: groups.length, nudge: due > 0 });
+  logEvent(cwd, { event: 'observe', session: sid, actor, kind: res.kind, reached: groups.length, nudge: due > 0 });
   if (due) process.stdout.write(context('PostToolUse', msg.nudge(due, msg.where(groups))));
 }
 

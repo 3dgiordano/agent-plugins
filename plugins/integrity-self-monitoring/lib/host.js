@@ -19,6 +19,21 @@
  * (Deliberately a per-plugin copy: each plugin installs on its own.)
  */
 
+/*
+ * Who an event belongs to. Inside a subagent, Claude Code puts the subagent's
+ * `agent_id` on every event - its tool calls, SubagentStart, SubagentStop -
+ * while `session_id` stays the parent's; Codex names the field the same. An
+ * event without one is the main agent's: 'main'. A state file is kept per
+ * actor (lib/state.js), so a subagent's work has its own record and the main
+ * agent's record is the one it always was.
+ */
+const MAIN_ACTOR = 'main';
+
+function actorOf(data) {
+  const id = data && typeof data.agent_id === 'string' ? data.agent_id.trim() : '';
+  return id || MAIN_ACTOR;
+}
+
 function cwdOf(data) {
   if (data && typeof data.cwd === 'string' && data.cwd) return data.cwd;
   if (data && Array.isArray(data.workspace_roots) && typeof data.workspace_roots[0] === 'string' && data.workspace_roots[0]) return data.workspace_roots[0];
@@ -131,4 +146,4 @@ function skillText(root, plugin) {
   return text.length <= INJECT_MAX ? text : '';
 }
 
-module.exports = { cwdOf, context, notice, finding, userText, notification, skillText, INJECT_MAX };
+module.exports = { cwdOf, actorOf, MAIN_ACTOR, context, notice, finding, userText, notification, skillText, INJECT_MAX };

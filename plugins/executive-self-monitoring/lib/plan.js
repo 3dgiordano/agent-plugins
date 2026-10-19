@@ -62,6 +62,8 @@ function unfenced(text) {
  * scan(text) -> {
  *   blocks:     n         [PLAN CHECK] blocks found
  *   decision:   string    the last block's decision, or null
+ *   plans:      [string]  each block's Plan field, in order (empty string when absent)
+ *   revise:     boolean   some block decided revise-plan
  *   violations: [string]  what the skill asks for and did not get
  * }
  *
@@ -69,7 +71,7 @@ function unfenced(text) {
  * work, and most turns are neither. This plugin nudges and never gates.
  */
 function scan(text) {
-  const out = { blocks: 0, decision: null, violations: [] };
+  const out = { blocks: 0, decision: null, plans: [], revise: false, violations: [] };
   if (typeof text !== 'string' || !text) return out;
 
   BLOCK_RE.lastIndex = 0;
@@ -116,6 +118,8 @@ function scan(text) {
       out.violations.push(`Drift is none but Decision is "${known}" - with nothing pulling away, the decision is continue`);
     }
     out.decision = known || null;
+    out.plans.push(plan || '');
+    if (known === 'revise-plan') out.revise = true;
   }
 
   /*

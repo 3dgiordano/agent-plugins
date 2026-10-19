@@ -24,7 +24,7 @@ const { logEvent, strict, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const { scan } = require('../lib/scan.js');
 const msg = require('../lib/messages.js');
-const { cwdOf, context } = require('../lib/host.js');
+const { cwdOf, context, actorOf } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -46,7 +46,7 @@ function main(raw) {
   const blocking = strict() && res.violations.length > 0 && !data.stop_hook_active && !subagent;
 
   logEvent(cwdOf(data), {
-    event: subagent ? 'subagent_close' : 'close', session: sid, agent: data.agent_type || null, blocks: res.blocks, tags: res.tags,
+    event: subagent ? 'subagent_close' : 'close', session: sid, actor: actorOf(data), agent: data.agent_type || null, blocks: res.blocks, tags: res.tags,
     violations: res.violations, strict: strict(), blocked: blocking
   });
 

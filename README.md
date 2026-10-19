@@ -98,7 +98,7 @@ countable or on disk, never to "reflect harder":
 | What the hook puts in front of the agent | The question | What you read |
 |------|--------------|---------------|
 | the same file edited 4 times, a command failed 3 times | *is it worth another try?* | `[PERSISTENCE CHECK]` — [persistence](plugins/persistence-self-monitoring/) |
-| the first prompt, then every fifth; a plan that changed on disk since it was read | *am I still on the plan?* | `[PLAN CHECK]` — [executive](plugins/executive-self-monitoring/) |
+| the first prompt, then every fifth; a plan that changed on disk since it was read; three decisions made with the plan unchanged | *am I still on the plan?* | `[PLAN CHECK]` — [executive](plugins/executive-self-monitoring/) |
 | a claim about to become a fact, a cause or a closure | *observed, or guessed?* | `[EPISTEMIC CLOSE]` — [epistemic](plugins/epistemic-self-monitoring/) |
 | a turn that ended on "I'm running out of context" | *a reason, or a phrase?* | `[TERMINATION CHECK]` — [termination](plugins/termination-self-monitoring/) |
 | a close with an edited file nobody reviewed since its last change - a document not read, an image not viewed, code not run | *did I review the result against the objective?* | `[ASPIRATION CHECK]` — [aspiration](plugins/aspiration-self-monitoring/) |
@@ -116,11 +116,11 @@ On the first turn of a session, and every fifth after that:
 ```
 [executive self-monitoring] Checkpoint for long/iterative work: re-open the
 artifact that defines it and write the [PLAN CHECK] markdown list - Plan (the
-artifact, named), Gate (quoted from it), Drift (none, or what pulls away),
-Decision (continue | refocus | revise-plan). If you do not know what these
-markers ask for, load the executive-self-monitoring skill. Markers, field
-names and status words stay in English, whatever language you write in. Skip
-it if this turn is trivial.
+artifact, named, with its objective line quoted), Gate (quoted from it), Drift
+(none, or what pulls away), Decision (continue | refocus | revise-plan). If
+you do not know what these markers ask for, load the executive-self-monitoring
+skill. Markers, field names and status words stay in English, whatever
+language you write in. Skip it if this turn is trivial.
 ```
 
 When a turn ends on "I'm running out of context, let's pick this up in a fresh
@@ -286,7 +286,7 @@ the full lists and the per-host notes.
 
 | Plugin | Status | What it does |
 |--------|--------|--------------|
-| [executive-self-monitoring](plugins/executive-self-monitoring/) | available | Plan-anchored drift self-check: periodically nudges the agent to re-read the active plan/gate instead of drifting, and says when a document it read has changed on disk since. Not a blocker. |
+| [executive-self-monitoring](plugins/executive-self-monitoring/) | available | Plan-anchored drift self-check: periodically nudges the agent to re-read the active plan/gate instead of drifting, says when a document it read has changed on disk since, and when three decisions have gone by with the plan unchanged. Not a blocker. |
 | [epistemic-self-monitoring](plugins/epistemic-self-monitoring/) | available | Observation vs. conjecture discipline: claims carry their evidence and a named falsifier; only verified claims become facts or closures. Non-blocking by default, opt-in strict gate. |
 | [persistence-self-monitoring](plugins/persistence-self-monitoring/) | available | Persist-or-quit signal: counts repeated attempts on the same file, command or error and effort since the user last spoke; nudges only when a threshold is crossed. Never blocks. |
 | [termination-self-monitoring](plugins/termination-self-monitoring/) | available | Checkable-reason discipline: a state-shaped reason to stop, defer or narrow ("running out of context", "long session", "not confident enough", "given the complexity", a run of apologies) is replaced by a checkable one or dropped, and the work continues. Non-blocking by default, opt-in strict gate. |
@@ -317,7 +317,11 @@ here is exactly what they are:
   its mtime and counts by kind — integrity reads the file an edit just
   wrote, to name the file, the line and the shape it found, and executive, on
   Claude Code, reads only the modification time of the documents the agent
-  read, to say that one changed since. No hook writes any of them. What a hook
+  read, to say that one changed since - and, at the close of a turn, the end
+  of the host's session transcript for the plan its `[PLAN CHECK]` names (or
+  the `Plan:` line of `.agent/progress.md`), to say when that plan has not
+  changed in three decisions. No hook writes any
+  of them. What a hook
   reads never becomes what it says: [SECURITY.md](SECURITY.md).
 - **Never blocking by default.** Every hook fails silent: an error in a hook
   lets the prompt, tool call or stop proceed. Five opt-in gates exist —

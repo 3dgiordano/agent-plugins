@@ -43,19 +43,23 @@ const LOCK_WAIT_MS = 1500;
 const LOCK_STEP_MS = 2;
 const LOCK_STALE_MS = 1000;
 
-function file(host, sid) {
+/*
+ * One record per actor, as lib/state.js keeps in the other plugins: the main
+ * agent's file keeps its name, a subagent's adds `--<agent id>`.
+ */
+function file(host, sid, actor) {
   const safe = String(sid || 'nosession').replace(/[^0-9A-Za-z_-]/g, '_');
-  return path.join(os.tmpdir(), '3dgiordano-agent-plugins', `execmon_${host}_${safe}.reads.json`);
+  return path.join(os.tmpdir(), '3dgiordano-agent-plugins', `execmon_${host}_${safe}${actor && actor !== 'main' ? `--${String(actor).replace(/[^0-9A-Za-z_-]/g, '_')}` : ''}.reads.json`);
 }
 
-function load(host, sid) {
-  try { const j = JSON.parse(fs.readFileSync(file(host, sid), 'utf8')); return j && typeof j.files === 'object' ? j : { files: {} }; } catch (_) { return { files: {} }; }
+function load(host, sid, actor) {
+  try { const j = JSON.parse(fs.readFileSync(file(host, sid, actor), 'utf8')); return j && typeof j.files === 'object' ? j : { files: {} }; } catch (_) { return { files: {} }; }
 }
 
 // Temp file + rename, so a reader never sees a torn file; in place if the
 // rename fails (Windows, a scanner holding the target open).
-function save(host, sid, st) {
-  const f = file(host, sid);
+function save(host, sid, st, actor) {
+  const f = file(host, sid, actor);
   const names = Object.keys(st.files);
   // bounded: the oldest reads go first
   if (names.length > MAX_FILES) for (const n of names.sort((a, b) => st.files[a].seenAt - st.files[b].seenAt).slice(0, names.length - MAX_FILES)) delete st.files[n];
@@ -85,15 +89,15 @@ function acquire(lock) {
 }
 
 // Read, let `fn` change the record (true: save it), under the lock when it can be had.
-function update(host, sid, fn) {
-  const f = file(host, sid);
+function update(host, sid, fn, actor) {
+  const f = file(host, sid, actor);
   try { fs.mkdirSync(path.dirname(f), { recursive: true }); } catch (_) {}
   const lock = f + '.lock';
   const locked = acquire(lock);
   try {
-    const st = load(host, sid);
+    const st = load(host, sid, actor);
     const out = fn(st);
-    if (out) save(host, sid, st);
+    if (out) save(host, sid, st, actor);
     return out;
   } finally {
     if (locked) { try { fs.unlinkSync(lock); } catch (_) {} }
@@ -114,7 +118,7 @@ function pathOf(input, cwd) {
  * A tool call: a read of a document records its mtime; the agent's own write
  * to one records the new mtime, so its own edit is never news.
  */
-function observe(host, sid, toolName, toolInput, cwd) {
+function observe(host, sid, toolName, toolInput, cwd, actor) {
   const name = String(toolName || '');
   const read = READ_TOOL_RE.test(name);
   if (!read && !WRITE_TOOL_RE.test(name)) return;
@@ -126,14 +130,14 @@ function observe(host, sid, toolName, toolInput, cwd) {
     if (m === null) return false;
     st.files[p] = { mtimeMs: m, seenAt: Date.now() };
     return true;
-  });
+  }, actor);
 }
 
 /*
  * The documents read earlier that changed on disk since, each reported once:
  * the record moves to the new mtime, so the same change is not said twice.
  */
-function changed(host, sid) {
+function changed(host, sid, actor) {
   const out = [];
   update(host, sid, (st) => {
     for (const [p, rec] of Object.entries(st.files)) {
@@ -143,8 +147,8 @@ function changed(host, sid) {
       st.files[p] = { mtimeMs: m, seenAt: rec.seenAt };
     }
     return out.length > 0;
-  });
+  }, actor);
   return out;
 }
 
-module.exports = { observe, changed, file, DOC_RE };
+module.exports = { observe, changed, update, file, DOC_RE };

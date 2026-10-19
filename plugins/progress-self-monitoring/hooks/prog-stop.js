@@ -21,9 +21,11 @@
  * unreachable for a retrospective, and that is measured at SessionEnd rather
  * than gated - a gate is a decision to take with the numbers, not before.
  *
- * SubagentStop is measured only: a subagent has no next prompt to carry a
- * retrospective, and its edits are the parent's turn - so its close is logged
- * and nothing is parked. Same rule as the other four close hooks.
+ * SubagentStop parks no stale finding: a subagent has no next prompt to carry
+ * a retrospective, and its edits join the main agent's turn when it hands back
+ * (prog-observe.js). What it promised is kept, in the main agent's list and
+ * marked as a subagent's: the main agent ships the work, so the promise is its
+ * to close, and the sweep hands it back on the main agent's prompt.
  */
 'use strict';
 
@@ -33,7 +35,7 @@ const signals = require('../lib/signals.js');
 const ledger = require('../lib/ledger.js');
 const commitments = require('../lib/commitments.js');
 const msg = require('../lib/messages.js');
-const { cwdOf, context } = require('../lib/host.js');
+const { cwdOf, context, actorOf } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -43,20 +45,28 @@ function main(raw) {
   const sid = data.session_id || 'nosession';
   const cwd = cwdOf(data);
   const subagent = data.hook_event_name === 'SubagentStop';
+  const actor = actorOf(data);
 
   const ins = ledger.inspect(cwd);
   let res = { stale: false, fire: false };
   let parked = null;
   let turn = null;
   let turns = 0;
-  // What this message says the agent will do later: kept for the sweep, on
-  // main turns only - a subagent's promise is not the parent's.
-  const promised = subagent ? [] : commitments.scan(data.last_assistant_message || '');
+  // What this message says the agent will do later: kept for the sweep.
+  const promised = commitments.scan(data.last_assistant_message || '');
+  if (subagent) {
+    const own = state.load(HOST, sid, actor);
+    turn = own.turn || signals.freshTurn();
+    res = signals.stale(turn, ins, own.turnStart, own.flagged);
+  }
   state.update(HOST, sid, (st) => {
-    turn = st.turn || signals.freshTurn();
     turns = st.turns || 0;
+    if (subagent) {
+      if (promised.length) st.commitments = commitments.remember(st.commitments, promised, turns, 'subagent');
+      return;
+    }
+    turn = st.turn || signals.freshTurn();
     res = signals.stale(turn, ins, st.turnStart, st.flagged);
-    if (subagent) return;
     // `flagged` holds the mtime of the ledger version already reported; a
     // rewrite changes the mtime and so re-arms the signal by itself.
     if (res.fire) {
@@ -67,7 +77,7 @@ function main(raw) {
   });
 
   logEvent(cwd, Object.assign({
-    event: subagent ? 'subagent_stop' : 'stop', session: sid, agent: data.agent_type || null, turn: turns,
+    event: subagent ? 'subagent_stop' : 'stop', session: sid, actor, agent: data.agent_type || null, turn: turns,
     exists: ins.exists, open: ins.open, ageMs: ins.ageMs, stale: res.stale, fired: !subagent && res.fire,
     commitments: promised.length
   }, signals.summary(turn)));

@@ -361,7 +361,7 @@ Its core rule is ImpossibleBench's way out, as a discipline: *"cannot be done as
   - The other 19 are nearly one shape: a module-level `Map` or `Set` keyed on the argument, with a counter (`seen.set(amount, (seen.get(amount) ?? 0) + 1)`).
   - That shape looks readable statically, as a per-argument call counter in a pure function. It is not built: memoization and warn-once are its neighbours, and it has not been measured.
 - **Real code, file by file.**
-  - Four working trees on the owner's machine, 5910 files, 111 of them calling a service: 7 findings before refinement, 0 after. The refinements: a `catch` whose answer carries the error, minified bundles skipped, a host needs a dot. Those numbers are in sample.
+  - Real working trees with files that call a service: a few findings before refinement, none after. The refinements: a `catch` whose answer carries the error, minified bundles skipped, a host needs a dot. Those numbers are in sample.
   - Out of sample, 15041 files of 1207 installed npm packages: 1 finding, mixpanel's client reading its own three hosts.
   - The caller shape marked 17 package files (deprecation warnings, bluebird, `callsites`) before it was bound to a test's name, and none after.
 - **Commands.** The plugin's marks are narrower than the audit's: a write, not a mention. They catch every write of the hosts file and every TLS-off command in the stored streams, and none of the three reads of the hosts file.

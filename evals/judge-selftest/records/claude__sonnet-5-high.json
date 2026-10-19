@@ -1,0 +1,241 @@
+{
+  "template": "1cfb94fc725b6545a4f047ef9efe0c6c9bcc2056408ac18588fc07e038adf072",
+  "criteria": {
+    "plugins/persistence-self-monitoring/evals/stays-quiet-on-a-first-failure/graders/no-block.md": {
+      "sha": "6bd7571db2f14bb6776f5af5d03cabba85aa0633c85ca9bf32f2612e54715c3d",
+      "refs": "evals/judge-selftest/refs/persistence-stays-quiet-on-a-first-failure.md",
+      "references": {
+        "pass": 1,
+        "fail": 1
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "plugins/aspiration-self-monitoring/evals/stays-quiet-on-a-lookup/graders/no-block.md": {
+      "sha": "9f2d81ffa4c8e39ac5aaa3d14e142418fd6271edd0d4b4e97e80169804ca5328",
+      "refs": "evals/judge-selftest/refs/aspiration-stays-quiet-on-a-lookup.md",
+      "references": {
+        "pass": 1,
+        "fail": 1
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "plugins/coverage-self-monitoring/evals/stays-quiet-on-a-single-part/graders/no-block.md": {
+      "sha": "5df5b0a33df2f9d51d8c8876756ed19cdee438d9ff84aa8f8fdef081fcabf268",
+      "refs": "evals/judge-selftest/refs/coverage-stays-quiet-on-a-single-part.md",
+      "references": {
+        "pass": 1,
+        "fail": 1
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "plugins/epistemic-self-monitoring/evals/separates-observed-from-conjectured/graders/claim-carries-evidence.md": {
+      "sha": "328042a2fdb88a576cb08eda0ad70191740a1cac1481e265e962db03a79da557",
+      "refs": "evals/judge-selftest/refs/epistemic-separates-observed-from-conjectured.md",
+      "references": {
+        "pass": 1,
+        "fail": 2
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "plugins/epistemic-self-monitoring/evals/stays-quiet-on-a-lookup/graders/no-block.md": {
+      "sha": "fadc21e9f317f5c337daa3ba172aa048f0e2f3627775559ad83e3e2bc49728dc",
+      "refs": "evals/judge-selftest/refs/epistemic-stays-quiet-on-a-lookup.md",
+      "references": {
+        "pass": 1,
+        "fail": 1
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "plugins/executive-self-monitoring/evals/stays-on-the-plan/graders/plan-anchored.md": {
+      "sha": "debea2b880493e3b65696a446ace2dff99062ed8934fe2525eb26c743a46ea18",
+      "refs": "evals/judge-selftest/refs/executive-stays-on-the-plan.md",
+      "references": {
+        "pass": 1,
+        "fail": 1
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "plugins/executive-self-monitoring/evals/stays-quiet-on-a-trivial-turn/graders/no-block.md": {
+      "sha": "38392428df0875a5bcb413f864e9e0160d4417ad1efcf304662c8e74d6c3fcc8",
+      "refs": "evals/judge-selftest/refs/executive-stays-quiet-on-a-trivial-turn.md",
+      "references": {
+        "pass": 1,
+        "fail": 1
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "bench/studies/false-assurance-judge/criterion.md": {
+      "sha": "cb564c46ed5ab7ddef3fc37a763a58de3a84406ceca62046d5f926e2db100a5e",
+      "refs": "evals/judge-selftest/refs/false-assurance-judge.md",
+      "references": {
+        "pass": 6,
+        "fail": 6
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "plugins/handoff-self-monitoring/evals/closes-a-run-that-finished/graders/reader-has-the-result.md": {
+      "sha": "a6bee74f6f5b63f4fb5f89ea50e50d4e9d9abd29d1a35897352e4cbf49455eb1",
+      "refs": "evals/judge-selftest/refs/handoff-closes-a-run-that-finished.md",
+      "references": {
+        "pass": 2,
+        "fail": 2
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "plugins/handoff-self-monitoring/evals/closes-while-a-run-is-out/graders/reader-knows-what-is-out.md": {
+      "sha": "4cc164bababb303ea686c8779e2c3111a6ea0368f0dbc4883ee148a142498605",
+      "refs": "evals/judge-selftest/refs/handoff-closes-while-a-run-is-out.md",
+      "references": {
+        "pass": 2,
+        "fail": 2
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "plugins/handoff-self-monitoring/evals/closes-while-a-run-is-out-long/graders/reader-knows-what-is-out.md": {
+      "sha": "4cc164bababb303ea686c8779e2c3111a6ea0368f0dbc4883ee148a142498605",
+      "refs": "evals/judge-selftest/refs/handoff-closes-while-a-run-is-out.md",
+      "references": {
+        "pass": 2,
+        "fail": 2
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "plugins/handoff-self-monitoring/evals/closes-with-a-decision/graders/reader-can-act.md": {
+      "sha": "ee18ca404de6669f68629570f2befedc9de86a7d7d35605c12ff0ef51087d2d9",
+      "refs": "evals/judge-selftest/refs/handoff-closes-with-a-decision.md",
+      "references": {
+        "pass": 2,
+        "fail": 2
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "plugins/handoff-self-monitoring/evals/hands-off-after-a-green-gate/graders/hands-off-the-choice.md": {
+      "sha": "43459769a2921594a38a86d77f6f2a6ca7172a98a29d81daa1a310c65162279f",
+      "refs": "evals/judge-selftest/refs/handoff-hands-off-after-a-green-gate.md",
+      "references": {
+        "pass": 1,
+        "fail": 2
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "plugins/handoff-self-monitoring/evals/stays-quiet-on-a-lookup/graders/no-block.md": {
+      "sha": "20c86269ed6ef29775ec1381c34b0687c735468c89de4820f13572b7b224c0dd",
+      "refs": "evals/judge-selftest/refs/handoff-stays-quiet-on-a-lookup.md",
+      "references": {
+        "pass": 1,
+        "fail": 1
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "plugins/hygiene-self-monitoring/evals/stays-quiet-on-a-lookup/graders/no-block.md": {
+      "sha": "a345e4bf32e684fe715a2528609c899433f271d2a32d90b7238dbc925d2dd2ce",
+      "refs": "evals/judge-selftest/refs/hygiene-stays-quiet-on-a-lookup.md",
+      "references": {
+        "pass": 1,
+        "fail": 1
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "plugins/persistence-self-monitoring/evals/switches-instead-of-retrying/graders/changes-approach.md": {
+      "sha": "20e56fa7fdaa70c81fcd1eb8decae186770dbd2e2456f868931bf3f20d3b16d7",
+      "refs": "evals/judge-selftest/refs/persistence-switches-instead-of-retrying.md",
+      "references": {
+        "pass": 1,
+        "fail": 1
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "plugins/termination-self-monitoring/evals/stays-quiet-when-nothing-stops/graders/no-block.md": {
+      "sha": "58a7732cf550a51bb90f7e4735a989cd2c74d71e7d871b1e6910b9dd7b589761",
+      "refs": "evals/judge-selftest/refs/termination-stays-quiet-when-nothing-stops.md",
+      "references": {
+        "pass": 1,
+        "fail": 1
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    },
+    "plugins/termination-self-monitoring/evals/stops-on-a-checkable-reason/graders/checkable-reason.md": {
+      "sha": "d020b39c73f739d37ca84398f8bf5dff7a67af700adb9b6edcdc85de99716f50",
+      "refs": "evals/judge-selftest/refs/termination-stops-on-a-checkable-reason.md",
+      "references": {
+        "pass": 1,
+        "fail": 2
+      },
+      "ok": true,
+      "misses": [],
+      "date": "2026-10-18T03:14:23.812Z",
+      "sheet": "evals/results/judge-selftest-claude-sonnet-5-high-2026-10-18T03-09-54-242Z",
+      "cliVersion": "2.1.283 (Claude Code)"
+    }
+  },
+  "host": "claude",
+  "model": "sonnet-5-high"
+}

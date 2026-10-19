@@ -94,6 +94,10 @@ for the service - named as it is written, before the close.
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 prompt, a tool call, or a stop.
 
+## Subagents
+
+From 0.4.0 a subagent keeps its own turn: its edits, failed commands and repeated errors are counted for it, and its nudges go to it. When it hands back (the main agent's PostToolUse of the tool that ran it), what it counted joins the main agent's turn through the same thresholds: the main agent that re-delegates a fix its subagent already retried is in the same loop, and is told so ("..., your subagents' included"). Its tool calls join the main agent's effort count too. A subagent gets the load the main agent gets on its first prompt at its start (`SubagentStart`): it has no prompt of its own. On Cursor, where the plugins read no subagent id yet (whether its tool events carry one is not probed), everything stays in one turn as before.
+
 ## What the user sees
 
 The hooks speak to the model; without a notice the user sees nothing unless
@@ -118,7 +122,7 @@ only on permission hooks), so nothing shows there. Off with
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 
 - **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed.
-- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `persistmon_…`, removed at session end together with this plugin's files there older than seven days; only with `PERSISTMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
+- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins/`, named `persistmon_…`, kept for a resumed session and swept with this plugin's files there older than seven days; only with `PERSISTMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
 - **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them.
 
 The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
@@ -141,8 +145,9 @@ Code) or `<project>/.cursor/logs/…` (Cursor); override with
 |-------|--------|---------|
 | `prompt` | `turn` | turn boundary (Claude Code) |
 | `session_start` | — | once per Cursor session |
-| `signal` | `tools`, `signals[]` | a threshold was crossed; which signal, key and count |
-| `turn` | `tools`, `maxEditsSameFile`, `maxRepeatCmd`, `maxRepeatErr` | per-turn summary — the data to tune thresholds against real sessions |
+| `signal` | `actor`, `tools`, `signals[]` | a threshold was crossed; which signal, key and count; `delegated` when a subagent's hand-back made it cross |
+| `turn` | `actor`, `tools`, `maxEditsSameFile`, `maxRepeatCmd`, `maxRepeatErr` | per-turn summary — the data to tune thresholds against real sessions |
+| `subagent_turn` | same as `turn`, plus `agent`, without `turn` | a subagent's close, summarised from its own turn |
 
 ```
 # how many turns crossed a threshold, and which signal fires most
@@ -169,10 +174,11 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .cursor-plugin/plugin.json          # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
 skills/persistence-self-monitoring/SKILL.md
-hooks/hooks.json                    # Claude Code + Codex: SessionStart(resume|compact), UserPromptSubmit, PostToolUse (all), Stop, SessionEnd
+hooks/hooks.json                    # Claude Code + Codex: SessionStart(resume|compact), SubagentStart, UserPromptSubmit, PostToolUse (all), Stop, SubagentStop, SessionEnd
 hooks/persist-prompt.js
 hooks/persist-observe.js
-hooks/persist-stop.js
+hooks/persist-stop.js               # Stop and SubagentStop: the turn's summary, to the opt-in log
+hooks/persist-subagent-start.js     # a subagent, which has no prompt of its own, gets the load at its start
 hooks/persist-session-start.js      # a resumed or compacted session loads the discipline again
 hooks/persist-session-end.js
 cursor/hooks.json                   # Cursor: sessionStart, postToolUse, afterAgentResponse
@@ -182,7 +188,7 @@ cursor/persist-response-cursor.js
 lib/signals.js                      # the counters + thresholds (host-neutral)
 lib/messages.js                     # reminder texts shared by both adapters
 lib/fail.js                         # did a shell output look like a failure? line rules, no bare "error"/"failed" (per-plugin copy)
-lib/state.js                        # per-session turn state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); remove()/sweep() drop it at session end
+lib/state.js                        # per-session turn state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); sweep() drops its files older than seven days
 lib/host.js                         # cwdOf(): the project dir from the event, else the host env var, else null
 lib/log.js                          # opt-in logger (per-plugin copy; plugins are self-contained)
 ```

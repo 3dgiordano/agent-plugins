@@ -6,7 +6,7 @@ Short answers to the questions people ask first, and to the assumptions that are
 
 ### Is this a framework?
 
-**No.** It is eight independent plugins. Each is a skill (a working discipline the agent loads) plus, where the host allows it, a few hooks that put a concrete fact in front of the agent at the moment it matters. You install the ones you want; they do not replace your agent, your prompts or your workflow. The repository also holds the bench that measures them.
+**No.** It is ten independent plugins. Each is a skill (a working discipline the agent loads) plus, where the host allows it, a few hooks that put a concrete fact in front of the agent at the moment it matters. You install the ones you want; they do not replace your agent, your prompts or your workflow. The repository also holds the bench that measures them.
 
 ### Is this a guardrail, a sandbox or a security tool?
 
@@ -60,6 +60,8 @@ Short, structured blocks in the agent's replies that tell you, at the moments th
 - what state the work is in and what it needs from you (`[HANDOFF]`)
 - what is left for the next session (`.agent/progress.md`)
 - whether a result is real or a stand-in (`[INTEGRITY CHECK]`)
+- whether it reviewed the result against the objective (`[ASPIRATION CHECK]`)
+- whether the change stayed inside the request (`[HYGIENE CHECK]`)
 
 The blocks follow a fixed format with English field names, so a person, a reviewer or another agent reads them the same way every time. The fields of each block are in [HOW-IT-WORKS.md](HOW-IT-WORKS.md#the-block-where-a-decision-becomes-visible).
 
@@ -86,7 +88,7 @@ They install independently; add more later.
 
 ### Will they slow the agent down or fill its context?
 
-A little, and it is measured. On Claude Code, one plugin added between 1 and 15 seconds and a few hundred tokens per task (EVIDENCE.md, "Cost"). The context cost is the skill: handoff, progress, coverage, executive, hygiene and aspiration put theirs in context at the start of every session and after a compaction (about 9,000 characters each, 5,400 for executive and 5,000 for hygiene; handoff, coverage and hygiene also in every subagent), the other four only when the agent loads them. Then one line each time a trigger fires, and the block the agent writes. The cost of all ten installed together is not measured yet. To see how often a trigger would fire on your own work, set the `*_LOG` variables and run `node scripts/calibrate.js`.
+A little, and it is measured. On Claude Code, one plugin added between 1 and 15 seconds and a few hundred tokens per task (EVIDENCE.md, "Cost"). The context cost is the skill: handoff, progress, coverage, executive, hygiene and aspiration put theirs in context at the start of every session and after a compaction (about 9,000 characters each, 5,400 for executive and 5,000 for hygiene), and in every subagent at its start; the other four only when the agent loads them, and persistence, epistemic and termination give a subagent the one-paragraph load message the main agent gets on its prompt. Then one line each time a trigger fires, and the block the agent writes. The cost of all ten installed together is not measured yet. To see how often a trigger would fire on your own work, set the `*_LOG` variables and run `node scripts/calibrate.js`.
 
 ### Do they send my code anywhere?
 
@@ -99,6 +101,10 @@ Only if you ask. Five plugins have an opt-in strict gate (`EPIMON_STRICT`, `TERM
 ### Can I turn off the notices?
 
 Yes, per plugin: `PERSISTMON_NOTICE=0`, `TERMMON_NOTICE=0`, `EPIMON_NOTICE=0`, `COVMON_NOTICE=0`, `HANDMON_NOTICE=0`, `PROGRESSMON_NOTICE=0` and `INTMON_NOTICE=0`. The agent still gets its reminder; you stop seeing the one-line notice. Notices appear on Claude Code and Codex only.
+
+### Do they work inside subagents?
+
+Yes, on Claude Code and Codex. A subagent gets each plugin's discipline at its start (integrity has none to give; its findings reach a subagent on its own edits), keeps its own record (its own counts, nudges and close), and its close is measured, never blocked. What it changed is the main agent's to answer for: the main agent is told, as counts and paths, what its subagents edited, stubbed or left with a fallback, and a subagent's own review or read never counts as the main agent's. On Cursor, whose subagent start takes no context, the plugins read no subagent id yet (whether its tool events carry one is not probed), so a subagent shares the conversation's record. The design is in bench/studies/subagents/IDENTITY.md.
 
 ### Does it work in languages other than English?
 

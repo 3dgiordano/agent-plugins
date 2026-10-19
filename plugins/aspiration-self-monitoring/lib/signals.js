@@ -71,43 +71,60 @@ function kindOf(toolName, toolInput) {
   return null;
 }
 
-function freshTurn(st) {
+function freshTurn(st, now) {
   st.edits = 0;
   st.reviews = 0;
   st.toReview = {};
+  // When this agent's turn began, and when it last reviewed what: a subagent's
+  // edits are weighed against these (delegated below).
+  st.turnStart = typeof now === 'number' ? now : Date.now();
+  st.reviewedAt = {};
+  st.lastRun = 0;
+  st.lastRender = 0;
 }
 
 function unreviewed(st) {
   return st && st.toReview && typeof st.toReview === 'object' ? Object.keys(st.toReview).length : 0;
 }
 
-// Record one tool call into the session state; returns its kind (or null).
-function observe(st, toolName, toolInput) {
+// Record one tool call into an actor's state (the main agent's or a subagent's,
+// lib/state.js); returns its kind (or null). `now` is the call's time.
+function observe(st, toolName, toolInput, now) {
   const kind = kindOf(toolName, toolInput);
   if (!kind) return null;
+  const at = typeof now === 'number' ? now : Date.now();
   if (!st.toReview || typeof st.toReview !== 'object') st.toReview = {};
+  if (!st.reviewedAt || typeof st.reviewedAt !== 'object') st.reviewedAt = {};
   const pending = st.toReview;
   let cleared = 0;
   const clear = (test) => {
     for (const k of Object.keys(pending)) if (test(k, pending[k])) { delete pending[k]; cleared += 1; }
   };
+  const reviewed = (k) => { if (k in st.reviewedAt || Object.keys(st.reviewedAt).length < MAX_SEEN) st.reviewedAt[k] = at; };
 
   if (kind === 'edit') {
     const f = norm(filePathOf(toolInput));
     st.edits = (st.edits || 0) + 1;
     clear((k) => same(k, f));
     if (Object.keys(pending).length < MAX_PENDING) pending[f] = mediumOf(f);
+    // Every file this actor edited and when, whatever it reviewed after: what
+    // a subagent changed is the parent's to review (delegated below).
+    if (!st.edited || typeof st.edited !== 'object') st.edited = {};
+    if (f in st.edited || Object.keys(st.edited).length < MAX_PENDING) st.edited[f] = { m: mediumOf(f), at };
     return kind;
   }
   if (kind === 'read') {
     const f = norm(filePathOf(toolInput));
     seen(st, f);
+    reviewed(f);
     clear((k, m) => m !== 'run' && same(k, f));
   } else if (kind === 'run') {
     const cmd = norm(commandOf(toolInput));
-    for (const tok of cmd.match(PATH_TOKEN) || []) seen(st, tok);
+    for (const tok of cmd.match(PATH_TOKEN) || []) { seen(st, tok); reviewed(tok); }
+    st.lastRun = at;
     clear((k, m) => m === 'run' || (base(k) && cmd.includes(base(k))));
   } else if (kind === 'render') {
+    st.lastRender = at;
     clear(() => true);
   }
   if (cleared) st.reviews = (st.reviews || 0) + 1;
@@ -144,4 +161,38 @@ function looked(st, dir) {
   return { read, files, more: files >= MAX_COUNT };
 }
 
-module.exports = { observe, freshTurn, kindOf, mediumOf, unreviewed, looked };
+/*
+ * What the main agent's subagents changed during its turn and it has not
+ * reviewed since. A subagent's change is the parent's to ship, so it counts as
+ * the parent's edit; a subagent's own read, run or render does not count as
+ * the parent's review - only the parent's look after the subagent's last edit
+ * of that file does, by the same media as observe(). Files already pending in
+ * the parent's own record are not counted twice.
+ *
+ * parent: the main agent's state; subs: the session's subagent states.
+ * Returns { edited, unreviewed }: counts of distinct files.
+ */
+function delegated(parent, subs) {
+  const p = parent || {};
+  const since = typeof p.turnStart === 'number' ? p.turnStart : 0;
+  const own = Object.keys(p.toReview || {});
+  const reviewedAt = p.reviewedAt || {};
+  const lookedAfter = (f, m, at) => {
+    if ((p.lastRender || 0) > at) return true;
+    if (m === 'run' && (p.lastRun || 0) > at) return true;
+    if (m === 'run') return Object.keys(reviewedAt).some((k) => reviewedAt[k] > at && base(f) && k.includes(base(f)));
+    return Object.keys(reviewedAt).some((k) => reviewedAt[k] > at && same(k, f));
+  };
+  const edited = new Set();
+  const open = new Set();
+  for (const s of subs || []) {
+    for (const [f, rec] of Object.entries((s && s.edited) || {})) {
+      if (!rec || typeof rec.at !== 'number' || rec.at < since) continue;
+      edited.add(f);
+      if (!own.some((k) => same(k, f)) && !lookedAfter(f, rec.m, rec.at)) open.add(f);
+    }
+  }
+  return { edited: edited.size, unreviewed: open.size };
+}
+
+module.exports = { observe, freshTurn, kindOf, mediumOf, unreviewed, looked, delegated };

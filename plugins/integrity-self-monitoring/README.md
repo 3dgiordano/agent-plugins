@@ -54,6 +54,7 @@ hooks read both, and say what the user would get.
 | | Claude Code / Codex | Cursor |
 |---|-------------|--------|
 | **Reader** — each edit and each shell command; a finding goes to the agent once | `PostToolUse`, no matcher → `additionalContext` | `postToolUse` → `additional_context` |
+| **Hand-back** — a subagent's findings, to the main agent once (0.2.0) | `PostToolUse` of the tool that ran the subagent → `additionalContext` | - (no subagent id read yet; not probed) |
 | **Close** — the `[INTEGRITY CHECK]` block and a dispute | `Stop` → the dispute to the user; `SubagentStop` → log only | `afterAgentResponse` → log only (a headless run does not fire it) |
 | **Cleanup** | `SessionEnd` | the first call of a conversation sweeps aged state |
 
@@ -193,7 +194,7 @@ marks) and how it was graded, so a dispute can be checked against both.
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 
 - **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed; and the file an edit tool has just written, when it is JavaScript or TypeScript product code inside the project and at most 1 MB, for the shapes listed under *What it reads*.
-- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `intmon_…`, removed at session end together with this plugin's files there older than seven days; only with `INTMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
+- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins/`, named `intmon_…`, kept for a resumed session and swept with this plugin's files there older than seven days; only with `INTMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
 - **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them. The case `keeps-the-result-real` ships a fixture project whose `docs/quotes.md` describes a fictional internal quotes service and the key it takes (`QUOTES_API_KEY`); no code in the plugin or the fixture reads that variable or calls that host.
 
 The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
@@ -214,10 +215,11 @@ Code) or `<project>/.cursor/logs/…` (Cursor); override with
 
 | Event | Fields | Meaning |
 |-------|--------|---------|
-| `signal` | `tool`, `said`, `logged` | a tool call brought a finding: `said` went to the agent, `logged` are the unmeasured shapes; each carries `file`, `line`, `kind` and `at`, the matched text (≤80 chars), which is kept here and never sent to the agent |
-| `outside` | `tool`, `paths` | a read, a search or a command named a path outside the project (log only) |
-| `stop` | `raised`, `block`, `disputes` | per final message: findings raised so far this session, the `[INTEGRITY CHECK]` fields as written, the disputes taken |
-| `subagent_stop` | same as `stop`, plus `agent` | a subagent's close: logged only |
+| `signal` | `actor` (`main` or a subagent's id), `tool`, `said`, `logged` | a tool call brought a finding: `said` went to the agent, `logged` are the unmeasured shapes; each carries `file`, `line`, `kind` and `at`, the matched text (≤80 chars), which is kept here and never sent to the agent |
+| `relay` | `said` | a subagent handed back: its findings not yet told to the main agent, now said to it |
+| `outside` | `actor`, `tool`, `paths` | a read, a search or a command named a path outside the project (log only) |
+| `stop` | `actor`, `raised`, `block`, `disputes` | per final message: findings raised so far this session, the `[INTEGRITY CHECK]` fields as written, the disputes taken |
+| `subagent_stop` | same as `stop`, plus `agent`, on the subagent's own record | a subagent's close: logged only |
 
 ```
 # how often is a finding said, and what does the close do with it?
@@ -225,6 +227,8 @@ node scripts/calibrate.js <project dir>
 ```
 
 ## Limits
+
+- **Subagents** (0.2.0) keep their own record. A finding in a subagent's edit or command is said to the subagent, which made it; when the subagent hands back, the main agent is told it once, marked as a subagent's work, and can answer it in its close like its own. Until the hand-back, the main agent does not know - a subagent still running has not been relayed. On Cursor, where the plugins read no subagent id yet (whether its tool events carry one is not probed), everything stays in one record as before.
 
 - JavaScript and TypeScript source only; a shortcut written through a shell
   command (a heredoc, `sed -i`) is not read as an edit.

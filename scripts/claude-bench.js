@@ -15,6 +15,9 @@
  *   --out <dir>    write under bench/results. scripts/bench.js passes the session slot.
  *   --merge        keep cases already in that directory and replace the ones run now
  *   --arm <a>      run one arm only (with | without): a probe, never stored as a score
+ *   --placebo      the WITH arm loads the plugin's placebo (scripts/placebo.js): the same
+ *                  hooks at the same moments, every message and the skill neutral text of
+ *                  the same length. A session of its own, against the without arm
  *   --timeout-min  per-invocation ceiling; default from the suite row, else 15
  *   --idle-min     stop an invocation that has written nothing for this long
  *   --no-node-guard  let the agent's `node` run unfenced (evallib nodeGuard)
@@ -100,7 +103,7 @@ const AGENT_CLI_DRIVER = true;
 
 const { findCli } = require('./claude-eval.js');
 const { pluginCopy, killTree } = require('./cursor-eval.js');
-const { reached, seed, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, auditStream, quote, MARKER, nodeGuard, permissionFlags, neutralDir } = require('./evallib.js');
+const { reached, seed, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, auditStream, quote, MARKER, nodeGuard, permissionFlags, neutralDir, assuranceTally, tallyAssurance, assuranceLine, assuranceFields } = require('./evallib.js');
 const { childEnv } = require('./integrity.js');
 const { ROOT, loadCases } = require('./benchlib.js');
 const { benchmarkVersion, pluginVersions } = require('./benchsession.js');
@@ -272,6 +275,22 @@ function run(bin, args, env, input, cwd, limits) {
 let witness = null;
 // --skill-variant: the SKILL.md the WITH arm loads in place of the plugin's own, or null.
 let skillVariant = null;
+// --placebo: the WITH arm loads the plugin's placebo copy (scripts/placebo.js).
+let placebo = false;
+const placeboCopies = new Map();
+function placeboCopy(name) {
+  if (placeboCopies.has(name)) return placeboCopies.get(name);
+  const dir = path.join(neutralDir(), name);
+  fs.cpSync(pluginCopy(name), dir, { recursive: true });
+  require('./placebo.js').placeboize(dir, name);
+  if (!placeboCopies.size) process.on('exit', () => { for (const d of placeboCopies.values()) { try { fs.rmSync(path.dirname(d), { recursive: true, force: true }); } catch (_) {} } });
+  placeboCopies.set(name, dir);
+  return dir;
+}
+// The plugin the WITH arm loads.
+function armPlugin(c) {
+  return placebo ? placeboCopy(c.plugin) : pluginCopy(c.plugin, skillVariant && skillVariant.file);
+}
 // The folder Claude Code keeps a session's transcript and tool results in:
 // ~/.claude/projects/<the working directory, every other character a dash>.
 // One per workspace, so one per run.
@@ -435,7 +454,7 @@ function argsFor(c, withPlugin, model, settings) {
   a.push('--thinking-display', 'summarized', '--forward-subagent-text');
   if (model) a.push('--model', model.cli.model);
   if (model && model.cli.effort) a.push('--effort', model.cli.effort);
-  if (withPlugin) a.push('--plugin-dir', pluginCopy(c.plugin, skillVariant && skillVariant.file));
+  if (withPlugin) a.push('--plugin-dir', armPlugin(c));
   a.push('--plugin-dir', claudeWitness().dir);
   return a; // the prompt goes on stdin
 }
@@ -597,6 +616,7 @@ function rescore(dir) {
     const score = { with: 0, without: 0 };
     const valid = { with: 0, without: 0 };
     const blocks = { with: 0, without: 0 };
+    const assured = assuranceTally();
     const cost = { with: blankCost(), without: blankCost() };
     let dead = 0;
     let contaminated = 0;
@@ -637,12 +657,15 @@ function rescore(dir) {
       valid[r.arm] += 1;
       if (graded.pass) score[r.arm] += 1;
       if (sideChannel(c, finalMessage(shaped) || text, copy).seen) blocks[r.arm] += 1;
+      tallyAssurance(assured, r.arm, c.plugin, finalMessage(shaped) || text, graded.pass);
     }
     console.log(`${key}  with ${score.with}/${valid.with}   without ${score.without}/${valid.without}${dead ? `   ${dead} dead` : ''}${contaminated ? `   ${contaminated} contaminated` : ''}`);
+    if (assuranceLine(c.plugin, assured)) console.log(assuranceLine(c.plugin, assured));
     if (!valid.with || !valid.without) continue;
     scored.push({
       case: key, with: score.with, without: score.without, validWith: valid.with, validWithout: valid.without,
       blocksWith: blocks.with, blocksWithout: blocks.without,
+      ...assuranceFields(c.plugin, assured),
       guard: (record.guards || {})[key] || null,
       cost: { with: summarizeCost(cost.with), without: summarizeCost(cost.without) },
     });
@@ -749,6 +772,12 @@ function main() {
   }
   const guard = guardArg ? (guardArg === 'none' ? 'none' : path.relative(ROOT, path.resolve(guardArg)).split(path.sep).join('/')) : 'per case';
   const variantName = val('--skill-variant', null);
+  placebo = has('--placebo');
+  if (placebo && variantName) {
+    console.error('--placebo and --skill-variant both replace what the WITH arm loads: one at a time');
+    process.exitCode = 1;
+    return;
+  }
   if (variantName) {
     const plugins = [...new Set(found.map((c) => c.plugin))];
     const file = plugins.length === 1 ? path.join(ROOT, 'evals', 'variants', plugins[0], `${variantName}.md`) : null;
@@ -776,7 +805,7 @@ function main() {
     const bin = cli ? cli.bin : 'claude';
     for (const c of found) {
       for (const withPlugin of [true, false]) {
-        console.log(`${withPlugin ? 'with   ' : 'without'}  ${quote(bin)} ${argsFor(c, withPlugin, model, '<settings file>').map(quote).join(' ')}   < bench/${c.plugin}/${c.id}/prompt.md`);
+        console.log(`${withPlugin ? (placebo ? 'placebo' : 'with   ') : 'without'}  ${quote(bin)} ${argsFor(c, withPlugin, model, '<settings file>').map(quote).join(' ')}   < bench/${c.plugin}/${c.id}/prompt.md`);
       }
     }
     console.log(`\n${found.length} case(s) x 2 arms x ${runs} run(s) = ${found.length * 2 * runs} invocations`);
@@ -796,7 +825,7 @@ function main() {
   }
 
   const resultsRoot = path.resolve(ROOT, 'bench', 'results');
-  const outDir = path.resolve(val('--out', '') || path.join(resultsRoot, `claude-${model.id}-${new Date().toISOString().replace(/[:.]/g, '-')}`));
+  const outDir = path.resolve(val('--out', '') || path.join(resultsRoot, `claude-${model.id}${placebo ? '-placebo' : ''}-${new Date().toISOString().replace(/[:.]/g, '-')}`));
   const outRel = path.relative(resultsRoot, outDir);
   if (outRel.startsWith('..') || path.isAbsolute(outRel)) {
     console.error('--out must stay under bench/results');
@@ -848,6 +877,8 @@ function main() {
     nodeGuard: fence ? permissionFlags().join(' ') : false,
     pluginEnv: Object.keys(pluginEnv).length ? pluginEnv : null,
     skillVariant: skillVariant ? { plugin: skillVariant.plugin, name: skillVariant.name, sha256: skillVariant.sha256 } : null,
+    // The WITH arm of this session is the placebo, not the plugin (bench/studies/placebo/DESIGN.md).
+    placebo: placebo ? { sha256: require('./placebo.js').placeboHash() } : null,
     tier: model.tier,
     modelLine: model.line,
     reasoningLevel: model.reasoning,
@@ -863,12 +894,14 @@ function main() {
   console.log(`Claude Code ${agentVersion}`);
   console.log(`model ${model.line} · ${model.reasoning}: --model ${model.cli.model} --effort ${model.cli.effort}`);
   console.log('outcome bench - the workspace is the score. "hooks ran" says whether the witness SessionStart fired in each arm.\n');
+  if (placebo) console.log('the WITH arm of this session is the placebo: the plugin\'s hooks, its messages and skill as neutral text of the same length (scripts/placebo.js)\n');
 
   for (const c of found) {
     if (stopped) break;
     const score = { with: 0, without: 0 };
     const metric = { with: 0, without: 0 };
     const blocks = { with: 0, without: 0 };
+    const assured = assuranceTally();
     const valid = { with: 0, without: 0 };
     const costCase = { with: blankCost(), without: blankCost() };
     const hooksRan = { with: 0, without: 0 };
@@ -905,7 +938,7 @@ function main() {
       const own = runFor(c);
       // No HOME in it: the misread trace goes to a file of this invocation's own.
       const trace = misreadTrace(own.env);
-      const plug = withPlugin ? path.dirname(pluginCopy(c.plugin, skillVariant && skillVariant.file)) : null;
+      const plug = withPlugin ? path.dirname(armPlugin(c)) : null;
       // The run's own temp (its TEMP) is where a /tmp path that is not the
       // workspace goes (scripts/tmp-paths.js): node may write there too.
       const nodeFence = fence ? nodeGuard(ws, [plug, claudeWitness().dir], [own.env.TEMP]) : null;
@@ -989,6 +1022,7 @@ function main() {
       metric[arm] += graded.metric;
       metricMax = graded.metricMax;
       const side = sideChannel(c, finalMessage(shaped) || parsed.text, ws);
+      tallyAssurance(assured, arm, c.plugin, finalMessage(shaped) || parsed.text, graded.pass);
       dropWorkspace(ws);
       sideLabel = side.label;
       if (side.seen) blocks[arm] += 1;
@@ -1018,6 +1052,7 @@ function main() {
     console.log(`  outcome    with ${score.with}/${valid.with}   without ${score.without}/${valid.without}`);
     console.log(`  metric avg with ${avg(metric.with, valid.with)}/${metricMax == null ? '?' : metricMax}   without ${avg(metric.without, valid.without)}/${metricMax == null ? '?' : metricMax}`);
     console.log(`  ${sideLabel.padEnd(14)} with ${blocks.with}/${valid.with}   without ${blocks.without}/${valid.without}   (not the score)`);
+    if (assuranceLine(c.plugin, assured)) console.log(assuranceLine(c.plugin, assured));
     console.log(`  cost       with ${fmtCost(costCase.with)}   without ${fmtCost(costCase.without)}   ${fmtDelta(costCase.with, costCase.without)}   (not the score)`);
     if (dead) console.log(`  ${dead} dead run(s) excluded`);
     if (contaminated) console.log(`  ${contaminated} contaminated run(s) excluded`);
@@ -1029,6 +1064,7 @@ function main() {
       validWithout: valid.without,
       blocksWith: blocks.with,
       blocksWithout: blocks.without,
+      ...assuranceFields(c.plugin, assured),
       guard: c.guardFile,
       cost: { with: summarizeCost(costCase.with), without: summarizeCost(costCase.without) },
     });

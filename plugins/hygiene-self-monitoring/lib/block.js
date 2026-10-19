@@ -56,13 +56,16 @@ function named(group, requestText) {
   });
 }
 
+// File by file, with the lines; a file a subagent changed says so (lib/signals.js reachedWith).
 function where(groups) {
   const byFile = new Map();
+  const bySub = new Set();
   for (const g of groups) {
     if (!byFile.has(g.file)) byFile.set(g.file, []);
     if (g.line) byFile.get(g.file).push(g.line);
+    if (g.by === 'subagent') bySub.add(g.file);
   }
-  return [...byFile].map(([f, ls]) => (ls.length ? `${f} line${ls.length > 1 ? 's' : ''} ${ls.join(', ')}` : f)).join('; ');
+  return [...byFile].map(([f, ls]) => (ls.length ? `${f} line${ls.length > 1 ? 's' : ''} ${ls.join(', ')}` : f) + (bySub.has(f) ? ', by a subagent' : '')).join('; ');
 }
 
 /*

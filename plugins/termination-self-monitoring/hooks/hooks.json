@@ -11,6 +11,16 @@
         ]
       }
     ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/term-subagent-start.js\""
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [

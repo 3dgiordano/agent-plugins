@@ -115,7 +115,10 @@ questions — so the design is agreed before code is written.
    (the ten moments, which one first, plugins), `docs/HOW-IT-WORKS.md` (the
    questions and the blocks), `docs/FAQ.md` (what you get, which one first),
    `docs/RESEARCH.md` (its related work), and `CHANGELOG.md` under
-   *Unreleased*.
+   *Unreleased*. Every count of the collection changes too ("N independent
+   plugins", "all N installed", "the N plugins", the canonical cases in
+   `bench/README.md`); `scripts/test.js` fails on one that does not match
+   `plugins/`.
 
 ## Changing a plugin
 

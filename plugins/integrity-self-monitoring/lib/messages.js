@@ -55,6 +55,20 @@ function nudge(signals) {
   return `[integrity self-monitoring] ${lines.join(' ')} ${LOAD}`;
 }
 
+/*
+ * For the main agent, when a subagent hands back: what the subagent's work
+ * brought in, which was said to the subagent and not yet to the agent that
+ * will hand the result to the user.
+ */
+function relayNudge(signals) {
+  const lines = signals.map((s) => { const [what, then] = says(s); return `${what}: ${then}.`; });
+  return `[integrity self-monitoring] A subagent's work in this session: ${lines.join(' ')} You hand this result over, so it is yours to check. ${LOAD}`;
+}
+
+function relayNotice(signals) {
+  return host.notice('integrity self-monitoring', signals.map((s) => { const [what, then] = says(s); return `a subagent's work: ${what}: ${then}`; }), 'the agent is asked whether the result is real');
+}
+
 // For the person: what was written and what it means for them. host.notice()
 // cuts a finding at its first " - ", so the consequence joins with a colon:
 // it is the news.
@@ -71,4 +85,4 @@ function disputeNotice(taken) {
   return host.notice('integrity self-monitoring', [`the agent answered that this is what you asked for: ${parts.join('; ')}`], 'check it against what you asked');
 }
 
-module.exports = { LOAD, SKILL, nudge, notice, disputeNotice, says };
+module.exports = { LOAD, SKILL, nudge, notice, relayNudge, relayNotice, disputeNotice, says };

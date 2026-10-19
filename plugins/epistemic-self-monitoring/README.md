@@ -86,6 +86,10 @@ and only then decide whether blocking is worth a forced extra turn per
 closure — and whether it raised the rate of *verification* or only the rate of
 *tags*.
 
+## Subagents
+
+From 0.4.0 each agent keeps its own command cadence: a subagent's shell commands are counted for it, its reminders go to it, and they neither spend nor fill the main agent's. A subagent has no prompt of its own, so it gets the load the main agent gets on its prompts at its start (`SubagentStart`). Its close is measured only. On Cursor, where the plugins read no subagent id yet (whether its tool events carry one is not probed), everything stays in one count as before.
+
 ## What the user sees
 
 The hooks speak to the model; without a notice the user sees nothing unless
@@ -110,7 +114,7 @@ hooks), so nothing shows there. Off with `EPIMON_NOTICE=0`.
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 
 - **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed.
-- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `epimon_…`, removed at session end together with this plugin's files there older than seven days; only with `EPIMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
+- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins/`, named `epimon_…`, kept for a resumed session and swept with this plugin's files there older than seven days; only with `EPIMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
 - **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them.
 
 The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
@@ -133,8 +137,8 @@ Code) or `<project>/.cursor/logs/…` (Cursor); override with
 |-------|--------|---------|
 | `prompt` | `turn`, `load`, `retrospective` | cadence decision per user prompt (Claude Code) |
 | `session_start` | — | once per Cursor session |
-| `observe` | `shell`, `failed`, `emitted` | per shell command: did the nudge fire |
-| `close` | `blocks`, `tags`, `violations`, `strict`, `blocked` | per final message: closure scan result |
+| `observe` | `actor`, `shell`, `failed`, `emitted` | per shell command: did the nudge fire |
+| `close` | `actor`, `blocks`, `tags`, `violations`, `strict`, `blocked` | per final message: closure scan result |
 | `subagent_close` | same as `close`, plus `agent` | a subagent's final message. Measured only: never blocks even under `EPIMON_STRICT`, and never parks a retrospective |
 | `stop` | `status`, `violations`, `blocked` | Cursor stop decision |
 
@@ -163,8 +167,9 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
 skills/epistemic-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact), UserPromptSubmit, PostToolUse(Bash), Stop, SubagentStop, SessionEnd
+hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact), SubagentStart, UserPromptSubmit, PostToolUse(Bash), Stop, SubagentStop, SessionEnd
 hooks/epi-prompt.js
+hooks/epi-subagent-start.js        # a subagent, which has no prompt of its own, gets the load at its start
 hooks/epi-observe.js
 hooks/epi-stop.js
 hooks/epi-session-start.js          # a resumed or compacted session loads the discipline again
@@ -176,7 +181,7 @@ cursor/epi-response-cursor.js
 cursor/epi-stop-cursor.js
 lib/scan.js                        # [EPISTEMIC CLOSE] block parser + rules
 lib/messages.js                    # reminder texts shared by both adapters
-lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); remove()/sweep() drop it at session end
+lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); sweep() drops its files older than seven days
 lib/host.js                        # cwdOf(): the project dir from the event, else the host env var, else null
 lib/fail.js                        # did a shell output look like a failure? line rules, no bare "error"/"failed" (per-plugin copy)
 lib/log.js                         # opt-in logger (per-plugin copy; plugins are self-contained)

@@ -52,6 +52,25 @@ function observe(turn, toolName, toolInput) {
 }
 
 /*
+ * A subagent handed back to the main agent (the main agent's PostToolUse of the
+ * tool that ran it): its edits since the last hand-back join the main agent's
+ * turn, so a turn whose work was delegated still asks whether the ledger moved;
+ * a ledger edit by the subagent counts as the ledger written. `done` is what
+ * was already folded from this subagent (kept in the main agent's record).
+ */
+function relay(turn, sub, done) {
+  if (!turn || !sub || !done) return;
+  const gain = (now, then) => Math.max(0, (now || 0) - (then || 0));
+  turn.tools += gain(sub.tools, done.tools);
+  turn.edits += gain(sub.edits, done.edits);
+  if (sub.ledgerEdited && !done.ledger) turn.ledgerEdited = true;
+  Object.assign(done, { tools: sub.tools || 0, edits: sub.edits || 0, ledger: !!sub.ledgerEdited });
+}
+
+// The tool that runs a subagent, as the main agent's PostToolUse names it.
+const SUBAGENT_TOOL_RE = /^(?:agent|task)$/i;
+
+/*
  * stale(turn, ins, turnStartMs, flaggedMtime) -> { stale, fire }
  *
  *   stale  the ledger has open items and this turn's edits did not touch it
@@ -159,4 +178,4 @@ function spansSessions(prompt) {
   return t.split(/[.!?¿¡\n]+/).some((s) => BACK_RE.some((re) => re.test(s)) && RESUME_RE.some((re) => re.test(s)));
 }
 
-module.exports = { freshTurn, observe, editsLedger, stale, summary, spansSessions, EDIT_TOOL_RE };
+module.exports = { freshTurn, observe, relay, editsLedger, stale, summary, spansSessions, EDIT_TOOL_RE, SUBAGENT_TOOL_RE };

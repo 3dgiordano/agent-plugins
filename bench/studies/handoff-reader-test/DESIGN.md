@@ -109,7 +109,7 @@ With 5 closes per cell this is a pilot: a contradiction in direction, or a ceili
 - The cases are written by the plugin's author; outside cases remain the strongest remedy.
 - Model readers are not owners: they read carefully and literally, which may make the unaided close look better or worse than it reads to a person in a hurry. The human subset is there to say which.
 - "Read correctly" is the reader's understanding, not the owner's eventual decision; the study does not follow what the owner then does.
-- A long session built in a harness is still not one of the owner's sessions, where the 30 observed closes came from.
+- A long session built in a harness is still not a real session, where the observed closes came from.
 
 ## Review, 2026-10-02
 

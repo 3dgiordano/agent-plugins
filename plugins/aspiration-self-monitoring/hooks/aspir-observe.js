@@ -14,7 +14,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
 const { observe } = signals;
-const { cwdOf } = require('../lib/host.js');
+const { cwdOf, actorOf } = require('../lib/host.js');
 
 const HOST = 'claude';
 
@@ -22,13 +22,16 @@ function main(raw) {
   let data = {};
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
   const sid = data.session_id || 'nosession';
+  // A subagent's tool call goes to the subagent's own record: its edits are
+  // rolled up at the parent's close, its reviews never count as the parent's.
+  const actor = actorOf(data);
   let kind = null;
   let unreviewed = 0;
   state.update(HOST, sid, (st) => {
     kind = observe(st, data.tool_name, data.tool_input);
     unreviewed = signals.unreviewed(st);
-  });
-  if (kind) logEvent(cwdOf(data), { event: 'observe', session: sid, kind, unreviewed });
+  }, actor);
+  if (kind) logEvent(cwdOf(data), { event: 'observe', session: sid, actor, kind, unreviewed });
 }
 
 let buf = '';

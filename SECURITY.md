@@ -12,7 +12,8 @@ Every hook in this repository, on every host:
   name, tool input/output, the assistant's final message) and treats it as
   **data** — it is never evaluated, executed, or passed to a shell;
 - writes at most two places: a small per-session state file under
-  `<os-temp-dir>/3dgiordano-agent-plugins/`, and — only when the corresponding
+  `<os-temp-dir>/3dgiordano-agent-plugins/` (on Claude Code and Codex, one
+  more per subagent of the session, its name ending `--<agent id>`), and — only when the corresponding
   `*_LOG` env var is set — a JSONL log under `<project>/.claude/logs/` or
   `<project>/.cursor/logs/`, rotated at ~256 KB. One directory, named after the
   marketplace, so you can see what put it there, list it, and remove it whole.
@@ -32,7 +33,10 @@ Every hook in this repository, on every host:
   `epimon_`, `execmon_`, `handmon_`, `hygmon_`, `intmon_`, `persistmon_`,
   `progmon_`, `termmon_`) whose mtime is more than
   seven days old. That one directory is the only one a hook enumerates, it
-  never deletes a path outside it, and it never touches the log files;
+  never deletes a path outside it, and it never touches the log files. One
+  more deletion, of a file it wrote: `executive-self-monitoring` removes a
+  subagent's document reads (`execmon_…--<agent id>.reads.json`) when that
+  subagent stops;
 - prints a short, fixed text (or JSON wrapping it) to stdout for the host to
   inject as context, and on a finding one line for the host to show the user
   (`systemMessage`), or nothing;
@@ -85,19 +89,35 @@ a project file, stated here so they can be checked:
   of each document the agent read or wrote with a file tool (`.md`,
   `.markdown`, `.txt`, `.rst`, `.adoc`), at most 50 per session; never its
   text. Its message names that path and that it changed on disk since the
-  agent read it. It never writes the file and reads no other path.
+  agent read it. For the plan write-back it also reads the opening words of
+  the owner's prompt (a pick or an approval); at the close of a turn, the end
+  of the session transcript the host keeps (at most 2 MB, the agent's text
+  since the owner's prompt), for the `[PLAN CHECK]` blocks' `Plan` path and
+  decision; when no block named a file, the `Plan:` line of
+  `.agent/progress.md` (that line only); and the modification time of the
+  file either names. It keeps
+  that path, a count and a time, never text, and its line names no file: it
+  says only that the plan the agent works from has not changed in three of
+  the owner's decisions, or since a `revise-plan`. It never writes a file and
+  reads no other path.
 
 Six plugins also read **their own skill file** - handoff, progress, coverage,
 executive, hygiene and aspiration, `<plugin install dir>/skills/<name>/SKILL.md` -
 and emit its text, without the frontmatter, when a session starts, after a
-`/clear` or a compaction, and (handoff, coverage and hygiene, Claude Code and
-Codex) when a subagent starts. That text is the plugin's own, shipped with it; no project file, tool
+`/clear` or a compaction, and (Claude Code and Codex) when a subagent starts.
+Persistence, epistemic and termination give a subagent, at its start, the same
+fixed load message their prompt hook gives the main agent. That text is the plugin's own, shipped with it; no project file, tool
 result or prompt reaches it. Over 9,800 characters nothing is sent.
 
 Hooks also run at the close of a **subagent** turn (`SubagentStop`), where they
-only measure: the scan result goes to the opt-in log and nothing else. They
-never block a subagent's stop, even with a strict gate enabled, and never carry
-a finding from a subagent into the parent's next turn.
+only measure: the scan result goes to the opt-in log. They never block a
+subagent's stop, even with a strict gate enabled, and never park a subagent's
+close for the parent's next prompt. What a subagent changed is the main agent's
+to answer for, so it reaches the main agent in its own messages, as counts,
+paths and line numbers: aspiration and hygiene at the main agent's close,
+integrity, coverage, persistence and progress when the subagent hands back.
+Progress also keeps the forward commitments a subagent's final message made,
+for the main agent's sweep (see *Scope notes*).
 
 The eval scripts under `scripts/` are **not** hooks and are not covered by the
 list above — `scripts/cursor-eval.js` starts the Cursor Agent CLI on purpose.
@@ -154,7 +174,9 @@ plugin (see each `plugin.json`); the repository release lists them.
   block, the trigger phrase (≤80 chars) and the `Reason` / `Decision` values
   of a termination block, the deferral phrase (≤80 chars) and the part names
   of a coverage block, the offer / fork / question phrase (≤80 chars) and the
-  `Status` value of a handoff block; the completion phrase (≤80 chars) and a
+  `Status` value of a handoff block; a sentence (≤140 chars) committing to a
+  later act in this session, for progress's sweep - from the agent's own final
+  message or from that of a subagent it started, marked as the subagent's; the completion phrase (≤80 chars) and a
   malformed `Remainder` value (≤40 chars) of an aspiration block, with the
   count of edited files nobody reviewed since their change (aspiration reads a
   tool's name, the path it names and a shell command's text to match them,
