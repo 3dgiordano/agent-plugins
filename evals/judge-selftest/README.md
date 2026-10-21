@@ -42,7 +42,7 @@ reference, the criteria a file shares have one text. `scripts/test.js` runs
 the same check.
 
 ```bash
-node scripts/judge-selftest.js --run --host claude --model sonnet-5-high
+node scripts/judge-selftest.js --run --host claude --model opus-5.5-high
 ```
 
 Judges the references through the same driver, prompt and isolation as a

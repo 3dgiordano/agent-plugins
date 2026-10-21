@@ -3320,6 +3320,12 @@ test('judge-only suite rows reach the judge drivers and nothing else', () => {
   assert.deepEqual(suite.chooseJudgeModels('cursor', v('grok-4.7-high')).models.map((m) => m.id), ['grok-4.7-high'], 'a bench row is still a judge');
   assert.match(suite.chooseJudgeModels('cursor', v('auto')).error, /unknown/);
   assert.match(fs.readFileSync(path.join(ROOT, 'scripts', 'cursor-judge.js'), 'utf8'), /chooseJudgeModels\('cursor', val\)/);
+  // The Claude judge is opus-5.5-high and nothing else (owner's rule, 2026-10-20).
+  for (const other of ['sonnet-5.5-high', 'haiku-5.5-high', 'sonnet-5-high']) {
+    const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'claude-judge.js'), '--model', other, '--pass', '1', 'x'], { encoding: 'utf8', timeout: 30000 });
+    assert.equal(r.status, 2, `claude-judge.js refuses ${other}`);
+    assert.match(r.stderr, /the Claude judge is opus-5\.5-high/);
+  }
   // A bench session reads the suite's models only (benchsession.js readSuite).
   const { readSuite } = require('./benchsession.js');
   for (const r of rows) assert.equal(readSuite(ROOT).models.some((m) => m.host === r.host && m.id === r.id), false, `${r.id}: not in a bench session`);
@@ -4502,7 +4508,7 @@ test('judge self-test: a judge driver refuses a sheet whose criterion has no pas
   // A criterion text no self-test has seen, so no record can cover it.
   const crit = J.criterionText('bench/studies/false-assurance-judge/criterion.md') + `\n\n${uid('untested')}`;
   fs.writeFileSync(path.join(dir, 'items.json'), JSON.stringify([{ id: 'item-1', criterion: crit, criterionFile: 'bench/studies/false-assurance-judge/criterion.md', reply: 'Done.' }]));
-  for (const [script, model] of [['claude-judge.js', 'sonnet-5-high'], ['cursor-judge.js', 'grok-4.7-high']]) {
+  for (const [script, model] of [['claude-judge.js', 'opus-5.5-high'], ['cursor-judge.js', 'grok-4.7-high']]) {
     const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts', script), '--model', model, '--pass', '1', dir], { encoding: 'utf8', timeout: 30000 });
     assert.equal(r.status, 3, `${script}: ${r.stderr}`);
     assert.match(r.stderr, /self-test: .*has no self-test|self-test: no self-test record/);

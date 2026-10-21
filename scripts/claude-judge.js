@@ -6,7 +6,7 @@
  * wrote - each reply already blinded, with its case's written criterion - and
  * asks the model for pass or fail on each, one `claude -p` per item.
  *
- *   node scripts/claude-judge.js --model sonnet-5-high --pass 1 [--prereg <file>] [--skip-selftest] <dir under evals/results>
+ *   node scripts/claude-judge.js [--model opus-5.5-high] --pass 1 [--prereg <file>] [--skip-selftest] <dir under evals/results>
  *
  * Writes judges/<model>__pass<k>.json and .run.json beside the sheet;
  * `node scripts/blind-labels.js --agree <dir>` reads every judge there.
@@ -33,6 +33,7 @@ const ROOT = path.resolve(__dirname, '..');
 const { findCli, run } = require('./claude-eval.js');
 const { parseClaude, cursorShape } = require('./claude-bench.js');
 const { chooseModels } = require('./suite.js');
+const JUDGE = 'opus-5.5-high';
 const { scratchWorkspace, dropWorkspace, isolatedHome, dropHome, auditStream } = require('./evallib.js');
 const { childEnv } = require('./integrity.js');
 const J = require('./judgelib.js');
@@ -51,14 +52,16 @@ function main() {
   const dir = argv.filter((x, i) => !x.startsWith('--') && !flags.has(argv[i - 1]))[0];
   const pass = Number(val('--pass', '1'));
   const prereg = val('--prereg', null);
-  const picked = chooseModels('claude', val);
-  if (picked.error) { console.error(picked.error); process.exit(2); }
-  if (!dir || picked.models.length !== 1 || !(pass >= 1)) {
-    console.error(`usage: node scripts/claude-judge.js --model <${(picked.known || []).map((m) => m.id).join(' | ')}> --pass <k> [--prereg <file>] [--skip-selftest] <dir under evals/results>`);
+  // The Claude judge is one model, for its judgement (owner's rule, 2026-10-20).
+  const asked = val('--model', JUDGE);
+  if (asked !== JUDGE) { console.error(`the Claude judge is ${JUDGE}, not "${asked}"`); process.exit(2); }
+  const picked = chooseModels('claude', () => null).known.filter((m) => m.id === JUDGE);
+  if (!dir || picked.length !== 1 || !(pass >= 1)) {
+    console.error(`usage: node scripts/claude-judge.js [--model ${JUDGE}] --pass <k> [--prereg <file>] [--skip-selftest] <dir under evals/results>`);
     process.exit(2);
   }
   if (!path.resolve(dir).startsWith(path.join(ROOT, 'evals', 'results') + path.sep)) { console.error('the directory must be under evals/results'); process.exit(2); }
-  const model = picked.models[0];
+  const model = picked[0];
   const items = JSON.parse(fs.readFileSync(path.join(dir, 'items.json'), 'utf8'));
   // The judge applies a criterion only after passing its self-test (evals/judge-selftest/README.md).
   const gate = J.selftestGate(items, 'claude', model.id);

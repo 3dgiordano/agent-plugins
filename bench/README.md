@@ -66,7 +66,7 @@ This bench is not part of `node scripts/test.js` or CI. Run it when you want a n
 | Family | Models and reasoning | Outcome driver |
 | --- | --- | --- |
 | Cursor | `composer-2.5` Default, `cursor-grok-4.6-high` High, `grok-4.7-high` High | `scripts/cursor-bench.js` |
-| Claude | `sonnet-5-high`, `opus-5-high`, `opus-5.5-high` | `scripts/claude-bench.js` |
+| Claude | `haiku-5.5-high`, `sonnet-5.5-high`, `opus-5.5-high` | `scripts/claude-bench.js` |
 | Codex | `gpt-5.6-luna-high`, `gpt-5.6-sol-high`, `gpt-6-astra-high` | not connected |
 
 Cursor and Claude have outcome drivers; Codex does not yet (`scripts/codex-eval.js` scores the discipline block only, and `scripts/bench.js` will not start a Codex bench). The ids are the chart names. The Claude driver runs each invocation with `--restricted --strict-mcp-config`, an allowlisted environment and its own TEMP: no user, project or local settings file, installed plugin or MCP server reaches either arm, and the login stays where it is (a scratch HOME, as on Cursor, hides it on Windows: Cursor keeps its login in `%APPDATA%`, Claude beside its plugins in the profile's `.claude`). `--probe` checks the login, what loaded, the tools, the witness hook and the node grant. Thinking blocks carry a summary of the reasoning (`--thinking-display summarized`; the API returns no fuller text), which the audit reads as it reads Cursor's. The driver keeps each run's session transcript beside its stream (`node scripts/claude-hooks.js <run dir>` reads what every hook said).
@@ -76,7 +76,7 @@ Pick a host and the models for one stage. Each model writes its own `bench/resul
 ```
 node scripts/bench.js --dry-run --host cursor --models composer-2.5,grok-4.7-high --runs 3
 node scripts/bench.js --isolate --runs 3 --host cursor --models cursor-grok-4.6-high
-node scripts/bench.js --host claude --models sonnet-5-high
+node scripts/bench.js --host claude --models sonnet-5.5-high
 ```
 
 `--all` means every model of that host. It refuses the host when any selected model has no outcome driver.

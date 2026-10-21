@@ -15,7 +15,8 @@
  * reference stays out of the workspace (files/): only the check reads it.
  *
  * nepal(opts) also builds the fixtures' variants: a moved tip or notch, a
- * thinner border, another number of rays, the border as a stroke.
+ * thinner border, another number of rays, the border as a stroke, a smaller
+ * sun, the moon's disc as a half-disc above a crimson gap.
  */
 
 const fs = require('fs');
@@ -48,7 +49,7 @@ const MOON = { cx: 0, cy: 29.045, r: 5.56106 };
 const SUN = { cx: 0, cy: 58.787, r: 8.1434 };
 
 function nepal(opts) {
-  const o = Object.assign({ tipY: 37.5735931288, notchY: 20, border: 5.165 / 2, moonRays: 12, sunRays: 12, sunCy: SUN.cy, sunR: SUN.r, stroke: false }, opts);
+  const o = Object.assign({ tipY: 37.5735931288, notchY: 20, border: 5.165 / 2, moonRays: 12, sunRays: 12, sunCy: SUN.cy, sunR: SUN.r, stroke: false, moonHalf: false }, opts);
   // The two pennants as one outline: top corner, upper tip, the notch where
   // the lower pennant's edge meets the upper one's foot, lower tip, bottom corner.
   const pen = [[-15, 0], [45, o.tipY], [-15 + (o.tipY - o.notchY), o.tipY], [45, 80], [-15, 80]];
@@ -66,7 +67,10 @@ function nepal(opts) {
   for (let k = 0; k < o.sunRays; k += 1) sunRays.push(e.map((q) => rot(q, (k * 360) / o.sunRays)));
   const body = (rays, c) => [`<circle cx="${c.cx}" cy="${r6(c.cy)}" r="${r6(c.r)}" fill="#FFFFFF"/>`]
     .concat(rays.map((ray) => `<polygon points="${pts(ray.map(([x, y]) => [x * c.r + c.cx, y * c.r + c.cy]))}" fill="#FFFFFF"/>`));
-  shapes.push(...body(moonRays, MOON), ...body(sunRays, { cx: SUN.cx, cy: o.sunCy, r: o.sunR }));
+  const moon = body(moonRays, MOON);
+  // The moon's disc as its upper half only: a crimson gap opens between it and the crescent.
+  if (o.moonHalf) moon[0] = `<path d="M ${-MOON.r},${MOON.cy} A ${MOON.r},${MOON.r} 0 0,1 ${MOON.r},${MOON.cy} Z" fill="#FFFFFF"/>`;
+  shapes.push(...moon, ...body(sunRays, { cx: SUN.cx, cy: o.sunCy, r: o.sunR }));
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEWBOX}">\n  ${shapes.join('\n  ')}\n</svg>\n`;
 }
 

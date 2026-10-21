@@ -1,6 +1,6 @@
 {
   "runs": 3,
-  "stage": "Cursor (Composer 2.5, Grok 4.6 High, Grok 4.7 High) runs through scripts/cursor-bench.js and scripts/cursor-eval.js; Claude (Sonnet 5, Opus 5, Opus 5.5, all High) through scripts/claude-bench.js and scripts/claude-eval.js. Codex has its rows and CLI ids here; the behavioural eval accepts them, and no outcome driver runs them yet.",
+  "stage": "Cursor (Composer 2.5, Grok 4.6 High, Grok 4.7 High) runs through scripts/cursor-bench.js and scripts/cursor-eval.js; Claude (Haiku 5.5, Sonnet 5.5, Opus 5.5, all High) through scripts/claude-bench.js and scripts/claude-eval.js. Codex has its rows and CLI ids here; the behavioural eval accepts them, and no outcome driver runs them yet.",
   "models": [
     {
       "host": "cursor",
@@ -45,13 +45,13 @@
     },
     {
       "host": "claude",
-      "id": "sonnet-5-high",
-      "line": "Sonnet 5",
+      "id": "haiku-5.5-high",
+      "line": "Haiku 5.5",
       "tier": "low",
       "reasoning": "High",
       "driver": "claude",
       "cli": {
-        "model": "claude-sonnet-5",
+        "model": "claude-haiku-5-5",
         "effort": "high"
       },
       "timeoutMin": 30,
@@ -59,13 +59,13 @@
     },
     {
       "host": "claude",
-      "id": "opus-5-high",
-      "line": "Opus 5",
+      "id": "sonnet-5.5-high",
+      "line": "Sonnet 5.5",
       "tier": "mid",
       "reasoning": "High",
       "driver": "claude",
       "cli": {
-        "model": "claude-opus-5",
+        "model": "claude-sonnet-5-5",
         "effort": "high"
       },
       "timeoutMin": 30,
@@ -125,7 +125,7 @@
   "cli": "cli.model is what the host CLI receives as --model. cli.effort is passed as the host's effort setting (claude --effort, codex -c model_reasoning_effort); null means the effort is part of the Cursor id. The Claude and Codex ids are unverified until a run reaches the model.",
   "timeoutMin": "Per-invocation ceiling in minutes for the outcome bench (default 15). A run that reaches it has no result and is dropped as dead, so a slow model needs a higher one rather than a lower score.",
   "idleMin": "Per-model idle cut in minutes for the outcome bench: an invocation that writes nothing for this long is stopped and counted dead (scripts/idle-watchdog.js), and one that stopped after a finished thinking block is named a stall. Set from the longest silence in finished runs: Composer 2.5 25 s in 161, Grok 4.6 High 153 s, Grok 4.7 High 460 s. None when unset.",
-  "judgesNote": "Judge-only rows: read by the judge drivers (scripts/cursor-judge.js, scripts/judge-selftest.js) through suite.js chooseJudgeModels, never by the bench, the eval or a bench session. For a one-time panel of vendors (bench/studies/false-assurance-judge/PREREG.md, panel amendment).",
+  "judgesNote": "Judge-only rows: read by the judge drivers (scripts/cursor-judge.js, scripts/judge-selftest.js) through suite.js chooseJudgeModels, never by the bench, the eval or a bench session. For a one-time panel of vendors (bench/studies/false-assurance-judge/PREREG.md, panel amendment). On Claude the judge is opus-5.5-high only (scripts/claude-judge.js), so no Claude row sits here.",
   "judges": [
     {
       "host": "cursor",

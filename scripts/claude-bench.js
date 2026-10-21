@@ -5,8 +5,8 @@
  *
  *   node scripts/claude-bench.js --probe
  *   node scripts/claude-bench.js --list
- *   node scripts/claude-bench.js --dry-run --model sonnet-5-high
- *   node scripts/claude-bench.js --model sonnet-5-high <plugin-or-case>
+ *   node scripts/claude-bench.js --dry-run --model sonnet-5.5-high
+ *   node scripts/claude-bench.js --model sonnet-5.5-high <plugin-or-case>
  *   node scripts/claude-bench.js --rescore <run dir>
  *
  *   --model <id>   a Claude row of bench/suite.json (required for a run): its
