@@ -306,6 +306,10 @@ function argsFor(c, withPlugin, model) {
   // (five servers, 26 tools in one run's init event); the outcome bench already
   // passed it.
   const a = ['-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'dontAsk', '--permission-prompts', 'none', '--strict-mcp-config'];
+  // No session on disk for a one-message case: the stream is the record, and a
+  // later run cannot read this one's transcript. A case with turns/ resumes
+  // its session, so it keeps one (removed after the run, when it is the run's).
+  if (!(c.turns && c.turns.length > 1)) a.push('--no-session-persistence');
   // model is a bench/suite.json row: the CLI id and the effort, both pinned.
   if (model) a.push('--model', model.cli.model);
   if (model && model.cli.effort) a.push('--effort', model.cli.effort);
@@ -333,6 +337,7 @@ function hooksFire(bin, withPlugin) {
   const loaded = init && Array.isArray(init.plugins) ? init.plugins : [];
   const under = (p) => !!p && path.resolve(p).toLowerCase().startsWith(GLOBAL_PLUGINS.toLowerCase());
   const mcp = init && Array.isArray(init.mcp_servers) ? init.mcp_servers.map((s) => s.name) : [];
+  require('./claude-bench.js').dropSessionFolder(ws);
   return {
     fired: fs.existsSync(log),
     foreign: loaded.filter((p) => under(p.path)).map((p) => p.name).concat(mcp.map((n) => `MCP ${n}`)),
@@ -616,6 +621,10 @@ function main() {
         trace.collect(outDir, base);
         fs.writeFileSync(path.join(outDir, `${base}.txt`), text);
         fs.writeFileSync(path.join(outDir, `${base}.stream.jsonl`), String(r.stdout || ''));
+        // The host's own session folder for this workspace (~/.claude/projects):
+        // its transcript goes beside the stream and the folder goes, as the
+        // outcome bench does. Left behind, every run added one.
+        require('./claude-bench.js').keepTranscript(ws, path.join(outDir, `${base}.transcript.jsonl`));
         const artifact = harvest(ws, c, outDir, base);
         // A run that never reached the model is not evidence either way. It is
         // dropped from the denominator rather than counted as a failure - and,

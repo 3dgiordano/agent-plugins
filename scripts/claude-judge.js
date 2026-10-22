@@ -31,7 +31,7 @@ const AGENT_CLI_DRIVER = true;
 
 const ROOT = path.resolve(__dirname, '..');
 const { findCli, run } = require('./claude-eval.js');
-const { parseClaude, cursorShape } = require('./claude-bench.js');
+const { parseClaude, cursorShape, dropSessionFolder } = require('./claude-bench.js');
 const { chooseModels } = require('./suite.js');
 const JUDGE = 'opus-5.5-high';
 const { scratchWorkspace, dropWorkspace, isolatedHome, dropHome, auditStream } = require('./evallib.js');
@@ -40,7 +40,7 @@ const J = require('./judgelib.js');
 
 function args(model) {
   const a = ['-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', 'dontAsk', '--permission-prompts', 'none',
-    '--restricted', '--strict-mcp-config', '--tools', '', '--model', model.cli.model];
+    '--restricted', '--strict-mcp-config', '--tools', '', '--no-session-persistence', '--model', model.cli.model];
   if (model.cli.effort) a.push('--effort', model.cli.effort);
   return a;
 }
@@ -93,6 +93,8 @@ function main() {
     if (parsed.modelReported) reported.add(parsed.modelReported);
     const audit = auditStream(cursorShape(r.stdout), [ws, home.HOME], ROOT, ws);
     fs.writeFileSync(path.join(streams, `${model.id}__pass${pass}__${item.id}.jsonl`), String(r.stdout || ''));
+    // The stream is kept above; the host's session folder for this workspace goes.
+    dropSessionFolder(ws);
     dropWorkspace(ws);
     dropHome(home);
     // An item that carries its own prompt is a reader item (reader-test.js): its answer is the form, not a verdict.
