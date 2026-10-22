@@ -3223,6 +3223,10 @@ test('a run that never reached the model is dropped, not scored - especially on 
   assert.equal(lib.reached('ok'), true);
   assert.equal(lib.reached('Done.'), true);
   assert.equal(lib.reached(DEAD[0]), false);
+  // A close that quotes the error it hit, on a line of its own, answered.
+  const quoted = 'The rates service could not be reached, so the 2027 part stays blocked:\n\nError: connect ECONNREFUSED 127.0.0.1:443\n\nEverything else is done and tested.';
+  assert.equal(lib.reached(quoted), true);
+  assert.equal(lib.usable(quoted), true);
 
   // A real answer that merely MENTIONS a limit is still an answer: the guard
   // must not silently drop transcripts about rate limiting, which is an
@@ -4072,6 +4076,28 @@ test('bench: both outcome runners print and store the false ok beside the score,
     // Counted against the grade of the same run.
     assert.equal((src.match(/tallyAssurance\(assured, (?:r\.)?arm, c\.plugin, [^;]+, graded\.pass\);/g) || []).length, runs, `${driver}: against graded.pass`);
   }
+});
+
+test('bench: arms interleave in a random order per index, a rerun keeps its attempts, and intention to treat counts every run', () => {
+  const B = require('./benchlib.js');
+  const { order, draws } = B.armOrder(50, null);
+  assert.equal(order.length, 100);
+  for (let i = 0; i < 50; i++) assert.deepEqual(order.slice(2 * i, 2 * i + 2).map(([, k]) => k), [i, i], 'both arms of an index before the next');
+  assert.ok(draws.includes('with > without') && draws.includes('without > with'), 'both orders drawn over 50 indexes');
+  assert.deepEqual(B.armOrder(3, 'with').order.map(([w]) => w), [true, true, true], 'one arm only');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'attempts-'));
+  fs.writeFileSync(path.join(dir, 'p__c__with__1.cost.json'), '{}');
+  fs.writeFileSync(path.join(dir, 'p__c__with__1.grade.json'), JSON.stringify({ pass: true, metric: 1 }));
+  fs.writeFileSync(path.join(dir, 'p__c__without__1.cost.json'), JSON.stringify({ error: true }));
+  fs.writeFileSync(path.join(dir, 'p__other__with__1.cost.json'), '{}');
+  assert.equal(B.keepAttempts(dir, 'p__c__'), 2, 'only the case being run again');
+  const kept = fs.readFileSync(path.join(dir, 'attempts.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.deepEqual(kept.map((l) => [l.base, l.graded, l.pass, l.error]).sort(), [['p__c__with__1', true, true, false], ['p__c__without__1', false, null, true]]);
+  fs.rmSync(dir, { recursive: true, force: true });
+  const even = B.intentToTreat([{ with: 3, without: 1, validWith: 3, validWithout: 3, excludedWith: 0, excludedWithout: 0 }]);
+  assert.equal(even.compromised, false);
+  const uneven = B.intentToTreat([{ with: 3, without: 1, validWith: 3, validWithout: 3, excludedWith: 1, excludedWithout: 0 }]);
+  assert.deepEqual([uneven.with.pass, uneven.with.n, uneven.compromised], [3, 4, true], 'one excluded run of four is a 25% arm');
 });
 
 test('bench: every case is canonical (bench/benchmark.json) or an exercise, never both', () => {

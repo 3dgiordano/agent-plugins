@@ -322,7 +322,10 @@ const NOT_AN_ANSWER = [
   /you'?ve (?:hit|reached) your\b[^.\n]{0,40}\blimit\b/i,
   /\blimit\b[^.\n]{0,30}·\s*resets?\b/i,
   /usage limit reached/i,
-  /^(?:API )?Error:\s/im,
+  // The whole reply opening on it, not any line: with the m flag a correct
+  // close that quotes an observed error on a line of its own ("Error: connect
+  // ECONNREFUSED ...") would have been dropped as a run that never answered.
+  /^(?:API )?Error:\s/i,
   /\brate_limit_error\b/,
   /\boverloaded_error\b/,
   /\bnot logged in\b/i,

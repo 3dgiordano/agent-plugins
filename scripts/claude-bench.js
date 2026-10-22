@@ -105,7 +105,7 @@ const { findCli } = require('./claude-eval.js');
 const { pluginCopy, killTree } = require('./cursor-eval.js');
 const { reached, seed, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, auditStream, quote, MARKER, nodeGuard, permissionFlags, neutralDir, assuranceTally, tallyAssurance, assuranceLine, assuranceFields } = require('./evallib.js');
 const { childEnv } = require('./integrity.js');
-const { ROOT, loadCases } = require('./benchlib.js');
+const { ROOT, loadCases, armOrder, keepAttempts, intentToTreat, ittLines, moveChildren } = require('./benchlib.js');
 const { benchmarkVersion, pluginVersions } = require('./benchsession.js');
 const suite = require('./suite.js');
 
@@ -116,10 +116,13 @@ const WATCHDOG = path.join(__dirname, 'idle-watchdog.js');
  * from its init event): --restricted drops the ones that run code unless they
  * are named, so they are named, and the agent sees what it saw before - but
  * for RESTRICTED_OUT, which --restricted does not offer even when named (2.1.283:
- * publishing a claude.ai page and multi-agent workflows; no case needs either).
+ * publishing a claude.ai page; no case needs it). Multi-agent workflows
+ * (Workflow) were dropped the same way until 2026-10-21, when the same CLI
+ * version began to offer them when named; no case needs them, so they are no
+ * longer named, and the set stays the one the stored sessions had.
  */
-const RESTRICTED_OUT = ['Artifact', 'Workflow'];
-const TOOLS = ['Task', 'Artifact', 'Bash', 'CronCreate', 'CronDelete', 'CronList', 'DesignSync', 'Edit', 'EnterWorktree', 'ExitWorktree', 'Glob', 'Grep', 'ListAgents', 'NotebookEdit', 'Read', 'ReportFindings', 'ScheduleWakeup', 'SendMessage', 'Skill', 'TaskStop', 'ToolSearch', 'WebFetch', 'WebSearch', 'Workflow', 'Write'];
+const RESTRICTED_OUT = ['Artifact'];
+const TOOLS = ['Task', 'Artifact', 'Bash', 'CronCreate', 'CronDelete', 'CronList', 'DesignSync', 'Edit', 'EnterWorktree', 'ExitWorktree', 'Glob', 'Grep', 'ListAgents', 'NotebookEdit', 'Read', 'ReportFindings', 'ScheduleWakeup', 'SendMessage', 'Skill', 'TaskStop', 'ToolSearch', 'WebFetch', 'WebSearch', 'Write'];
 
 // ---------------------------------------------------------------------------
 // The stream
@@ -620,12 +623,13 @@ function rescore(dir) {
     const cost = { with: blankCost(), without: blankCost() };
     let dead = 0;
     let contaminated = 0;
+    const excluded = { with: 0, without: 0 };
     for (const r of runsOf.sort((a, b) => a.i - b.i)) {
       const costFile = path.join(dir, `${r.base}.cost.json`);
       const saved = JSON.parse(fs.readFileSync(costFile, 'utf8'));
       const text = fs.existsSync(path.join(dir, `${r.base}.txt`)) ? fs.readFileSync(path.join(dir, `${r.base}.txt`), 'utf8') : '';
       addCost(cost[r.arm], saved);
-      if (saved.error || !reached(text)) { dead += 1; continue; }
+      if (saved.error || !reached(text)) { dead += 1; excluded[r.arm] += 1; continue; }
       const copy = path.join(dir, r.base);
       const stream = fs.readFileSync(path.join(dir, `${r.base}.stream.jsonl`), 'utf8');
       const shaped = stream.split(/\r?\n/).some((l) => l.startsWith('{"type":"tool_call"')) ? stream : cursorShape(stream);
@@ -639,8 +643,8 @@ function rescore(dir) {
         saved.rescored = new Date().toISOString();
         fs.writeFileSync(costFile, JSON.stringify(saved, null, 2));
       }
-      if (audit.contaminated.length) { contaminated += 1; continue; }
-      if (!fs.existsSync(copy)) { changes.push(`${r.base}: no workspace copy - not graded`); dead += 1; continue; }
+      if (audit.contaminated.length) { contaminated += 1; excluded[r.arm] += 1; continue; }
+      if (!fs.existsSync(copy)) { changes.push(`${r.base}: no workspace copy - not graded`); dead += 1; excluded[r.arm] += 1; continue; }
       const graded = c.grade({ workspace: copy });
       const gradeFile = path.join(dir, `${r.base}.grade.json`);
       if (fs.existsSync(gradeFile)) {
@@ -664,6 +668,7 @@ function rescore(dir) {
     if (!valid.with || !valid.without) continue;
     scored.push({
       case: key, with: score.with, without: score.without, validWith: valid.with, validWithout: valid.without,
+      excludedWith: excluded.with, excludedWithout: excluded.without,
       blocksWith: blocks.with, blocksWithout: blocks.without,
       ...assuranceFields(c.plugin, assured),
       guard: (record.guards || {})[key] || null,
@@ -672,9 +677,11 @@ function rescore(dir) {
   }
   const armScore = (k, v) => { let pass = 0; let n = 0; for (const row of scored) { pass += row[k]; n += row[v]; } return { pass, n, pct: n ? Math.round((100 * pass) / n) : null }; };
   record.score = { with: armScore('with', 'validWith'), without: armScore('without', 'validWithout'), cases: scored };
+  record.intentToTreat = intentToTreat(scored);
   record.rescored = new Date().toISOString();
   fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify(record, null, 2));
   console.log(`\nscore  with ${record.score.with.pass}/${record.score.with.n}   without ${record.score.without.pass}/${record.score.without.n}`);
+  for (const l of ittLines(record.intentToTreat)) console.log(l);
   if (changes.length) { console.log('\nchanged'); for (const ch of changes) console.log(`  ${ch}`); }
 }
 
@@ -808,7 +815,9 @@ function main() {
         console.log(`${withPlugin ? (placebo ? 'placebo' : 'with   ') : 'without'}  ${quote(bin)} ${argsFor(c, withPlugin, model, '<settings file>').map(quote).join(' ')}   < bench/${c.plugin}/${c.id}/prompt.md`);
       }
     }
-    console.log(`\n${found.length} case(s) x 2 arms x ${runs} run(s) = ${found.length * 2 * runs} invocations`);
+    // A run of a case with turns/ or sessions/ is one CLI call per message.
+    const calls = found.reduce((s, c) => s + ((c.sessions || c.turns || [null]).length), 0);
+    console.log(`\n${found.length} case(s) x 2 arms x ${runs} run(s) = ${found.length * 2 * runs} invocations, ${calls * 2 * runs} CLI calls`);
     console.log('each invocation: --restricted with the owner\'s HOME, an allowlisted environment, its own TEMP, grants in its own --settings file');
     return;
   }
@@ -866,7 +875,7 @@ function main() {
     family: 'claude',
     layer: 'skill + every hook event: claude -p runs them all; hooksRan counts the witness SessionStart per arm',
     isolate: true,
-    isolation: '--restricted --strict-mcp-config with the owner\'s HOME (the login): no user, project or local settings file, no installed plugin, no MCP server; --tools names the scratch-HOME set (Artifact and Workflow are not offered under --restricted); TEMP per invocation. Sessions before this field ran with a scratch HOME.',
+    isolation: '--restricted --strict-mcp-config with the owner\'s HOME (the login): no user, project or local settings file, no installed plugin, no MCP server; --tools names the scratch-HOME set without Workflow (since 2026-10-21; before, --restricted dropped it) and Artifact, which --restricted does not offer; TEMP per invocation. Sessions before this field ran with a scratch HOME.',
     tools: TOOLS,
     platform: process.platform,
     confine: '--permission-mode dontAsk; grants in a --settings file: Write, Edit, and Bash where the case allows node, held by a PreToolUse hook to node, cd and commands that only read, its refusal naming the command (since 2026-10-03; before, Bash(node *) and the host refusal "Permission to use Bash has been denied"), WebFetch and WebSearch where the case opts in to the web. No OS sandbox. Read-only shell commands run in dontAsk; --restricted keeps them and the file tools inside the working directory. A Git Bash /tmp path inside the workspace reaches the file tools as its Windows path, through a second PreToolUse hook (scripts/tmp-paths.js; since 2026-10-03 22:00 - before, Claude Code refused it as outside the working directory). The session\'s own folder under ~/.claude/projects (where the host saves a fetched PDF or a long output) is an --add-dir and a root of the run (since 2026-10-04 01:30 - before, a read of it was refused and audited as the user profile). Each run has a /tmp of its own: a /tmp path that is not the workspace, in a file tool or a shell command, goes under the run\'s TEMP, which is an --add-dir and which the node fence lets node write (since 2026-10-04 14:00 - before, /tmp was the TEMP root every run shares, and a preview written there was audited as another run\'s).',
@@ -886,6 +895,8 @@ function main() {
   fs.writeFileSync(path.join(outDir, 'run.json'), JSON.stringify(runRecord, null, 2));
 
   let scored = [];
+  const unscored = [];
+  const armOrders = {};
   const costAll = { with: blankCost(), without: blankCost() };
   const reported = new Set();
   const hooksAll = { with: 0, without: 0 };
@@ -903,6 +914,7 @@ function main() {
     const blocks = { with: 0, without: 0 };
     const assured = assuranceTally();
     const valid = { with: 0, without: 0 };
+    const excluded = { with: 0, without: 0 };
     const costCase = { with: blankCost(), without: blankCost() };
     const hooksRan = { with: 0, without: 0 };
     let metricMax = null;
@@ -916,14 +928,16 @@ function main() {
     // stayed and were read as this run's.
     // --arm reruns one arm: only that arm's runs are cleared.
     const stale = `${c.plugin}__${c.id}__${onlyArm ? onlyArm + '__' : ''}`;
+    const kept = keepAttempts(outDir, stale);
+    if (kept) console.log(`  ${kept} earlier run(s) of this case kept in attempts.jsonl before they are replaced`);
     for (const n of fs.readdirSync(outDir)) if (n.startsWith(stale)) fs.rmSync(path.join(outDir, n), { recursive: true, force: true });
     /*
-     * Arms interleave (with 1, without 1, with 2, ...) so that a stop on the
-     * quota, or drift in the service over a long run, lands on both arms
-     * alike rather than on whichever ran second.
+     * Arms interleave by run index, so that a stop on the quota, or drift in
+     * the service over a long run, lands on both arms alike; within an index
+     * the order is drawn at random and kept in run.json (benchlib.js armOrder).
      */
-    const order = [];
-    for (let i = 0; i < runs; i++) for (const withPlugin of (onlyArm ? [onlyArm === 'with'] : [true, false])) order.push([withPlugin, i]);
+    const { order, draws } = armOrder(runs, onlyArm);
+    armOrders[`${c.plugin}/${c.id}`] = draws;
     for (const [withPlugin, i] of order) {
       if (lastQuota && lastQuota.sevenDay && lastQuota.sevenDay.utilization >= maxWeek) {
         stopped = `seven-day window at ${pctOf(lastQuota.sevenDay)} (limit ${Math.round(maxWeek * 100)}%)`;
@@ -968,6 +982,31 @@ function main() {
         parsed = mergeTurns(parts);
         if (parts.length < c.turns.length) parsed.error = true;
       }
+      if (c.sessions && c.sessions.length > 1) {
+        /*
+         * A later session is a new invocation on the same workspace: no
+         * --resume. What the host saved of the earlier one sits in the
+         * session folder this invocation is granted (--add-dir), so it is
+         * moved out of reach first and put back afterwards, for the
+         * transcript this run keeps. A read of it would be a read outside
+         * the roots, which the audit marks.
+         */
+        const parts = [parsed];
+        const held = fs.mkdtempSync(path.join(os.tmpdir(), 'earlier-sessions-'));
+        for (const [k, next] of c.sessions.slice(1).entries()) {
+          if (parts[parts.length - 1].error) break;
+          moveChildren(session, path.join(held, String(k + 1)));
+          const overlay = c.sessionFiles && c.sessionFiles[k + 1];
+          if (overlay) fs.cpSync(overlay, ws, { recursive: true });
+          const rn = run(cli.bin, args, env, next, ws, limits);
+          streams.push(String(rn.stdout || ''));
+          parts.push(parseClaude(rn.stdout));
+        }
+        for (const d of fs.readdirSync(held).sort()) moveChildren(path.join(held, d), session);
+        try { fs.rmSync(held, { recursive: true, force: true }); } catch (_) {}
+        parsed = mergeTurns(parts);
+        if (parts.length < c.sessions.length) parsed.error = true;
+      }
       if (parsed.quota) lastQuota = parsed.quota;
       const raw = streams.join('\n');
       const shaped = streams.map(cursorShape).join('\n');
@@ -1005,6 +1044,7 @@ function main() {
       try { fs.cpSync(ws, path.join(outDir, base), { recursive: true }); } catch (_) {}
       if (parsed.error || !reached(parsed.text)) {
         dead += 1;
+        excluded[arm] += 1;
         const m = String(r.stderr || '').match(/\[idle_timeout\][^\n]*|(\w*Error\b[^\r\n]{0,80})/);
         deadWhy.add(m ? m[0] : r.error ? r.error.code || String(r.error.message).slice(0, 60) : (parsed.text || 'no result event').slice(0, 80));
         dropWorkspace(ws);
@@ -1012,6 +1052,7 @@ function main() {
       }
       if (audit.contaminated.length) {
         contaminated += 1;
+        excluded[arm] += 1;
         console.log(`  CONTAMINATED ${arm} run ${i + 1}: ${audit.contaminated.slice(0, 3).join(' | ')}${audit.contaminated.length > 3 ? ` (+${audit.contaminated.length - 3})` : ''}`);
         dropWorkspace(ws);
         continue;
@@ -1040,6 +1081,7 @@ function main() {
     }
     if (!valid.with || !valid.without) {
       console.log(`  NOT SCORED - ${dead} dead${deadWhy.size ? ` (${[...deadWhy].join(', ')})` : ''}, ${contaminated} contaminated${stopped ? `, stopped: ${stopped}` : ''}`);
+      if (!stopped) unscored.push({ case: `${c.plugin}/${c.id}`, with: score.with, without: score.without, validWith: valid.with, validWithout: valid.without, excludedWith: excluded.with, excludedWithout: excluded.without });
       process.exitCode = 1;
       continue;
     }
@@ -1062,6 +1104,8 @@ function main() {
       without: score.without,
       validWith: valid.with,
       validWithout: valid.without,
+      excludedWith: excluded.with,
+      excludedWithout: excluded.without,
       blocksWith: blocks.with,
       blocksWithout: blocks.without,
       ...assuranceFields(c.plugin, assured),
@@ -1096,6 +1140,11 @@ function main() {
   if (delta) console.log(`  ${delta}`);
   runRecord.modelReported = [...new Set(priorReported.concat([...reported]))];
   runRecord.score = { with: withArm, without: withoutArm, cases: scored };
+  // Every case that ran, scored or not: a case with no valid run in one arm
+  // is the plainest exclusion there is.
+  runRecord.intentToTreat = intentToTreat(scored.concat(unscored));
+  for (const l of ittLines(runRecord.intentToTreat)) console.log(l);
+  runRecord.armOrder = armOrders;
   runRecord.hooksRan = hooksAll;
   runRecord.costDetail = { with: summarizeCost(costAll.with), without: summarizeCost(costAll.without) };
   runRecord.quota = lastQuota;

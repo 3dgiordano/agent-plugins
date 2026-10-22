@@ -48,7 +48,7 @@ A grader enters a study only when all of these hold:
 ## 5. Arms and order
 
 - **Baseline** (nothing), **placebo** (a line of the same length at the same moments, with no fact and no format) and **full plugin** are the minimum for a mechanism claim; baseline and full plugin for an effect claim. Evidence-only and skill-only arms answer which part does the work (EVIDENCE.md, "What would settle it").
-- **Interleaved.** Within each run index, every arm of a case runs before the next index, in an order drawn at random per index and recorded in `run.json`. The outcome bench already interleaves two arms (`scripts/claude-bench.js`); the behavioural eval runs one arm then the other and is therefore not a study instrument.
+- **Interleaved.** Within each run index, every arm of a case runs before the next index, in an order drawn at random per index and recorded in `run.json`. Both outcome-bench drivers do this since 2026-10-21 (`scripts/benchlib.js` armOrder; before, the Claude driver always ran WITH first in each index and the Cursor driver ran every WITH run first); the behavioural eval runs one arm then the other and is therefore not a study instrument.
 - **The same isolation in every arm**: the audit, the canary and the eval-talk count from bench/GUARDS.md, applied and reported per arm.
 
 ## 6. Sample size and analysis
@@ -81,7 +81,9 @@ All pre-registered cases and arms; exclusions per arm; the estimate with its int
 | Piece | State |
 | --- | --- |
 | Isolation, audit, canary, eval-talk count | in place (bench/GUARDS.md) |
-| Interleaved arms | in the outcome bench; not in the eval |
+| Interleaved arms, random order per index | in both outcome-bench drivers (2026-10-21); not in the eval |
+| Intention to treat, the 10-point exclusion rule | printed and kept in run.json by both outcome-bench drivers and --rescore (2026-10-21) |
+| Attempts a rerun replaces | kept in attempts.jsonl (2026-10-21) |
 | Wilson intervals in the runners' output | in place (scripts/evallib.js `wilson`) |
 | Blind label sheets for prose outcomes | `scripts/blind-labels.js` (the sheet, the key, the agreement) |
 | LLM judges, two families | `scripts/claude-judge.js` (`--restricted --tools ""`) and `scripts/cursor-judge.js` (scratch HOME, `--mode ask`), one prompt (`scripts/judgelib.js`); a panel, its agreement and an adjudication sheet in `blind-labels.js --agree / --adjudicate`; a self-test the drivers require before a judge applies a criterion (`scripts/judge-selftest.js`, evals/judge-selftest/README.md). Not yet validated against labels |
