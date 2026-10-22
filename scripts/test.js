@@ -3347,6 +3347,7 @@ test('claude and codex evals pin the suite model and its effort, and refuse the 
   const ca = require('./claude-eval.js').argsFor(c, false, opus);
   assert.equal(ca[ca.indexOf('--model') + 1], 'claude-opus-5-5');
   assert.equal(ca[ca.indexOf('--effort') + 1], 'high');
+  assert.ok(ca.includes('--strict-mcp-config'), 'claude-eval: no MCP server in either arm');
   const sol = suite.suiteModels('codex').find((m) => m.id === 'gpt-5.6-sol-high');
   const xa = require('./codex-eval.js').argsFor(c, false, sol);
   assert.equal(xa[xa.indexOf('--model') + 1], 'gpt-5.6-sol');
@@ -3356,6 +3357,39 @@ test('claude and codex evals pin the suite model and its effort, and refuse the 
     assert.notEqual(r.status, 0, `${f} with no --model must refuse to run`);
     assert.match(r.stderr, /does not name a model/);
   }
+});
+
+test('claude-eval --plugin-ref: the WITH arm can load the plugin as it stands at a git ref', () => {
+  const { pluginAtRef } = require('./claude-eval.js');
+  const plugin = 'progress-self-monitoring';
+  const p = pluginAtRef(plugin, 'HEAD');
+  const tree = spawnSync('git', ['-C', ROOT, 'ls-tree', '-r', '--name-only', 'HEAD', `plugins/${plugin}/`], { encoding: 'utf8' }).stdout.split(/\r?\n/).filter(Boolean);
+  for (const f of tree) assert.ok(fs.existsSync(path.join(p.dir, f.slice(`plugins/${plugin}/`.length))), `${f} extracted`);
+  const atHead = JSON.parse(spawnSync('git', ['-C', ROOT, 'show', `HEAD:plugins/${plugin}/.claude-plugin/plugin.json`], { encoding: 'utf8' }).stdout).version;
+  assert.equal(p.version, atHead);
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'claude-eval.js'), '--dry-run', '--model', 'opus-5.5-high', '--plugin-ref', 'HEAD', 'progress,termination'], { encoding: 'utf8' });
+  assert.notEqual(r.status, 0, 'two plugins under one ref are refused');
+  assert.match(r.stderr, /one plugin/);
+});
+
+test('claude-eval: the bare workspace switches off every marketplace plugin, installed or synced', () => {
+  // 2026-10-21: two plugins synced from claude.ai loaded in both arms, because
+  // only this collection's marketplace ids were switched off.
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'eval-home-'));
+  const plugins = path.join(home, '.claude', 'plugins');
+  fs.mkdirSync(path.join(plugins, 'synced', 'g1', 'd1', '.claude-plugin'), { recursive: true });
+  fs.writeFileSync(path.join(plugins, 'installed_plugins.json'), JSON.stringify({ version: 2, plugins: { 'other-tool@another-market': [{ scope: 'user' }] } }));
+  fs.writeFileSync(path.join(plugins, 'synced', 'g1', 'd1', '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'some-synced-plugin' }));
+  const code = `const ws = require(${JSON.stringify(path.join(ROOT, 'scripts', 'claude-eval.js'))}).bareWorkspace('answer');` +
+    'console.log(JSON.stringify(JSON.parse(require("fs").readFileSync(ws + "/.claude/settings.local.json", "utf8")).enabledPlugins));';
+  const r = spawnSync(process.execPath, ['-e', code], { encoding: 'utf8', env: { ...process.env, HOME: home, USERPROFILE: home } });
+  fs.rmSync(home, { recursive: true, force: true });
+  assert.equal(r.status, 0, r.stderr);
+  const off = JSON.parse(r.stdout.trim().split(/\r?\n/).pop());
+  assert.equal(off['other-tool@another-market'], false, 'a plugin from another marketplace');
+  assert.equal(off['some-synced-plugin@synced'], false, 'a plugin synced from claude.ai');
+  assert.equal(off['progress-self-monitoring@3dgiordano-agent-plugins'], false, 'this collection, as before');
+  assert.equal(off['progress-self-monitoring@synced'], false, 'this collection, synced');
 });
 
 test('a bolded field name is the same field: **Status:** parses like Status:', () => {

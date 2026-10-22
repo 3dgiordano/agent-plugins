@@ -497,6 +497,13 @@ function main() {
     process.exitCode = 1;
     return;
   }
+  const mcp = require('./evallib.js').cursorUserMcp();
+  if (mcp.length && !isolate) {
+    console.error(`These MCP servers are in ~/.cursor/mcp.json and the CLI loads them in both arms: ${mcp.join(', ')}`);
+    console.error('Run with --isolate (a scratch HOME has no mcp.json). Refusing a run whose arms carry them.');
+    process.exitCode = 1;
+    return;
+  }
 
   /*
    * A scratch HOME hides ~/.cursor/plugins, and on the installs checked so far

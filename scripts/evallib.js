@@ -662,6 +662,17 @@ let homeSeq = 0;
  * code with the user's privileges - the same trade claude-eval.js makes for
  * `Bash(node *)`, contained only by the throwaway workspace.
  */
+/*
+ * The MCP servers the Cursor CLI reads from the user's home (~/.cursor/mcp.json).
+ * Without --isolate both arms would load them, so the Cursor runners refuse a
+ * run then, as they refuse one with plugins installed globally. A scratch HOME
+ * (isolatedHome) has no such file.
+ */
+function cursorUserMcp() {
+  const os = require('os');
+  try { return Object.keys(JSON.parse(fs.readFileSync(path.join(os.homedir(), '.cursor', 'mcp.json'), 'utf8')).mcpServers || {}); } catch (_) { return []; }
+}
+
 function isolatedHome(dotDir, shellAllow) {
   if (homeSeq++ === 0 && wsSeq === 0) sweepWorkspaces();
   const h = neutralDir();
@@ -974,4 +985,4 @@ function dropWorkspace(ws) {
 
 const quote = (s) => (/[\s"]/.test(s) ? `"${s.replace(/"/g, '\\"')}"` : s);
 
-module.exports = { ROOT, PLUGINS, MARKER, SCANNER, ARTIFACT, CLAIM, declared, assuranceTally, tallyAssurance, assuranceLine, assuranceFields, wilson, markerGraded, seed, harvest, readArtifact, graderFor, cases, gradingOf, usable, reached, verdict, reportLine, summaryLines, scratchWorkspace, sweepWorkspaces, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, neutralDir, quote, stallOf, nodeGuard, permissionFlags };
+module.exports = { ROOT, PLUGINS, MARKER, SCANNER, ARTIFACT, CLAIM, cursorUserMcp, declared, assuranceTally, tallyAssurance, assuranceLine, assuranceFields, wilson, markerGraded, seed, harvest, readArtifact, graderFor, cases, gradingOf, usable, reached, verdict, reportLine, summaryLines, scratchWorkspace, sweepWorkspaces, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, neutralDir, quote, stallOf, nodeGuard, permissionFlags };
