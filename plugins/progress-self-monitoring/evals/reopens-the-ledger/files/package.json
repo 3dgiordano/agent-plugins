@@ -4,7 +4,7 @@
   "private": false,
   "bin": { "stats": "src/cli.js" },
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test",
     "changelog": "node scripts/changelog.js",
     "publish:npm": "node scripts/publish.js"
   }

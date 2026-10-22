@@ -12,6 +12,6 @@ test('counts headings and words per markdown file', () => {
   const rows = stats(dir, {});
   assert.equal(rows.length, 1);
   assert.equal(rows[0].headings, 2);
-  assert.equal(rows[0].words, 5);
+  assert.equal(rows[0].words, 6);
   fs.rmSync(dir, { recursive: true, force: true });
 });
