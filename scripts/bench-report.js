@@ -519,6 +519,18 @@ function renderCompact(points) {
  * model does not need the plugin there), a with cell below its runs is the
  * plugin not getting through.
  */
+/*
+ * The grader's partial metric, as the mean share of its checks one arm's
+ * runs passed. Only where the grader has more than one check, and only from
+ * runs that stored it (scripts/behaviour.js caseFields).
+ */
+function partial(row, armName) {
+  const m = row.metric;
+  if (!m || !(m.max > 1) || !m[armName] || !m[armName].length) return '';
+  const share = m[armName].reduce((s, x) => s + x, 0) / (m[armName].length * m.max);
+  return ` <span class="muted">· ${Math.round(100 * share)}%</span>`;
+}
+
 function renderCaseMatrix(records, heading) {
   const models = records.slice().sort((a, b) => (TIER_RANK[a.tier] ?? 99) - (TIER_RANK[b.tier] ?? 99));
   if (!models.length) return '';
@@ -532,14 +544,14 @@ function renderCaseMatrix(records, heading) {
       const named = splitModel(record);
       const row = ((record.score && record.score.cases) || []).find((item) => item.case === caseId);
       if (!row) return `${cell(`${named.line} without`, '-', true)}${cell(`${named.line} with`, '-', true)}`;
-      const wo = `<td class="num${row.without > 0 ? ' work' : ''}" data-label="${esc(named.line)} without">${row.without}/${row.validWithout}</td>`;
-      const w = `<td class="num${row.with < row.validWith || !row.validWith ? ' gap' : ''}" data-label="${esc(named.line)} with">${row.with}/${row.validWith}</td>`;
+      const wo = `<td class="num${row.without > 0 ? ' work' : ''}" data-label="${esc(named.line)} without">${row.without}/${row.validWithout}${partial(row, 'without')}</td>`;
+      const w = `<td class="num${row.with < row.validWith || !row.validWith ? ' gap' : ''}" data-label="${esc(named.line)} with">${row.with}/${row.validWith}${partial(row, 'with')}</td>`;
       return wo + w;
     }).join('');
     return `<tr>${cell('Plugin', esc(label))}${cell('Case', esc(caseId.split('/')[1]))}${cells}</tr>`;
   }).join('\n');
   return `<h2>${esc(heading || 'By case')}</h2>
-  <p class="muted">The target for a case: 0 passes without the plugin, every run with it. A shaded without cell is a case the model passes unaided - still to work on. An outlined with cell is a run the plugin did not win. A dash is a case this set of runs did not include.</p>
+  <p class="muted">The target for a case: 0 passes without the plugin, every run with it. A shaded without cell is a case the model passes unaided - still to work on. An outlined with cell is a run the plugin did not win. A dash is a case this set of runs did not include. A percentage beside a cell is the share of the grader's checks that arm's runs passed on average, where the grader has more than one; it is not the score.</p>
   <div class="table-wrap"><table class="matrix">
     <thead><tr><th rowspan="2">Plugin</th><th rowspan="2">Case</th>${head}</tr><tr>${sub}</tr></thead>
     <tbody>

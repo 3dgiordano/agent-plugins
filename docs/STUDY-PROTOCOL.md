@@ -85,6 +85,7 @@ All pre-registered cases and arms; exclusions per arm; the estimate with its int
 | Intention to treat, the 10-point exclusion rule | printed and kept in run.json by both outcome-bench drivers and --rescore (2026-10-21) |
 | Attempts a rerun replaces | kept in attempts.jsonl (2026-10-21) |
 | Wilson intervals in the runners' output | in place (scripts/evallib.js `wilson`) |
+| The grader's partial metric and arm-neutral behaviour measures, per run | printed and kept in run.json by both outcome-bench drivers and --rescore (2026-10-22, scripts/behaviour.js); description beside the score, not an outcome a study has validated |
 | Blind label sheets for prose outcomes | `scripts/blind-labels.js` (the sheet, the key, the agreement) |
 | LLM judges, two families | `scripts/claude-judge.js` (`--restricted --tools ""`) and `scripts/cursor-judge.js` (scratch HOME, `--mode ask`), one prompt (`scripts/judgelib.js`); a panel, its agreement and an adjudication sheet in `blind-labels.js --agree / --adjudicate`; a self-test the drivers require before a judge applies a criterion (`scripts/judge-selftest.js`, evals/judge-selftest/README.md). Not yet validated against labels |
 | Pre-registration | the first one: `bench/studies/pilot-handoff-judges/PREREG.md` (a pilot of the instrument) |

@@ -61,6 +61,7 @@ const { findCli, authState, argsFor, globalInstalls, run, pluginCopy } = require
 const { reached, seed, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, quote, MARKER, stallOf, nodeGuard, permissionFlags, assuranceTally, tallyAssurance, assuranceLine, assuranceFields } = require('./evallib.js');
 const { ROOT, loadCases, armOrder, keepAttempts, intentToTreat, ittLines, moveChildren } = require('./benchlib.js');
 const { benchmarkVersion, pluginVersions } = require('./benchsession.js');
+const { recordRun, caseFields, caseLines } = require('./behaviour.js');
 
 function parseAgent(stdout) {
   const raw = String(stdout || '').trim();
@@ -444,6 +445,8 @@ function main() {
     const costCase = { with: blankCost(), without: blankCost() };
     const hooksRan = { with: 0, without: 0 };
     let metricMax = null;
+    // Each graded run's partial metric and behaviour, in run order (scripts/behaviour.js).
+    const rows = [];
     let sideLabel = 'block';
     let dead = 0;
     let contaminated = 0;
@@ -576,6 +579,7 @@ function main() {
       valid[arm] += 1;
       metric[arm] += graded.metric;
       metricMax = graded.metricMax;
+      rows.push({ arm, metric: graded.metric, metricMax: graded.metricMax, behaviour: recordRun(c, r.stdout, { ws, outside: audit.outside, close: parsed.text, outDir, base }) });
       const side = sideChannel(c, parsed.text, ws);
       tallyAssurance(assured, arm, c.plugin, parsed.text, graded.pass);
       dropWorkspace(ws);
@@ -611,6 +615,8 @@ function main() {
     console.log(`  metric avg with ${avg(metric.with, valid.with)}/${max}   without ${avg(metric.without, valid.without)}/${max}`);
     console.log(`  ${sideLabel.padEnd(14)} with ${pct(blocks.with, valid.with)}   without ${pct(blocks.without, valid.without)}   (not the score)`);
     if (assuranceLine(c.plugin, assured)) console.log(assuranceLine(c.plugin, assured));
+    const fields = caseFields(c.plugin, rows);
+    for (const l of caseLines(fields)) console.log(l);
     console.log(`  cost       with ${fmtCost(costCase.with)}   without ${fmtCost(costCase.without)}   ${fmtDelta(costCase.with, costCase.without)}   (not the score)`);
     if (dead) console.log(`  ${dead} dead run(s) excluded`);
     if (contaminated) console.log(`  ${contaminated} contaminated run(s) excluded`);
@@ -623,6 +629,7 @@ function main() {
       excludedWith: excluded.with,
       excludedWithout: excluded.without,
       ...assuranceFields(c.plugin, assured),
+      ...fields,
       guard: c.guardFile,
       cost: { with: summarizeCost(costCase.with), without: summarizeCost(costCase.without) },
     });
