@@ -110,7 +110,7 @@ threshold is crossed:
 
 | Signal | Default threshold |
 |--------|-------------------|
-| Same file edited | 4 times |
+| Same file edited, retrying | 4 times |
 | Same shell command failing, or the same error signature recurring | 3 times |
 | Tool calls since the user's last message | 30, then every 30 |
 

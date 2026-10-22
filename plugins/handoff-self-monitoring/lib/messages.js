@@ -48,8 +48,8 @@ const host = require('./host.js');
  */
 const POINTER = `If you do not know what these markers ask for, load the ${SKILL} skill ("Core Protocol").`;
 const LOAD =
-  '[handoff self-monitoring] The reader of your final message has the message, not your trace. When the ' +
-  'ask is one they will act on - which of these, is this ready, look at this before I run it - close ' +
+  '[handoff self-monitoring] The reader of your final message has the message, not your trace. When this ' +
+  'turn does work they pick up from, or leaves them something to decide - a change, a run, a review, a choice - close ' +
   'with a [HANDOFF] markdown list: Status (done | waiting | needs-decision | blocked), Situation in the reader\'s ' +
   `terms, Options with Default on its own line, Next. If you do not know what these markers ask for, load ` +
   `the ${SKILL} skill. Markers, field names and status words stay in English, whatever language you write in.`;

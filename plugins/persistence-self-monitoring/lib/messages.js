@@ -68,7 +68,7 @@ function said(signals, toUser) {
   return signals.map((s) => {
     const also = s.delegated ? (toUser ? ", its subagents' included" : ", your subagents' included") : '';
     switch (s.kind) {
-      case 'edits': return `${toUser ? 'the agent has' : 'you have'} edited \`${s.key}\` ${s.count} times this turn${also}`;
+      case 'edits': return `${toUser ? 'the agent has' : 'you have'} edited \`${s.key}\` ${s.count} times this turn, retrying after a failed run or on the same lines${also}`;
       case 'cmds': return `\`${s.key}\` has failed ${s.count} times this turn${also}`;
       // Never the error line itself: it is output text (lib/signals.js).
       case 'errs': return `the same error has come back ${s.count} times this turn${also}${s.cmd ? `, last in the output of \`${s.cmd}\`` : ''}`;

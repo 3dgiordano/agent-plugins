@@ -22,6 +22,8 @@ description: "Review-before-you-close discipline for a result about to be called
 - The source never reached you: `unverified`. One command refused: that
   command is not allowed - try the way the project documents before `blocked`.
 - Write the `[ASPIRATION CHECK]` block: Criterion, Reviewed, Found, Remainder.
+  A reply that only answers a question, with nothing made or changed, takes
+  none.
 
 **Purpose:** the first version that meets the letter of a request comes out as
 fluently as a finished one. This skill keeps the close at the objective,

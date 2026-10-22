@@ -17,7 +17,8 @@ description: "Structured-handoff discipline for the final message of a turn. An 
   stays unknown. No "let me know", no "it depends" left for the reader.
 - End with one action for the reader.
 - In the reply, write the `[HANDOFF]` block: Status, Situation, Options with
-  Default, Next.
+  Default, Next. A question answered, with nothing done or left to decide,
+  takes none.
 
 **Purpose:** Make sure that when a turn ends, the reader can act on the
 message — see where the work stands, see what has to be decided, see what to
@@ -51,7 +52,7 @@ is that format for an agent's turn:
 
 ## When to Activate
 
-- You are about to write the final message of a turn.
+- You are about to close a turn that did work or leaves a choice.
 - Something in the turn is the owner's to decide: two non-equivalent options,
   a choice of scope, an ambiguity you resolved by assumption, a risk you did
   not take.
@@ -128,8 +129,6 @@ is that format for an agent's turn:
   right?"* or *"which do you prefer?"* with no options and no default.
 - **The buried fork** — the decision sits in paragraph three, in a
   subordinate clause: *"…which assumes the API is idempotent"*.
-- **The one-line fork** — Options packed with `|` so the choice is a
-  horizontal scroll. One option per line; `Default` on its own line.
 - **Done except** — *"done, except the migration still needs…"*: that is
   `needs-decision` or `blocked` with the reason not yet written.
 - **The identifier close** — *"Fixed in `resolveConfig`, see

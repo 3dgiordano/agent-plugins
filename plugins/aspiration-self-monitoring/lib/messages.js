@@ -8,8 +8,8 @@ const FIELDS = 'Criterion, Reviewed, Found, Remainder (meets | defect | unverifi
 const PROTOCOL = `If you do not know what these markers ask for, load the ${SKILL} skill ("Core Protocol").`;
 
 const LOAD =
-  '[aspiration self-monitoring] Before you call a result good enough, review it after your last change the way it will be used - read it, view it, run it, play it - and hold what you find against the objective, not the letter. ' +
-  `Close with the [ASPIRATION CHECK] markdown list: ${FIELDS}. A defect someone could point at is not a stop. ` +
+  '[aspiration self-monitoring] When this turn makes or changes something - a file, a document, an image, code - review it after your last change the way it will be used, and hold it against the objective, not the letter. ' +
+  `Close with the [ASPIRATION CHECK] markdown list: ${FIELDS}. A reply that only answers a question takes none. ` +
   `If you do not know what these markers ask for, load the ${SKILL} skill. ` +
   'Markers, field names and status words stay in English, whatever language you write in.';
 
