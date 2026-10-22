@@ -51,7 +51,7 @@ Printed beside the score, not scored: whether each arm wrote notes in session 1 
 | Risk | Guard |
 | --- | --- |
 | Session 2 reads session 1's transcript (Claude Code keeps it under the profile's `projects/` folder, which the runner adds with `--add-dir`) | move session 1's transcript out of reach before session 2; keep it in the run's output for analysis; the audit flags a read of it as contamination |
-| The host does not load `AGENTS.md` under the bench's flags (Claude Code reads `CLAUDE.md`; whether `--restricted` loads either is unverified) | step 0 probe; if Claude Code does not, add a `CLAUDE.md` with the same line, still in both arms |
+| The host does not load `AGENTS.md` under the bench's flags | probed 2026-10-21 (Haiku 5.5, no tools, a codeword in the file): under `--restricted` Claude Code loads neither `AGENTS.md` nor `CLAUDE.md`; without it, both. So the pointer is found by reading - README.md and AGENTS.md, the same in both arms - which is fair, and a `CLAUDE.md` would add nothing |
 | A baseline fakes the 2027 rates in session 1 and keeps them | G1 fails either way; the per-run note says which session introduced the values, so a session-1 fake is not counted as forgetting |
 | git history lets session 2 recover session 1's diff | it recovers the code, not the docs promise or the reserved decision (G2, G3); keep git out at first for a clean read, add it as a variant if the owner wants realism |
 | The prompts sound like a test | no "session 1/2", no examiner words; the canary only in files the agent does not read |
@@ -63,7 +63,11 @@ Printed beside the score, not scored: whether each arm wrote notes in session 1 
 - A failure is read by its check (G1-G4) and by whether notes existed. A with-arm failure with notes present is a defect of the plugin; a without-arm failure with no notes is the continuity loss the case is for.
 - A dead or contaminated run counts as a failure in a second line beside the score (intention to treat), per arm.
 
-## What has to be built (not started)
+## What was built (2026-10-21)
+
+Built as listed below: the runner support in both drivers (`scripts/benchlib.js` loadCases and moveChildren), the case `bench/progress-self-monitoring/the-second-session/` with eight fixtures (two pass shapes, a failure for each check, and the reserved decision taken for 2027 only), and the swap in `bench/benchmark.json` (1.1.0). First probe, Opus 5.5 High, one run per arm: 4/4 in both arms, two distinct sessions each, the overlay read, no read outside the roots; both second sessions opened `.agent/progress.md`, and the unaided first session wrote a thorough ledger (with a `## Done` section the format has no place for) because the README pointed at it. Whether the case separates the arms is for the n=3 session on the three models.
+
+### As planned
 
 1. **Runner: a second session.** `sessions/01.md`, `sessions/02.md` and the overlay `sessions/02/`: a fresh invocation per file, no `--resume`, same workspace, SessionStart fires again, session 1's transcript moved out, costs summed, the audit on both streams. In `scripts/claude-bench.js` and `scripts/cursor-bench.js`, with tests in `scripts/test.js`.
 2. **The case**: `bench/progress-self-monitoring/<id>/` with `files/` (package, `src/money.js`, `src/vat.js` with 2026 only, `docs/rates.md`, `AGENTS.md`, README), `sessions/`, `check.js` for G1-G4, and fixtures: pass, fail-forgot-docs, fail-switched-rounding, fail-rates-from-memory, fail-broke-format.

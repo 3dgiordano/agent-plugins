@@ -101,6 +101,12 @@ gap      with% − without%
 
 A run that never reached the model is left out of both the case and the score. The rate belongs to the agent version and the model id written in `bench/results/<run>/run.json`.
 
+Beside it, never in its place, the **intention to treat**: every run that was started counts, a dead or contaminated one as a failure, a case with no valid run in one arm included (`intentToTreat` in `run.json`, also on `--rescore`). When the exclusions differ between the arms by more than 10 points, or exceed 20% in one arm, the line says COMPROMISED, and that line is the result (docs/STUDY-PROTOCOL.md, section 7): a run that stalled or left its workspace is likely a failed one, and dropping it flatters the arm that has more of them.
+
+Both arms of a run index run before the next index, in an order drawn at random per index and kept in `run.json` (`armOrder`). A case run again in the same directory (`--merge`, `--arm`) first appends what its earlier runs left - graded or not, with the grade - to `attempts.jsonl`, so a rerun never erases the attempt it replaces.
+
+**Cases across sessions.** `sessions/01.md`, `02.md`, ... are separate sessions on one workspace: each a new invocation, no `--resume`, with `sessions/NN/` laid over the workspace before session NN as `turns/NN/` is. Before a later session the runner moves what the host saved of the earlier one out of reach - Claude Code's session folder, Cursor's chats under the run's scratch HOME (`--isolate` is required for such a case) - and puts it back for the kept transcript; a read of it is a read outside the roots. Under `--restricted` Claude Code loads neither AGENTS.md nor CLAUDE.md, so a pointer a case means both arms to find is in a file they read (2026-10-21, `progress/the-second-session`).
+
 ## Cost
 
 Each arm also prints mean time, mean tokens, and mean tool calls. Time is `duration_ms` from the CLI. Tokens are input plus output. A tool call is one completed call in the stream. Cache-read tokens are stored in `run.json` and in each `*.cost.json`, and they are not added into that token line. A cache read is not the same spend as a fresh input token. Dollar cost is not computed: the CLI does not return a price.
@@ -146,6 +152,8 @@ Totals: Grok 4.7 High 3/21 -> 20/20, Grok 4.6 High 3/21 -> 21/21, Composer 2.5 5
 
 `aspiration-self-monitoring/the-report-nobody-ran` joined the canonical set on 2026-09-30 and has not been run on any host yet: a column added in the layout the test shows passes the test and breaks this week's table, and only a run of the report on this week's data shows it.
 
+`progress-self-monitoring/the-second-session` replaced `leftover-bug` on 2026-10-21 (benchmark 1.1.0): two sessions on one workspace, the second a new one, both arms with the same messages and the same pointer to where the notes live, no note seeded (bench/studies/progress-continuity/DESIGN.md). `leftover-bug`, whose rows above are history, seeded a note in progress's own format that only the plugin arm was told about, and scored progress's rule up to 0.8.0.
+
 `hygiene-self-monitoring/the-header-case` joined on 2026-10-02: the same task as executive's held-out case (`same`), run with the hygiene plugin. Cursor, n=3 per Grok model: unaided 0/6, executive 1/6, the plugin 6/6; Claude Code, one run per cell: the unaided Sonnet 5 and Opus 5 runs merged names the issue did not name, the plugin's did not.
 
 **Exercises** are the other cases: designs tried on the way, kept for the record and for later work, not measured for the report. Each `case.json` says `"role": "exercise"`, and `scripts/test.js` holds that every case is canonical or an exercise. What each one showed:
@@ -179,8 +187,9 @@ Totals: Grok 4.7 High 3/21 -> 20/20, Grok 4.6 High 3/21 -> 21/21, Composer 2.5 5
 | `handoff-self-monitoring/decides-without-the-owner` | meets on Grok 4.7 like decision-file; kept as the second handoff case, not canonical |
 | `persistence-self-monitoring/fixes-the-hang` | the unaided models fix the hang |
 | `persistence-self-monitoring/the-fifth-bump` | the unaided models stop bumping the timeout |
-| `progress-self-monitoring/release-with-the-ledger` | the unaided models update the ledger |
-| `progress-self-monitoring/the-owner-already-decided` | the unaided models act on the owner's recorded decision |
+| `progress-self-monitoring/leftover-bug` | canonical until 2026-10-21: seeds a note in progress's own format only the plugin arm is told about, and scores the 0.8.0 rule (do a lifted item whatever the request asks); progress 0.9.0's rule leaves the item, as the request asks (not run on this case) |
+| `progress-self-monitoring/release-with-the-ledger` | the unaided models update the ledger; seeds a ledger only the plugin arm is told about and scores progress's 0.8.0 rule, so it measures neither version cleanly (2026-10-21) |
+| `progress-self-monitoring/the-owner-already-decided` | the unaided models act on the owner's recorded decision; the request names the bug and the ledger says how, which progress 0.9.0 keeps |
 | `termination-self-monitoring/the-forty-migrations` | forty migrations; written unaided (a first 0 was the grader) |
 | `termination-self-monitoring/stops-on-a-budget-it-does-not-have` | a visible context budget; ignored unaided |
 | `termination-self-monitoring/resumes-after-compaction` | openai/codex#42693 did not reproduce |

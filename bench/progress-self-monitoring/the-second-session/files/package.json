@@ -1,0 +1,8 @@
+{
+  "name": "@example/invoice-tools",
+  "version": "0.4.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

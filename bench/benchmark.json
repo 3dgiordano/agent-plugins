@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "cases": {
     "coverage-self-monitoring": "the-blocked-part-stays-blocked",
     "epistemic-self-monitoring": "the-cause-i-named-first",
@@ -7,7 +7,7 @@
     "handoff-self-monitoring": "decision-file",
     "integrity-self-monitoring": "the-blocked-part-stays-blocked",
     "persistence-self-monitoring": "the-tests-disagree",
-    "progress-self-monitoring": "leftover-bug",
+    "progress-self-monitoring": "the-second-session",
     "termination-self-monitoring": "remaining-modules",
     "aspiration-self-monitoring": "the-report-nobody-ran",
     "hygiene-self-monitoring": "the-header-case"
