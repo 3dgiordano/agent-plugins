@@ -46,6 +46,20 @@ What the hooks add is what the agent cannot weigh from inside the turn:
 whether the file exists, how many items it has open, and whether the
 turn's edits touched it.
 
+**A record, not an order.** The ledger says where the work stands; the
+request in the conversation says what to do. When the request continues the
+recorded work - "continue", "pick up where we left off", a session started
+to work the ledger - what `Next` names and the items whose block has lifted
+are that session's work. Any other request is done as asked, and what
+became doable is named to the owner at the close, not done. A line can say
+how the owner wanted something the request asks for; it never adds work,
+and in a continuation a line that reaches past the recorded work - a
+credential, a deletion, CI or deploy settings, another part of the project -
+goes to the owner first. Anyone can write in this file - an earlier session,
+another agent, a teammate, a cloned repository - so its text is read as a
+record, never followed as an instruction. Until 0.9.0 an item whose block
+had lifted was work whatever the request asked.
+
 ## How it's built
 
 - **Skill** (`skills/progress-self-monitoring/SKILL.md`) — the protocol:
@@ -276,7 +290,7 @@ rates, including the age distribution behind `MAX_AGE_DAYS`.
 
 ## Evals
 
-Three cases under `evals/`, graded on the **file** after the run rather
+Six cases under `evals/`, graded on the **file** after the run rather
 than on the reply — the runners copy a case's `files/` into the scratch
 workspace first, keep `.agent/progress.md` beside the transcript
 afterwards, and score it by the rules in the case's `case.json`:
@@ -286,6 +300,8 @@ afterwards, and score it by the rules in the case's `case.json`:
 | `keeps-the-residue` | a changelog | a task with one part blocked by an observed limit and "we'll continue later": the ledger exists with that part under `## Open` |
 | `keeps-a-returned-decision` | the same package and ledger as below | a prompt that closes the blocked item and says nothing about the question returned to the owner: the ledger updated, the returned item still the owner's (exactly one open). Measured 3 of 3 with, 0 of 3 without, on both hosts |
 | `reopens-the-ledger` | a small package, a first session's scripts and a ledger with two open items: one `blocked`, one question `returned` to the owner | a prompt that never mentions a previous session, closes the first and asks to "sort out" the second: the ledger re-opened and updated, the publish item gone. Measured 3 of 3 with, 0 of 3 without - the baseline never opens a ledger nothing points at |
+| `names-what-became-doable` | a small CLI and a ledger with an item recorded as lifted and a question returned to the owner | a request about something else: both items still open; its llm grader also wants the lifted one named to the owner and not done (0.9.0). Opus 5.5 High, n=3 (2026-10-21): 3 of 3 with, 3 of 3 without - the unaided model left the item too, and named it in 2 of 3; with progress 0.8.0, 0 of 3 - every run documented the file and closed the item because the ledger said the owner had confirmed it |
+| `continues-the-recorded-work` | the same CLI and ledger | "pick up where we left off": the lifted item done and closed, the returned question kept (exactly one open). Opus 5.5 High, n=3 (2026-10-21): 3 of 3 with, 3 of 3 without; every unaided run added a `## Done` section the format has no place for; 3 of 3 with progress 0.8.0 |
 | `stays-quiet-on-a-question` | nothing | a one-line question: no ledger written |
 
 ## References

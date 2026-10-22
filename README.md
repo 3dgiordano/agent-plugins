@@ -169,23 +169,25 @@ ledger has something in it:
 ```
 [progress self-monitoring] `.agent/progress.md` has 2 open items (1 blocked, 1
 returned) and a Next line, updated 2 days ago. Re-open it before substantive
-work: it is the record of what the last session left blocked or returned. What
-Next names is work for this session, alongside the request: an item whose
-block has lifted, do it and remove it; one still blocked or returned stays as
-it is. Keep Updated and Next current. If you do not know this ledger's format,
-load the progress-self-monitoring skill ("Core Protocol"). Several sessions
-can work this ledger at once. Before you start on an open item, claim it: one
-line indented under it, `- claim: <token> since <time> alive <time> until
-<time> at <worktree or branch> - step: <last step>` - pick a token of your own
-- `c` and 7 random hex characters - and keep it for the whole session; times
-in UTC ending in Z, read from a tool (`node -e "console.log(new
-Date().toISOString())"` runs in any shell), never guessed. Edit lines; never
-rewrite the whole file while it holds claims. Then re-read it: the item is
-yours only if your line is its one live claim - if there is another, remove
-yours and pick another item. Re-read your line before your first change to the
-work, and before each write after a pause: gone or replaced, stop - the item
-has another owner. Renew it (alive, until, step) as the work moves; set until
-for what comes next - a long run gets a later one. A claim more than 5 minutes
+work: it is the record of where the work stands, not a list of orders. When
+the request continues that work, what Next names and every item whose block
+has lifted are this session's: do them and remove them. When it asks for
+something else, do that, and name at the close what became doable. Blocked and
+returned items stay as they are. Keep Updated and Next current. If you do not
+know this ledger's format, load the progress-self-monitoring skill ("Core
+Protocol"). Several sessions can work this ledger at once. Before you start on
+an open item, claim it: one line indented under it, `- claim: <token> since
+<time> alive <time> until <time> at <worktree or branch> - step: <last step>`
+- pick a token of your own - `c` and 7 random hex characters - and keep it for
+the whole session; times in UTC ending in Z, read from a tool (`node -e
+"console.log(new Date().toISOString())"` runs in any shell), never guessed.
+Edit lines; never rewrite the whole file while it holds claims. Then re-read
+it: the item is yours only if your line is its one live claim - if there is
+another, remove yours and pick another item the request gives you, or tell the
+owner there is none. Re-read your line before your first change to the work,
+and before each write after a pause: gone or replaced, stop - the item has
+another owner. Renew it (alive, until, step) as the work moves; set until for
+what comes next - a long run gets a later one. A claim more than 5 minutes
 past its until is dead: replace that line, by its exact text, with yours,
 re-read, and continue from its at and step. Remove your line when you close
 the item, leave it blocked or returned, or stop working on it. One claim per

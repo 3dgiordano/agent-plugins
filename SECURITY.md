@@ -67,7 +67,10 @@ a project file, stated here so they can be checked:
   checkout's: to find it the hook reads `<project>/.git` (a file, in a
   worktree) and the `commondir` file of the git directory it names, nothing
   else of either. It never writes the ledger, never emits its text, and reads
-  no other path in the project.
+  no other path in the project. The agent reads the file itself, and from
+  progress 0.9.0 the skill and the messages tell it the file is a record, not
+  instructions: a line never adds work to the request, and in a continuation
+  a line that reaches past the recorded work goes to the owner first.
 - `integrity-self-monitoring` reads **the file an edit tool has just
   written**, after the edit, when it is JavaScript or TypeScript product code
   inside the project (not tests, mocks, fixtures, `node_modules` or build

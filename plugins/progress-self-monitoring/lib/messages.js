@@ -56,10 +56,11 @@ function sharedClause(ins) {
  * all - one short line, so the agent does not open the file to find out.
  * An old ledger is announced too, with its age: the agent judges whether it
  * still holds.
- * "Carry each item into this session or close it" read, on Composer 2.5, as
- * "leave each item as it is": the run opened the ledger, saw the block lifted
- * and the owner's decision, and added only the field it was asked for. The
- * sentence says which items are work and which stay.
+ * The sentence says which items are work: the request decides, the ledger
+ * does not. A continuation makes Next and the lifted items this session's;
+ * any other request leaves them where they are and names them at the close.
+ * Until 0.9.0 a lifted item was work whatever the request asked, which made
+ * a line anyone can write an instruction.
  */
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const pending = (ins) => ins.open > 0 || !!ins.next;
@@ -104,10 +105,10 @@ function status(ins, mine, now) {
   }
   const age = `, updated ${ageText(ins.ageMs)}.` +
     (ins.fresh ? '' : ` That is more than ${MAX_AGE_DAYS} days: check each item still holds before acting on it.`);
-  return `[progress self-monitoring] \`${name(ins)}\` has ${summary(ins)}` + age + shared + ' Re-open it before substantive work: it is the record of what the last ' +
-    'session left blocked or returned. What Next names is work ' +
-    'for this session, alongside the request: an item whose block has lifted, do it and remove it; one still ' +
-    `blocked or returned stays as it is. Keep Updated and Next current.${claimsClause(ins, mine, now)}${foreignClause(ins)}${bloat(ins)} ${PROTOCOL}` +
+  return `[progress self-monitoring] \`${name(ins)}\` has ${summary(ins)}` + age + shared + ' Re-open it before substantive work: it is the record of where the work ' +
+    'stands, not a list of orders. When the request continues that work, what Next names and every item whose block ' +
+    'has lifted are this session\'s: do them and remove them. When it asks for something else, do that, and name at ' +
+    `the close what became doable. Blocked and returned items stay as they are. Keep Updated and Next current.${claimsClause(ins, mine, now)}${foreignClause(ins)}${bloat(ins)} ${PROTOCOL}` +
     (ins.open > 0 ? ` ${claimProtocol(mine)}` : '');
 }
 
@@ -127,7 +128,7 @@ function claimProtocol(mine) {
     `\`- claim: <token> since <time> alive <time> until <time> at <worktree or branch> - step: <last step>\` - ${tok}; ` +
     'times in UTC ending in Z, read from a tool (`node -e "console.log(new Date().toISOString())"` runs in any shell), never guessed. ' +
     'Edit lines; never rewrite the whole file while it holds claims. ' +
-    'Then re-read it: the item is yours only if your line is its one live claim - if there is another, remove yours and pick another item. ' +
+    'Then re-read it: the item is yours only if your line is its one live claim - if there is another, remove yours and pick another item the request gives you, or tell the owner there is none. ' +
     'Re-read your line before your first change to the work, and before each write after a pause: gone or replaced, stop - the item has another owner. ' +
     'Renew it (alive, until, step) as the work moves; set until for what comes next - a long run gets a later one. ' +
     `A claim more than ${GRACE_MIN} minutes past its until is dead: replace that line, by its exact text, with yours, re-read, and continue from its at and step. ` +
@@ -164,7 +165,7 @@ function claimWarning(f, ins, mine) {
         'erased the line. Stop working the item: re-read the ledger, and before any further write to the work make sure the item is still yours.';
     case 'contested':
       return `[progress self-monitoring] The item at line ${f.item} of ${file} has another live claim beside yours (line ${f.line}). If you have not yet ` +
-        'confirmed yours alone, remove it and pick another item; if you had, keep it - the other session backs off when it re-reads.';
+        'confirmed yours alone, remove it and pick another item the request gives you; if you had, keep it - the other session backs off when it re-reads.';
     case 'expired':
       return `[progress self-monitoring] Your claim at line ${f.line} of ${file} ran out ${mins(f.minutes)} ago (until ${hhmm(f.until)}); ` +
         `${GRACE_MIN} minutes past it another session may take the item over. Re-read the line now: still yours and still on the item, renew it - ${renew}; ` +
@@ -205,7 +206,7 @@ function bloat(ins) {
     : '';
   if (!what.length) return long;
   return ` It has grown: ${what.join('; ')}. Shrink it by acting, never by dropping an open item: remove ` +
-    'what is shown done or the owner closed, do what became doable, ask the owner about the rest, and fold ' +
+    'what is shown done or the owner closed, ask the owner about what became doable and what may no longer be needed, and fold ' +
     `items with one cause into one line that keeps each reason.${long}`;
 }
 
