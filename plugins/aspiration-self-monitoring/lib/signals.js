@@ -30,6 +30,7 @@ const RENDER_TOOL_RE = /screenshot|preview|navigate|read_page|get_page_text|snap
 
 const TEXT_EXT = /\.(md|markdown|mdx|txt|rst|adoc|org|csv|tsv|json|jsonl|ya?ml|toml|ini|xml|docx?|odt|rtf|pdf|ipynb)$/i;
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|bmp|tiff?|ico|avif)$/i;
+const LEDGER_RE = /(?:^|\/)\.agent\/progress(?:-[^/]+)?\.md$/;
 const MAX_PENDING = 64;
 const MAX_SEEN = 500;
 const MAX_COUNT = 2000;
@@ -104,6 +105,9 @@ function observe(st, toolName, toolInput, now) {
 
   if (kind === 'edit') {
     const f = norm(filePathOf(toolInput));
+    // The cross-session ledger and its detail files (progress-self-monitoring)
+    // are notes about the work, not a result the request asked for.
+    if (LEDGER_RE.test(f)) return kind;
     st.edits = (st.edits || 0) + 1;
     clear((k) => same(k, f));
     if (Object.keys(pending).length < MAX_PENDING) pending[f] = mediumOf(f);

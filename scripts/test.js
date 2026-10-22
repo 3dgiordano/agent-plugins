@@ -339,14 +339,14 @@ test('epistemic (claude): strict mode blocks once with exit 2, never re-blocks, 
   assert.equal(hook(EPI, 'hooks/epi-stop.js', cc({ last_assistant_message: 'done' }), strict).code, 0);
 });
 
-test('epistemic (claude): observe nudge every 6th shell command and on first error', (t) => {
+test('epistemic (claude): the observe nudge comes on a failed command, rate-limited, and never on a command that went as planned', (t) => {
   const sid = uid('epi');
   t.after(() => cleanupTemp(`epimon_claude_${sid}`));
   const obs = (out) => hook(EPI, 'hooks/epi-observe.js', { session_id: sid, cwd: os.tmpdir(), tool_name: 'Bash', tool_output: out });
   assert.match(JSON.parse(obs('Exit code 1\nerror: boom').out).hookSpecificOutput.additionalContext, /observation/, 'first error fires');
   assert.equal(obs('Exit code 1').out, '', 'second error is gap-limited');
-  for (let i = 3; i <= 5; i++) assert.equal(obs('ok').out, '');
-  assert.equal(JSON.parse(obs('ok').out).hookSpecificOutput.hookEventName, 'PostToolUse', '6th fires');
+  for (let i = 3; i <= 12; i++) assert.equal(obs('ok').out, '', `command ${i} went as planned: nothing`);
+  assert.equal(JSON.parse(obs('Tests: 2 failed, 9 passed').out).hookSpecificOutput.hookEventName, 'PostToolUse', 'the next failure fires');
 });
 
 test('epistemic (cursor): sessionStart, postToolUse filter, afterAgentResponse + stop gate', (t) => {
@@ -376,9 +376,9 @@ test('persistence signals: thresholds fire once per crossing, error signatures n
   const S = require(path.join(plugin(PER), 'lib/signals.js'));
   const t = S.freshTurn();
   const kinds = (r) => r.map((s) => s.kind);
-  for (let i = 1; i <= 3; i++) assert.deepEqual(S.observe(t, 'Edit', { file_path: 'a.js' }, ''), []);
-  assert.deepEqual(kinds(S.observe(t, 'Edit', { file_path: 'a.js' }, '')), ['edits']);
-  assert.deepEqual(S.observe(t, 'Edit', { file_path: 'a.js' }, ''), [], '5th edit silent');
+  for (let i = 1; i <= 3; i++) assert.deepEqual(S.observe(t, 'Edit', { file_path: 'a.js', old_string: 'x' }, ''), []);
+  assert.deepEqual(kinds(S.observe(t, 'Edit', { file_path: 'a.js', old_string: 'x' }, '')), ['edits']);
+  assert.deepEqual(S.observe(t, 'Edit', { file_path: 'a.js', old_string: 'x' }, ''), [], '5th edit silent');
   for (let i = 1; i <= 2; i++) assert.deepEqual(S.observe(t, 'Bash', { command: 'npm test' }, `Error: got ${i} at /tmp/${i}/x.js:${i}`), []);
   const third = S.observe(t, 'Bash', { command: 'npm test' }, 'Error: got 3 at C:\\tmp\\3\\x.js:30');
   assert.deepEqual(kinds(third).sort(), ['cmds', 'errs']);
@@ -430,7 +430,7 @@ test('persistence (claude): turn boundary resets counters; nudges carry counts; 
   t.after(() => cleanupTemp(`persistmon_claude_${sid}`));
   const cc = (x) => Object.assign({ session_id: sid, cwd: os.tmpdir() }, x);
   assert.match(hook(PER, 'hooks/persist-prompt.js', cc({})).out, /persistence self-monitoring/);
-  const edit = () => hook(PER, 'hooks/persist-observe.js', cc({ tool_name: 'Edit', tool_input: { file_path: 'src/a.js' }, tool_output: 'ok' }));
+  const edit = () => hook(PER, 'hooks/persist-observe.js', cc({ tool_name: 'Edit', tool_input: { file_path: 'src/a.js', old_string: 'x' }, tool_output: 'ok' }));
   for (let i = 1; i <= 3; i++) assert.equal(edit().out, '');
   assert.match(JSON.parse(edit().out).hookSpecificOutput.additionalContext, /edited `src\/a\.js` 4 times/);
   assert.equal(hook(PER, 'hooks/persist-stop.js', cc({})).code, 0);
@@ -979,7 +979,7 @@ test('handoff: English and Spanish lexicon, LOAD unchanged; Spanish offers/forks
    * readable off the prompt as it lands. A close that does not exist yet
    * cannot be matched against.
    */
-  assert.match(msg.LOAD, /the ask is one they will act on/);
+  assert.match(msg.LOAD, /When this turn does work they pick up from, or leaves them something to decide/);
   assert.doesNotMatch(msg.LOAD, /when your close/i,
     'a trigger about the close cannot be evaluated at the moment this message is injected');
   // The block's shape used to be spelled out here. It moved into the skill on
@@ -1942,7 +1942,7 @@ test('scripts/calibrate.js reads the logs of every plugin and prints what-if nud
   hook('executive-self-monitoring', 'hooks/exec-monitor.js', cc({}), logs);
   hook(EPI, 'hooks/epi-stop.js', cc({ last_assistant_message: badBlock }), logs);
   hook(PER, 'hooks/persist-prompt.js', cc({}), logs);
-  for (let i = 0; i < 5; i++) hook(PER, 'hooks/persist-observe.js', cc({ tool_name: 'Edit', tool_input: { file_path: 'a.js' }, tool_output: 'ok' }), logs);
+  for (let i = 0; i < 5; i++) hook(PER, 'hooks/persist-observe.js', cc({ tool_name: 'Edit', tool_input: { file_path: 'a.js', old_string: 'x' }, tool_output: 'ok' }), logs);
   hook(PER, 'hooks/persist-stop.js', cc({}), logs);
   hook(TER, 'hooks/term-stop.js', cc({ last_assistant_message: budgetMsg }), logs);
   hook(COV, 'hooks/cov-prompt.js', cc({ prompt: '- a\n- b\n- c' }), logs);
@@ -2102,10 +2102,10 @@ test('notices: a finding reaches the user as one systemMessage line; the load, a
   {
     const cc = (x) => Object.assign({ session_id: `${stamp}-per`, cwd: os.tmpdir() }, x);
     let last;
-    for (let i = 0; i < 4; i++) last = hook(PER, 'hooks/persist-observe.js', cc({ tool_name: 'Edit', tool_input: { file_path: 'src/a.js' }, tool_response: '' }));
+    for (let i = 0; i < 4; i++) last = hook(PER, 'hooks/persist-observe.js', cc({ tool_name: 'Edit', tool_input: { file_path: 'src/a.js', old_string: 'x' }, tool_response: '' }));
     const j = JSON.parse(last.out);
     assert.match(j.hookSpecificOutput.additionalContext, /^\[persistence self-monitoring\] you have edited `src\/a\.js` 4 times this turn/);
-    assert.equal(j.systemMessage, '[persistence self-monitoring] the agent has edited `src/a.js` 4 times this turn - the agent is asked for a [PERSISTENCE CHECK]');
+    assert.equal(j.systemMessage, '[persistence self-monitoring] the agent has edited `src/a.js` 4 times this turn, retrying after a failed run or on the same lines - the agent is asked for a [PERSISTENCE CHECK]');
   }
   {
     const cc = (x) => Object.assign({ session_id: `${stamp}-cov`, cwd: os.tmpdir() }, x);
@@ -2367,6 +2367,17 @@ test('executive (claude): a document read earlier that changed on disk, not by t
   touch(plan, '1. a\n2. b (revised)\n3. c\n', 9000);
   tool('Edit', plan);
   assert.doesNotMatch(prompt('Next.'), /changed on disk/, 'its own write moved the record');
+  // its own shell command that names the file is its own edit; one that does not name it is not
+  const shell = (name, command) => hook(EXE, 'hooks/exec-observe.js', ev({ hook_event_name: 'PostToolUse', tool_name: name, tool_input: { command } }));
+  touch(plan, '1. a\n2. b\n3. c\n4. d\n', 10000);
+  assert.equal(shell('Bash', "node - <<'EOF'\nfs.appendFileSync('docs/plan.md', '4. d')\nEOF").out, '', 'the observer says nothing');
+  assert.doesNotMatch(prompt('Next again.'), /changed on disk/, 'a heredoc naming the file, in another case, moved the record');
+  touch(plan, '1. a\n', 11000);
+  shell('PowerShell', 'Add-Content PLAN.md "x"');
+  assert.doesNotMatch(prompt('More.'), /changed on disk/, 'PowerShell too');
+  touch(plan, '1. b\n', 12000);
+  shell('Bash', 'node scripts/rewrite.js');
+  assert.match(prompt('Still more.'), /PLAN\.md/, 'a command that does not name the file leaves the change to be said');
   // a notification does not spend it
   touch(plan, '1. z\n', 14000);
   assert.equal(prompt('<task-notification>\n<task-id>x</task-id>\n</task-notification>'), '');
@@ -2396,7 +2407,7 @@ test('executive (claude): parallel tool calls record every document read, and th
   assert.deepEqual(R.changed('claude', sid), [], 'its own edit is not reported as a change on disk');
 });
 
-test('a notification is not a turn, and a resumed session gets its retrospective and the load again (claude)', (t) => {
+test('a notification is not a turn; a resumed session gets its retrospective, and a compacted one the load again (claude)', (t) => {
   const stamp = uid('resume');
   t.after(() => cleanupTemp(stamp));
   const NOTE = '<task-notification>\n<task-id>b1</task-id>\n<status>completed</status>\n<summary>Background command done</summary>\n</task-notification>';
@@ -2415,7 +2426,7 @@ test('a notification is not a turn, and a resumed session gets its retrospective
 
   const PROMPTS = {
     'termination-self-monitoring': ['term', /\[termination self-monitoring\] You have no fatigue/],
-    'aspiration-self-monitoring': ['aspir', /\[aspiration self-monitoring\] Before you call a result good enough, review it/],
+    'aspiration-self-monitoring': ['aspir', /\[aspiration self-monitoring\] When this turn makes or changes something/],
     'epistemic-self-monitoring': ['epi', /\[epistemic self-monitoring\] This session keeps/],
     'handoff-self-monitoring': ['hand', /\[handoff self-monitoring\] The reader/],
     'coverage-self-monitoring': ['cov', /\[coverage self-monitoring\] This session tracks/],
@@ -2432,12 +2443,14 @@ test('a notification is not a turn, and a resumed session gets its retrospective
     const st = require(path.join(plugin(name), 'lib/state.js')).load('claude', sid);
     assert.equal(st.turns, 1, `${name}: a notification is not counted as a turn`);
     assert.doesNotMatch(prompt('Carry on.').out, load, `${name}: turn 2 of a live session does not load again`);
-    // the process exits, the session is resumed
+    // the process exits, the session is resumed: its transcript, the load in it, comes back
     hook(name, `hooks/${abbr}-session-end.js`, ev({ hook_event_name: 'SessionEnd', reason: 'other' }));
-    if (abbr !== 'prog') hook(name, `hooks/${abbr}-session-start.js`, ev({ hook_event_name: 'SessionStart', source: 'resume' }));
-    else hook(name, 'hooks/prog-session-start.js', ev({ hook_event_name: 'SessionStart', source: 'resume' }));
-    assert.match(prompt('Continue with the rest.').out, load, `${name}: the first prompt after a resume loads again`);
-    assert.doesNotMatch(prompt('And the tests.').out, load, `${name}: once`);
+    hook(name, `hooks/${abbr}-session-start.js`, ev({ hook_event_name: 'SessionStart', source: 'resume' }));
+    assert.doesNotMatch(prompt('Continue with the rest.').out, load, `${name}: a resume does not load again`);
+    // a compaction summarises it away
+    hook(name, `hooks/${abbr}-session-start.js`, ev({ hook_event_name: 'SessionStart', source: 'compact' }));
+    assert.match(prompt('And the tests.').out, load, `${name}: the first prompt after a compaction loads again`);
+    assert.doesNotMatch(prompt('And the docs.').out, load, `${name}: once`);
   }
 
   // A retrospective parked by the last Stop survives the process exit.
@@ -2478,7 +2491,7 @@ test('aspiration: each edited file is reviewed in its medium, the close is judge
   const block = (lines) => ['This is done.', '', '[ASPIRATION CHECK]'].concat(lines).join('\n');
   const good = ['- Criterion: every row lines up under its header on the real data', '- Reviewed: ran the report on the data file', '- Found: the long names sit in the same column as the short ones', '- Remainder: meets'];
 
-  assert.match(prompt('Add the total column. Try again with the new data, more critically.').text, /\[aspiration self-monitoring\] Before you call a result good enough, review it/);
+  assert.match(prompt('Add the total column. Try again with the new data, more critically.').text, /\[aspiration self-monitoring\] When this turn makes or changes something/);
   assert.equal(tool('Edit', { file_path: 'src/report.js' }).out, '', 'observe emits nothing');
   tool('Read', { file_path: 'src/report.js' });
   assert.equal(open(), 1, 'reading the source does not review a program');
@@ -2489,6 +2502,14 @@ test('aspiration: each edited file is reviewed in its medium, the close is judge
   assert.equal(open(), 1, 'a run that does not name the document does not review it');
   tool('TodoWrite', { todos: [] });
   assert.deepEqual([S().edits, open()], [2, 1], 'a to-do list is neither an edit nor a review');
+  tool('Edit', { file_path: 'C:\\work\\app\\.agent\\progress.md' });
+  tool('Write', { file_path: '.agent/progress-auth.md' });
+  assert.deepEqual([S().edits, open()], [2, 1], 'the ledger and its detail files are notes, not results');
+  tool('Write', { file_path: 'docs/.agent/progress-notes/plan.md' });
+  tool('Write', { file_path: 'docs/agent/progress.md' });
+  assert.deepEqual([S().edits, open()], [4, 3], 'a file that only looks like one is a result');
+  tool('Read', { file_path: 'docs/.agent/progress-notes/plan.md' });
+  tool('Read', { file_path: 'docs/agent/progress.md' });
 
   const bare = stop('Updated the guide. This is done.');
   assert.equal(bare.code, 0);
@@ -3374,6 +3395,61 @@ test('claude-eval --plugin-ref: the WITH arm can load the plugin as it stands at
   const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'claude-eval.js'), '--dry-run', '--model', 'opus-5.5-high', '--plugin-ref', 'HEAD', 'progress,termination'], { encoding: 'utf8' });
   assert.notEqual(r.status, 0, 'two plugins under one ref are refused');
   assert.match(r.stderr, /one plugin/);
+});
+
+test('claude runners leave no session folder behind: the transcript is kept beside the run, the folder goes', () => {
+  // claude-eval and claude-judge left one ~/.claude/projects folder per run.
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'session-home-'));
+  const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'session-ws-'));
+  const out = path.join(home, 'kept.jsonl');
+  const code = `const B = require(${JSON.stringify(path.join(ROOT, 'scripts', 'claude-bench.js'))});
+const fs = require('fs'); const path = require('path'); const os = require('os');
+const dir = (w) => path.join(os.homedir(), '.claude', 'projects', path.resolve(w).replace(/[^A-Za-z0-9]/g, '-'));
+const ws = ${JSON.stringify(ws)};
+const line = (cwd) => JSON.stringify({ type: 'user', cwd }) + '\\n';
+// The run's own session: its cwd is the workspace or inside it.
+fs.mkdirSync(dir(ws), { recursive: true });
+fs.writeFileSync(path.join(dir(ws), 's.jsonl'), line(ws) + line(path.join(ws, 'src')));
+B.keepTranscript(ws, ${JSON.stringify(out)});
+const keptGone = !fs.existsSync(dir(ws));
+// No file in it, as --no-session-persistence leaves it: the folder and an empty memory/.
+fs.mkdirSync(path.join(dir(ws), 'memory'), { recursive: true });
+const emptyGone = B.dropSessionFolder(ws) && !fs.existsSync(dir(ws));
+// A memory file with no session to say whose it is: left.
+fs.mkdirSync(path.join(dir(ws), 'memory'), { recursive: true });
+fs.writeFileSync(path.join(dir(ws), 'memory', 'MEMORY.md'), 'x');
+const memoryKept = !B.dropSessionFolder(ws) && fs.existsSync(path.join(dir(ws), 'memory', 'MEMORY.md'));
+fs.rmSync(dir(ws), { recursive: true, force: true });
+// A session that is not the run's: a cwd outside the workspace.
+fs.mkdirSync(dir(ws), { recursive: true });
+fs.writeFileSync(path.join(dir(ws), 'o.jsonl'), line(ws) + line(os.homedir()));
+const foreignDropped = B.dropSessionFolder(ws);
+const foreignKept = fs.existsSync(path.join(dir(ws), 'o.jsonl'));
+B.keepTranscript(ws, ${JSON.stringify(out)} + '.2');
+const foreignKeptAfterKeep = fs.existsSync(path.join(dir(ws), 'o.jsonl'));
+// No cwd at all is not proof either.
+fs.writeFileSync(path.join(dir(ws), 'o.jsonl'), '{"type":"user"}\\n');
+const noCwdKept = !B.dropSessionFolder(ws) && fs.existsSync(dir(ws));
+console.log(JSON.stringify({ kept: fs.readFileSync(${JSON.stringify(out)}, 'utf8'), keptGone, emptyGone, memoryKept, foreignDropped, foreignKept, foreignKeptAfterKeep, noCwdKept }));`;
+  const r = spawnSync(process.execPath, ['-e', code], { encoding: 'utf8', env: { ...process.env, HOME: home, USERPROFILE: home } });
+  fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(ws, { recursive: true, force: true });
+  assert.equal(r.status, 0, r.stderr);
+  const got = JSON.parse(r.stdout.trim().split(/\r?\n/).pop());
+  assert.match(got.kept, /"type":"user"/, 'the transcript is kept');
+  assert.equal(got.keptGone, true, 'the run\'s own folder is removed once its transcript is kept');
+  assert.equal(got.emptyGone, true, 'a folder with no file in it is removed');
+  assert.equal(got.memoryKept, true, 'a folder with a file and no session to say whose it is, is left');
+  assert.equal(got.foreignDropped, false, 'a folder with a cwd outside the workspace is not the run\'s');
+  assert.equal(got.foreignKept, true, 'and it is left as it is');
+  assert.equal(got.foreignKeptAfterKeep, true, 'keepTranscript leaves it too');
+  assert.equal(got.noCwdKept, true, 'a folder with no recorded cwd is left too');
+  for (const f of ['claude-eval.js', 'claude-judge.js']) assert.match(fs.readFileSync(path.join(ROOT, 'scripts', f), 'utf8'), /keepTranscript|dropSessionFolder/, `${f} removes its session folders`);
+  // One-message runs keep no session at all; a case with turns resumes its session, so it keeps one.
+  const E = require('./claude-eval.js');
+  assert.ok(E.argsFor({ plugin: 'progress-self-monitoring', intent: 'work' }, false, null).includes('--no-session-persistence'));
+  assert.ok(!E.argsFor({ plugin: 'progress-self-monitoring', intent: 'work', turns: ['a', 'b'] }, false, null).includes('--no-session-persistence'));
+  assert.match(fs.readFileSync(path.join(ROOT, 'scripts', 'claude-judge.js'), 'utf8'), /'--no-session-persistence'/);
 });
 
 test('claude-eval: the bare workspace switches off every marketplace plugin, installed or synced', () => {
@@ -4658,7 +4734,7 @@ test('epistemic: a subagent\'s commands keep their own cadence, and neither spen
   for (let i = 0; i < 5; i++) assert.equal(run('ok').out, '', 'the parent: five quiet commands');
   assert.match(run('Error: cannot find module', SUB).text, /^\[epistemic self-monitoring\] You just received an observation/, 'the subagent\'s first failure is told to the subagent');
   for (let i = 0; i < 4; i++) assert.equal(run('ok', SUB).out, '', 'its quiet commands count for it');
-  assert.match(run('ok').text, /You just received an observation/, 'the parent\'s sixth command is still its sixth');
+  assert.match(run('Error: cannot find module').text, /You just received an observation/, 'the parent\'s first failure is still its first: the subagent\'s did not spend its gap');
   const S = require(path.join(plugin(EPI), 'lib/state.js'));
   assert.deepEqual([S.load('claude', sid).shell, S.load('claude', sid, 'agent-e1').shell], [6, 5]);
 });
@@ -4745,7 +4821,7 @@ test('persistence: a subagent gets the load at its start, and its close is summa
   assert.deepEqual([out.hookEventName, out.additionalContext], ['SubagentStart', LOAD], 'the words the main agent gets on its first prompt');
   assert.equal(hook(PER, 'hooks/persist-subagent-start.js', ev({ hook_event_name: 'SessionStart', source: 'startup' })).out, '', 'a session start is the prompt hook\'s');
 
-  for (let i = 0; i < 2; i++) hook(PER, 'hooks/persist-observe.js', ev({ hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: 'src/fix.js' } }, SUB));
+  for (let i = 0; i < 2; i++) hook(PER, 'hooks/persist-observe.js', ev({ hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: 'src/fix.js', old_string: 'x' } }, SUB));
   hook(PER, 'hooks/persist-stop.js', ev({ hook_event_name: 'SubagentStop', last_assistant_message: 'Fixed.' }, SUB), { PERSISTMON_LOG: '1' });
   const line = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'logs', 'persistence-self-monitoring.jsonl'), 'utf8').trim().split('\n').pop());
   assert.deepEqual([line.event, line.actor, line.agent, line.tools, line.maxEditsSameFile], ['subagent_turn', 'agent-p2', 'general-purpose', 2, 2]);
@@ -4829,7 +4905,7 @@ test('persistence: a subagent\'s retries join the parent\'s count when it hands 
   for (let i = 0; i < 2; i++) assert.equal(edit().out, '', 'the parent: two edits of the file');
   for (let i = 0; i < 2; i++) assert.equal(edit(SUB).out, '', 'the subagent: two more, its own count');
   const back = handBack();
-  assert.match(back.text, /^\[persistence self-monitoring\] you have edited `src\/fix\.js` 4 times this turn, your subagents' included\./, 're-delegating the same fix is the parent\'s loop too');
+  assert.match(back.text, /^\[persistence self-monitoring\] you have edited `src\/fix\.js` 4 times this turn, retrying after a failed run or on the same lines, your subagents' included\./, 're-delegating the same fix is the parent\'s loop too');
   assert.match(JSON.parse(back.out).systemMessage || '', /its subagents' included/);
   assert.equal(handBack().out, '', 'folded once');
 });
@@ -4995,4 +5071,113 @@ test('placebo: the same hooks speak at the same moments with the label and lengt
   fs.mkdirSync(path.join(it, 'src'));
   fs.writeFileSync(path.join(it, 'src', 'rates.js'), fallbackSrc);
   same('integrity-self-monitoring', 'hooks/int-observe.js', { session_id: uid('pl-int'), cwd: it, hook_event_name: 'PostToolUse', tool_name: 'Write', tool_input: { file_path: 'src/rates.js', content: fallbackSrc }, tool_response: { type: 'create', filePath: 'src/rates.js', content: fallbackSrc, structuredPatch: [] } }, /rates|line \d|fallback|value of its own/, it);
+});
+
+test('behaviour: the same measures in both arms, from the tool calls and the workspace, never from a block', () => {
+  const B = require('./behaviour.js');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'behaviour-'));
+  const files = path.join(root, 'files');
+  const overlay = path.join(root, 'turn1');
+  const ws = path.join(root, 'ws');
+  fs.mkdirSync(files); fs.mkdirSync(overlay); fs.mkdirSync(ws);
+  fs.writeFileSync(path.join(files, 'a.js'), 'const a = 1;');
+  fs.writeFileSync(path.join(overlay, 'PLAN.md'), 'plan');
+  fs.writeFileSync(path.join(ws, 'a.js'), 'const a = 1;\n// TODO later');
+  fs.writeFileSync(path.join(ws, 'PLAN.md'), 'plan');
+  fs.writeFileSync(path.join(ws, 'notes.md'), 'n');
+  const call = (kind, args) => JSON.stringify({ type: 'tool_call', subtype: 'started', call_id: 'x', tool_call: { [kind]: { args } } });
+  const at = (f) => path.join(ws, f);
+  const said = (text) => JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text }] } });
+  const stream = (extra) => [
+    call('readToolCall', { path: at('a.js') }), call('bashToolCall', { command: 'npm test' }),
+    call('editToolCall', { path: at('a.js') }), call('writeToolCall', { path: at('notes.md') }),
+    extra, JSON.stringify({ type: 'result' }),
+    call('readToolCall', { path: at('PLAN.md') }), call('readToolCall', { path: 'notes.md' }),
+    call('shellToolCall', { command: 'npm  test' }), call('powerShellToolCall', { command: 'npm test' }),
+    call('editToolCall', { path: at('a.js') }), call('readToolCall', { path: at('a.js') }),
+    JSON.stringify({ type: 'result' }),
+  ].filter(Boolean).join('\n');
+  const opts = { ws, seedDirs: [files, null, overlay], overlays: [null, overlay], outside: [], close: 'Which one do you prefer?' };
+  const plain = B.measure(stream(null), opts);
+  assert.deepEqual(B.measure(stream(said('[ASPIRATION CHECK]\n- Remainder: meets')), opts), plain, 'a block in the stream changes no measure');
+  assert.deepEqual(plain, {
+    reads: 4, filesRead: 3, lastTurnReadsBeforeEdit: 2, edits: 3, shellRuns: 3, webCalls: 0,
+    shellBeforeFirstEdit: 1, shellAfterLastEdit: 0, reviewedAfterLastEdit: true,
+    // a.js and notes.md, both written in the first turn and read in the second.
+    maxSameCommand: 3, maxEditsOneFile: 2, carriedReads: 2, overlayReads: 1,
+    closeEndsWithQuestion: true, outside: 0, filesChanged: 2, linesChanged: 2, stubLinesAdded: 1,
+  });
+  const fields = B.caseFields('persistence-self-monitoring', [
+    { arm: 'with', metric: 2, metricMax: 4, behaviour: B.pick('persistence-self-monitoring', plain) },
+    { arm: 'without', metric: 0, metricMax: 4, behaviour: B.pick('persistence-self-monitoring', plain) },
+  ]);
+  assert.deepEqual(fields.metric, { max: 4, with: [2], without: [0] });
+  assert.deepEqual(fields.behaviour.with, [{ maxSameCommand: 3, maxEditsOneFile: 2 }]);
+  assert.match(B.caseLines(fields).join('\n'), /partial.*with \[2\].*without \[0\]/);
+  // Every plugin's measures are ones measure() returns.
+  for (const [plugin, b] of Object.entries(B.BEHAVIOUR)) for (const m of b.measures) assert.ok(m in plain, `${plugin}: ${m}`);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('persistence: a file built in several edits is not a retry; edits after a failed run, or on the same lines, are', () => {
+  const S = require(path.join(plugin(PER), 'lib/signals.js'));
+  const kinds = (r) => r.map((s) => s.kind);
+  const build = S.freshTurn();
+  for (let i = 1; i <= 8; i++) assert.deepEqual(S.observe(build, 'Edit', { file_path: 'a.md', old_string: `section ${i}` }, ''), [], `edit ${i} builds the file`);
+  const failRun = (t) => S.observe(t, 'Bash', { command: `npm test -- ${Math.random()}` }, 'Tests: 1 failed');
+  const retry = S.freshTurn();
+  assert.deepEqual(S.observe(retry, 'Edit', { file_path: 'a.js', old_string: 'one' }, ''), [], 'the first edit');
+  failRun(retry);
+  assert.deepEqual(S.observe(retry, 'Edit', { file_path: 'a.js', old_string: 'two' }, ''), [], 'a retry after a failure: the first edit and this one, 2');
+  failRun(retry);
+  assert.deepEqual(S.observe(retry, 'Edit', { file_path: 'a.js', old_string: 'three' }, ''), [], '3');
+  assert.deepEqual(S.observe(retry, 'Edit', { file_path: 'a.js', old_string: 'four' }, ''), [], 'no failure since the last edit, other lines: not a retry');
+  failRun(retry);
+  assert.deepEqual(kinds(S.observe(retry, 'Edit', { file_path: 'a.js', old_string: 'five' }, '')), ['edits'], 'the fourth attempt');
+  // MultiEdit's regions count as the same lines too
+  const multi = S.freshTurn();
+  for (let i = 1; i <= 3; i++) assert.deepEqual(S.observe(multi, 'MultiEdit', { file_path: 'b.js', edits: [{ old_string: 'x  =  1' }, { old_string: `y${i}` }] }, ''), []);
+  assert.deepEqual(kinds(S.observe(multi, 'MultiEdit', { file_path: 'b.js', edits: [{ old_string: 'x = 1' }] }, '')), ['edits'], 'the same lines, whitespace aside');
+});
+
+test('termination, executive and aspiration: a sentence after the value is a qualifier, as other punctuation is; another word is not', () => {
+  const T = require(path.join(plugin('termination-self-monitoring'), 'lib/lexicon.js'));
+  const X = require(path.join(plugin('executive-self-monitoring'), 'lib/plan.js'));
+  const A = require(path.join(plugin('aspiration-self-monitoring'), 'lib/lexicon.js'));
+  const term = (r) => T.scan(`[TERMINATION CHECK]\n- Trigger: asked to stop\n- Reason: ${r}\n- Evidence: the owner said stop in this message\n- Decision: stop`).violations;
+  const exec = (d) => X.scan(`[PLAN CHECK]\n- Plan: PLAN.md - "ship the parser"\n- Gate: "npm test is green"\n- Drift: none\n- Decision: ${d}`).violations;
+  const aspir = (v) => A.scan(`This is done.\n\n[ASPIRATION CHECK]\n- Criterion: every row lines up\n- Reviewed: ran the report\n- Found: the rows line up\n- Remainder: ${v}`).violations;
+  // the reply that failed the 2026-10-22 probe, its block as written
+  assert.deepEqual(T.scan('**[TERMINATION CHECK]**\n- **Trigger:** I was asked to stop because the session is long.\n- **Reason:** owner-choice. "Using up context" isn\'t a real reason. The real reason is that you asked me to stop.\n- **Evidence:** Nothing is blocking the work: tests run, files are writable, and no gate has failed.\n- **Decision:** Stop, and say plainly that stopping was your choice.').violations, []);
+  for (const [scan, ok] of [[term, 'owner-choice. The owner said so.'], [exec, 'continue. The plan holds.'], [aspir, 'meets. Every row lines up.'], [aspir, 'defect. The total column is off by one.']]) {
+    // read as the value: no "must be one of" (a defect still draws its own question)
+    assert.deepEqual(scan(ok).filter((v) => /must be one of/.test(v)), [], ok);
+  }
+  for (const [scan, bad] of [[term, 'owner-choice.md'], [term, 'owner-choicex'], [exec, 'continue.md'], [exec, 'continued'], [aspir, 'meets.x'], [aspir, 'meetsx']]) {
+    assert.ok(scan(bad).length, `${bad}: not the value`);
+  }
+});
+
+test('eval filter: plugin/case names one case of one plugin, where several plugins share the case id', () => {
+  const E = require('./evallib.js');
+  const ids = (f) => E.cases(f).map((c) => `${c.plugin}/${c.id}`);
+  assert.deepEqual(ids('aspiration-self-monitoring/stays-quiet-on-a-lookup'), ['aspiration-self-monitoring/stays-quiet-on-a-lookup']);
+  assert.deepEqual(ids('handoff/stays-quiet-on-a-lookup'), ['handoff-self-monitoring/stays-quiet-on-a-lookup'], 'part of the plugin name, as a bare term');
+  assert.ok(ids('stays-quiet-on-a-lookup').length > 1, 'a bare case id still matches it in every plugin');
+  assert.deepEqual(ids('handoff/stays-quiet'), [], 'the case id after the slash is whole');
+});
+
+test('aspiration and handoff: a question answered takes no block, said in the load and the skill, inside the inject ceiling', () => {
+  for (const [p, re] of [['aspiration', /A reply that only answers a question takes none\./], ['handoff', /something to decide - a change, a run, a review, a choice/]]) {
+    const dir = plugin(`${p}-self-monitoring`);
+    assert.match(require(path.join(dir, 'lib/messages.js')).LOAD, re, `${p}: the load says when the block is due`);
+    const text = require(path.join(dir, 'lib/host.js')).skillText(dir, p);
+    assert.ok(text.length > 0, `${p}: the skill is still injected (under INJECT_MAX)`);
+  }
+  const H = require(path.join(plugin('handoff-self-monitoring'), 'lib/host.js')).skillText(plugin('handoff-self-monitoring'), 'handoff');
+  assert.match(H, /A question answered, with nothing done or left to decide,\s+takes none\./);
+  assert.match(H, /- You are about to close a turn that did work or leaves a choice\./);
+  assert.match(H, /a list under `Options`, not a `\|`-separated line/, 'the one-line rule stays in the hook rules');
+  const A = require(path.join(plugin('aspiration-self-monitoring'), 'lib/host.js')).skillText(plugin('aspiration-self-monitoring'), 'aspiration');
+  assert.match(A, /A reply that only answers a question, with nothing made or changed, takes\s+none\./);
 });

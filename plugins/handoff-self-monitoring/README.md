@@ -287,7 +287,7 @@ hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|co
 hooks/hand-prompt.js
 hooks/hand-observe.js
 hooks/hand-stop.js
-hooks/hand-session-start.js         # a resumed or compacted session loads the discipline again
+hooks/hand-session-start.js         # a compacted session loads the discipline again; a resumed one keeps it
 hooks/hand-session-end.js
 hooks/hand-inject.js               # the skill's text at session start, after /clear or compaction, and for a subagent
 cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse, stop

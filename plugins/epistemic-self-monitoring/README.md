@@ -47,11 +47,12 @@ choosing your own.
 | Layer | Claude Code | Cursor |
 |-------|-------------|--------|
 | **Load** the discipline | `UserPromptSubmit`: first turn, then every 10th | `sessionStart` → `additional_context` |
-| **Observe** — expectation vs. observation nudge right after a shell result | `PostToolUse` (matcher `Bash`) → `additionalContext`; every 6th command, or on output that `lib/fail.js` classes as a failure — the same line rules as persistence, never a bare "error" or "failed" (rate-limited) | `postToolUse` (self-filtered to shell tools) → `additional_context` |
+| **Observe** — expectation vs. observation nudge right after a shell result | `PostToolUse` (matcher `Bash`) → `additionalContext`; on output that `lib/fail.js` classes as a failure — the same line rules as persistence, never a bare "error" or "failed" (rate-limited) | `postToolUse` (self-filtered to shell tools) → `additional_context` |
 | **Close** — scan the final message for `[EPISTEMIC CLOSE]` blocks | `Stop` reads `last_assistant_message` | `afterAgentResponse` scans `text`, `stop` acts on it |
 
 Cadence constants sit at the top of each adapter (`EVERY_N_TURNS`,
-`EVERY_N_COMMANDS`, `MIN_GAP_ON_ERROR`).
+`MIN_GAP_ON_ERROR`). From 0.5.0 a command that went as planned draws no
+nudge: the every-sixth-command reminder is gone.
 
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 prompt, a tool call, or a stop.
@@ -172,7 +173,7 @@ hooks/epi-prompt.js
 hooks/epi-subagent-start.js        # a subagent, which has no prompt of its own, gets the load at its start
 hooks/epi-observe.js
 hooks/epi-stop.js
-hooks/epi-session-start.js          # a resumed or compacted session loads the discipline again
+hooks/epi-session-start.js          # a compacted session loads the discipline again; a resumed one keeps it
 hooks/epi-session-end.js
 cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse, stop
 cursor/epi-session-start.js   # also sweeps aged state (Cursor has no session-end event)

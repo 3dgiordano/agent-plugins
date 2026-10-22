@@ -2,10 +2,10 @@
 /*
  * executive-self-monitoring - Claude Code SessionStart hook (matcher: resume|compact).
  *
- * The cadence fires on a session's first prompt. A resumed session, or one
- * that continues after a compaction, starts the count again, so its next
- * prompt carries the checkpoint - what Cursor does on every sessionStart. The
- * counter is kept across the resume otherwise (exec-session-end.js).
+ * The cadence fires on a session's first prompt. A session that continues
+ * after a compaction starts the count again, so its next prompt carries the
+ * checkpoint. A resumed session keeps its count: its transcript comes back
+ * whole, the last checkpoint in it (exec-session-end.js keeps the counter).
  *
  * Emits nothing, never blocks, fails silent.
  */
@@ -18,7 +18,8 @@ const path = require('path');
 function main(raw) {
   let data = {};
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
-  if (data.source !== 'resume' && data.source !== 'compact') return;
+  // A resume brings the transcript back whole, the earlier load in it: only a compaction loses it.
+  if (data.source !== 'compact') return;
   const sid = typeof data.session_id === 'string' && data.session_id ? data.session_id : 'nosession';
   const dir = path.join(os.tmpdir(), '3dgiordano-agent-plugins');
   try { fs.mkdirSync(dir, { recursive: true }); } catch (_) {}

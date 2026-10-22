@@ -60,7 +60,7 @@ threshold is crossed (and again at each multiple), never on every call:
 
 | Signal | Threshold | What counts |
 |--------|-----------|-------------|
-| `edits` | same file edited **4** times | any tool whose name looks like an edit (`Edit`, `Write`, `NotebookEdit`, `edit_file`, …), keyed by file path |
+| `edits` | same file edited **4** times as retries | any tool whose name looks like an edit (`Edit`, `Write`, `NotebookEdit`, `edit_file`, …), keyed by file path; an edit is a retry after a shell command failed since the file's previous edit, or on lines an earlier edit of it changed - a file written in several edits with nothing failing is being built and does not count (0.5.0) |
 | `cmds` | same shell command failing **3** times | shell-like tools whose output looks like a failure, keyed by the normalized command |
 | `errs` | same error signature **3** times | the first error-naming line of a failed output, with numbers, hex ids and paths blanked — so a retry that only moved a line number still counts as the same error. The message names the command whose output it was, never the line: output is text a test, a file or a service wrote |
 | `effort` | **30** tool calls, then every 30 | every tool call |
@@ -79,7 +79,7 @@ an assertion failure, "command not found" and friends. The host's structured
 line-anchored rules see real lines. The same file, byte for byte, drives the
 epistemic plugin's observe nudge.
 
-The nudge carries the count — *"you have edited `src/a.js` 4 times this turn"*,
+The nudge carries the count — *"you have edited `src/a.js` 4 times this turn, retrying after a failed run or on the same lines"*,
 *"`npm test` has failed 3 times this turn"* — and asks for the hypothesis held,
 what changed between attempts, and what the agent would do if the hypothesis
 were wrong. When the epistemic-self-monitoring plugin is installed, that last
@@ -179,7 +179,7 @@ hooks/persist-prompt.js
 hooks/persist-observe.js
 hooks/persist-stop.js               # Stop and SubagentStop: the turn's summary, to the opt-in log
 hooks/persist-subagent-start.js     # a subagent, which has no prompt of its own, gets the load at its start
-hooks/persist-session-start.js      # a resumed or compacted session loads the discipline again
+hooks/persist-session-start.js      # a compacted session loads the discipline again; a resumed one keeps it
 hooks/persist-session-end.js
 cursor/hooks.json                   # Cursor: sessionStart, postToolUse, afterAgentResponse
 cursor/persist-session-start.js   # also sweeps aged state (Cursor has no session-end event)

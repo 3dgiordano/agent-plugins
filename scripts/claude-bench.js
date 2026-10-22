@@ -101,12 +101,14 @@ const { spawnSync } = require('child_process');
 
 const AGENT_CLI_DRIVER = true;
 
-const { findCli } = require('./claude-eval.js');
+// claude-eval.js requires this file for its session cleanup: findCli is read when called, not at load.
+const findCli = () => require('./claude-eval.js').findCli();
 const { pluginCopy, killTree } = require('./cursor-eval.js');
 const { reached, seed, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, auditStream, quote, MARKER, nodeGuard, permissionFlags, neutralDir, assuranceTally, tallyAssurance, assuranceLine, assuranceFields } = require('./evallib.js');
 const { childEnv } = require('./integrity.js');
 const { ROOT, loadCases, armOrder, keepAttempts, intentToTreat, ittLines, moveChildren } = require('./benchlib.js');
 const { benchmarkVersion, pluginVersions } = require('./benchsession.js');
+const { recordRun, caseFields, caseLines } = require('./behaviour.js');
 const suite = require('./suite.js');
 
 const WATCHDOG = path.join(__dirname, 'idle-watchdog.js');
@@ -579,7 +581,54 @@ function keepTranscript(ws, file) {
     }
   }
   if (lines.length) { try { fs.writeFileSync(file, lines.join('\n') + '\n'); } catch (_) { /* a lost transcript, not a lost run */ } }
-  try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) { /* left for the owner's cleanup */ }
+  removeIfTheRuns(dir, ws);
+}
+
+/*
+ * A session folder is the run's only when it is empty, or when every working
+ * directory its transcripts record lies inside the run's own workspace - a
+ * fresh directory with a random name. Anything else is left where it is: the
+ * folder of a session the owner ran is never this run's to remove.
+ */
+function cwdKey(p) {
+  return String(p).replace(/\\/g, '/').replace(/^\/([a-z])\//i, '$1:/').replace(/\/+$/, '').toLowerCase();
+}
+function isTheRuns(dir, ws) {
+  const own = cwdKey(path.resolve(ws));
+  let seen = 0;
+  const walk = (d) => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) { if (!walk(p)) return false; continue; }
+      if (!e.name.endsWith('.jsonl')) continue;
+      for (const m of fs.readFileSync(p, 'utf8').matchAll(/"cwd":"((?:[^"\\]|\\.)*)"/g)) {
+        const cwd = cwdKey(JSON.parse(`"${m[1]}"`));
+        if (cwd !== own && !cwd.startsWith(own + '/')) return false;
+        seen += 1;
+      }
+    }
+    return true;
+  };
+  try { return walk(dir) && seen > 0; } catch (_) { return false; }
+}
+// True when the tree under dir holds no file at all, only empty folders.
+function holdsNoFile(dir) {
+  try {
+    return fs.readdirSync(dir, { withFileTypes: true }).every((e) => e.isDirectory() && holdsNoFile(path.join(dir, e.name)));
+  } catch (_) { return false; }
+}
+function removeIfTheRuns(dir, ws) {
+  if (!dir || !fs.existsSync(dir)) return false;
+  // A run with --no-session-persistence leaves the folder and an empty
+  // memory/ in it (2.1.283): a tree with no file removes nothing but folders.
+  if (!holdsNoFile(dir) && !isTheRuns(dir, ws)) return false;
+  try { fs.rmSync(dir, { recursive: true, force: true }); return true; } catch (_) { return false; }
+}
+
+// The host's session folder of a run whose transcript is not kept (a probe, a
+// judge call): the stream already holds what was said.
+function dropSessionFolder(ws) {
+  return removeIfTheRuns(projectDirOf(ws), ws);
 }
 
 // Synchronous wait for a quota window; the run is sequential by design.
@@ -624,6 +673,7 @@ function rescore(dir) {
     let dead = 0;
     let contaminated = 0;
     const excluded = { with: 0, without: 0 };
+    const rows = [];
     for (const r of runsOf.sort((a, b) => a.i - b.i)) {
       const costFile = path.join(dir, `${r.base}.cost.json`);
       const saved = JSON.parse(fs.readFileSync(costFile, 'utf8'));
@@ -659,18 +709,22 @@ function rescore(dir) {
         changes.push(`${r.base}: graded now: ${graded.pass ? 'pass' : 'fail'} ${graded.metric}/${graded.metricMax}`);
       }
       valid[r.arm] += 1;
+      rows.push({ arm: r.arm, metric: graded.metric, metricMax: graded.metricMax, behaviour: recordRun(c, shaped, { ws: (saved.roots || [])[0] || copy, workspace: copy, outside: audit.outside, close: finalMessage(shaped) || text, outDir: dir, base: r.base }) });
       if (graded.pass) score[r.arm] += 1;
       if (sideChannel(c, finalMessage(shaped) || text, copy).seen) blocks[r.arm] += 1;
       tallyAssurance(assured, r.arm, c.plugin, finalMessage(shaped) || text, graded.pass);
     }
     console.log(`${key}  with ${score.with}/${valid.with}   without ${score.without}/${valid.without}${dead ? `   ${dead} dead` : ''}${contaminated ? `   ${contaminated} contaminated` : ''}`);
     if (assuranceLine(c.plugin, assured)) console.log(assuranceLine(c.plugin, assured));
+    const fields = caseFields(c.plugin, rows);
+    for (const l of caseLines(fields)) console.log(l);
     if (!valid.with || !valid.without) continue;
     scored.push({
       case: key, with: score.with, without: score.without, validWith: valid.with, validWithout: valid.without,
       excludedWith: excluded.with, excludedWithout: excluded.without,
       blocksWith: blocks.with, blocksWithout: blocks.without,
       ...assuranceFields(c.plugin, assured),
+      ...fields,
       guard: (record.guards || {})[key] || null,
       cost: { with: summarizeCost(cost.with), without: summarizeCost(cost.without) },
     });
@@ -918,6 +972,8 @@ function main() {
     const costCase = { with: blankCost(), without: blankCost() };
     const hooksRan = { with: 0, without: 0 };
     let metricMax = null;
+    // Each graded run's partial metric and behaviour, in run order (scripts/behaviour.js).
+    const rows = [];
     let sideLabel = 'block';
     let dead = 0;
     let contaminated = 0;
@@ -1062,6 +1118,7 @@ function main() {
       valid[arm] += 1;
       metric[arm] += graded.metric;
       metricMax = graded.metricMax;
+      rows.push({ arm, metric: graded.metric, metricMax: graded.metricMax, behaviour: recordRun(c, shaped, { ws, outside: audit.outside, close: finalMessage(shaped) || parsed.text, outDir, base }) });
       const side = sideChannel(c, finalMessage(shaped) || parsed.text, ws);
       tallyAssurance(assured, arm, c.plugin, finalMessage(shaped) || parsed.text, graded.pass);
       dropWorkspace(ws);
@@ -1095,6 +1152,8 @@ function main() {
     console.log(`  metric avg with ${avg(metric.with, valid.with)}/${metricMax == null ? '?' : metricMax}   without ${avg(metric.without, valid.without)}/${metricMax == null ? '?' : metricMax}`);
     console.log(`  ${sideLabel.padEnd(14)} with ${blocks.with}/${valid.with}   without ${blocks.without}/${valid.without}   (not the score)`);
     if (assuranceLine(c.plugin, assured)) console.log(assuranceLine(c.plugin, assured));
+    const fields = caseFields(c.plugin, rows);
+    for (const l of caseLines(fields)) console.log(l);
     console.log(`  cost       with ${fmtCost(costCase.with)}   without ${fmtCost(costCase.without)}   ${fmtDelta(costCase.with, costCase.without)}   (not the score)`);
     if (dead) console.log(`  ${dead} dead run(s) excluded`);
     if (contaminated) console.log(`  ${contaminated} contaminated run(s) excluded`);
@@ -1109,6 +1168,7 @@ function main() {
       blocksWith: blocks.with,
       blocksWithout: blocks.without,
       ...assuranceFields(c.plugin, assured),
+      ...fields,
       guard: c.guardFile,
       cost: { with: summarizeCost(costCase.with), without: summarizeCost(costCase.without) },
     });
@@ -1163,4 +1223,4 @@ function pctOf(w) {
 }
 
 if (require.main === module) main();
-module.exports = { cursorShape, parseClaude, settingsFor, argsFor, toolKind, claudeWitness, claudeProjectDir };
+module.exports = { cursorShape, parseClaude, settingsFor, argsFor, toolKind, claudeWitness, claudeProjectDir, keepTranscript, dropSessionFolder };

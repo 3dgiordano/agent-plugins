@@ -48,8 +48,8 @@ Two pieces that install as one unit:
 
 | Host | Adapter | Cadence |
 |------|---------|---------|
-| Claude Code, Codex | `hooks/exec-monitor.js` (`UserPromptSubmit`) | first turn of a session, then every Nth turn (`EVERY_N_TURNS`, default 5); again after a resume or a compaction (`hooks/exec-session-start.js`) |
-| Claude Code | `hooks/exec-observe.js` (`PostToolUse`: Read, Write, Edit) + `exec-monitor.js` | on any prompt after a document the agent read changed on disk since its last Read, Write or Edit of it: names it, once per change |
+| Claude Code, Codex | `hooks/exec-monitor.js` (`UserPromptSubmit`) | first turn of a session, then every Nth turn (`EVERY_N_TURNS`, default 5); again after a compaction, not after a resume, whose transcript comes back with the last checkpoint in it (`hooks/exec-session-start.js`) |
+| Claude Code | `hooks/exec-observe.js` (`PostToolUse`: Read, Write, Edit, and Bash or PowerShell) + `exec-monitor.js` | on any prompt after a document the agent read changed on disk since its last Read, Write or Edit of it, or its own shell command that names it: names it, once per change |
 | Claude Code, Codex | `exec-monitor.js` + `hooks/exec-stop.js` (`Stop`), `lib/writeback.js` | the plan write-back. The plan is the file the agent's latest [PLAN CHECK] names in `Plan`, whatever its name (read from the turn's blocks at the close), or, when no block has named a file, the one the `Plan:` line of `.agent/progress.md` points at. At the owner's third deciding prompt (a pick, an approval) since that file last changed - once it has been kept in the session - and on the second prompt after a [PLAN CHECK] that decided `revise-plan` if it has not changed since: one line, naming no file |
 | Claude Code, Codex | `hooks/exec-inject.js` (`SubagentStart`) + `hooks/exec-subagent-stop.js` (`SubagentStop`) | a subagent gets the skill's text at its start; at its close its reads are dropped, and with the opt-in log its [PLAN CHECK] and reads are measured, never gated |
 | Cursor | `cursor/exec-monitor-cursor.js` (`sessionStart`) | once per session |
@@ -178,7 +178,7 @@ hooks/hooks.json                  # Claude Code + Codex: SessionStart(resume|com
 hooks/exec-monitor.js
 hooks/exec-observe.js              # records the documents read and their mtime
 hooks/exec-log-skill.js
-hooks/exec-session-start.js         # a resumed or compacted session loads the discipline again
+hooks/exec-session-start.js         # a compacted session loads the discipline again; a resumed one keeps it
 hooks/exec-session-end.js
 hooks/exec-inject.js               # the skill's text at session start, after /clear or compaction, and for a subagent
 hooks/exec-subagent-stop.js        # a subagent's close: measured (opt-in log), its reads dropped

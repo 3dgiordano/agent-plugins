@@ -109,7 +109,7 @@ The skill is the same everywhere; the *when* depends on the events a host expose
 | Layer | Claude Code · Codex | Cursor |
 | --- | --- | --- |
 | The skill's text in context (handoff, progress, coverage, executive, hygiene, aspiration) | `SessionStart`: startup, `/clear`, compaction, and a resume that never had it; `SubagentStart` for every subagent | `sessionStart`; subagents do not get it (`subagentStart` takes no context) |
-| Ask for the skill (the other four), for an agent that does not know the marker | first prompt (+ periodic reminder, and after a resume or compaction); a subagent at its start (persistence, epistemic, termination) | session start |
+| Ask for the skill (the other four), for an agent that does not know the marker | first prompt (+ periodic reminder, and after a compaction); a subagent at its start (persistence, epistemic, termination) | session start |
 | A subagent's own record (`agent_id`): its counts and nudges are its own; its changes reach the main agent, its reviews do not | ✓ | **—**: no subagent id read yet (not probed), one record per conversation |
 | Executive checkpoint cadence | every 5th prompt | once per session |
 | Executive changed-document line | ✓ (Claude Code) | — |

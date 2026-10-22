@@ -76,11 +76,12 @@ runs into a turn, a hook adds this to its context:
 
 ```
 [persistence self-monitoring] you have edited `src/parser.js` 4 times this
-turn; `npm test` has failed 3 times this turn. Before the next attempt, write
-the [PERSISTENCE CHECK] as a markdown list: Attempts, Hypothesis held, Rival
-approach, Proportion, Decision. If nothing about the next attempt is new, say
-so to the user instead of trying again. If you do not know what these markers
-ask for, load the persistence-self-monitoring skill ("Core Protocol").
+turn, retrying after a failed run or on the same lines; `npm test` has failed
+3 times this turn. Before the next attempt, write the [PERSISTENCE CHECK] as a
+markdown list: Attempts, Hypothesis held, Rival approach, Proportion,
+Decision. If nothing about the next attempt is new, say so to the user instead
+of trying again. If you do not know what these markers ask for, load the
+persistence-self-monitoring skill ("Core Protocol").
 ```
 
 **What you see.** The agent answers in its next message with the block the
@@ -100,7 +101,7 @@ countable or on disk, never to "reflect harder":
 
 | What the hook puts in front of the agent | The question | What you read |
 |------|--------------|---------------|
-| the same file edited 4 times, a command failed 3 times | *is it worth another try?* | `[PERSISTENCE CHECK]` — [persistence](plugins/persistence-self-monitoring/) |
+| the same file edited 4 times as retries, a command failed 3 times | *is it worth another try?* | `[PERSISTENCE CHECK]` — [persistence](plugins/persistence-self-monitoring/) |
 | the first prompt, then every fifth; a plan that changed on disk since it was read; three decisions made with the plan unchanged | *am I still on the plan?* | `[PLAN CHECK]` — [executive](plugins/executive-self-monitoring/) |
 | a claim about to become a fact, a cause or a closure | *observed, or guessed?* | `[EPISTEMIC CLOSE]` — [epistemic](plugins/epistemic-self-monitoring/) |
 | a turn that ended on "I'm running out of context" | *a reason, or a phrase?* | `[TERMINATION CHECK]` — [termination](plugins/termination-self-monitoring/) |
@@ -515,6 +516,7 @@ No dependencies.
 node scripts/test.js            # structure checks + every hook adapter driven as its host would
 node scripts/version.js --check # each plugin's four manifests agree on the version
 node scripts/calibrate.js <dir> # what-if nudge rates from the opt-in logs of real sessions
+node scripts/behaviour.js <dir> # partial metric and behaviour measures of stored bench runs
 ```
 
 The thresholds (4 edits, 3 failures, 30 tool calls, 3 stubs, 3 parts, 3

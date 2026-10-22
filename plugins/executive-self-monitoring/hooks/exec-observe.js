@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /*
  * Executive self-monitoring - Claude Code PostToolUse hook
- * (matcher: Read|Write|Edit|MultiEdit|NotebookEdit).
+ * (matcher: Read|Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell).
  *
  * Records which documents the agent read, and their mtime, so the next
  * prompt can say that one changed on disk since the agent's last Read, Write
- * or Edit of it (lib/reads.js). Emits nothing; the prompt hook speaks.
+ * or Edit of it (lib/reads.js). A shell command that names one of them is
+ * the agent's own change. Emits nothing; the prompt hook speaks.
  *
  * Each actor keeps its own reads: a subagent's read of the plan is not the
  * main agent's, and its edit of a document the main agent read is a change
@@ -21,7 +22,12 @@ const { cwdOf, actorOf } = require('../lib/host.js');
 function main(raw) {
   let data = {};
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
-  reads.observe('claude', data.session_id || 'nosession', data.tool_name, data.tool_input, cwdOf(data), actorOf(data));
+  const sid = data.session_id || 'nosession';
+  if (/^(?:Bash|PowerShell)$/.test(String(data.tool_name || ''))) {
+    reads.shellRan('claude', sid, data.tool_input && data.tool_input.command, actorOf(data));
+    return;
+  }
+  reads.observe('claude', sid, data.tool_name, data.tool_input, cwdOf(data), actorOf(data));
 }
 
 let buf = '';

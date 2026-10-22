@@ -3,8 +3,8 @@
  * Epistemic self-monitoring - Cursor postToolUse hook.
  *
  * Same job as the Claude Code PostToolUse adapter: right after a shell
- * observation, inject the expectation-vs-observation nudge with a low cadence
- * (every Nth shell command, or on failure-looking output, rate-limited).
+ * observation that looks like a failure, inject the expectation-vs-observation
+ * nudge, rate-limited.
  *
  * Cursor's postToolUse has no tool-name matcher in hooks.json, so this script
  * filters itself: only tools whose name looks like a shell/terminal count.
@@ -17,8 +17,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const msg = require('../lib/messages.js');
 
-const EVERY_N_COMMANDS = 6;
-const MIN_GAP_ON_ERROR = 3;
+const MIN_GAP_ON_ERROR = 3; // nudge on error output, but not more often than this
 const HOST = 'cursor';
 
 const SHELL_TOOL_RE = /shell|terminal|bash|command|exec/i;
@@ -37,7 +36,7 @@ function main(raw) {
     st = s;
     st.shell = (st.shell || 0) + 1;
     st.sinceNudge = (st.sinceNudge === undefined ? MIN_GAP_ON_ERROR : st.sinceNudge) + 1; // first error of a session fires
-    const f = st.shell % EVERY_N_COMMANDS === 0 || (failed && st.sinceNudge >= MIN_GAP_ON_ERROR);
+    const f = failed && st.sinceNudge >= MIN_GAP_ON_ERROR;
     if (f) st.sinceNudge = 0;
     return f;
   });

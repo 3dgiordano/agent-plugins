@@ -59,9 +59,10 @@ function main(raw) {
   state.update(HOST, sid, (st) => {
     if (speak) st.announced = ins.mtimeMs;
     st.notice = note || null;
-    // A resumed or compacted session loads the discipline again on its next
-    // prompt; the state is kept across the resume (prog-session-end.js).
-    if (data.source === 'resume' || data.source === 'compact') st.reload = true;
+    // A compacted session loads the discipline again on its next prompt. A
+    // resumed one does not: its transcript comes back whole, the earlier load
+    // in it. The state is kept across the resume (prog-session-end.js).
+    if (data.source === 'compact') st.reload = true;
     // The status says what it holds; the watch starts from here.
     st.claim = Object.assign({}, st.claim, { held: claims.holds(ins, mine) });
   });

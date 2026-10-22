@@ -8,7 +8,11 @@
  *
  * Three signals, each firing exactly when its threshold is crossed (and again
  * at every multiple), never on every call:
- *   edits     - the same file edited EDITS_SAME_FILE times
+ *   edits     - the same file edited EDITS_SAME_FILE times as an attempt: after
+ *               a shell command failed since its previous edit, or on the same
+ *               lines an earlier edit of it this turn changed. A file written
+ *               in several edits with nothing failing between is being built,
+ *               not retried, and does not count.
  *   failures  - the same shell command, or the same error signature, seen
  *               REPEAT_FAILURES times
  *   effort    - TOOL_CALLS_STEP tool calls since the user's last message
@@ -25,7 +29,7 @@ const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff/i
 const SHELL_TOOL_RE = /bash|shell|terminal|command|exec|powershell/i;
 
 function freshTurn() {
-  return { tools: 0, edits: {}, cmds: {}, errs: {}, fired: { effort: 0, edits: {}, cmds: {}, errs: {} } };
+  return { tools: 0, edits: {}, cmds: {}, errs: {}, fails: 0, seen: {}, regions: {}, fired: { effort: 0, edits: {}, cmds: {}, errs: {} } };
 }
 
 function bump(map, key) {
@@ -50,6 +54,36 @@ function filePathOf(input) {
   return null;
 }
 
+// The lines an edit replaces, when the tool says: Edit's old_string, each of MultiEdit's.
+function regionsOf(input) {
+  if (!input || typeof input !== 'object') return [];
+  const olds = typeof input.old_string === 'string' ? [input.old_string]
+    : Array.isArray(input.edits) ? input.edits.map((e) => e && e.old_string).filter((x) => typeof x === 'string') : [];
+  return olds.map((o) => o.trim().replace(/\s+/g, ' ').slice(0, 200)).filter(Boolean);
+}
+
+/*
+ * How many attempts this edit of f adds (see the header), recorded as it
+ * goes: 0 for an edit that builds, 1 for a retry, and 2 for the first retry
+ * after an edit that did not count - the edit it retries was the first
+ * attempt. A turn from before these fields counts every edit, as before.
+ */
+function attempts(turn, f, input) {
+  if (typeof turn.fails !== 'number') return 1;
+  if (!turn.seen) turn.seen = {};
+  if (!turn.regions) turn.regions = {};
+  if (!(f in turn.seen) && Object.keys(turn.seen).length >= MAX_KEYS) return 0;
+  const earlier = f in turn.seen;
+  const afterFailure = turn.fails > (earlier ? turn.seen[f] : 0);
+  turn.seen[f] = turn.fails;
+  const was = turn.regions[f] || [];
+  const regions = regionsOf(input);
+  const again = regions.some((r) => was.includes(r));
+  turn.regions[f] = was.concat(regions.filter((r) => !was.includes(r))).slice(-16);
+  if (!afterFailure && !again) return 0;
+  return earlier && !turn.edits[f] ? 2 : 1;
+}
+
 function commandOf(input) {
   if (!input || typeof input !== 'object') return null;
   const c = input.command || input.cmd || input.script;
@@ -69,7 +103,7 @@ function observe(turn, toolName, toolInput, toolOutput) {
 
   if (EDIT_TOOL_RE.test(name)) {
     const f = filePathOf(toolInput);
-    if (f) {
+    for (let k = f ? attempts(turn, f, toolInput) : 0; k > 0; k--) {
       const n = bump(turn.edits, f);
       if (crossed(n, EDITS_SAME_FILE, turn.fired.edits, f)) fired.push({ kind: 'edits', key: f, count: n });
     }
@@ -78,6 +112,7 @@ function observe(turn, toolName, toolInput, toolOutput) {
   if (SHELL_TOOL_RE.test(name)) {
     const out = outputText(toolOutput).slice(0, 6000);
     if (looksFailed(out)) {
+      if (typeof turn.fails === 'number') turn.fails += 1;
       const c = commandOf(toolInput);
       if (c) {
         const n = bump(turn.cmds, c);

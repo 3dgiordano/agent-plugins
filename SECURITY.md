@@ -92,7 +92,9 @@ a project file, stated here so they can be checked:
   of each document the agent read or wrote with a file tool (`.md`,
   `.markdown`, `.txt`, `.rst`, `.adoc`), at most 50 per session; never its
   text. Its message names that path and that it changed on disk since the
-  agent read it. For the plan write-back it also reads the opening words of
+  agent read it. It also reads the text of the agent's shell commands, to
+  tell its own change to such a document from someone else's: a command that
+  names the file is the agent's; the text is matched and not kept. For the plan write-back it also reads the opening words of
   the owner's prompt (a pick or an approval); at the close of a turn, the end
   of the session transcript the host keeps (at most 2 MB, the agent's text
   since the owner's prompt), for the `[PLAN CHECK]` blocks' `Plan` path and

@@ -257,7 +257,7 @@ hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|co
 hooks/cov-prompt.js
 hooks/cov-observe.js
 hooks/cov-stop.js
-hooks/cov-session-start.js          # a resumed or compacted session loads the discipline again
+hooks/cov-session-start.js          # a compacted session loads the discipline again; a resumed one keeps it
 hooks/cov-session-end.js
 hooks/cov-inject.js                # the skill's text at session start, after /clear or compaction, and for a subagent
 cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse

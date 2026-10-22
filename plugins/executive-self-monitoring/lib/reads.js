@@ -10,9 +10,12 @@
  * hands it back as one line on the next prompt. The file's text is never read
  * here.
  *
- * A change made through the shell - the agent's own `sed -i` included - is not
- * a file tool's, so it is reported: the message says only that the file
- * changed since the agent last read or wrote it, which is then true.
+ * A change made through the agent's own shell command is its own edit too: a
+ * command that names a document read earlier moves that record to the file's
+ * mtime after the command (shellRan), so the agent's `sed -i`, heredoc or
+ * script is not news on the next prompt. A change made by someone else -
+ * another session, the owner, a command that does not name the file - is
+ * still reported.
  *
  * Documents only (.md, .markdown, .txt, .rst, .adoc): a plan, a spec, an ADR,
  * a ticket. Code changes under the agent all the time, by its own hand.
@@ -134,6 +137,26 @@ function observe(host, sid, toolName, toolInput, cwd, actor) {
 }
 
 /*
+ * A shell command the agent ran: each document read earlier that the command
+ * names (its file name, in any case) and that changed takes its new mtime.
+ */
+function shellRan(host, sid, command, actor) {
+  const text = String(command || '').toLowerCase();
+  if (!text) return;
+  update(host, sid, (st) => {
+    let moved = false;
+    for (const [p, rec] of Object.entries(st.files)) {
+      if (!text.includes(path.basename(p).toLowerCase())) continue;
+      const m = mtimeOf(p);
+      if (m === null || m <= rec.mtimeMs) continue;
+      st.files[p] = { mtimeMs: m, seenAt: rec.seenAt };
+      moved = true;
+    }
+    return moved;
+  }, actor);
+}
+
+/*
  * The documents read earlier that changed on disk since, each reported once:
  * the record moves to the new mtime, so the same change is not said twice.
  */
@@ -151,4 +174,4 @@ function changed(host, sid, actor) {
   return out;
 }
 
-module.exports = { observe, changed, update, file, DOC_RE };
+module.exports = { observe, shellRan, changed, update, file, DOC_RE };

@@ -34,7 +34,7 @@ The level is an aspiration level in Simon's sense: the bar a search stops at (Si
 | Layer | Claude Code / Codex | Cursor |
 |-------|---------------------|--------|
 | **The skill** in context | `SessionStart` (startup, `/clear`, compaction; a resume only when it never had it) and `SubagentStart` → the skill's text, `hooks/aspir-inject.js` | `sessionStart` → `additional_context`, with the load message; subagents: no (`subagentStart` takes no context) |
-| **Load** the discipline | `UserPromptSubmit`: first turn, then every 10th, and after a resume or compaction; carries the retrospective | `sessionStart` → `additional_context` |
+| **Load** the discipline | `UserPromptSubmit`: first turn, then every 10th, and after a compaction (a resume keeps the transcript, the load in it); carries the retrospective | `sessionStart` → `additional_context` |
 | **Record** edits and reviews | `PostToolUse`: the tool's name, the path it names and a command's text, never its output | `postToolUse` |
 | **Close** - scan the final message for a claim and the block | `Stop` reads `last_assistant_message` with the turn's counts | `afterAgentResponse` scans `text`; `stop` acts on it |
 
@@ -98,6 +98,7 @@ And one where it stays quiet: "What does Herbert Simon mean by an aspiration lev
 - **No way to review here.** No display, no renderer, no way to play the audio, a service out of reach: write `Remainder: blocked` and name the limit in `Reviewed`. The edited files are not judged then.
 - **A run that reviewed nothing.** Any run counts as reviewing every edited code file, and any render every edited file. That errs toward silence; `Reviewed` is where the agent says which run was the review.
 - **An edit through the shell.** `sed -i` or a heredoc counts as a run, not an edit. That errs toward silence too.
+- **The ledger is not a result.** From 0.3.0, an edit of `.agent/progress.md` or one of its `.agent/progress-<topic>.md` detail files (progress-self-monitoring's notes about the work) is not counted: nobody asked for it as the work's result.
 - **A claim that was not a close.** The scanner reads the start of a sentence; a claim-shaped description still fires. It is one line, not a block of the turn.
 
 ## What it does on your machine
@@ -188,7 +189,7 @@ hooks/hooks.json                   # Claude Code + Codex: SessionStart, Subagent
 hooks/aspir-prompt.js              # load, retrospective, the turn's count starts
 hooks/aspir-observe.js             # edits and reviews
 hooks/aspir-stop.js                # the close
-hooks/aspir-session-start.js       # reload after a resume or compaction
+hooks/aspir-session-start.js       # reload after a compaction
 hooks/aspir-inject.js              # the skill's text at session start, after /clear or compaction, and for a subagent
 hooks/aspir-session-end.js         # sweeps aged state
 cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse, stop

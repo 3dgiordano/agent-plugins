@@ -208,7 +208,7 @@ hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|co
 hooks/term-prompt.js
 hooks/term-subagent-start.js       # a subagent, which has no prompt of its own, gets the load at its start
 hooks/term-stop.js
-hooks/term-session-start.js         # a resumed or compacted session loads the discipline again
+hooks/term-session-start.js         # a compacted session loads the discipline again; a resumed one keeps it
 hooks/term-session-end.js
 cursor/hooks.json                  # Cursor: sessionStart, afterAgentResponse, stop
 cursor/term-session-start.js   # also sweeps aged state (Cursor has no session-end event)

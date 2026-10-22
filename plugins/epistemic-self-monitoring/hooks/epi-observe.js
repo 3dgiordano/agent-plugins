@@ -3,9 +3,11 @@
  * Epistemic self-monitoring - Claude Code PostToolUse hook (matcher: Bash).
  *
  * The moment right after an observation is where a first explanation forms.
- * This hook injects the expectation-vs-observation nudge with a low cadence:
- * every Nth shell command, or immediately when the output looks like a failure
- * (rate-limited so a burst of errors does not become wallpaper).
+ * This hook injects the expectation-vs-observation nudge when a shell
+ * command's output looks like a failure (lib/fail.js), rate-limited so a
+ * burst of errors does not become wallpaper. A command that went as planned
+ * draws nothing: a nudge after every few commands, whatever they showed, was
+ * one the agent learned to read past.
  *
  * Output: JSON with hookSpecificOutput.additionalContext (non-blocking).
  * Fails silent: never blocks or alters the tool result.
@@ -18,8 +20,7 @@ const msg = require('../lib/messages.js');
 const { outputText, looksFailed } = require('../lib/fail.js');
 const { cwdOf, context, actorOf } = require('../lib/host.js');
 
-const EVERY_N_COMMANDS = 6;   // nudge on every Nth shell command
-const MIN_GAP_ON_ERROR = 3;   // and on error output, but not more often than this
+const MIN_GAP_ON_ERROR = 3;   // nudge on error output, but not more often than this
 const HOST = 'claude';
 
 function outputOf(data) {
@@ -40,7 +41,7 @@ function main(raw) {
     st = s;
     st.shell = (st.shell || 0) + 1;
     st.sinceNudge = (st.sinceNudge === undefined ? MIN_GAP_ON_ERROR : st.sinceNudge) + 1; // first error of a session fires
-    const f = st.shell % EVERY_N_COMMANDS === 0 || (failed && st.sinceNudge >= MIN_GAP_ON_ERROR);
+    const f = failed && st.sinceNudge >= MIN_GAP_ON_ERROR;
     if (f) st.sinceNudge = 0;
     return f;
   }, actor);
