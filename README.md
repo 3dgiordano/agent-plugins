@@ -43,13 +43,16 @@ send nothing anywhere.
 | Plain Node hooks and a skill per plugin; install only the ones you want | A framework, or a replacement for your agent, your prompts or your review |
 | Simple triggers, tested against real sessions | A way to make the model smarter: same model, more explicit decisions |
 
-> **Where the evidence stands** (2026-09-27, exploratory). On Claude Code,
-> runs with a plugin passed **60 of 72** graded tasks (interval 73-90%)
-> against **41 of 72** without (45-68%; Sonnet 5, Opus 5, Opus 5.5; n=3 per
-> case). By case: progress and executive gained on all three models,
-> integrity on two; four cases showed no gain, and one does not measure its
-> plugin on Claude. On Cursor (2026-09-23), both Grok models gained strongly
-> and Composer 2.5 little. These are not yet a confirmatory result: the
+> **Where the evidence stands** (exploratory). The last full Claude Code
+> session (2026-09-27; Sonnet 5, Opus 5, Opus 5.5; n=3 per case) passed 60 of
+> 72 graded tasks with a plugin against 41 of 72 without. That total no
+> longer measures the current plugins: 9 points of its gain came from
+> progress's `leftover-bug`, retired on 2026-10-21 because only the plugin
+> arm was told about the note it seeded (without it, 51 of 63 against 41 of
+> 63), and executive's case no longer separates the arms on Opus 5.5. A
+> session on the current suite (Haiku, Sonnet and Opus 5.5) is the next
+> measurement. On Cursor (2026-09-23), both Grok models gained strongly and
+> Composer 2.5 little. These are not yet a confirmatory result: the
 > cases and graders are the plugins' author's, kept when the unaided model
 > failed them, not pre-registered and not checked against blind labels
 > ([docs/STUDY-PROTOCOL.md](docs/STUDY-PROTOCOL.md) is the plan). Dates,

@@ -36,7 +36,7 @@ It is designed that way on purpose. Research on agents shows that the sense of b
 
 ### Is there evidence they improve results?
 
-**Exploratory results are published, with their dates, sample sizes and intervals; no confirmatory study has run yet** ([STUDY-PROTOCOL.md](STUDY-PROTOCOL.md)). On Claude Code, runs with a plugin passed 60 of 72 graded tasks (73-90%) against 41 of 72 without (45-68%; three models, n=3, 2026-09-27). The gain comes from three plugins (progress, executive, integrity); on the others the unaided models already pass, or the case does not measure the plugin. On Cursor the same design helped both Grok models strongly and Composer 2.5 little. The cases are written by the plugins' author, and the bench is still being built. [EVIDENCE.md](EVIDENCE.md) says exactly what is known and what is not.
+**Exploratory results are published, with their dates, sample sizes and intervals; no confirmatory study has run yet** ([STUDY-PROTOCOL.md](STUDY-PROTOCOL.md)). On Claude Code, the last full session (2026-09-27; Sonnet 5, Opus 5 and Opus 5.5, n=3) passed 60 of 72 graded tasks with a plugin against 41 of 72 without; that total no longer measures the current plugins, because 9 points of it came from a progress case retired on 2026-10-21 (only the plugin arm was told about the note it seeded) and executive's case no longer separates the arms on Opus 5.5. A session on the current suite is the next measurement. On Cursor the same design helped both Grok models strongly and Composer 2.5 little. The cases are written by the plugins' author, and the bench is still being built. [EVIDENCE.md](EVIDENCE.md) says exactly what is known and what is not.
 
 ### Do they work because the agent thinks it is being watched?
 
