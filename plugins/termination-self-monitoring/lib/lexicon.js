@@ -220,7 +220,9 @@ function scan(text) {
     // A qualifier may follow the token after any punctuation, comma included:
     // measured on the executive scanner, where the missing comma scored two
     // correct blocks of three as malformed. Same defect, fixed before it bites.
-    const known = REASONS.find((r) => reason === r || (r !== 'none' && reason.startsWith(r) && /^[-—–,;:([]/.test(reason.slice(r.length))));
+    // A full stop and a space is a separator too: `owner-choice. "Using up
+    // context" isn't a real reason.` - a correct block read as malformed.
+    const known = REASONS.find((r) => reason === r || (r !== 'none' && reason.startsWith(r) && /^(?:[-—–,;:([]|\.-)/.test(reason.slice(r.length))));
     const evidence = field(b, 'Evidence');
     const decision = (field(b, 'Decision') || '').toLowerCase().replace(/\.$/, '').slice(0, 80);
     if (!known) out.violations.push(`Reason must be one of ${REASONS.join(' | ')}, got "${reason || '(empty)'}"`);

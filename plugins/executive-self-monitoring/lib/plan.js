@@ -98,10 +98,12 @@ function scan(text) {
      * `continue, scoped strictly to steps 1-2` and `continue, explicitly
      * excluding the out-of-scope fixes` - two correct blocks out of three,
      * scored as malformed. What must NOT pass is a different word, so the
-     * test is that a separator follows rather than more letters.
+     * test is that a separator follows rather than more letters. A full stop
+     * and a space is one too - `continue. The plan holds.` - the way a
+     * sentence after the value ends it; a full stop with no space is not.
      */
     const known = DECISIONS.find((d) => decision === d ||
-      (decision.startsWith(d) && /^[-—–,;:(\[]/.test(decision.slice(d.length))));
+      (decision.startsWith(d) && /^(?:[-—–,;:(\[]|\.-)/.test(decision.slice(d.length))));
 
     if (plan === null || plan === '') {
       out.violations.push('no Plan - name the artifact that defines the active work, or say you could not find one');

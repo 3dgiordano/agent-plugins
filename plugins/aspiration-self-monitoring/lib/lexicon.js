@@ -79,9 +79,11 @@ function unfenced(text) {
   return text.replace(/```[\s\S]*?```/g, (f) => f.replace(/[^\n]/g, ' '));
 }
 
+// The value, or the value followed by a qualifier after punctuation - a full
+// stop and a space included: `meets. Every row lines up.` is `meets`.
 function token(value, list) {
   const v = (value || '').toLowerCase().replace(/\.$/, '').trim().replace(/\s+/g, '-').slice(0, 80);
-  return list.find((t) => v === t || (v.startsWith(t) && /^[-—–,;:([]/.test(v.slice(t.length)))) || '';
+  return list.find((t) => v === t || (v.startsWith(t) && /^(?:[-—–,;:([]|\.-)/.test(v.slice(t.length)))) || '';
 }
 
 function empty(v) {
