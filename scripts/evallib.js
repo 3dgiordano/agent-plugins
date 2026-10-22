@@ -193,10 +193,19 @@ function graderFor(plugin) {
  * case whose transcripts are still valid under the current grading core does
  * not need another call, it needs --rescore.
  */
+// A term matches a plugin's name or a case id; `plugin/case` names one case of
+// one plugin, as the bench's filter does (a case id several plugins share).
 function matches(filter, plugin, id) {
   if (!filter) return true;
   return String(filter).split(',').map((s) => s.trim()).filter(Boolean)
-    .some((term) => plugin.indexOf(term) !== -1 || (id !== undefined && id.indexOf(term) !== -1));
+    .some((term) => {
+      const slash = term.indexOf('/');
+      if (slash !== -1) {
+        const [p, c] = [term.slice(0, slash), term.slice(slash + 1)];
+        return plugin.indexOf(p) !== -1 && (id === undefined || id === c);
+      }
+      return plugin.indexOf(term) !== -1 || (id !== undefined && id.indexOf(term) !== -1);
+    });
 }
 
 function cases(filter) {
