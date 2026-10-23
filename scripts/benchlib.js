@@ -242,17 +242,25 @@ function moveChildren(from, to) {
 // agent read or wrote before it.
 // fs.cpSync keeps the source's mtime, so the revised PLAN.md read as older
 // than the agent's own edit of it and a changed-file check stayed silent.
+// "Now" alone lost to an edit in the same instant: a clock read to the
+// millisecond came out older than the agent's edit on macOS (CI, 2026-10-23),
+// so a file the overlay replaces is dated at least a second after it was.
 function layOverlay(from, ws) {
-  fs.cpSync(from, ws, { recursive: true });
-  const now = new Date();
-  const touch = (src, dst) => {
+  const before = new Map();
+  const list = (src, dst) => {
     for (const e of fs.readdirSync(src, { withFileTypes: true })) {
       const d = path.join(dst, e.name);
-      if (e.isDirectory()) touch(path.join(src, e.name), d);
-      else fs.utimesSync(d, now, now);
+      if (e.isDirectory()) list(path.join(src, e.name), d);
+      else before.set(d, fs.existsSync(d) ? fs.statSync(d).mtimeMs : null);
     }
   };
-  touch(from, ws);
+  list(from, ws);
+  fs.cpSync(from, ws, { recursive: true });
+  const now = Date.now();
+  for (const [d, was] of before) {
+    const t = was === null ? now : Math.max(now, was + 1000);
+    fs.utimesSync(d, t / 1000, t / 1000);
+  }
 }
 
 function fixtureDirs(caseDir) {

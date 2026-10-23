@@ -3837,14 +3837,19 @@ test('bench: a turn\'s overlay lands dated now, not with its source\'s mtime', (
   fs.writeFileSync(path.join(src, 'lib', 'net.js'), 'x');
   const old = new Date('2026-09-23T23:57:53Z');
   for (const f of ['PLAN.md', path.join('lib', 'net.js')]) fs.utimesSync(path.join(src, f), old, old);
-  // The agent's own edit of the plan, a moment before the revision lands.
+  // The agent's own edit of the plan, a moment before the revision lands - dated
+  // a little ahead, as an edit in the same instant on a coarse clock reads
+  // (macOS CI, 2026-10-23: "now" to the millisecond came out older).
   fs.writeFileSync(path.join(ws, 'PLAN.md'), 'done marks');
+  const ahead = new Date(Date.now() + 400);
+  fs.utimesSync(path.join(ws, 'PLAN.md'), ahead, ahead);
   const edited = fs.statSync(path.join(ws, 'PLAN.md')).mtimeMs;
+  const laid = Date.now();
   layOverlay(src, ws);
   assert.equal(fs.readFileSync(path.join(ws, 'PLAN.md'), 'utf8'), 'revised');
-  for (const f of ['PLAN.md', path.join('lib', 'net.js')]) {
-    assert.ok(fs.statSync(path.join(ws, f)).mtimeMs >= edited, `${f} is newer than the agent's edit`);
-  }
+  assert.ok(fs.statSync(path.join(ws, 'PLAN.md')).mtimeMs > edited, 'the revised plan is newer than the agent\'s edit of it');
+  const added = fs.statSync(path.join(ws, 'lib', 'net.js')).mtimeMs;
+  assert.ok(added >= laid - 1000 && added > old.getTime(), 'a new file is dated now, not with its source\'s mtime');
 });
 
 test('bench: the idle watchdog stops a silent command and passes a talking one through', () => {
@@ -3901,6 +3906,10 @@ test('bench: the node fence holds for a `node` run from Git Bash on Windows, as 
 test('bench: `node --test` runs inside the node fence - its runner stays in one process', (t) => {
   const { nodeGuard, permissionFlags } = require('./evallib.js');
   if (!permissionFlags()) { t.skip(`no permission model on node ${process.version}`); return; }
+  // Without the one-process flag (Node 20) the runner spawns a process per file
+  // and the fence denies it: there `node --test` does not run inside the fence.
+  const oneProcess = ['--test-isolation=none', '--experimental-test-isolation=none'].some((f) => spawnSync(process.execPath, [f, '-e', '0'], { stdio: 'ignore' }).status === 0);
+  if (!oneProcess) { t.skip(`node ${process.version} cannot keep the test runner in one process`); return; }
   const shell = process.platform === 'win32' ? 'bash' : 'sh';
   if (spawnSync(shell, ['-c', 'exit 0']).status !== 0) { t.skip(`no ${shell} on this runner`); return; }
   const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-fence-test-'));
