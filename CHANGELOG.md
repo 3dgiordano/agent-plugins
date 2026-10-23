@@ -7,6 +7,23 @@ release.
 
 ## [Unreleased]
 
+## [0.19.0] — 2026-10-22
+
+The plugins speak when they have something to say, and every measurement says which code it measured. Five reminders that fired on the agent's own doing now fire on what they are for: executive no longer reports a document the agent changed through its own shell, persistence counts retries after a failure about the file instead of every edit, epistemic speaks after a failed command instead of every sixth one, the load reminder comes back after a compaction and not after a resume, and aspiration and handoff no longer ask for their block on a question answered. progress 0.9.0 makes the ledger a record of where the work stands, never an order: the request says what to do. Three scanners now read a value followed by a sentence, three detectors stop misreading a notification, a Spanish past or a denied reason, and progress no longer calls a ledger untouched after it was written. On the measurement side, benchmark 1.1.0 measures progress across two sessions; arms run in a random order, with intention to treat beside every score; eval arms load no other plugin and no MCP server; the bench keeps each grader's partial metric and what the agent did; every run records the fingerprint of the code it loaded, and each Claude run checks that the CLI loaded exactly that; a verdict from a fallback model is not counted; and `scripts/installs.js` keeps the copies a machine uses in step with the repo.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.10.0 |
+| epistemic-self-monitoring | 0.5.0 |
+| persistence-self-monitoring | 0.5.0 |
+| termination-self-monitoring | 0.5.0 |
+| coverage-self-monitoring | 0.7.0 |
+| handoff-self-monitoring | 0.7.0 |
+| progress-self-monitoring | 0.9.0 |
+| integrity-self-monitoring | 0.3.0 |
+| aspiration-self-monitoring | 0.3.0 |
+| hygiene-self-monitoring | 0.3.0 |
+
 ### Changed
 
 - **Five reminders speak only when they carry news.** A reminder the agent learns to read past costs context and teaches it to read past the next one too.
@@ -1715,7 +1732,11 @@ First public release.
   backticks was scanned as a closure block; the marker must now stand alone
   on its line.
 
-[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/3dgiordano/agent-plugins/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.19.0
+[0.18.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.18.0
+[0.17.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.17.0
+[0.16.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.16.0
 [0.15.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.15.0
 [0.14.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.14.0
 [0.13.0]: https://github.com/3dgiordano/agent-plugins/releases/tag/v0.13.0
