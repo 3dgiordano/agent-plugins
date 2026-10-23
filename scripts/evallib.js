@@ -899,8 +899,14 @@ function nodeGuard(workspace, passThrough, also) {
   const perm = permissionFlags();
   if (!perm) return null;
   const dir = neutralDir();
-  const cfg = { node: process.execPath, perm, root: path.resolve(workspace), pass: (passThrough || []).filter(Boolean).map((p) => path.resolve(p)),
-    also: (also || []).filter(Boolean).map((p) => path.resolve(p)) };
+  // Each root as given and as its real path: node's permission model checks
+  // the real path of what is opened, and on macOS the temp dir (/var/folders)
+  // is a symlink into /private/var - a root allowed only as given denied the
+  // workspace's own files (measured in CI on macos-latest).
+  const real = (p) => { try { return fs.realpathSync.native(p); } catch (_) { return p; } };
+  const both = (ps) => [...new Set([].concat(...ps.filter(Boolean).map((p) => [path.resolve(p), real(path.resolve(p))])))];
+  const roots = both([workspace]);
+  const cfg = { node: process.execPath, perm, root: roots[0], pass: both(passThrough || []), also: roots.slice(1).concat(both(also || [])) };
   fs.writeFileSync(path.join(dir, 'launch.json'), JSON.stringify(cfg, null, 2));
   fs.writeFileSync(path.join(dir, 'launch.js'), [
     "'use strict';",

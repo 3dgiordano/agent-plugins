@@ -3804,6 +3804,21 @@ test('bench: the idle watchdog stops a silent command and passes a talking one t
   assert.equal(plain.stdout, 'x');
 });
 
+test('bench: a workspace reached through a link is fenced by its real path too (macOS: /var is a link to /private/var)', (t) => {
+  const { nodeGuard, permissionFlags } = require('./evallib.js');
+  if (!permissionFlags()) { t.skip(`no permission model on node ${process.version}`); return; }
+  const real = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-fence-real-'));
+  const link = `${real}-link`;
+  fs.symlinkSync(real, link, 'junction');
+  t.after(() => { fs.unlinkSync(link); fs.rmSync(real, { recursive: true, force: true }); });
+  fs.writeFileSync(path.join(real, 't.js'), "require('fs').writeFileSync('out.txt', 'ok');");
+  const g = nodeGuard(link, []);
+  t.after(() => fs.rmSync(g.dir, { recursive: true, force: true }));
+  const r = spawnSync(process.execPath, [path.join(g.dir, 'launch.js'), path.join(real, 't.js')], { cwd: real, encoding: 'utf8', timeout: 30000 });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(fs.readFileSync(path.join(real, 'out.txt'), 'utf8'), 'ok');
+});
+
 test('bench: the agent\'s node is fenced to its workspace; hooks and the tests still run', (t) => {
   const { nodeGuard, permissionFlags } = require('./evallib.js');
   const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-fence-ws-'));

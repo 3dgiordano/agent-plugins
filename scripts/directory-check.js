@@ -470,7 +470,9 @@ function main() {
     console.log(`\n${blocks.length} blocking, ${newHolds.length} unaccepted hold(s), ${findings.filter((f) => f.level === 'warn').length} warning(s).`);
     if (newHolds.length) console.log('A new hold fails this check: remove its cause, or record why it is acceptable in scripts/directory-holds.json.');
   }
-  process.exit(blocks.length || newHolds.length ? 1 : 0);
+  // exitCode, not exit(): on macOS stdout to a pipe is asynchronous, and exit()
+  // cut the --json report at 64 KB (measured in CI on macos-latest).
+  process.exitCode = blocks.length || newHolds.length ? 1 : 0;
 }
 
 if (require.main === module) main();
