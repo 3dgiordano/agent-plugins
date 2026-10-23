@@ -349,6 +349,22 @@ test('epistemic (claude): the observe nudge comes on a failed command, rate-limi
   assert.equal(JSON.parse(obs('Tests: 2 failed, 9 passed').out).hookSpecificOutput.hookEventName, 'PostToolUse', 'the next failure fires');
 });
 
+test('epistemic (claude): every tool that returns a command\'s output is observed - the host names the tool, not the shell', (t) => {
+  const run = (tool, out) => {
+    const sid = uid('epitool');
+    t.after(() => cleanupTemp(`epimon_claude_${sid}`));
+    return hook(EPI, 'hooks/epi-observe.js', { session_id: sid, cwd: os.tmpdir(), tool_name: tool, tool_response: out });
+  };
+  for (const tool of ['Bash', 'PowerShell', 'Monitor', 'BashOutput', 'TaskOutput']) {
+    assert.match(run(tool, { stdout: '', stderr: 'Exit code 1' }).text, /You just received an observation/, `${tool}: a failure is observed`);
+    assert.equal(run(tool, { stdout: 'ok', stderr: '' }).out, '', `${tool}: a result that went as planned is not`);
+  }
+  for (const tool of ['Read', 'Grep', 'BashOutputs', 'mcp__x__Bash']) assert.equal(run(tool, 'Exit code 1').out, '', `${tool}: not a command's output`);
+  const cfg = JSON.parse(fs.readFileSync(path.join(plugin(EPI), 'hooks/hooks.json'), 'utf8'));
+  const matcher = cfg.hooks.PostToolUse.find((h) => /epi-observe/.test(h.hooks[0].command)).matcher;
+  assert.deepEqual(matcher.split('|').sort(), ['Bash', 'BashOutput', 'Monitor', 'PowerShell', 'TaskOutput'], 'the matcher names the same tools');
+});
+
 test('epistemic: a conjecture counts when the text marks it - an inline tag or a block with Status conjecture, not a mention in code', () => {
   const { scan } = require(path.join(plugin(EPI), 'lib/scan.js'));
   assert.equal(scan('The cache is stale [conjecture].').conjectures, 1);
@@ -407,6 +423,11 @@ test('epistemic (claude): a subagent\'s marks are read from its own transcript a
   assert.equal(obs().out, '', 'the parent marked nothing');
   assert.match(obs({ agent_id: 'e9', agent_type: 'general-purpose' }).text, /claim you marked as a conjecture/, 'the subagent did');
   assert.equal(obs({ agent_id: 'e9', agent_type: 'general-purpose' }).out, '', 'once');
+  const C = require(path.join(plugin(EPI), 'lib/conjecture.js'));
+  assert.equal(C.transcriptOf({ transcript_path: tr }, 'e9'), sub, 'derived beside the session\'s transcript');
+  assert.equal(C.transcriptOf({ transcript_path: sub }, 'e9'), sub, 'already the subagent\'s own: read as it is');
+  assert.equal(C.transcriptOf({ transcript_path: tr, agent_transcript_path: sub }, 'e9'), sub, 'named by the host: taken');
+  assert.equal(C.transcriptOf({ transcript_path: tr }, 'main'), tr);
 });
 
 test('epistemic (cursor): sessionStart, postToolUse filter, afterAgentResponse + stop gate', (t) => {

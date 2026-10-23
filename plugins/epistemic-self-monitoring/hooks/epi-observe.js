@@ -1,8 +1,20 @@
 #!/usr/bin/env node
 /*
- * Epistemic self-monitoring - Claude Code PostToolUse hook (matcher: Bash).
+ * Epistemic self-monitoring - Claude Code PostToolUse hook (matcher: the
+ * tools whose result is a command's output, SHELL_TOOLS below).
  *
  * The moment right after an observation is where a first explanation forms.
+ *
+ * The host names the tool, not the shell: on macOS and Linux zsh or bash runs
+ * inside Claude Code's Bash tool, and Codex reports every shell command as
+ * Bash. PowerShell is Claude Code's other shell tool (on by default on
+ * Windows, opt-in on macOS and Linux with pwsh); Monitor runs a command in the
+ * background and hands its output back line by line. BashOutput and
+ * TaskOutput read a background command's output in older Claude Code versions
+ * (TaskOutput was removed in 2.1.277; a background task's output file is now
+ * read with Read, which this hook does not watch). The matcher in
+ * hooks.json names the same tools; the check here keeps a looser matcher (a
+ * regex that also matches a longer name) from bringing in another tool.
  * This hook injects the expectation-vs-observation nudge when a shell
  * command's output looks like a failure (lib/fail.js), rate-limited so a
  * burst of errors does not become wallpaper. A command that went as planned
@@ -27,6 +39,7 @@ const conjecture = require('../lib/conjecture.js');
 const { cwdOf, context, actorOf } = require('../lib/host.js');
 
 const MIN_GAP_ON_ERROR = 3;   // nudge on error output, but not more often than this
+const SHELL_TOOLS = /^(?:Bash|PowerShell|Monitor|BashOutput|TaskOutput)$/;
 const HOST = 'claude';
 
 function outputOf(data) {
@@ -36,6 +49,7 @@ function outputOf(data) {
 function main(raw) {
   let data = {};
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
+  if (data.tool_name !== undefined && !SHELL_TOOLS.test(String(data.tool_name))) return;
   const sid = data.session_id || 'nosession';
   // Each actor keeps its own cadence: a subagent's commands neither spend nor
   // fill the main agent's, and its nudge goes to the subagent that ran them.

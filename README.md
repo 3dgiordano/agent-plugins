@@ -344,7 +344,7 @@ here is exactly what they are:
   session opens: the desktop app does not show a notice sent at session
   start. Off per plugin with `*_NOTICE=0`.
 - **Tested as the host runs them.** CI drives every adapter with the JSON its
-  host sends, on Ubuntu and Windows, Node 18/20/22.
+  host sends, on Ubuntu, Windows and macOS, Node 18/20/22.
 
 ## Research, not only software
 
@@ -528,7 +528,7 @@ apologies, 6 closing lines) are reasoned, not measured. To tune them: set the
 per-turn measurement and the share of turns that would have been nudged at
 each candidate threshold — the number is the signal only if it stays rare.
 
-CI runs the suite on Ubuntu and Windows across Node 18/20/22 for every push
+CI runs the suite on Ubuntu, Windows and macOS across Node 18/20/22 for every push
 and pull request. The tests drive each hook script with the JSON its host
 sends and inspect stdout, stderr and exit codes, so a change that breaks a
 Claude Code, Codex or Cursor contract fails before it ships.

@@ -47,7 +47,7 @@ choosing your own.
 | Layer | Claude Code | Cursor |
 |-------|-------------|--------|
 | **Load** the discipline | `UserPromptSubmit`: first turn, then every 10th | `sessionStart` → `additional_context` |
-| **Observe** — expectation vs. observation nudge right after a shell result | `PostToolUse` (matcher `Bash`) → `additionalContext`; on output that `lib/fail.js` classes as a failure — the same line rules as persistence, never a bare "error" or "failed" (rate-limited); after a claim the agent marked as a conjecture, the claim nudge instead (`lib/conjecture.js`) | `postToolUse` (self-filtered to shell tools) → `additional_context`; the claim nudge after a response that marked a conjecture |
+| **Observe** — expectation vs. observation nudge right after a shell result | `PostToolUse` (matcher `Bash\|PowerShell\|Monitor\|BashOutput\|TaskOutput`: every tool that returns a command's output) → `additionalContext`; on output that `lib/fail.js` classes as a failure — the same line rules as persistence, never a bare "error" or "failed" (rate-limited); after a claim the agent marked as a conjecture, the claim nudge instead (`lib/conjecture.js`) | `postToolUse` (self-filtered to shell tools) → `additional_context`; the claim nudge after a response that marked a conjecture |
 | **Close** — scan the final message for `[EPISTEMIC CLOSE]` blocks | `Stop` reads `last_assistant_message` | `afterAgentResponse` scans `text`, `stop` acts on it |
 
 Cadence constants sit at the top of each adapter (`EVERY_N_TURNS`,
@@ -64,6 +64,16 @@ turn's first result. Cursor gives a hook only the final text, so there only
 the carried mark is seen. A claim the agent did not mark draws nothing new:
 the marks are the trigger because the agent wrote them, and no list of claim
 phrases guesses at what a sentence asserts.
+
+The hook watches the tool, not the shell: on macOS and Linux zsh or bash runs
+inside Claude Code's `Bash` tool, and Codex reports every shell command as
+`Bash`. From 0.6.0 it also watches Claude Code's `PowerShell` tool (on by
+default on Windows, opt-in on macOS and Linux with `pwsh`) and `Monitor`,
+which runs a command in the background and hands its output back line by
+line; before, a failure in either drew nothing. `BashOutput` and `TaskOutput`,
+which read a background command's output in older Claude Code versions, are
+watched too. Newer versions read that output file with `Read`, which the hook
+does not watch.
 
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 prompt, a tool call, or a stop.
@@ -179,7 +189,7 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
 skills/epistemic-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact), SubagentStart, UserPromptSubmit, PostToolUse(Bash), Stop, SubagentStop, SessionEnd
+hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact), SubagentStart, UserPromptSubmit, PostToolUse(Bash|PowerShell|Monitor|BashOutput|TaskOutput), Stop, SubagentStop, SessionEnd
 hooks/epi-prompt.js
 hooks/epi-subagent-start.js        # a subagent, which has no prompt of its own, gets the load at its start
 hooks/epi-observe.js

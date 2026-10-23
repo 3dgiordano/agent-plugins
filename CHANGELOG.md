@@ -10,6 +10,11 @@ release.
 ### Changed
 
 - **epistemic 0.6.0: a result after a marked conjecture is asked about the claim.** From 0.5.0 the observe nudge came only after a failed command, so a command that went as planned and bore on the agent's claim drew nothing. Now a shell result that follows a claim the agent marked as a conjecture - an inline `[conjecture]` tag, or an `[EPISTEMIC CLOSE]` block with Status conjecture - draws its own nudge, once per mark: does the result support the claim, contradict it, or say nothing about it, and it becomes verified only if this was the run its falsifier named. The trigger is the agent's own mark, so no lexicon of claim phrases is added; a claim it did not mark draws nothing new. On Claude Code the marks are read from this turn's text at the end of the session transcript (a subagent's from its own), and a mark in the last close is carried to the next turn's first result; on Cursor only the carried mark is seen. SECURITY.md lists what the hook reads.
+- **epistemic 0.6.0: every tool that returns a command's output is observed.** The observe hook matched only `Bash`, so a failure in Claude Code's `PowerShell` tool (on by default on Windows, opt-in on macOS and Linux) or in a background command's output streamed by `Monitor` drew no nudge. It now matches both, and `BashOutput` and `TaskOutput`, which read a background command's output in older Claude Code versions; newer versions read that file with `Read`, which is not watched. The host names the tool, not the shell: zsh or bash on macOS and Linux runs inside `Bash`, and Codex reports every shell command as `Bash`; Cursor's adapter already filtered by a shell-like tool name.
+
+### Added
+
+- **CI runs on macOS.** The matrix adds `macos-latest` beside Ubuntu and Windows, for the same three Node versions: the hooks are meant to run on macOS, and no test had run there.
 
 ## [0.19.0] — 2026-10-22
 

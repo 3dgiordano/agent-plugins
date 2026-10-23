@@ -37,6 +37,9 @@ function transcriptOf(data, actor) {
   if (actor && actor !== 'main') {
     if (typeof data.agent_transcript_path === 'string' && data.agent_transcript_path) return data.agent_transcript_path;
     if (typeof data.transcript_path !== 'string' || !/\.jsonl$/i.test(data.transcript_path)) return null;
+    // The hooks reference does not say which file transcript_path names inside
+    // a subagent: when it is already the subagent's own, it is read as it is.
+    if (path.basename(data.transcript_path) === `agent-${actor}.jsonl`) return data.transcript_path;
     return path.join(data.transcript_path.replace(/\.jsonl$/i, ''), 'subagents', `agent-${actor}.jsonl`);
   }
   return typeof data.transcript_path === 'string' && data.transcript_path ? data.transcript_path : null;

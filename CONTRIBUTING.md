@@ -198,7 +198,7 @@ It is not a sandbox: see [bench/GUARDS.md](bench/GUARDS.md).
 
 **Neither behaviour layer runs in CI, and that is enforced rather than assumed.**
 They cost API calls, need an authenticated account and are non-deterministic;
-a push-triggered matrix across two OSes and three Node versions is the wrong
+a push-triggered matrix across three OSes and three Node versions is the wrong
 place for either. `scripts/test.js` fails if a CI step shells out to an
 agent CLI, if a CI-invoked script starts one, or if a script that does start
 one gets added to the workflow. A script that drives a CLI declares itself with
@@ -358,7 +358,7 @@ Evidence pages are dated: a change to a published number updates
 
 - One plugin or one concern per PR.
 - `node scripts/test.js` and `node scripts/version.js --check` pass locally;
-  CI runs them on Ubuntu and Windows, Node 18/20/22 ("What each layer needs",
+  CI runs them on Ubuntu, Windows and macOS, Node 18/20/22 ("What each layer needs",
   above). `scripts/test.js` also
   runs the samples, corpus and host-parity checks, so passing it locally
   covers all four cheap layers.

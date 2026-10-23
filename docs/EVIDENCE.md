@@ -24,7 +24,7 @@ Every number here carries its date, the versions it was measured on and its samp
 
 ## The software
 
-- CI runs the whole suite on Ubuntu and Windows, Node 18, 20 and 22, on every push and pull request. Each hook adapter is driven with the JSON its host sends, and its stdout, stderr and exit code are checked.
+- CI runs the whole suite on Ubuntu, Windows and macOS, Node 18, 20 and 22, on every push and pull request. Each hook adapter is driven with the JSON its host sends, and its stdout, stderr and exit code are checked.
 - A check keeps the README's sample messages identical to what the code prints, so the documentation cannot drift from the product.
 - The hooks have no dependencies and make no network calls. What each one reads and writes is listed in [SECURITY.md](../SECURITY.md).
 

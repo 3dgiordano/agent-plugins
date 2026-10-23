@@ -17,7 +17,9 @@ jobs:
       fail-fast: false
       matrix:
         # Windows matters: it is where paths, the temp dir and shell quoting differ.
-        os: [ubuntu-latest, windows-latest]
+        # macOS: its temp dir sits under /var/folders behind a symlink, and its
+        # file system is case-insensitive by default.
+        os: [ubuntu-latest, windows-latest, macos-latest]
         node: [18, 20, 22]
     steps:
       - uses: actions/checkout@v7
