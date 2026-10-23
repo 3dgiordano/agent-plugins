@@ -34,6 +34,17 @@ const OBSERVE =
   `name the surprise and the strongest rival explanation before choosing one. ${PROTOCOL} What you saw ` +
   'is [observed]; what it means is [conjecture] until its falsifier ran.';
 
+/*
+ * After a result that follows a claim the agent marked as a conjecture
+ * (lib/conjecture.js). It points at the agent's own mark and quotes none of
+ * it: the agent knows what it wrote. It replaces OBSERVE when both are due -
+ * a failure after a marked claim is asked about the claim.
+ */
+const CLAIM =
+  '[epistemic self-monitoring] This result comes after a claim you marked as a conjecture. Does it support ' +
+  'the claim, contradict it, or say nothing about it? Contradicted: drop the claim or name the rival it points ' +
+  'to. Supported: it becomes [verified] only if this was the run its falsifier named. ' + PROTOCOL;
+
 function retrospective(violations) {
   return '[epistemic self-monitoring] Your previous turn closed with unresolved epistemic gaps: ' +
     violations.join('; ') + '. Either supply the missing Falsifier, "Verified by" or Scope, or restate ' +
@@ -52,4 +63,4 @@ function notice(violations) {
   return host.notice('epistemic self-monitoring', violations, 'the agent is reminded on your next message');
 }
 
-module.exports = { LOAD, OBSERVE, retrospective, blockReason, notice };
+module.exports = { LOAD, OBSERVE, CLAIM, retrospective, blockReason, notice };

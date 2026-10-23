@@ -4,7 +4,9 @@
  *
  * Same job as the Claude Code PostToolUse adapter: right after a shell
  * observation that looks like a failure, inject the expectation-vs-observation
- * nudge, rate-limited.
+ * nudge, rate-limited. The first result after a response that marked a
+ * conjecture draws the claim nudge instead (lib/conjecture.js); Cursor gives
+ * a hook only the final text, so a mark earlier in the turn is not seen.
  *
  * Cursor's postToolUse has no tool-name matcher in hooks.json, so this script
  * filters itself: only tools whose name looks like a shell/terminal count.
@@ -36,13 +38,18 @@ function main(raw) {
     st = s;
     st.shell = (st.shell || 0) + 1;
     st.sinceNudge = (st.sinceNudge === undefined ? MIN_GAP_ON_ERROR : st.sinceNudge) + 1; // first error of a session fires
+    if (st.carry) {
+      st.carry = false;
+      st.sinceNudge = 0;
+      return 'claim';
+    }
     const f = failed && st.sinceNudge >= MIN_GAP_ON_ERROR;
     if (f) st.sinceNudge = 0;
-    return f;
+    return f ? 'failure' : null;
   });
 
-  logEvent(cwdOf(data), { event: 'observe', host: 'cursor', conversation: cid, shell: st.shell, failed: failed, emitted: fire });
-  if (fire) process.stdout.write(JSON.stringify({ additional_context: msg.OBSERVE }));
+  logEvent(cwdOf(data), { event: 'observe', host: 'cursor', conversation: cid, shell: st.shell, failed: failed, emitted: !!fire, kind: fire || null });
+  if (fire) process.stdout.write(JSON.stringify({ additional_context: fire === 'claim' ? msg.CLAIM : msg.OBSERVE }));
 }
 
 let buf = '';

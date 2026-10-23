@@ -106,6 +106,16 @@ a project file, stated here so they can be checked:
   the owner's decisions, or since a `revise-plan`. It never writes a file and
   reads no other path.
 
+`epistemic-self-monitoring`, on Claude Code, reads after each shell command
+the end of the session transcript the host keeps (at most 2 MB, the agent's
+text since the owner's prompt) - for a subagent, its own transcript beside it,
+`<session>/subagents/agent-<agent id>.jsonl` - to find a claim the agent
+itself marked as a conjecture (an inline `[conjecture]` tag, or an
+`[EPISTEMIC CLOSE]` block with Status conjecture). It keeps the id of the
+latest marked entry and whether the last close marked one, never text, and its
+message quotes nothing: it says only that the result comes after a claim the
+agent marked. It reads no other path.
+
 Six plugins also read **their own skill file** - handoff, progress, coverage,
 executive, hygiene and aspiration, `<plugin install dir>/skills/<name>/SKILL.md` -
 and emit its text, without the frontmatter, when a session starts, after a

@@ -9,6 +9,11 @@
  * draws nothing: a nudge after every few commands, whatever they showed, was
  * one the agent learned to read past.
  *
+ * A result that comes after a claim the agent marked as a conjecture - in
+ * this turn's text, or in the previous turn's close - draws the claim nudge
+ * instead, once per mark (lib/conjecture.js): whether or not the command
+ * failed, it is the result that can test the claim.
+ *
  * Output: JSON with hookSpecificOutput.additionalContext (non-blocking).
  * Fails silent: never blocks or alters the tool result.
  */
@@ -18,6 +23,7 @@ const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const msg = require('../lib/messages.js');
 const { outputText, looksFailed } = require('../lib/fail.js');
+const conjecture = require('../lib/conjecture.js');
 const { cwdOf, context, actorOf } = require('../lib/host.js');
 
 const MIN_GAP_ON_ERROR = 3;   // nudge on error output, but not more often than this
@@ -36,20 +42,27 @@ function main(raw) {
   const actor = actorOf(data);
 
   const failed = looksFailed(outputOf(data).slice(0, 4000));
+  const marked = conjecture.latestMarked(conjecture.transcriptOf(data, actor));
   let st;
   const fire = state.update(HOST, sid, (s) => {
     st = s;
     st.shell = (st.shell || 0) + 1;
     st.sinceNudge = (st.sinceNudge === undefined ? MIN_GAP_ON_ERROR : st.sinceNudge) + 1; // first error of a session fires
+    if ((marked && marked !== st.conjSeen) || st.carry) {
+      if (marked) st.conjSeen = marked;
+      st.carry = false;
+      st.sinceNudge = 0;
+      return 'claim';
+    }
     const f = failed && st.sinceNudge >= MIN_GAP_ON_ERROR;
     if (f) st.sinceNudge = 0;
-    return f;
+    return f ? 'failure' : null;
   }, actor);
 
-  logEvent(cwdOf(data), { event: 'observe', session: sid, actor, shell: st.shell, failed: failed, emitted: fire });
+  logEvent(cwdOf(data), { event: 'observe', session: sid, actor, shell: st.shell, failed: failed, emitted: !!fire, kind: fire || null });
   if (!fire) return;
 
-  process.stdout.write(context('PostToolUse', msg.OBSERVE));
+  process.stdout.write(context('PostToolUse', fire === 'claim' ? msg.CLAIM : msg.OBSERVE));
 }
 
 let buf = '';

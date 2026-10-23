@@ -29,9 +29,10 @@ function main(raw) {
     violations: res.violations, strict: strict()
   });
 
-  const st = state.load(HOST, cid);
-  st.pending = res.violations; // replaced every response; consumed by the stop adapter
-  state.save(HOST, cid, st);
+  state.update(HOST, cid, (st) => {
+    st.pending = res.violations; // replaced every response; consumed by the stop adapter
+    st.carry = res.conjectures > 0; // the next shell result draws the claim nudge (lib/conjecture.js)
+  });
 }
 
 let buf = '';

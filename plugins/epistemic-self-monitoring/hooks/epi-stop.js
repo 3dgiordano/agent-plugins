@@ -16,6 +16,9 @@
  * the reason on stderr) so the agent fixes the block before finishing.
  * `stop_hook_active` guards against re-blocking the continuation.
  *
+ * A close that marks a conjecture is carried to the next turn: its first shell
+ * result draws the claim nudge (lib/conjecture.js).
+ *
  * Fails silent: any error lets the stop proceed.
  */
 'use strict';
@@ -50,10 +53,11 @@ function main(raw) {
     violations: res.violations, strict: strict(), blocked: blocking
   });
 
-  if (res.violations.length && !blocking && !subagent) {
-    const st = state.load(HOST, sid);
-    st.pending = res.violations;
-    state.save(HOST, sid, st);
+  if (!subagent) {
+    state.update(HOST, sid, (st) => {
+      st.carry = res.conjectures > 0;
+      if (res.violations.length && !blocking) st.pending = res.violations;
+    });
   }
   // The finding reaches the user now, the model on the next prompt (lib/host.js).
   if (res.violations.length && !blocking && !subagent && notices()) process.stdout.write(context('Stop', '', msg.notice(res.violations)));

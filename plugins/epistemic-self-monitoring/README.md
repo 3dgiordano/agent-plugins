@@ -47,12 +47,23 @@ choosing your own.
 | Layer | Claude Code | Cursor |
 |-------|-------------|--------|
 | **Load** the discipline | `UserPromptSubmit`: first turn, then every 10th | `sessionStart` → `additional_context` |
-| **Observe** — expectation vs. observation nudge right after a shell result | `PostToolUse` (matcher `Bash`) → `additionalContext`; on output that `lib/fail.js` classes as a failure — the same line rules as persistence, never a bare "error" or "failed" (rate-limited) | `postToolUse` (self-filtered to shell tools) → `additional_context` |
+| **Observe** — expectation vs. observation nudge right after a shell result | `PostToolUse` (matcher `Bash`) → `additionalContext`; on output that `lib/fail.js` classes as a failure — the same line rules as persistence, never a bare "error" or "failed" (rate-limited); after a claim the agent marked as a conjecture, the claim nudge instead (`lib/conjecture.js`) | `postToolUse` (self-filtered to shell tools) → `additional_context`; the claim nudge after a response that marked a conjecture |
 | **Close** — scan the final message for `[EPISTEMIC CLOSE]` blocks | `Stop` reads `last_assistant_message` | `afterAgentResponse` scans `text`, `stop` acts on it |
 
 Cadence constants sit at the top of each adapter (`EVERY_N_TURNS`,
 `MIN_GAP_ON_ERROR`). From 0.5.0 a command that went as planned draws no
 nudge: the every-sixth-command reminder is gone.
+
+From 0.6.0 a result that follows a claim the agent marked as a conjecture -
+an inline `[conjecture]` tag, or an `[EPISTEMIC CLOSE]` block with Status
+conjecture - draws a different nudge, once per mark: does the result support
+the claim, contradict it, or say nothing about it? On Claude Code the marks
+are read from this turn's text in the session transcript (a subagent's from
+its own), and a mark in the previous turn's close is carried to the next
+turn's first result. Cursor gives a hook only the final text, so there only
+the carried mark is seen. A claim the agent did not mark draws nothing new:
+the marks are the trigger because the agent wrote them, and no list of claim
+phrases guesses at what a sentence asserts.
 
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 prompt, a tool call, or a stop.
@@ -138,7 +149,7 @@ Code) or `<project>/.cursor/logs/…` (Cursor); override with
 |-------|--------|---------|
 | `prompt` | `turn`, `load`, `retrospective` | cadence decision per user prompt (Claude Code) |
 | `session_start` | — | once per Cursor session |
-| `observe` | `actor`, `shell`, `failed`, `emitted` | per shell command: did the nudge fire |
+| `observe` | `actor`, `shell`, `failed`, `emitted`, `kind` | per shell command: did a nudge fire, and which (`failure` or `claim`) |
 | `close` | `actor`, `blocks`, `tags`, `violations`, `strict`, `blocked` | per final message: closure scan result |
 | `subagent_close` | same as `close`, plus `agent` | a subagent's final message. Measured only: never blocks even under `EPIMON_STRICT`, and never parks a retrospective |
 | `stop` | `status`, `violations`, `blocked` | Cursor stop decision |
@@ -181,6 +192,7 @@ cursor/epi-observe-cursor.js
 cursor/epi-response-cursor.js
 cursor/epi-stop-cursor.js
 lib/scan.js                        # [EPISTEMIC CLOSE] block parser + rules
+lib/conjecture.js                  # the agent's own conjecture marks, read from the end of the transcript
 lib/messages.js                    # reminder texts shared by both adapters
 lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); sweep() drops its files older than seven days
 lib/host.js                        # cwdOf(): the project dir from the event, else the host env var, else null

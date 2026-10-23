@@ -77,7 +77,9 @@ function prose(text) {
 }
 
 function scan(text) {
-  const out = { blocks: 0, violations: [], tags: { observed: 0, conjecture: 0, verified: 0 } };
+  // conjectures: the claims the text itself marks as conjectures - inline
+  // [conjecture] tags and blocks whose Status is conjecture.
+  const out = { blocks: 0, violations: [], tags: { observed: 0, conjecture: 0, verified: 0 }, conjectures: 0 };
   if (typeof text !== 'string' || !text) return out;
 
   const body0 = prose(text);
@@ -102,7 +104,9 @@ function scan(text) {
     else if (status.startsWith('conjecture') && !falsifier) out.violations.push(`"${claim}": Status is conjecture but no Falsifier is named`);
     else if (status.startsWith('verified') && !verifiedBy) out.violations.push(`"${claim}": Status is verified but "Verified by" is empty - what was run, and what did it look at?`);
     if (!scope) out.violations.push(`"${claim}": no Scope (what it covers, what it does not)`);
+    if (status.startsWith('conjecture')) out.conjectures += 1;
   }
+  out.conjectures += out.tags.conjecture;
   return out;
 }
 
