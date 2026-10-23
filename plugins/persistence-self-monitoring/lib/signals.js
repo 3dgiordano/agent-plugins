@@ -9,10 +9,13 @@
  * Three signals, each firing exactly when its threshold is crossed (and again
  * at every multiple), never on every call:
  *   edits     - the same file edited EDITS_SAME_FILE times as an attempt: after
- *               a shell command failed since its previous edit, or on the same
- *               lines an earlier edit of it this turn changed. A file written
- *               in several edits with nothing failing between is being built,
- *               not retried, and does not count.
+ *               a failed run about it since its previous edit, or on the same
+ *               lines an earlier edit of it this turn changed. A run is about
+ *               the file when its command or its output names it (its name up
+ *               to the first dot: parse.test.js is about parse.js), or when it
+ *               checks the work as a whole - a test, build or lint run. A file
+ *               written in several edits with nothing about it failing between
+ *               is being built, not retried, and does not count.
  *   failures  - the same shell command, or the same error signature, seen
  *               REPEAT_FAILURES times
  *   effort    - TOOL_CALLS_STEP tool calls since the user's last message
@@ -29,7 +32,36 @@ const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff/i
 const SHELL_TOOL_RE = /bash|shell|terminal|command|exec|powershell/i;
 
 function freshTurn() {
-  return { tools: 0, edits: {}, cmds: {}, errs: {}, fails: 0, seen: {}, regions: {}, fired: { effort: 0, edits: {}, cmds: {}, errs: {} } };
+  return { tools: 0, edits: {}, cmds: {}, errs: {}, fails: 0, failLog: [], seen: {}, regions: {}, fired: { effort: 0, edits: {}, cmds: {}, errs: {} } };
+}
+
+// A run that checks the work as a whole: its failure is about every file being worked on.
+const CHECK_RE = /\b(?:(?:npm|pnpm|yarn|bun)\s+(?:run\s+\S+|test|build|lint|check|typecheck)|node\s+--test|pytest|jest|vitest|mocha|tsc|eslint|(?:go|cargo|dotnet)\s+(?:test|build|vet|check|run|clippy|nextest)|make|mvn|gradle)\b|[\w./\\-]*\btests?\b[\w./\\-]*\.(?:js|mjs|cjs|ts|py|sh)\b/i;
+// A command that only reads - a grep that matched nothing exits 1 - is no failed attempt at a file.
+const READ_ONLY_RE = /^\s*(?:cd\s+[^;&|]+\s*(?:&&|;)\s*)*(?:grep|egrep|rg|cat|head|tail|ls|find|wc|sed\s+-n|git\s+(?:diff|log|show|status|grep|ls-files))\b[^;&]*$/i;
+const PATH_TOKEN_RE = /[\w@./\\-]+\.[a-z0-9]{1,8}\b/gi;
+const MAX_FAIL_LOG = 32;
+
+// A file's name up to the first dot, lowercased: parse.test.js and parse.js share "parse".
+function stemOf(p) {
+  const base = String(p || '').split(/[\\/]/).pop().toLowerCase();
+  return base.split('.')[0] || base;
+}
+
+// The stems of the files a command and its output name.
+function stemsOf(text) {
+  const out = new Set();
+  for (const tok of String(text || '').match(PATH_TOKEN_RE) || []) {
+    out.add(stemOf(tok));
+    if (out.size >= 64) break;
+  }
+  return [...out];
+}
+
+// Whether a run that failed since index `since` was about the file f.
+function failedAbout(turn, since, f) {
+  const stem = stemOf(f);
+  return turn.failLog.some((e) => e.n > since && (e.all || e.stems.includes(stem)));
 }
 
 function bump(map, key) {
@@ -74,7 +106,9 @@ function attempts(turn, f, input) {
   if (!turn.regions) turn.regions = {};
   if (!(f in turn.seen) && Object.keys(turn.seen).length >= MAX_KEYS) return 0;
   const earlier = f in turn.seen;
-  const afterFailure = turn.fails > (earlier ? turn.seen[f] : 0);
+  const since = earlier ? turn.seen[f] : 0;
+  // A turn from before the log counts any failure, as 0.5.0 did.
+  const afterFailure = Array.isArray(turn.failLog) ? failedAbout(turn, since, f) : turn.fails > since;
   turn.seen[f] = turn.fails;
   const was = turn.regions[f] || [];
   const regions = regionsOf(input);
@@ -113,6 +147,12 @@ function observe(turn, toolName, toolInput, toolOutput) {
     const out = outputText(toolOutput).slice(0, 6000);
     if (looksFailed(out)) {
       if (typeof turn.fails === 'number') turn.fails += 1;
+      if (Array.isArray(turn.failLog)) {
+        const raw = toolInput && typeof toolInput === 'object' ? String(toolInput.command || toolInput.cmd || toolInput.script || '').slice(0, 2000) : '';
+        const reads = READ_ONLY_RE.test(raw);
+        turn.failLog.push({ n: turn.fails, all: !reads && CHECK_RE.test(raw), stems: reads ? [] : stemsOf(`${raw}\n${out}`) });
+        if (turn.failLog.length > MAX_FAIL_LOG) turn.failLog.splice(0, turn.failLog.length - MAX_FAIL_LOG);
+      }
       const c = commandOf(toolInput);
       if (c) {
         const n = bump(turn.cmds, c);

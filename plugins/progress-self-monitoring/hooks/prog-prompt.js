@@ -49,6 +49,7 @@ function main(raw) {
   let turns = 0;
   let reload = false;
   let pending = null;
+  let flagged = null; // the ledger's mtime when the last Stop parked its finding (prog-stop.js)
   let announced = null;
   let sweep = [];
   let parked = null; // the ledger line SessionStart could not show (prog-session-start.js)
@@ -64,6 +65,7 @@ function main(raw) {
     st.turnStart = Date.now();
     turns = st.turns;
     pending = st.pending || null;
+    flagged = typeof st.flagged === 'number' ? st.flagged : null;
     announced = st.announced === undefined ? null : st.announced;
     st.pending = null;
     // the sweep: commitments old enough to be handed back, once each
@@ -97,6 +99,12 @@ function main(raw) {
       const n = msg.claimNotice(f, ins);
       if (n) notes.push(n);
     }
+  }
+  // The ledger written after the Stop that parked "untouched" - a background
+  // task's continuation, the owner's own edit - answers it: said now, it is false.
+  if (pending && flagged !== null) {
+    if (!ins) ins = ledger.inspect(cwd);
+    if (ins.mtimeMs !== flagged) pending = null;
   }
   if (pending) out.push(msg.retrospective(pending));
   const spans = signals.spansSessions(data.prompt);

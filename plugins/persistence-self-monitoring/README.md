@@ -60,7 +60,7 @@ threshold is crossed (and again at each multiple), never on every call:
 
 | Signal | Threshold | What counts |
 |--------|-----------|-------------|
-| `edits` | same file edited **4** times as retries | any tool whose name looks like an edit (`Edit`, `Write`, `NotebookEdit`, `edit_file`, …), keyed by file path; an edit is a retry after a shell command failed since the file's previous edit, or on lines an earlier edit of it changed - a file written in several edits with nothing failing is being built and does not count (0.5.0) |
+| `edits` | same file edited **4** times as retries | any tool whose name looks like an edit (`Edit`, `Write`, `NotebookEdit`, `edit_file`, …), keyed by file path; an edit is a retry after a failed run about the file since its previous edit - one whose command or output names it (by its name up to the first dot, so `parse.test.js` is about `parse.js`), or a test, build or lint run, which checks the whole work; a read that found nothing (`grep`) is no failure - or on lines an earlier edit of it changed. A file written in several edits with nothing about it failing is being built and does not count (0.5.0) |
 | `cmds` | same shell command failing **3** times | shell-like tools whose output looks like a failure, keyed by the normalized command |
 | `errs` | same error signature **3** times | the first error-naming line of a failed output, with numbers, hex ids and paths blanked — so a retry that only moved a line number still counts as the same error. The message names the command whose output it was, never the line: output is text a test, a file or a service wrote |
 | `effort` | **30** tool calls, then every 30 | every tool call |

@@ -1648,6 +1648,12 @@ test('progress (claude): a turn that edits files and leaves a ledger with open i
   hook(PRO, 'hooks/prog-observe.js', cc({ tool_name: 'Write', tool_input: { file_path: path.join(dir, '.agent', 'progress.md') } }));
   stop();
   assert.equal(prompt().out, '', 'the hook saw the ledger written');
+  // parked by a Stop, then the ledger written before the next prompt (a background task's continuation): not said
+  fs.utimesSync(path.join(dir, '.agent', 'progress.md'), older - 250, older - 250);
+  edit('src/h.js');
+  assert.match(JSON.parse(stop().out).systemMessage || '', /untouched/, 'parked: untouched at that Stop');
+  fs.writeFileSync(path.join(dir, '.agent', 'progress.md'), '## Open\n- returned: b\n- blocked: c\n');
+  assert.equal(prompt().out, '', 'the ledger changed since: the finding is no longer true');
   // ledger with nothing open next to edits -> silent
   fs.writeFileSync(path.join(dir, '.agent', 'progress.md'), '## Open\n');
   fs.utimesSync(path.join(dir, '.agent', 'progress.md'), older - 300, older - 300);
@@ -5381,4 +5387,23 @@ test('version step: a plugin whose code changed since the last tag under the tag
   assert.deepEqual(S.unstepped(root, 'v1'), [], 'stepped');
   const tag = S.lastTag(ROOT);
   if (tag) assert.deepEqual(S.unstepped(ROOT, tag), [], `every plugin whose code changed since ${tag} is a step above it`);
+});
+
+test('persistence: a failure counts toward a file\'s retries when it is about that file - named, or a run that checks the whole work - and a read that found nothing is no failure', () => {
+  const S = require(path.join(plugin(PER), 'lib/signals.js'));
+  const kinds = (r) => r.map((s) => s.kind);
+  const loop = (fail) => {
+    const t = S.freshTurn();
+    const out = [];
+    for (let i = 1; i <= 4; i++) { out.push(kinds(S.observe(t, 'Edit', { file_path: 'src/parse.js', old_string: `line ${i}` }, ''))); fail(t); }
+    return out.map((k) => k.join()).join('|');
+  };
+  const fired = '|||edits';
+  assert.equal(loop((t) => S.observe(t, 'Bash', { command: 'node -e "x("' }, '[eval]:1\nSyntaxError: Unexpected end of input')), '|||', 'a script that names no file and checks nothing: not about parse.js');
+  assert.equal(loop((t) => S.observe(t, 'Bash', { command: 'node scripts/build-docs.js' }, 'Error: cannot read docs/guide.md')), '|||', 'a failure about another file');
+  assert.equal(loop((t) => S.observe(t, 'Bash', { command: 'grep -n parse src/parse.js' }, 'Exit code 1')), '|||', 'a grep that found nothing');
+  assert.equal(loop((t) => S.observe(t, 'Bash', { command: 'npm test' }, 'Tests: 1 failed')), fired, 'a test run checks the whole work');
+  assert.equal(loop((t) => S.observe(t, 'Bash', { command: 'cargo run --bin pilot' }, 'error: process didn\'t exit successfully')), fired, 'so does running it');
+  assert.equal(loop((t) => S.observe(t, 'Bash', { command: 'node test/parse.test.js' }, 'AssertionError: expected 1')), fired, 'its own test, named by the stem');
+  assert.equal(loop((t) => S.observe(t, 'Bash', { command: 'node scripts/report.js' }, 'TypeError: x is undefined\n    at parse (src/parse.js:12:3)')), fired, 'a stack trace through it');
 });
