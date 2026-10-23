@@ -5194,7 +5194,8 @@ test('audit: a rescore resolves the run\'s relative paths against where it ran, 
   const ws = path.join(tmp, 'ws');
   const home = path.join(tmp, 'home');
   fs.mkdirSync(ws); fs.mkdirSync(home);
-  const copy = fs.mkdtempSync(path.join(ROOT, 'bench', 'results', '.reaudit-copy-'));
+  // Inside the repository, as a kept copy is; at its root, which every checkout has (bench/results is not versioned).
+  const copy = fs.mkdtempSync(path.join(ROOT, '.reaudit-copy-'));
   try {
     // the run wrote its scratch file under its own HOME, by a path relative to its workspace
     const stream = JSON.stringify({ type: 'tool_call', subtype: 'started', call_id: 'x', tool_call: { readToolCall: { args: { path: '../home/gen.js' } } } });
