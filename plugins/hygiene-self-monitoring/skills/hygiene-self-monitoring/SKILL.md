@@ -84,7 +84,7 @@ against the request.
   not as a choice the owner has.
 - **The block that contradicts itself** - Change reaches lists more than
   Request names, and Outside says none; or Outside lists something and the
-  Decision keeps it.
+  Decision keeps it; or the Decision puts it back, and the code still has it.
 
 ## Integration
 

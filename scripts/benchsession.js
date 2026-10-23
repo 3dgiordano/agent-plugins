@@ -290,8 +290,12 @@ function finishSession(root, discard) {
   return session;
 }
 
+// The cases that stand for each plugin (bench/benchmark.json "cases"): what a
+// session runs unless it is told otherwise, and what a slot needs to be complete.
 function expectedCases(root) {
-  return Object.values(casesByPlugin(root)).flat().sort();
+  const file = paths(root).benchmark;
+  if (!fs.existsSync(file)) throw new Error('bench/benchmark.json is missing');
+  return Object.entries(readJson(file).cases || {}).map(([plugin, id]) => `${plugin}/${id}`).sort();
 }
 
 function assignSlot(root, session, host, modelId, record) {

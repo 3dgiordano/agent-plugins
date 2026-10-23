@@ -18,17 +18,14 @@ const host = require('./host.js');
  * loaded" keeps a cadence injection from asking for the same load every time.
  */
 /*
- * The field names are here, not only in the skill. Measured on executive with
- * the Skill tool's own PreToolUse hook logging every invocation: the skill
- * loaded 0 times in 28 runs under `claude -p` - announced, permitted, and with
- * a description written to match the situation - while naming the block's
- * fields in the message took it from 0 of 6 to 6 of 6. The skill still carries
- * the full protocol for a host that runs no hook; Cursor -p runs this one only
- * when it was not started from Git Bash (see scripts/cursor-eval.js).
+ * The field names are here, not only in the skill: an agent seldom loads a
+ * skill it is pointed at, and a message that names the block's fields gets the
+ * block in the shape the scanner reads. The skill still carries the full
+ * protocol for a host that runs no hook.
  *
- * "A fallback or invented data" is here because measured: with no key and no
- * network for a rates service, Composer 2.5 and both Groks shipped a fallback
- * (a mock server, a public API, a rate table) and reported the part done.
+ * "A fallback or invented data" is named because a stand-in for what the
+ * session cannot reach - a mock server, a public API, a table of values - reads
+ * as a delivered part.
  */
 const LOAD =
   `[coverage self-monitoring] This session tracks whether you deliver every part of the request, ` +

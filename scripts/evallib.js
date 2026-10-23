@@ -906,7 +906,11 @@ function nodeGuard(workspace, passThrough, also) {
   const real = (p) => { try { return fs.realpathSync.native(p); } catch (_) { return p; } };
   const both = (ps) => [...new Set([].concat(...ps.filter(Boolean).map((p) => [path.resolve(p), real(path.resolve(p))])))];
   const roots = both([workspace]);
-  const cfg = { node: process.execPath, perm, root: roots[0], pass: both(passThrough || []), also: roots.slice(1).concat(both(also || [])) };
+  // The flag that keeps `node --test` in one process, as this node spells it
+  // (allowedNodeEnvironmentFlags does not list it: it is not a NODE_OPTIONS flag).
+  const isolation = ['--test-isolation=none', '--experimental-test-isolation=none']
+    .find((f) => require('child_process').spawnSync(process.execPath, [f, '-e', '0'], { stdio: 'ignore', timeout: 15000 }).status === 0) || null;
+  const cfg = { node: process.execPath, perm, root: roots[0], pass: both(passThrough || []), also: roots.slice(1).concat(both(also || [])), isolation };
   fs.writeFileSync(path.join(dir, 'launch.json'), JSON.stringify(cfg, null, 2));
   fs.writeFileSync(path.join(dir, 'launch.js'), [
     "'use strict';",
@@ -926,6 +930,9 @@ function nodeGuard(workspace, passThrough, also) {
     "for (const [k, v] of Object.entries(process.env)) if (k.toUpperCase() !== 'NODE_OPTIONS') env[k] = v;",
     "const roots = [cfg.root].concat(cfg.also || []);",
     "const flags = pass ? [] : cfg.perm.concat(...roots.map((r) => ['--allow-fs-read=' + r + path.sep + '*', '--allow-fs-write=' + r + path.sep + '*']));",
+    // `node --test` runs each test file in a child process, which the fence denies:
+    // the project's own test command failed. Its runner can stay in one process.
+    "if (!pass && cfg.isolation && args.includes('--test') && !args.some((a) => /^--(?:experimental-)?test-isolation/.test(a))) flags.push(cfg.isolation);",
     "const r = spawnSync(cfg.node, flags.concat(args), { stdio: 'inherit', env });",
     'process.exit(r.status === null ? 1 : r.status);',
     '',
@@ -935,6 +942,11 @@ function nodeGuard(workspace, passThrough, also) {
     // One line: a batch file's exit code is its last command's. An explicit
     // `exit /b %ERRORLEVEL%` came back as 1 through PowerShell (measured).
     fs.writeFileSync(path.join(dir, 'node.cmd'), `@"${cfg.node}" "${launch}" %*\r\n`);
+    // Git Bash - the shell Claude Code's Bash tool runs on Windows - does not
+    // find a .cmd by its bare name: `node` went to the real node.exe, unfenced
+    // (measured 2026-10-23). An extensionless script beside it is what it runs.
+    const fwd = (p) => p.replace(/\\/g, '/');
+    fs.writeFileSync(path.join(dir, 'node'), `#!/bin/sh\nexec "${fwd(cfg.node)}" "${fwd(launch)}" "$@"\n`);
   } else {
     fs.writeFileSync(path.join(dir, 'node'), `#!/bin/sh\nexec "${cfg.node}" "${launch}" "$@"\n`);
     fs.chmodSync(path.join(dir, 'node'), 0o755);

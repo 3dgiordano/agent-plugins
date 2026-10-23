@@ -10,7 +10,10 @@
  *   - Outside names something, and the Decision keeps it;
  *   - Outside is none, while a public function the edits reached is named
  *     nowhere in Request names (any of its aliases, or a method's own name,
- *     counts as named).
+ *     counts as named);
+ *   - Outside names something and the Decision puts it back (revert-extra) or
+ *     to the owner (ask-owner), while a public function the edits reached and
+ *     Request names does not name is still changed.
  * A finding carries paths, line numbers and counts - never the names, never
  * the message's text.
  */
@@ -84,9 +87,13 @@ function scan(text, reached) {
   if (!isNone(b.outside) && decision && decision.toLowerCase() === 'keep') {
     violations.push('Outside names a change and the Decision is keep - what is outside the request goes back as it was (revert-extra) or to the owner (ask-owner)');
   }
+  const unnamed = groups.filter((g) => g.how !== 'added' && !named(g, b.request));
+  const count = `${unnamed.length} public function${unnamed.length > 1 ? 's' : ''} this session changed ${unnamed.length > 1 ? 'are' : 'is'}`;
   if (isNone(b.outside)) {
-    const unnamed = groups.filter((g) => g.how !== 'added' && !named(g, b.request));
-    if (unnamed.length) violations.push(`Outside is none, while ${unnamed.length} public function${unnamed.length > 1 ? 's' : ''} this session changed ${unnamed.length > 1 ? 'are' : 'is'} not in Request names (${where(unnamed)})`);
+    if (unnamed.length) violations.push(`Outside is none, while ${count} not in Request names (${where(unnamed)})`);
+  } else if (decision && decision.toLowerCase() !== 'keep' && unnamed.length) {
+    // The record is the code as it stands: a function put back is no longer in it.
+    violations.push(`the Decision is ${decision.toLowerCase()}, while ${count} still changed and not in Request names (${where(unnamed)}) - put back means the code is as it was`);
   }
   return { block: true, decision: decision || null, violations };
 }

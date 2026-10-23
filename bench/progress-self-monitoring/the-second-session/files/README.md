@@ -8,5 +8,3 @@ Money formatting and VAT for the invoicing service.
 - `docs/rates.md` - the published rate table
 
 `npm test` runs the tests.
-
-Working notes for this repository go in `.agent/progress.md`.

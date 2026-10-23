@@ -5,7 +5,8 @@
  * Reads the final message's [HYGIENE CHECK] against the session's edit record
  * (lib/block.js): a close with no block after the edits reached two or more
  * public functions; Outside named and kept; Outside none while a public
- * function the edits reached is not in Request names. The hook never decides
+ * function the edits reached is not in Request names; Outside put back or
+ * offered while such a function is still changed. The hook never decides
  * whether a change was right - only whether the block accounts for what the
  * edits reached.
  *

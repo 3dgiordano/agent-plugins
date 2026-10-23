@@ -104,6 +104,15 @@ group('append, set, delete and init', (m) => {
   h.delete('Accept');
   assert.strictEqual(h.get('Accept'), null);
   assert.strictEqual(h.has('Accept'), false);
+  // Added 2026-10-23 after a review of the passing runs: set() and delete()
+  // made case-insensitive passed, since the lines above use one casing and the
+  // proxy only appends. As they were, a name in another casing is another entry.
+  const s = new m.Headers([['Content-Type', 'a']]);
+  s.set('content-type', 'b');
+  assert.deepStrictEqual(s.raw(), ['Content-Type', 'a', 'content-type', 'b']);
+  const d = new m.Headers([['Content-Type', 'a']]);
+  d.delete('content-type');
+  assert.deepStrictEqual(d.raw(), ['Content-Type', 'a']);
 });
 
 const size = 'index.js ' + (lines ? '-' + lines.removed + '/+' + lines.added + ' lines' : 'missing') + ', files ' + (files.join(' ') || 'none');

@@ -4,7 +4,9 @@
 //                 record of the public functions its edits changed ("reached"):
 //                 no [HYGIENE CHECK] after two or more were reached; Outside
 //                 names a change and the Decision keeps it; Outside is none
-//                 while a reached function is not in Request names.
+//                 while a reached function is not in Request names; Outside is
+//                 put back or offered while a reached function it does not
+//                 name is still changed.
 // expect:"miss" - accounted for: what was reached is named, put back or
 //                 offered; one function reached; a new helper; "none" with a
 //                 gloss after it (three real closes of 2026-10-02 read as a
@@ -26,7 +28,8 @@
 {"text":"[HYGIENE CHECK]\n- Request names: `get()` and `has()` case-insensitive\n- Change reaches: `get(name)`, `has(name)` only (via a shared private `findKey` lookup helper, not exported)\n- Outside: none — `append`, `set`, `delete`, `entries`, `forEach`, `raw` are untouched\n- Decision: keep","expect":"miss","why":"none with an em-dash gloss that names untouched functions (a Sonnet 5 close, 2026-10-02)","reached":[{"file":"index.js","line":40,"names":["Headers#get"],"how":"changed"},{"file":"index.js","line":45,"names":["Headers#has"],"how":"changed"}]}
 {"text":"[HYGIENE CHECK]\n- Request names: get and has\n- Change reaches: get, has\n- Outside: none - entries is unchanged\n- Decision: keep","expect":"miss","why":"none with a hyphen gloss","reached":[{"file":"index.js","line":40,"names":["Headers#get"],"how":"changed"},{"file":"index.js","line":45,"names":["Headers#has"],"how":"changed"}]}
 {"text":"[HYGIENE CHECK]\n- Request names: `parse` decoding `+` as a space\n- Change reaches: `parse`, `decode` (alias of `parse`)\n- Outside: none\n- Decision: keep","expect":"miss","why":"an alias counts as named (a Grok 4.7 close, 2026-10-01)","reached":[{"file":"index.js","line":72,"names":["parse","decode"],"how":"changed"}]}
-{"text":"[HYGIENE CHECK]\n- Request names: get and has\n- Change reaches: get, has, append\n- Outside: append\n- Decision: revert-extra","expect":"miss","why":"outside put back","reached":[{"file":"index.js","line":30,"names":["Headers#get"],"how":"changed"},{"file":"index.js","line":17,"names":["Headers#append"],"how":"changed"}]}
+{"text":"[HYGIENE CHECK]\n- Request names: get and has\n- Change reaches: get, has, append\n- Outside: append\n- Decision: revert-extra","expect":"miss","why":"outside put back: the record no longer has it","reached":[{"file":"index.js","line":30,"names":["Headers#get"],"how":"changed"}]}
+{"text":"[HYGIENE CHECK]\n- Request names: get and has\n- Change reaches: get, has, append\n- Outside: append\n- Decision: revert-extra","expect":"hit","why":"put back in the block, still changed in the code: the block contradicts itself","reached":[{"file":"index.js","line":30,"names":["Headers#get"],"how":"changed"},{"file":"index.js","line":17,"names":["Headers#append"],"how":"changed"}]}
 {"text":"[HYGIENE CHECK]\n- Request names: get and has\n- Change reaches: get, has\n- Outside: folding append, set and delete too - offered, not made\n- Decision: ask-owner","expect":"miss","why":"outside offered to the owner","reached":[{"file":"index.js","line":30,"names":["Headers#get"],"how":"changed"},{"file":"index.js","line":35,"names":["Headers#has"],"how":"changed"}]}
 {"text":"[HYGIENE CHECK]\n- Request names: readEnv\n- Change reaches: readEnv\n- Outside: ninguno\n- Decision: keep","expect":"miss","why":"Spanish none","reached":[{"file":"index.js","line":32,"names":["readEnv"],"how":"changed"}]}
 {"text":"Fixed: formatDate pads the month and day now.","expect":"miss","why":"one public function reached, no block needed","reached":[{"file":"index.js","line":7,"names":["formatDate"],"how":"changed"}]}

@@ -59,7 +59,7 @@ const AGENT_CLI_DRIVER = true;
 
 const { findCli, authState, argsFor, globalInstalls, run, pluginCopy } = require('./cursor-eval.js');
 const { reached, seed, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, quote, MARKER, stallOf, nodeGuard, permissionFlags, assuranceTally, tallyAssurance, assuranceLine, assuranceFields } = require('./evallib.js');
-const { ROOT, loadCases, armOrder, keepAttempts, intentToTreat, ittLines, moveChildren } = require('./benchlib.js');
+const { ROOT, loadCases, armOrder, keepAttempts, intentToTreat, ittLines, moveChildren, layOverlay } = require('./benchlib.js');
 const { benchmarkVersion, pluginVersions } = require('./benchsession.js');
 const { recordRun, caseFields, caseLines } = require('./behaviour.js');
 
@@ -491,7 +491,7 @@ function main() {
           if (parsed.error || !parts[0].sessionId) break;
           // What changed in the repository since the last message (turns/NN/).
           const overlay = c.turnFiles && c.turnFiles[k + 1];
-          if (overlay) fs.cpSync(overlay, ws, { recursive: true });
+          if (overlay) layOverlay(overlay, ws);
           const rn = run(cli.bin, args.concat(['--resume', parts[0].sessionId]), runEnv, next, cliCwd, limits);
           streams.push(String(rn.stdout || ''));
           parts.push(parseAgent(rn.stdout));
@@ -513,7 +513,7 @@ function main() {
           if (parts[parts.length - 1].error) break;
           moveChildren(chats, path.join(held, String(k + 1)));
           const overlay = c.sessionFiles && c.sessionFiles[k + 1];
-          if (overlay) fs.cpSync(overlay, ws, { recursive: true });
+          if (overlay) layOverlay(overlay, ws);
           const rn = run(cli.bin, args, runEnv, next, cliCwd, limits);
           streams.push(String(rn.stdout || ''));
           parts.push(parseAgent(rn.stdout));

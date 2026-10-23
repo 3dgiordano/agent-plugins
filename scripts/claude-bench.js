@@ -106,7 +106,7 @@ const findCli = () => require('./claude-eval.js').findCli();
 const { pluginCopy, killTree } = require('./cursor-eval.js');
 const { reached, seed, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, auditStream, quote, MARKER, nodeGuard, permissionFlags, neutralDir, assuranceTally, tallyAssurance, assuranceLine, assuranceFields } = require('./evallib.js');
 const { childEnv } = require('./integrity.js');
-const { ROOT, loadCases, armOrder, keepAttempts, intentToTreat, ittLines, moveChildren } = require('./benchlib.js');
+const { ROOT, loadCases, armOrder, keepAttempts, intentToTreat, ittLines, moveChildren, layOverlay } = require('./benchlib.js');
 const { benchmarkVersion, pluginVersions } = require('./benchsession.js');
 const { recordRun, caseFields, caseLines } = require('./behaviour.js');
 const suite = require('./suite.js');
@@ -1084,7 +1084,7 @@ function main() {
         for (const [k, next] of c.turns.slice(1).entries()) {
           if (parsed.error || !parts[0].sessionId) break;
           const overlay = c.turnFiles && c.turnFiles[k + 1];
-          if (overlay) fs.cpSync(overlay, ws, { recursive: true });
+          if (overlay) layOverlay(overlay, ws);
           const rn = run(cli.bin, args.concat(['--resume', parts[0].sessionId]), env, next, ws, limits);
           streams.push(String(rn.stdout || ''));
           parts.push(parseClaude(rn.stdout));
@@ -1107,7 +1107,7 @@ function main() {
           if (parts[parts.length - 1].error) break;
           moveChildren(session, path.join(held, String(k + 1)));
           const overlay = c.sessionFiles && c.sessionFiles[k + 1];
-          if (overlay) fs.cpSync(overlay, ws, { recursive: true });
+          if (overlay) layOverlay(overlay, ws);
           const rn = run(cli.bin, args, env, next, ws, limits);
           streams.push(String(rn.stdout || ''));
           parts.push(parseClaude(rn.stdout));

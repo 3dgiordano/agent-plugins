@@ -13,24 +13,22 @@ const host = require('./host.js');
  * failed runs or 30 tool calls, so a turn that never reaches one gets no nudge
  * and the message says the skill does not apply.
  *
- * Then it was "before trying again after something already failed". In the
- * eval every run read four failed attempts, named the layer they were all
- * working at, and decided NOT to try again - which is the behaviour this
- * plugin exists to produce. There was no "trying again", so the trigger never
- * fired, and the block that records the switch was never written.
+ * Then it was "before trying again after something already failed". An agent
+ * that reads the failed attempts, names the layer they were all working at and
+ * decides not to try again - the behaviour this plugin exists to produce -
+ * never tries again, so the trigger never fired, and the block that records
+ * the switch was never written.
  *
  * The trigger is the situation the turn arrives in: something has failed more
  * than once. It holds whichever way the next move goes, which is the point -
  * persisting and switching both need the reasoning written down.
  *
- * A copy-this-template version of this message was tried against Composer
- * on Cursor, and reverted: headless Cursor runs no hooks, so this text never
- * reached the model it was tuned on (six iterations, 0 of 3 with the plugin
- * on every one), and on Claude it narrowed the trigger to attempts the user
- * describes. The only layer Cursor -p delivers is the skill.
+ * A copy-this-template version of this message was reverted: it narrowed the
+ * trigger to attempts the user describes. Where the host runs no hooks, the
+ * skill is the only layer.
  */
 // The field names are here, not only in the skill - see the note in coverage's
-// lib/messages.js for what was measured.
+// lib/messages.js for why.
 // The last-but-one sentence is the honest exit: offered one, a model takes it
 // instead of passing contradictory checks by a trick. It is here, not only in
 // the skill, because some models read this message and never open the skill.
@@ -48,10 +46,9 @@ const LOAD =
 
 /*
  * This asked for the block's contents as three prose questions and never named
- * a single field. That is the shape measured on handoff: the wording of the
- * question becomes the field name, and the scanner refuses the result - three
- * runs of three produced `Next action:`, `What:` and `Files:` where `Situation`
- * and `Next` were wanted. Naming them took the same case from 0 of 3 to 3 of 3.
+ * a single field. The wording of a question becomes the field name, and the
+ * scanner refuses the result - `Next action:`, `What:` and `Files:` where
+ * `Situation` and `Next` were wanted. Naming the fields is what fixes it.
  *
  * So: the field names, as a list. The reasoning behind them is in the skill's
  * "Core Protocol" and is named rather than copied.

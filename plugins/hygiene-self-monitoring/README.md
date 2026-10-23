@@ -32,6 +32,7 @@ Block rules:
 - A close with no `[HYGIENE CHECK]`, after the session's edits changed two or more public functions.
 - `Outside` names a change and the `Decision` is `keep`.
 - `Outside: none`, while a public function the edits changed is named nowhere in `Request names` (an alias or a method's own name counts).
+- `Outside` names a change and the `Decision` is `revert-extra` or `ask-owner`, while a public function the edits changed and `Request names` does not name is still changed: put back means the code is as it was.
 
 A finding carries the path, the lines and the count - never a function's name, never the code.
 

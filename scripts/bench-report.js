@@ -53,6 +53,11 @@ const TIER_RANK = { low: 0, mid: 1, high: 2 };
 // after the bench had moved on to cases that separate the arms.
 const PLUGINS = Object.entries(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'bench', 'benchmark.json'), 'utf8')).cases || {})
   .map(([plugin, id]) => [`${plugin}/${id}`, plugin.replace('-self-monitoring', '').replace(/^./, (c) => c.toUpperCase())]);
+// What a host does to a case on its own, from the case's case.json `hostNotes`
+// ({ <family>: { text, source } }): the page marks the case where that host is drawn.
+const HOST_NOTES = Object.fromEntries(PLUGINS.map(([caseId]) => {
+  try { return [caseId, JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'bench', caseId, 'case.json'), 'utf8')).hostNotes || {}]; } catch (_) { return [caseId, {}]; }
+}));
 
 const REASONING_RANK = {
   None: 0,
@@ -470,7 +475,8 @@ function sortedPointsFrom(points) {
     if (ta !== tb) return ta - tb;
     if (a.line !== b.line) return a.line < b.line ? -1 : 1;
     if (rank(a.reasoning) !== rank(b.reasoning)) return rank(a.reasoning) - rank(b.reasoning);
-    if (a.arm !== b.arm) return a.arm === 'with' ? -1 : 1;
+    // The base first: the model without the plugin, then with it.
+    if (a.arm !== b.arm) return a.arm === 'without' ? -1 : 1;
     return 0;
   });
 }
@@ -479,12 +485,68 @@ function viewsFor() {
   return [{ id: 'all', label: 'All plugins' }].concat(PLUGINS.map(([id, label]) => ({ id, label })));
 }
 
+/*
+ * What the plugin adds over the baseline: the with rate minus the without rate,
+ * in percentage points, the without arm always the base. Points, not a ratio:
+ * a baseline of 0 has no ratio, and those are the cases the bench exists for.
+ * No change is shown as such - the plugin did not make the model worse.
+ */
+const GAIN_COLOR = { up: '#1F8A65', flat: MUTED, down: '#b42318' };
+
+function gainOf(withPass, withN, withoutPass, withoutN) {
+  if (!withN || !withoutN) return null;
+  const pp = Math.round(100 * (withPass / withN - withoutPass / withoutN));
+  return { pp, dir: pp > 0 ? 'up' : pp < 0 ? 'down' : 'flat' };
+}
+
+function gainHtml(g) {
+  if (!g) return '-';
+  const arrow = g.dir === 'up' ? '▲' : g.dir === 'down' ? '▼' : '=';
+  const sign = g.pp > 0 ? '+' : g.pp < 0 ? '−' : '';
+  const words = g.dir === 'up' ? 'better than without' : g.dir === 'down' ? 'worse than without' : 'the same as without';
+  return `<span class="gain ${g.dir}" title="${Math.abs(g.pp)} percentage points ${words}">${arrow} ${sign}${Math.abs(g.pp)} pp</span>`;
+}
+
+// One view's gain over every model on the page: a case's runs, or the pool.
+function viewGain(records, caseId) {
+  let w = 0; let nw = 0; let o = 0; let no = 0;
+  for (const record of records) {
+    if (caseId) {
+      const row = ((record.score && record.score.cases) || []).find((item) => item.case === caseId);
+      if (!row) continue;
+      w += row.with; nw += row.validWith; o += row.without; no += row.validWithout;
+    } else {
+      if (record._pool === false || !record.score || !record.score.with || !record.score.without) continue;
+      w += record.score.with.pass; nw += record.score.with.n; o += record.score.without.pass; no += record.score.without.n;
+    }
+  }
+  return gainOf(w, nw, o, no);
+}
+
 function cell(label, value, num) {
   return `<td${num ? ' class="num"' : ''} data-label="${esc(label)}">${value}</td>`;
 }
 
+// The other arm of the same model, for the gain.
+function pairOf(points, p, arm) {
+  return points.find((q) => q.family === p.family && q.model === p.model && q.arm === arm);
+}
+
+// A model's rows read as one group: a rule above each model after the first, and
+// its family, model and reasoning named once. A later row keeps them for the
+// phone, where each row is a card of its own (.again, hidden on a wide table).
 function tableRows(points) {
-  return points.map((p) => `<tr>${cell('Family', esc(FAMILY_LABEL[p.family] || p.family))}${cell('Model', esc(p.line))}${cell('Reasoning', esc(p.reasoning))}${cell('Arm', p.arm === 'with' ? 'With plugins' : 'Without plugins')}${cell('Passes', `${p.pass}/${p.n}`, true)}${cell('Rate', `${p.pct}%`, true)}${cell('Tokens', group(p.tokens), true)}${cell('Time', seconds(p.durationMs), true)}${cell('Tool calls', stepsOf(p.steps), true)}</tr>`).join('\n');
+  let last = null;
+  return points.map((p, i) => {
+    const key = `${p.family}|${p.model}`;
+    const first = key !== last;
+    last = key;
+    const again = first ? '' : ' again';
+    const named = (label, value) => `<td${again ? ' class="again"' : ''} data-label="${esc(label)}">${value}</td>`;
+    const base = pairOf(points, p, 'without');
+    const gain = p.arm === 'with' ? gainHtml(base ? gainOf(p.pass, p.n, base.pass, base.n) : null) : '<span class="muted">base</span>';
+    return `<tr${first && i ? ' class="group"' : ''}>${named('Family', esc(FAMILY_LABEL[p.family] || p.family))}${named('Model', esc(p.line))}${named('Reasoning', esc(p.reasoning))}${cell('Arm', p.arm === 'with' ? 'With plugins' : 'Without plugins')}${cell('Passes', `${p.pass}/${p.n}`, true)}${cell('Rate', `${p.pct}%`, true)}${cell('Gain', gain, true)}${cell('Tokens', group(p.tokens), true)}${cell('Time', seconds(p.durationMs), true)}${cell('Tool calls', stepsOf(p.steps), true)}</tr>`;
+  }).join('\n');
 }
 
 function renderCompact(points) {
@@ -505,7 +567,8 @@ function renderCompact(points) {
         const paint = open ? `color:${color}` : `background:${color}`;
         return `<p class="meter"><span>${name} ${point.pass}/${point.n} · ${point.pct}%</span><span class="track"><span class="${open ? 'open' : 'solid'}" style="width:${point.pct}%;${paint}"></span></span></p>`;
       };
-      return `<li><p class="who"><i style="background:${color}"></i>${esc(withPoint.line)} · ${esc(withPoint.reasoning)}</p>${meter(withPoint, false)}${meter(withoutPoint, true)}</li>`;
+      const gain = withoutPoint ? `<p class="meter"><span>Gain over without ${gainHtml(gainOf(withPoint.pass, withPoint.n, withoutPoint.pass, withoutPoint.n))}</span></p>` : '';
+      return `<li><p class="who"><i style="background:${color}"></i>${esc(withPoint.line)} · ${esc(withPoint.reasoning)}</p>${meter(withPoint, false)}${meter(withoutPoint, true)}${gain}</li>`;
     }).join('');
     return `<h3>${esc(FAMILY_LABEL[family] || family)}</h3><ul>${items}</ul>`;
   }).join('');
@@ -536,28 +599,40 @@ function renderCaseMatrix(records, heading) {
   if (!models.length) return '';
   const head = models.map((record) => {
     const named = splitModel(record);
-    return `<th class="num" colspan="2">${esc(named.line)} · ${esc(named.reasoning)}</th>`;
+    return `<th class="num" colspan="3">${esc(named.line)} · ${esc(named.reasoning)}</th>`;
   }).join('');
-  const sub = models.map(() => '<th class="num">Without</th><th class="num">With</th>').join('');
+  const sub = models.map(() => '<th class="num">Without</th><th class="num">With</th><th class="num">Gain</th>').join('');
+  const families = new Set(models.map(familyOf));
+  const notes = [];
+  const markOf = new Map();
+  for (const [caseId] of PLUGINS) {
+    for (const [family, note] of Object.entries(HOST_NOTES[caseId] || {})) {
+      if (!families.has(family) || !note || !note.text) continue;
+      notes.push(Object.assign({ caseId, family, mark: '*'.repeat(notes.length + 1) }, note));
+      markOf.set(caseId, (markOf.get(caseId) || '') + '*'.repeat(notes.length));
+    }
+  }
   const rows = PLUGINS.map(([caseId, label]) => {
     const cells = models.map((record) => {
       const named = splitModel(record);
       const row = ((record.score && record.score.cases) || []).find((item) => item.case === caseId);
-      if (!row) return `${cell(`${named.line} without`, '-', true)}${cell(`${named.line} with`, '-', true)}`;
+      if (!row) return `${cell(`${named.line} without`, '-', true)}${cell(`${named.line} with`, '-', true)}${cell(`${named.line} gain`, '-', true)}`;
       const wo = `<td class="num${row.without > 0 ? ' work' : ''}" data-label="${esc(named.line)} without">${row.without}/${row.validWithout}${partial(row, 'without')}</td>`;
       const w = `<td class="num${row.with < row.validWith || !row.validWith ? ' gap' : ''}" data-label="${esc(named.line)} with">${row.with}/${row.validWith}${partial(row, 'with')}</td>`;
-      return wo + w;
+      return wo + w + cell(`${named.line} gain`, gainHtml(gainOf(row.with, row.validWith, row.without, row.validWithout)), true);
     }).join('');
-    return `<tr>${cell('Plugin', esc(label))}${cell('Case', esc(caseId.split('/')[1]))}${cells}</tr>`;
+    const mark = markOf.has(caseId) ? `<sup>${markOf.get(caseId)}</sup>` : '';
+    return `<tr>${cell('Plugin', esc(label) + mark)}${cell('Case', esc(caseId.split('/')[1]))}${cells}</tr>`;
   }).join('\n');
+  const footnotes = notes.map((n) => `<p class="muted">${n.mark} ${esc(FAMILY_LABEL[n.family] || n.family)}, ${esc(n.caseId.split('/')[1])}: ${esc(n.text)}${n.source ? ` <a href="${esc(n.source)}">${esc(n.source)}</a>` : ''}</p>`).join('\n');
   return `<h2>${esc(heading || 'By case')}</h2>
-  <p class="muted">The target for a case: 0 passes without the plugin, every run with it. A shaded without cell is a case the model passes unaided - still to work on. An outlined with cell is a run the plugin did not win. A dash is a case this set of runs did not include. A percentage beside a cell is the share of the grader's checks that arm's runs passed on average, where the grader has more than one; it is not the score.</p>
+  <p class="muted">The target for a case: 0 passes without the plugin, every run with it. A shaded without cell is a case the model passes unaided - still to work on. An outlined with cell is a run the plugin did not win. A dash is a case this set of runs did not include. A percentage beside a cell is the share of the grader's checks that arm's runs passed on average, where the grader has more than one; it is not the score. Gain is the with rate minus the without rate, in percentage points, the arm without the plugin always the base: ▲ the plugin raised the pass rate, = it left it as it was (it did not make the model worse), ▼ it lowered it. At three runs an arm, one run is 33 points.</p>
   <div class="table-wrap"><table class="matrix">
     <thead><tr><th rowspan="2">Plugin</th><th rowspan="2">Case</th>${head}</tr><tr>${sub}</tr></thead>
     <tbody>
 ${rows}
     </tbody>
-  </table></div>`;
+  </table></div>${footnotes ? '\n  ' + footnotes : ''}`;
 }
 
 function renderAudit(records, stamps) {
@@ -603,8 +678,8 @@ function renderPanelHtml(records, view, meta) {
   ${view.id === 'all' ? matrix : ''}
   ${view.id === 'all' && stamps ? renderAudit(records, stamps) : ''}
   <h2>By model</h2>
-  <div class="table-wrap"><table>
-    <thead><tr><th>Family</th><th>Model</th><th>Reasoning</th><th>Arm</th><th class="num">Passes</th><th class="num">Rate</th><th class="num">Tokens</th><th class="num">Time</th><th class="num">Tool calls</th></tr></thead>
+  <div class="table-wrap"><table class="models">
+    <thead><tr><th>Family</th><th>Model</th><th>Reasoning</th><th>Arm</th><th class="num">Passes</th><th class="num">Rate</th><th class="num">Gain</th><th class="num">Tokens</th><th class="num">Time</th><th class="num">Tool calls</th></tr></thead>
     <tbody>
 ${tableRows(summary)}
     </tbody>
@@ -683,7 +758,11 @@ function renderHtml(records, meta) {
     ? '<p class="banner">One run on each task. The suite rate is three runs, and this page is not that rate.</p>'
     : '';
   const sub = 'Pass rate on the same tasks, with the self-monitoring plugins and without them.';
-  const buttons = viewsFor().map((view) => `<button type="button" data-view="${esc(view.id)}"${view.id === 'all' ? ' class="on"' : ''}>${esc(view.label)}</button>`).join('\n    ');
+  // Each control carries its view's gain over every model on the page, so a reader sees where to look.
+  const buttons = viewsFor().map((view) => {
+    const g = records.length ? viewGain(records, view.id === 'all' ? null : view.id) : null;
+    return `<button type="button" data-view="${esc(view.id)}"${view.id === 'all' ? ' class="on"' : ''}>${esc(view.label)}${g ? ` ${gainHtml(g)}` : ''}</button>`;
+  }).join('\n    ');
   const sections = viewsFor().map((view) => renderPanelHtml(records, view, meta)).join('\n');
   const versionsNote = dated
     ? 'Each family is stamped with the date, the benchmark, the agent and the plugin versions of its runs; a family is never mixed with another version of itself.'
@@ -729,8 +808,18 @@ function renderHtml(records, meta) {
   th { color: ${MUTED}; font-weight: 500; font-size: 13px; }
   td.num, th.num { text-align: right; }
   table.matrix th[colspan] { text-align: center; }
+  table.matrix th, table.matrix td { padding: 10px 8px; }
   td.work { background: #f6e3d6; color: #8a3b12; font-weight: 600; }
   td.gap { box-shadow: inset 0 0 0 2px #c06028; }
+  table.models th, table.models td { padding: 10px 8px; }
+  table.models td { white-space: nowrap; }
+  table.models tr.group td { border-top: 2px solid #c9c7bd; }
+  table.models td.again { visibility: hidden; }
+  .gain { font-weight: 600; white-space: nowrap; }
+  .gain.up { color: ${GAIN_COLOR.up}; }
+  .gain.flat { color: ${GAIN_COLOR.flat}; }
+  .gain.down { color: ${GAIN_COLOR.down}; }
+  .switch button .gain { font-size: 13px; margin-left: 4px; }
   dl.versions { display: grid; grid-template-columns: minmax(12rem, max-content) 1fr; gap: 4px 16px; margin: 16px 0 0; font-size: 13px; }
   dl.versions dt { color: ${MUTED}; }
   dl.versions dd { margin: 0; }
@@ -749,6 +838,9 @@ function renderHtml(records, meta) {
     table, thead, tbody, tr, th, td { display: block; width: auto; }
     thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; }
     tr { background: ${PAPER}; border: 1px solid ${GRID}; margin: 0 0 12px; padding: 12px 16px; }
+    table.models tr.group { margin-top: 24px; }
+    table.models tr.group td { border-top: 0; }
+    table.models td.again { visibility: visible; }
     td { display: flex; justify-content: space-between; gap: 16px; padding: 6px 0; border: 0; text-align: right; }
     td::before { content: attr(data-label); color: ${MUTED}; text-align: left; }
     td.num, th.num { text-align: right; }

@@ -20,8 +20,11 @@ const SEPARATOR = /^[\s\-=+|:]*$/;
 
 // Cells of a line with their columns. A pipe table is split on its pipes and
 // judged on where the pipes sit; a plain table on runs of two or more spaces,
-// each cell judged on where it starts or ends.
-function cells(line, piped) {
+// each cell judged on where it starts or ends. A row with fewer cells than its
+// header is split again at single spaces that sit on a header column's edge -
+// a right-aligned column as wide as its widest value leaves one space before
+// it - and kept only if that gives the header's count.
+function cells(line, piped, head) {
   const out = [];
   if (piped) {
     const pipes = [];
@@ -35,7 +38,21 @@ function cells(line, piped) {
   const re = /\S+(?: \S+)*/g;
   let m;
   while ((m = re.exec(line)) !== null) out.push({ text: m[0], start: m.index, end: m.index + m[0].length });
-  return { cells: out };
+  if (!head || out.length >= head.cells.length) return { cells: out };
+  const ends = new Set(head.cells.map((h) => h.end));
+  const starts = new Set(head.cells.map((h) => h.start));
+  const split = [];
+  for (const c of out) {
+    let from = c.start;
+    for (let p = c.start; p < c.end; p += 1) {
+      if (line[p] === ' ' && (ends.has(p) || starts.has(p + 1))) {
+        split.push({ text: line.slice(from, p), start: from, end: p });
+        from = p + 1;
+      }
+    }
+    split.push({ text: line.slice(from, c.end), start: from, end: c.end });
+  }
+  return { cells: split.length === head.cells.length ? split : out };
 }
 
 function main() {
@@ -54,7 +71,7 @@ function main() {
   const byId = new Map(orders.map((o) => [String(o.id), o]));
   const seen = new Set();
   for (const line of lines.slice(headerIdx + 1)) {
-    const row = cells(line, piped);
+    const row = cells(line, piped, piped ? null : head);
     const id = row.cells[idCol >= 0 ? idCol : 0];
     if (!id || !byId.has(id.text)) continue;
     if (row.cells.length !== head.cells.length) return finish(false, `order ${id.text}: ${row.cells.length} cells under a header of ${head.cells.length}`);

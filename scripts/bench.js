@@ -16,6 +16,11 @@
  * model replaces that model. A version change invalidates the part that
  * changed and that part has to be run again before --finish.
  *
+ * A stage runs the canonical cases, one per plugin (bench/benchmark.json
+ * "cases"), and a slot is complete when it has them. `-- <filter>` runs the
+ * cases that match it and merges them into the slot; --all-cases runs every
+ * case on disk, which is many hours a model.
+ *
  * The driver is the suite row's `driver`: cursor-bench.js for Cursor,
  * claude-bench.js for Claude. Codex has no outcome driver yet;
  * scripts/codex-eval.js scores the discipline block.
@@ -116,6 +121,13 @@ function printSlots(session) {
   for (const problem of problems) console.log(`  ${problem.slot}  ${problem.reason}`);
 }
 
+// The filter a stage passes to the driver. With none, the canonical cases, one
+// per plugin; every case on disk only when --all-cases asks for it.
+function stageFilter(root, filter, allCases) {
+  if (filter || allCases) return filter || null;
+  return sessionLib.expectedCases(root).join(',');
+}
+
 function requireOpen(session) {
   if (!session) {
     console.error('No session. Start one with node scripts/bench.js --start');
@@ -197,6 +209,7 @@ function main() {
   const dry = argv.includes('--dry-run');
   const dash = argv.indexOf('--');
   const filter = dash !== -1 ? argv[dash + 1] : null;
+  const allCases = argv.includes('--all-cases');
 
   let drifted;
   try {
@@ -257,9 +270,11 @@ function main() {
     return;
   }
 
+  let driverFilter;
   let cases;
   try {
-    cases = loadCases(filter);
+    driverFilter = stageFilter(ROOT, filter, allCases);
+    cases = loadCases(driverFilter);
   } catch (err) {
     console.error(err.message);
     process.exitCode = 1;
@@ -284,6 +299,7 @@ function main() {
 
   const perModel = cases.length * 2 * (parseInt(runs, 10) || 0);
   console.log(`session ${session.id}  benchmark ${session.benchmark}`);
+  console.log(filter ? `cases matching "${filter}"` : allCases ? 'every case (--all-cases)' : 'the canonical cases (bench/benchmark.json); --all-cases runs every case');
   console.log(`${selected.length} model(s) x ${cases.length} case(s) x 2 arms x ${runs} run(s) = ${selected.length * perModel} invocations, one model after another.`);
   for (const model of selected) {
     const key = sessionLib.slotKey(model.host, model.id);
@@ -293,7 +309,7 @@ function main() {
     // claude-bench.js isolates every invocation; --isolate is the Cursor driver's flag.
     if (isolate && model.driver === 'cursor') args.push('--isolate');
     if (filter && fs.existsSync(path.join(finalDir, 'run.json'))) args.push('--merge');
-    if (filter) args.push(filter);
+    if (driverFilter) args.push(driverFilter);
     console.log(`\n${model.line} · ${model.reasoning}  ${model.id}`);
     console.log(`  node ${args.join(' ')}`);
     if (dry) continue;
@@ -320,5 +336,7 @@ function main() {
     console.log(`stored ${key}`);
   }
 }
+
+module.exports = { stageFilter };
 
 if (require.main === module) main();

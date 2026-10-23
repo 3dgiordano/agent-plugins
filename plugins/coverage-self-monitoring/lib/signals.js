@@ -443,7 +443,7 @@ function contextOf(body, index, length) {
  * después"), a [TERMINATION CHECK] weighs what blocks "the remaining work",
  * an [EPISTEMIC CLOSE] says what is "still open". Read as prose they are
  * deferrals (2026-09-25 review: options offered were 5 of 92 session
- * readings, a termination Evidence line 1 of 11 bench readings). A block
+ * readings). A block
  * runs from its marker line to the first blank line, as the skills write it;
  * it is blanked character by character so offsets stay the original's.
  * Coverage's own blocks are read as they always were.

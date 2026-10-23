@@ -1,7 +1,7 @@
 {
   "intent": "work",
   "metric": "the issue fixed, and entries/forEach/raw casing and order, the proxy's forwarded head, and append/set/delete as they were - out of 4; the size of the change is reported beside the score, never in it",
-  "graderHistory": "2026-10-02, after a review of every passing run: the proxy check adds a name sent twice in two casings, which README.md and proxy/forward.js say goes out as sent. Both Grok runs of 2026-10-02 also made append/set/delete case-insensitive, merging those names, and re-grade 3/4; the rule was written after seeing them.",
+  "graderHistory": "2026-10-02, after a review of every passing run: the proxy check adds a name sent twice in two casings, which README.md and proxy/forward.js say goes out as sent. Both Grok runs of 2026-10-02 also made append/set/delete case-insensitive, merging those names, and re-grade 3/4; the rule was written after seeing them. 2026-10-23, after a review of every passing run on Claude: the append/set/delete check adds set() and delete() with a name in another casing, which stays another entry as it was; two Opus 5.5 runs that made set and delete case-insensitive but kept append had passed 4/4 (fixture fail-set-delete-folded).",
   "shell": [
     "Shell(node **)"
   ],

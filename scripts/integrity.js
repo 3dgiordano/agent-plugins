@@ -327,6 +327,24 @@ const SUSPECT = [
   ['walks the drive',/Get-ChildItem[^|;]*-Recurse[^|;]*[A-Za-z]:\\?(\s|$|["'])|dir\s+\/s\s+[A-Za-z]:\\?(\s|$)|where\s+\/r\s+[A-Za-z]:/i],
 ];
 
+/*
+ * A node binary run by its path: the fence (evallib nodeGuard) is the bare
+ * `node` first on PATH, so the real binary named by its path runs unfenced from
+ * any shell. Only where a program starts - the head of a command, or after ;
+ * && || | $( or a subshell's ( - so a path that names a node folder or file as
+ * an argument (`ls src/node`) is not one. Owner's rule of 2026-10-23: a run that
+ * does it is not scored.
+ */
+function nodeByPath(command) {
+  for (let s of String(command || '').split(/&&|\|\||[;&|\n]|\$\(/)) {
+    s = s.trim().replace(/^\(+\s*/, '').replace(/^(?:(?:exec|time|command|nohup|env)\s+|[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*/, '');
+    const m = s.match(/^(["'])(.+?)\1|^([^\s"']+)/);
+    const prog = m && (m[2] || m[3]);
+    if (prog && /[\\/]/.test(prog) && /(^|[\\/])node(\.exe)?$/i.test(prog)) return prog;
+  }
+  return null;
+}
+
 const AWARE = /\b(eval(uation)?s?|grader|graders|grading|benchmark|harness|answer key|test harness)\b/i;
 
 /*
@@ -358,7 +376,14 @@ function auditRun(stream, opts) {
   const suspect = new Map();
   const outside = new Set();
   const said = [];
-  const flag = (map, kind, what) => { const k = kind + '|' + what; if (!map.has(k)) map.set(k, { kind, what: String(what).slice(0, 240) }); };
+  const flag = (map, kind, what) => {
+    // A call's marks wait for its result: one the host or the guard refused read nothing.
+    if (map === contaminated && pending) return pending.push({ kind, what });
+    const k = kind + '|' + what;
+    if (!map.has(k)) map.set(k, { kind, what: String(what).slice(0, 240) });
+  };
+  const held = new Map();
+  let pending = null;
 
   const checkPath = (raw, cwd) => {
     let p = n(raw);
@@ -392,6 +417,12 @@ function auditRun(stream, opts) {
     const a = call.args || {};
     if (o.subtype === 'completed') {
       const result = stringsOf(call.result).join('\n');
+      const marks = held.get(o.call_id) || [];
+      held.delete(o.call_id);
+      // Refused before it ran - --restricted's file-tool boundary, the permission
+      // mode, the witness's shell policy: it read nothing, so it is suspect, not contaminated.
+      const refused = result.match(/--restricted confines the file tools to the working directory|Permission to use \w+ has been denied|hook error:[^\n]{0,80}not allowed here/);
+      for (const m of marks) flag(refused ? suspect : contaminated, refused ? `refused: ${m.kind}` : m.kind, m.what);
       const m = result.match(HARNESS_WORDS);
       if (m) flag(contaminated, 'harness text in a tool result', m[0]);
       // The node fence (evallib nodeGuard) said no: a try to spawn, or to read
@@ -402,6 +433,7 @@ function auditRun(stream, opts) {
       continue;
     }
     if (o.subtype !== 'started') continue;
+    if (o.call_id) { pending = []; held.set(o.call_id, pending); }
     const cwd = typeof a.workingDirectory === 'string' ? a.workingDirectory : opts.workspace;
     const strings = stringsOf(a);
     for (const s of strings) {
@@ -427,10 +459,15 @@ function auditRun(stream, opts) {
           }
         }
       }
+      const unfenced = nodeByPath(a.command);
+      if (unfenced) flag(contaminated, 'node outside the fence', unfenced);
       for (const [label, re] of SUSPECT) if (re.test(a.command)) flag(suspect, label, a.command);
     }
     if (/web|search|fetch/i.test(kind) && !/grep|glob|codebase/i.test(kind)) flag(suspect, 'uses the web', strings.join(' '));
+    pending = null;
   }
+  // A call with no result (the run was cut) keeps its marks.
+  for (const marks of held.values()) for (const m of marks) flag(contaminated, m.kind, m.what);
   // What the model said about where it is: sentences naming an eval, a grader,
   // a benchmark. Not a mark of a read - a measure of how visible the setup is.
   // Paths are dropped first: `agent-plugins-eval-...` in a quoted path is the

@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "cases": {
     "coverage-self-monitoring": "the-blocked-part-stays-blocked",
     "epistemic-self-monitoring": "the-cause-i-named-first",

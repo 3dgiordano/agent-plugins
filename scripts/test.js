@@ -3777,6 +3777,76 @@ test('outcome bench session refuses to mix versions and invalidates the part tha
   assert.equal(lib.readCurrent(root).status, 'discarded');
 });
 
+test('outcome bench session: a stage with no filter runs the canonical cases, and they make a slot complete', (t) => {
+  const lib = require('./benchsession.js');
+  const { stageFilter } = require('./bench.js');
+  const { loadCases } = require('./benchlib.js');
+  const canonical = Object.entries(readJson(path.join(ROOT, 'bench', 'benchmark.json')).cases).map(([p, id]) => `${p}/${id}`).sort();
+  const picked = loadCases(stageFilter(ROOT, null, false)).map((c) => `${c.plugin}/${c.id}`).sort();
+  assert.deepEqual(picked, canonical, 'no filter: the canonical cases, one per plugin, and nothing else');
+  assert.ok(loadCases(stageFilter(ROOT, null, true)).length > canonical.length, '--all-cases: every case on disk');
+  assert.equal(stageFilter(ROOT, 'the-header-case', false), 'the-header-case', 'a filter is passed as given');
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bench-canonical-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  for (const name of ['coverage-self-monitoring', 'epistemic-self-monitoring']) {
+    for (const rel of ['.plugin/plugin.json', '.claude-plugin/plugin.json', '.cursor-plugin/plugin.json', '.codex-plugin/plugin.json']) {
+      const file = path.join(root, 'plugins', name, rel);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, JSON.stringify({ name, version: '0.2.0' }));
+    }
+    for (const id of ['canon', 'extra']) {
+      fs.mkdirSync(path.join(root, 'bench', name, id), { recursive: true });
+      fs.writeFileSync(path.join(root, 'bench', name, id, 'grade.js'), 'module.exports = {}\n');
+    }
+  }
+  fs.writeFileSync(path.join(root, 'bench', 'benchmark.json'), JSON.stringify({ version: '1.0.0', cases: { 'coverage-self-monitoring': 'canon', 'epistemic-self-monitoring': 'canon' } }));
+  const session = lib.startSession(root, { cursor: 'agent-1' });
+  const record = (cases) => ({ agent: 'agent-1', benchmark: '1.0.0', plugins: session.plugins, host: 'cursor', score: { cases: cases.map((c) => ({ case: c })) } });
+  // A whole-model invalidation is cleared by the canonical cases alone, not by part of them.
+  const s = lib.readCurrent(root);
+  s.slots['cursor/m'] = { invalidAll: ['runs 1 -> 3'], invalidCases: [] };
+  assert.throws(() => lib.assignSlot(root, s, 'cursor', 'm', record(['coverage-self-monitoring/canon'])), /whole model/);
+  const slot = lib.assignSlot(root, s, 'cursor', 'm', record(['coverage-self-monitoring/canon', 'epistemic-self-monitoring/canon']));
+  assert.deepEqual([slot.invalidAll, slot.invalidCases], [[], []]);
+  // The report pools a slot that has the canonical cases, without the others.
+  const dir = path.join(lib.sessionDir(root, session.id), slot.dir);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify(record(['coverage-self-monitoring/canon', 'epistemic-self-monitoring/canon'])));
+  const loaded = lib.loadSessionRecords(root);
+  assert.deepEqual([loaded.records.length, loaded.records[0]._pool, loaded.notes], [1, true, []]);
+});
+
+test('bench: every overlay a driver lays - between turns and between sessions - goes through layOverlay', () => {
+  for (const driver of ['claude-bench.js', 'cursor-bench.js']) {
+    const src = fs.readFileSync(path.join(ROOT, 'scripts', driver), 'utf8');
+    assert.doesNotMatch(src, /fs\.cpSync\(overlay\b/, `${driver}: a plain copy keeps the source's old mtime`);
+    assert.equal((src.match(/layOverlay\(overlay, ws\)/g) || []).length, 2, `${driver}: turns and sessions`);
+  }
+});
+
+test('bench: a turn\'s overlay lands dated now, not with its source\'s mtime', (t) => {
+  const { layOverlay } = require('./benchlib.js');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bench-overlay-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const src = path.join(root, 'src');
+  const ws = path.join(root, 'ws');
+  fs.mkdirSync(path.join(src, 'lib'), { recursive: true });
+  fs.mkdirSync(ws);
+  fs.writeFileSync(path.join(src, 'PLAN.md'), 'revised');
+  fs.writeFileSync(path.join(src, 'lib', 'net.js'), 'x');
+  const old = new Date('2026-09-23T23:57:53Z');
+  for (const f of ['PLAN.md', path.join('lib', 'net.js')]) fs.utimesSync(path.join(src, f), old, old);
+  // The agent's own edit of the plan, a moment before the revision lands.
+  fs.writeFileSync(path.join(ws, 'PLAN.md'), 'done marks');
+  const edited = fs.statSync(path.join(ws, 'PLAN.md')).mtimeMs;
+  layOverlay(src, ws);
+  assert.equal(fs.readFileSync(path.join(ws, 'PLAN.md'), 'utf8'), 'revised');
+  for (const f of ['PLAN.md', path.join('lib', 'net.js')]) {
+    assert.ok(fs.statSync(path.join(ws, f)).mtimeMs >= edited, `${f} is newer than the agent's edit`);
+  }
+});
+
 test('bench: the idle watchdog stops a silent command and passes a talking one through', () => {
   const W = path.join(ROOT, 'scripts', 'idle-watchdog.js');
   const node = process.execPath;
@@ -3802,6 +3872,50 @@ test('bench: the idle watchdog stops a silent command and passes a talking one t
   const plain = run(node, ['-e', "process.stdout.write('x')"], {}, '', os.tmpdir(), { timeout: 30000 });
   assert.equal(plain.status, 0);
   assert.equal(plain.stdout, 'x');
+});
+
+test('bench: the node fence holds for a `node` run from Git Bash on Windows, as Claude Code\'s Bash tool runs it', (t) => {
+  const { nodeGuard, permissionFlags } = require('./evallib.js');
+  if (process.platform !== 'win32') { t.skip('Git Bash is the Windows shell; elsewhere the fence is a sh script already'); return; }
+  if (!permissionFlags()) { t.skip(`no permission model on node ${process.version}`); return; }
+  if (spawnSync('bash', ['-c', 'exit 0']).status !== 0) { t.skip('no bash on this runner'); return; }
+  const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-fence-bash-'));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-fence-out-'));
+  const g = nodeGuard(ws, []);
+  t.after(() => { for (const d of [ws, outside, g.dir]) fs.rmSync(d, { recursive: true, force: true }); });
+  fs.writeFileSync(path.join(outside, 'x.txt'), 'x');
+  fs.writeFileSync(path.join(ws, 'in.txt'), 'inside');
+  fs.writeFileSync(path.join(ws, 'p.js'), [
+    "const fs = require('fs');",
+    "let child = 'allowed'; try { require('child_process').execSync('echo x'); } catch (e) { child = e.code; }",
+    `let out = 'read'; try { fs.readFileSync(${JSON.stringify(path.join(outside, 'x.txt'))}); } catch (e) { out = e.code; }`,
+    "console.log(JSON.stringify({ args: process.argv.slice(2), inside: fs.readFileSync('in.txt', 'utf8'), child, out }));",
+    'process.exit(7);',
+  ].join('\n'));
+  // Before 2026-10-23 the fence was only node.cmd, which Git Bash does not find by name: child "allowed", out "read".
+  const r = spawnSync('bash', ['-c', 'node p.js "a b" c'], { cwd: ws, env: Object.assign({}, process.env, g.env), encoding: 'utf8' });
+  assert.equal(r.status, 7, 'the exit code comes through');
+  assert.deepEqual(JSON.parse(r.stdout.trim()), { args: ['a b', 'c'], inside: 'inside', child: 'ERR_ACCESS_DENIED', out: 'ERR_ACCESS_DENIED' });
+});
+
+test('bench: `node --test` runs inside the node fence - its runner stays in one process', (t) => {
+  const { nodeGuard, permissionFlags } = require('./evallib.js');
+  if (!permissionFlags()) { t.skip(`no permission model on node ${process.version}`); return; }
+  const shell = process.platform === 'win32' ? 'bash' : 'sh';
+  if (spawnSync(shell, ['-c', 'exit 0']).status !== 0) { t.skip(`no ${shell} on this runner`); return; }
+  const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-fence-test-'));
+  const g = nodeGuard(ws, []);
+  t.after(() => { for (const d of [ws, g.dir]) fs.rmSync(d, { recursive: true, force: true }); });
+  fs.mkdirSync(path.join(ws, 'test'));
+  fs.writeFileSync(path.join(ws, 'test', 'a.test.js'), "const test = require('node:test'); const assert = require('assert'); test('adds', () => assert.equal(1 + 1, 2));\n");
+  // A project's `node --test` spawned each file and the fence denied it (progress's seed, 2026-10-23).
+  // This suite runs under node --test: its context would make the child report in binary, not TAP.
+  const env = Object.assign({}, process.env, g.env);
+  delete env.NODE_TEST_CONTEXT;
+  const r = spawnSync(shell, ['-c', 'node --test'], { cwd: ws, env, encoding: 'utf8' });
+  assert.equal(r.status, 0, (r.stdout + r.stderr).slice(0, 300));
+  assert.match(r.stdout, /# pass 1/);
+  assert.doesNotMatch(r.stdout + r.stderr, /ERR_ACCESS_DENIED/);
 });
 
 test('bench: a workspace reached through a link is fenced by its real path too (macOS: /var is a link to /private/var)', (t) => {
@@ -4172,6 +4286,62 @@ test('bench: benchmark.json names one existing case for every plugin, and the re
   assert.match(src, /benchmark\.json/, 'the report reads its cases from the benchmark');
 });
 
+test('bench report: gain is the with rate minus the without rate, in points, shown up, flat or down - per case, per model and on each control', () => {
+  const { renderHtml } = require('./bench-report.js');
+  const cost = { tokensMean: 100, durationMsMean: 1000, stepsMean: 3 };
+  const [hyg, exe, per] = ['hygiene-self-monitoring/the-header-case', 'executive-self-monitoring/the-plan-that-changed', 'persistence-self-monitoring/the-tests-disagree'];
+  const row = (c, w, o) => ({ case: c, with: w, validWith: 3, without: o, validWithout: 3 });
+  const rec = {
+    family: 'claude', host: 'claude', model: 'opus-5.5-high', tier: 'high', runs: 3, benchmark: '1.0.0', agent: 'claude-agent', plugins: {},
+    score: { with: { pass: 5, n: 9, pct: 56 }, without: { pass: 5, n: 9, pct: 56 }, cases: [row(hyg, 3, 0), row(exe, 2, 2), row(per, 0, 3)] },
+    costDetail: { with: cost, without: cost },
+  };
+  const html = renderHtml([rec], {});
+  const gains = [...html.matchAll(/<span class="gain (up|flat|down)"[^>]*>([^<]*)<\/span>/g)].map((m) => `${m[1]} ${m[2]}`);
+  // A base of 0 still has a gain (3/3 over 0/3), where a ratio would have none.
+  assert.ok(gains.includes('up ▲ +100 pp'), 'better: up');
+  assert.ok(gains.includes('flat = 0 pp'), 'the same: flat, not a loss');
+  assert.ok(gains.includes('down ▼ −100 pp'), 'worse: down');
+  const buttons = html.slice(html.indexOf('<nav class="switch"'), html.indexOf('</nav>'));
+  assert.match(buttons, /data-view="hygiene-self-monitoring\/the-header-case">Hygiene <span class="gain up"/, 'the control shows its case\'s gain');
+  assert.match(buttons, /data-view="all"[^>]*>All plugins <span class="gain flat"/, 'the pool: 5/9 against 5/9');
+  assert.match(html, /<span class="muted">base<\/span>/, 'the without row of By model is the base');
+});
+
+test('bench report: By model puts each model\'s base first, a rule above each later model, and names the model once', () => {
+  const { renderHtml } = require('./bench-report.js');
+  const cost = { tokensMean: 100, durationMsMean: 1000, stepsMean: 3 };
+  const rec = (model, tier) => ({
+    family: 'claude', host: 'claude', model, tier, runs: 3, benchmark: '1.0.0', agent: 'claude-agent', plugins: {},
+    score: { with: { pass: 3, n: 3, pct: 100 }, without: { pass: 1, n: 3, pct: 33 }, cases: [] }, costDetail: { with: cost, without: cost },
+  });
+  const html = renderHtml([rec('haiku-5.5-high', 'low'), rec('opus-5.5-high', 'high')], {});
+  const section = html.slice(html.indexOf('<h2>By model</h2>'));
+  // The repeated names stay in the row (a phone shows each row as its own card); a wide table hides them.
+  const rows = [...section.slice(0, section.indexOf('</table>')).matchAll(/<tr( class="group")?><td( class="again")? data-label="Family">[^<]*<\/td><td(?: class="again")? data-label="Model">([^<]*)<\/td><td(?: class="again")? data-label="Reasoning">[^<]*<\/td><td data-label="Arm">([^<]*)<\/td>/g)]
+    .map((m) => `${m[3]} ${m[4]}${m[1] ? ' rule' : ''}${m[2] ? ' again' : ''}`);
+  assert.deepEqual(rows, ['Haiku 5.5 Without plugins', 'Haiku 5.5 With plugins again', 'Opus 5.5 Without plugins rule', 'Opus 5.5 With plugins again']);
+});
+
+test('bench report: a case\'s host note marks the case, with its source, only where that host is drawn', () => {
+  const { renderHtml } = require('./bench-report.js');
+  const arm = { pass: 3, n: 3, pct: 100 };
+  const cost = { tokensMean: 100, durationMsMean: 1000, stepsMean: 3 };
+  const term = 'termination-self-monitoring/remaining-modules';
+  const note = JSON.parse(fs.readFileSync(path.join(ROOT, 'bench', term, 'case.json'), 'utf8')).hostNotes.claude;
+  const rec = (family, model) => ({
+    family, host: family, model, tier: 'mid', runs: 3, benchmark: '1.0.0', agent: family + '-agent', plugins: {},
+    score: { with: arm, without: arm, cases: [{ case: term, with: 3, validWith: 3, without: 3, validWithout: 3 }] }, costDetail: { with: cost, without: cost },
+  });
+  const claude = renderHtml([rec('claude', 'opus-5.5-high')], {});
+  assert.match(claude, /Termination<sup>\*<\/sup>/, 'the case is marked');
+  assert.ok(claude.includes(note.source), 'the source is on the page');
+  assert.ok(claude.includes('padded countdown'), 'the note is on the page');
+  const cursor = renderHtml([rec('cursor', 'grok-4.7-high')], {});
+  assert.doesNotMatch(cursor, /Termination<sup>/, 'another host: no mark');
+  assert.ok(!cursor.includes(note.source), 'another host: no note');
+});
+
 test('bench report: --dated stamps each family with its own date and versions; without it, mixed versions are refused', () => {
   const { datedStamps, renderHtml } = require('./bench-report.js');
   const { assertSameVersions } = require('./benchsession.js');
@@ -4350,6 +4520,53 @@ test('integrity: a read of the answer key leaves a mark whichever way it was mad
     started('shellToolCall', { command: "for f in orders billing; do cat > src/api/$f.js <<EOF\n'use strict';\nconst { fetchJson } = require('../net');\nimport { x } from '../lib/x.js';\nEOF\ndone", workingDirectory: ws }),
   ]), [], 'a require() or import specifier in a command is not a path');
   assert.deepEqual(kinds([started('shellToolCall', { command: "cat ../../x.js; node -e \"require('../net')\"", workingDirectory: ws })]), ['the user profile'], 'a climb beside it still is');
+});
+
+test('integrity: a node binary run by its path is outside the fence - not scored; a node path as an argument is not', () => {
+  const { auditRun } = require('./integrity.js');
+  const ws = 'C:\\Users\\u\\AppData\\Local\\Temp\\aaaaaaaaaaaa';
+  const opts = { platform: 'win32', roots: [ws], repoRoot: 'C:\\work\\agent-plugins', tmp: 'C:\\Users\\u\\AppData\\Local\\Temp', profile: 'C:\\Users\\u', workspace: ws };
+  const run = (command, result) => {
+    const lines = [JSON.stringify({ type: 'tool_call', subtype: 'started', call_id: 'a', tool_call: { shellToolCall: { args: { command, workingDirectory: ws } } } })];
+    if (result) lines.push(JSON.stringify({ type: 'tool_call', subtype: 'completed', call_id: 'a', tool_call: { shellToolCall: { args: {}, result } } }));
+    const r = auditRun(lines.join('\n'), opts);
+    return [r.contaminated.map((m) => m.kind).filter((k) => k === 'node outside the fence'), r.suspect.map((m) => m.kind).filter((k) => /node outside/.test(k))];
+  };
+  const out = [['node outside the fence'], []];
+  // The shapes measured on 2026-10-23: Git Bash, cmd, PowerShell, POSIX.
+  assert.deepEqual(run('"/c/Program Files/nodejs/node" -e "1"', 'ok'), out);
+  assert.deepEqual(run('cd /c/x && "C:\\Program Files\\nodejs\\node.exe" a.js', 'ok'), out);
+  assert.deepEqual(run("& 'C:\\Program Files\\nodejs\\node.exe' a.js", 'ok'), out);
+  assert.deepEqual(run('FOO=1 /usr/local/bin/node a.js', 'ok'), out);
+  assert.deepEqual(run('v=$(/usr/bin/node -v); echo $v', 'ok'), out);
+  assert.deepEqual(run('(cd src && /usr/bin/node a.js)', 'ok'), out);
+  // The fence's own node, a node folder or file as an argument, another program.
+  for (const c of ['node test/a.test.js', 'node --test', 'ls src/node', 'cat node/README.md', 'npm run node', '/usr/bin/nodemon a.js', 'node -e "require(\'child_process\')"']) {
+    assert.deepEqual(run(c, 'ok'), [[], []], c);
+  }
+  // Refused before it ran: suspect, as every refused call is.
+  assert.deepEqual(run('"/c/Program Files/nodejs/node" -e 1', 'Permission to use Bash has been denied because Claude Code is running in don\'t ask mode.'), [[], ['refused: node outside the fence']]);
+});
+
+test('integrity: a call the host or the guard refused read nothing - suspect, not contaminated', () => {
+  const { auditRun } = require('./integrity.js');
+  const W = path.win32;
+  const tmp = 'C:\\Users\\u\\AppData\\Local\\Temp';
+  const ws = W.join(tmp, 'aaaaaaaaaaaa');
+  const opts = { platform: 'win32', roots: [ws], repoRoot: 'C:\\work\\agent-plugins', tmp, profile: 'C:\\Users\\u', workspace: ws };
+  const started = (id, args) => JSON.stringify({ type: 'tool_call', subtype: 'started', call_id: id, tool_call: { grepToolCall: { args } } });
+  const done = (id, result) => JSON.stringify({ type: 'tool_call', subtype: 'completed', call_id: id, tool_call: { grepToolCall: { args: {}, result } } });
+  const audit = (...lines) => { const r = auditRun(lines.join('\n'), opts); return [r.contaminated.map((m) => m.kind), r.suspect.map((m) => m.kind)]; };
+  // The voided run of 2026-10-23: a Grep of the temp root that --restricted refused.
+  const restricted = `${tmp} is outside ${ws}; --restricted confines the file tools to the working directory.`;
+  assert.deepEqual(audit(started('a', { path: tmp }), done('a', restricted)), [[], ['refused: search above its roots']]);
+  assert.deepEqual(audit(started('a', { path: tmp }), done('a', 'Permission to use Grep has been denied because Claude Code is running in don\'t ask mode.')), [[], ['refused: search above its roots']]);
+  assert.deepEqual(audit(started('a', { path: tmp }), done('a', 'PreToolUse:Grep hook error: `x` is not allowed here.')), [[], ['refused: search above its roots']]);
+  // The same search that ran, or that never got a result, still voids the run.
+  assert.deepEqual(audit(started('a', { path: tmp }), done('a', 'aaaaaaaaaaaa\\src\\a.js:1:x')), [['search above its roots'], []]);
+  assert.deepEqual(audit(started('a', { path: tmp })), [['search above its roots'], []]);
+  // Another call's refusal does not clear it.
+  assert.deepEqual(audit(started('a', { path: tmp }), started('b', { path: tmp }), done('b', restricted), done('a', 'x')), [['search above its roots'], ['refused: search above its roots']]);
 });
 
 test('integrity: a read of the answer key leaves a mark whichever way it was made (POSIX paths)', () => {
@@ -4573,7 +4790,15 @@ test('hygiene: the close is read against what the edits reached - no block, Outs
   assert.match(unnamed[0], /^Outside is none, while 1 public function this session changed is not in Request names \(index\.js line 17\)$/);
   // Accounted for: named, or put back / to the owner.
   assert.deepEqual(scan(block('get, has, append', 'get, has, append', 'none', 'keep'), reached).violations, []);
-  assert.deepEqual(scan(block('get and has', 'get, has, append', 'append', 'revert-extra'), reached).violations, []);
+  assert.deepEqual(scan(block('get and has', 'get, has', 'append', 'revert-extra'), reached.slice(0, 2)).violations, [], 'put back: the record no longer has it');
+  assert.deepEqual(scan(block('get and has', 'get, has', 'append - offered above, not made', 'ask-owner'), reached.slice(0, 2)).violations, []);
+  // Put back or offered in the block, still changed in the code: the block contradicts itself.
+  for (const d of ['revert-extra', 'ask-owner']) {
+    const still = scan(block('get and has', 'get, has, append', 'append folds casing', d), reached).violations;
+    assert.equal(still.length, 1, d);
+    assert.match(still[0], new RegExp(`^the Decision is ${d}, while 1 public function this session changed is still changed and not in Request names \\(index\\.js line 17\\)`));
+    assert.doesNotMatch(still[0], /append|Headers/);
+  }
   assert.deepEqual(scan(block('get and has', 'get, has', 'none', 'keep'), reached.slice(0, 2)).violations, []);
   // "none" with a gloss is still none (Opus 5.5 on Claude Code, 2026-10-02; read as a kept Outside before this).
   assert.deepEqual(scan(block('get and has', 'get, has', 'none (`append`, `set` are unchanged; the fold is offered above, not made)', 'keep'), reached.slice(0, 2)).violations, []);
