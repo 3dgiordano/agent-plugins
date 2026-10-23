@@ -105,7 +105,10 @@ function syncCursor(c, names, home = os.homedir(), root = ROOT) {
   return done;
 }
 
-// Claude Code CLI: the commands, for the owner. An update the CLI calls current (the same version) is a reinstall.
+// Claude Code CLI: the commands, for the owner. `plugin update` goes by the version: on the same version with
+// other code it answers "already at the latest version" and keeps the old copy (observed 2026-10-23), so that
+// one is a reinstall, its data kept. A plugin that owes its version step (pluginsource.js unstepped) should take
+// it instead; then update does the job.
 function claudeCommands(c, names) {
   const cmds = [`claude plugin marketplace update ${MARKETPLACE}`];
   for (const name of names) {

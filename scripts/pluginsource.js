@@ -93,12 +93,44 @@ function source(root) {
   return { commit: commit && commit.trim(), dirty: dirtyPlugins(root), plugins: fingerprints(root) };
 }
 
+/*
+ * The plugins whose code changed since a tag while their version stayed the
+ * tag's: each owes its one step for the release (CHANGELOG). An installed copy
+ * keyed by version never picks such a change up - the CLI's update reads
+ * "already at the latest version". Compared through git, so it needs the tag.
+ */
+function unstepped(root, tag) {
+  const out = [];
+  const dir = path.join(root, 'plugins');
+  for (const name of fs.readdirSync(dir).sort()) {
+    if (!name.endsWith('-self-monitoring')) continue;
+    const rel = `plugins/${name}`;
+    let tagged;
+    try { tagged = JSON.parse(execFileSync('git', ['show', `${tag}:${rel}/.claude-plugin/plugin.json`], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })).version; } catch (_) { continue; } // new since the tag
+    if (versionOf(path.join(dir, name)) !== tagged) continue;
+    const changed = git(root, ['diff', '--name-only', tag, '--', rel]);
+    if (changed === null) continue;
+    const code = changed.split('\n').filter(Boolean).filter((f) => !SKIP.has(f.slice(rel.length + 1).split('/')[0]));
+    if (code.length) out.push({ name, version: tagged, files: code.length });
+  }
+  return out;
+}
+
+function lastTag(root) {
+  const t = git(root, ['describe', '--tags', '--abbrev=0']);
+  return t ? t.trim() : null;
+}
+
 function main() {
   const root = path.resolve(__dirname, '..');
   const s = source(root);
   console.log(`commit ${s.commit ? s.commit.slice(0, 7) : '(no git)'}${s.dirty && s.dirty.length ? `   uncommitted in: ${s.dirty.join(', ')}` : ''}`);
   for (const [name, p] of Object.entries(s.plugins)) console.log(`${name.padEnd(30)} ${String(p.version).padEnd(8)} ${p.sha256.slice(0, 12)}`);
+  const tag = lastTag(root);
+  const owed = tag ? unstepped(root, tag) : [];
+  for (const u of owed) console.log(`OWES A VERSION STEP: ${u.name} changed ${u.files} file(s) since ${tag} and is still ${u.version}`);
+  if (owed.length) process.exitCode = 1;
 }
 
 if (require.main === module) main();
-module.exports = { fingerprint, fingerprints, source, versionOf, dirtyPlugins, SKIP };
+module.exports = { fingerprint, fingerprints, source, versionOf, dirtyPlugins, unstepped, lastTag, SKIP };

@@ -5357,3 +5357,28 @@ test('installs: each host\'s copy against the repo by fingerprint, and Cursor\'s
   assert.deepEqual(fs.readdirSync(local), ['demo-self-monitoring'], 'no staged copy and no backup left beside it');
   assert.equal(I.check(home, root).cursor['demo-self-monitoring'].state, 'current');
 });
+
+test('version step: a plugin whose code changed since the last tag under the tag\'s version owes its step, and the repo owes none', (t) => {
+  const S = require('./pluginsource.js');
+  const { execFileSync } = require('child_process');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'version-step-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const g = (...a) => execFileSync('git', a, { cwd: root, stdio: 'ignore' });
+  const p = path.join(root, 'plugins', 'demo-self-monitoring');
+  fs.mkdirSync(path.join(p, '.claude-plugin'), { recursive: true });
+  fs.mkdirSync(path.join(p, 'lib'), { recursive: true });
+  const manifest = (v) => fs.writeFileSync(path.join(p, '.claude-plugin', 'plugin.json'), JSON.stringify({ version: v }));
+  manifest('0.2.0');
+  fs.writeFileSync(path.join(p, 'lib', 'x.js'), 'a');
+  fs.writeFileSync(path.join(p, 'README.md'), 'a');
+  g('init', '-q'); g('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qam', 'x', '--allow-empty');
+  g('add', '-A'); g('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'v'); g('tag', 'v1');
+  fs.writeFileSync(path.join(p, 'README.md'), 'b');
+  assert.deepEqual(S.unstepped(root, 'v1'), [], 'a README change owes nothing');
+  fs.writeFileSync(path.join(p, 'lib', 'x.js'), 'b');
+  assert.deepEqual(S.unstepped(root, 'v1'), [{ name: 'demo-self-monitoring', version: '0.2.0', files: 1 }], 'code changed, version kept: the step is owed');
+  manifest('0.3.0');
+  assert.deepEqual(S.unstepped(root, 'v1'), [], 'stepped');
+  const tag = S.lastTag(ROOT);
+  if (tag) assert.deepEqual(S.unstepped(ROOT, tag), [], `every plugin whose code changed since ${tag} is a step above it`);
+});
