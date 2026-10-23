@@ -102,10 +102,11 @@ function main() {
     const v = item.prompt ? (answers ? { verdict: 'answered', answers } : null) : J.parseVerdict(parsed.text);
     if (!v) unread += 1;
     const rec = Object.assign(v || { verdict: null, reason: 'unreadable answer', raw: String(parsed.text || r.stderr || '').slice(0, 300) },
-      { toolCalls: parsed.steps, outside: audit.outside, contaminated: audit.contaminated, durationMs: parsed.durationMs });
-    if (rec.toolCalls || rec.outside.length || rec.contaminated.length) flagged += 1;
+      { toolCalls: parsed.steps, outside: audit.outside, contaminated: audit.contaminated, fallbacks: parsed.fallbacks || [], durationMs: parsed.durationMs });
+    if (rec.toolCalls || rec.outside.length || rec.contaminated.length || rec.fallbacks.length) flagged += 1;
     verdicts[item.id] = rec;
-    console.log(`${item.id}  ${rec.verdict || '?'}${rec.toolCalls ? `  (${rec.toolCalls} tool call(s): not counted)` : ''}`);
+    const fell = rec.fallbacks.length ? `  (answered by ${rec.fallbacks[rec.fallbacks.length - 1].to} after a ${rec.fallbacks[0].category || 'safeguard'} decline: not counted)` : '';
+    console.log(`${item.id}  ${rec.verdict || '?'}${rec.toolCalls ? `  (${rec.toolCalls} tool call(s): not counted)` : ''}${fell}`);
   }
 
   fs.writeFileSync(out.verdicts, JSON.stringify(verdicts, null, 2) + '\n');

@@ -187,6 +187,11 @@ function cursorShape(stream) {
 /*
  * One invocation's stream: the reply, the cost, the model the CLI loaded and
  * the account's quota as the last rate_limit_event reported it.
+ *
+ * `fallbacks`: when the model's safeguards decline a request, the CLI retries
+ * it on another model and says so in a `model_refusal_fallback` event; the
+ * init event still names the model asked for. What answered after it is not
+ * the model under test.
  */
 function parseClaude(stdout) {
   let msg = null;
@@ -194,6 +199,7 @@ function parseClaude(stdout) {
   let steps = 0;
   let sessionId = null;
   let quota = null;
+  const fallbacks = [];
   for (const line of String(stdout || '').split(/\r?\n/)) {
     if (!line.startsWith('{')) continue;
     let o;
@@ -204,9 +210,12 @@ function parseClaude(stdout) {
       steps += o.message.content.filter((c) => c && c.type === 'tool_use').length;
     }
     if (o.type === 'rate_limit_event' && o.rate_limit_info) quota = quotaOf(o.rate_limit_info);
+    if (o.type === 'system' && o.subtype === 'model_refusal_fallback') {
+      fallbacks.push({ from: o.original_model || null, to: o.fallback_model || null, category: o.api_refusal_category || null });
+    }
     if (o.type === 'result') msg = o;
   }
-  if (!msg) return { text: String(stdout || '').trim(), usage: null, durationMs: null, costUSD: null, error: true, steps, modelReported, sessionId, quota };
+  if (!msg) return { text: String(stdout || '').trim(), usage: null, durationMs: null, costUSD: null, error: true, steps, modelReported, sessionId, quota, fallbacks };
   const u = msg.usage || {};
   return {
     text: typeof msg.result === 'string' ? msg.result : '',
@@ -225,7 +234,48 @@ function parseClaude(stdout) {
     modelReported,
     sessionId,
     quota,
+    fallbacks,
   };
+}
+
+/*
+ * What the CLI says it loaded, against what the arm should have: each init
+ * event lists its plugins with a path, a source (`@inline` for --plugin-dir)
+ * and a version. The WITH arm has the plugin under test, from the directory
+ * passed, at the repo's version, and no other of ours; the WITHOUT arm has
+ * none of ours; neither has an installed or synced one. Returns the problems,
+ * empty when the run measured what it says. `expect`: { plugin, withPlugin,
+ * dir, version }; `dir` null skips the path check (a rescore, whose copy is gone).
+ */
+function loadedProblems(stdout, expect) {
+  const problems = [];
+  const norm = (p) => String(p || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+  let inits = 0;
+  for (const line of String(stdout || '').split(/\r?\n/)) {
+    if (!line.includes('"subtype":"init"')) continue;
+    let o;
+    try { o = JSON.parse(line); } catch (_) { continue; }
+    if (o.type !== 'system' || o.subtype !== 'init') continue;
+    inits += 1;
+    const plugins = Array.isArray(o.plugins) ? o.plugins : [];
+    for (const p of plugins) {
+      if (p.path === 'builtin') continue;
+      if (!/@inline$/.test(String(p.source || ''))) problems.push(`${p.source || p.name} loaded from outside the run (${p.path})`);
+    }
+    const ours = plugins.filter((p) => /-self-monitoring$/.test(String(p.name || '')));
+    if (!expect.withPlugin) {
+      for (const p of ours) problems.push(`${p.name} loaded in the arm without the plugin`);
+      continue;
+    }
+    for (const p of ours) if (p.name !== expect.plugin) problems.push(`${p.name} loaded beside ${expect.plugin}`);
+    const mine = ours.filter((p) => p.name === expect.plugin);
+    if (!mine.length) problems.push(`${expect.plugin} not loaded in the arm with the plugin`);
+    for (const p of mine) {
+      if (expect.dir && norm(p.path) !== norm(expect.dir)) problems.push(`${expect.plugin} loaded from ${p.path}, not ${expect.dir}`);
+      if (expect.version && p.version && p.version !== expect.version) problems.push(`${expect.plugin} ${p.version} loaded, the repo has ${expect.version}`);
+    }
+  }
+  return inits ? [...new Set(problems)] : [];
 }
 
 function quotaOf(info) {
@@ -249,6 +299,7 @@ function mergeTurns(parts) {
     modelReported: last.modelReported,
     sessionId: parts[0].sessionId,
     quota: parts.map((p) => p.quota).filter(Boolean).pop() || null,
+    fallbacks: parts.flatMap((p) => p.fallbacks || []),
     turns: parts.length,
   };
 }
@@ -684,7 +735,8 @@ function rescore(dir) {
       const stream = fs.readFileSync(path.join(dir, `${r.base}.stream.jsonl`), 'utf8');
       const shaped = stream.split(/\r?\n/).some((l) => l.startsWith('{"type":"tool_call"')) ? stream : cursorShape(stream);
       const roots = (saved.roots || []).concat([copy]);
-      const audit = auditStream(shaped, roots, ROOT, copy);
+      // The copy is scanned; the run's relative paths resolve against where it ran, its first root.
+      const audit = auditStream(shaped, roots, ROOT, copy, (saved.roots || [])[0]);
       const was = saved.contaminated || [];
       if (JSON.stringify(was) !== JSON.stringify(audit.contaminated)) {
         changes.push(`${r.base}: contaminated ${was.length ? was.join(' | ') : '(none)'} -> ${audit.contaminated.length ? audit.contaminated.join(' | ') : '(none)'}`);
@@ -918,6 +970,8 @@ function main() {
     agent: agentVersion,
     benchmark: benchmarkVersion(ROOT),
     plugins: pluginVersions(ROOT),
+    // Which code those versions are: the commit, the plugins with uncommitted changes, a fingerprint each.
+    pluginSource: require('./pluginsource.js').source(ROOT),
     model: model.id,
     cliModel: model.cli.model,
     effort: model.cli.effort,
@@ -1068,6 +1122,8 @@ function main() {
       const shaped = streams.map(cursorShape).join('\n');
       const roots = [ws, own.dir, plug, claudeWitness().dir, nodeFence ? nodeFence.dir : null, session];
       const audit = auditStream(shaped, roots, ROOT, ws);
+      // The CLI's own list of what it loaded: a run with another copy of ours, or none where one belongs, measured something else.
+      for (const p of loadedProblems(raw, { plugin: c.plugin, withPlugin, dir: withPlugin ? armPlugin(c) : null, version: require('./pluginsource.js').versionOf(path.join(ROOT, 'plugins', c.plugin)) })) audit.contaminated.push(`plugin: ${p}`);
       const hooked = claudeWitness().fired(ws);
       if (hooked) hooksRan[arm] += 1;
       if (parsed.modelReported) reported.add(parsed.modelReported);
@@ -1089,8 +1145,11 @@ function main() {
         suspect: audit.suspect,
         roots: roots.filter(Boolean),
         aware: audit.aware,
+        fallbacks: parsed.fallbacks || [],
       }, null, 2));
       if (audit.suspect.length) console.log(`  suspect ${arm} run ${i + 1}: ${[...new Set(audit.suspect.map((s) => s.kind))].join(', ')}`);
+      // Kept and printed, not excluded: whether such a run counts is the study's call (docs/STUDY-PROTOCOL.md section 7).
+      for (const fb of parsed.fallbacks || []) console.log(`  FALLBACK ${arm} run ${i + 1}: ${fb.from} declined (${fb.category || 'safeguard'}), ${fb.to} answered from there`);
       addCost(costCase[arm], parsed);
       addCost(costAll[arm], parsed);
       trace.collect(outDir, base);
@@ -1223,4 +1282,4 @@ function pctOf(w) {
 }
 
 if (require.main === module) main();
-module.exports = { cursorShape, parseClaude, settingsFor, argsFor, toolKind, claudeWitness, claudeProjectDir, keepTranscript, dropSessionFolder };
+module.exports = { cursorShape, parseClaude, loadedProblems, settingsFor, argsFor, toolKind, claudeWitness, claudeProjectDir, keepTranscript, dropSessionFolder };

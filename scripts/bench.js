@@ -77,13 +77,13 @@ function printVersions(session) {
   for (const host of hosts) console.log(`agent ${host} ${session.agents[host]}`);
   console.log('plugins');
   for (const name of Object.keys(session.plugins || {}).sort()) {
-    console.log(`  ${name} ${session.plugins[name]}`);
+    console.log(`  ${name} ${session.plugins[name]}${session.code && session.code[name] ? ` (${session.code[name].slice(0, 7)})` : ''}`);
   }
 }
 
 function printChanges(changes) {
   if (!changes.length) return;
-  console.log('Versions changed. The affected results are invalid until they are run again.');
+  console.log('Versions or code changed. The affected results are invalid until they are run again.');
   for (const change of changes) console.log(`  ${change.reason}`);
 }
 

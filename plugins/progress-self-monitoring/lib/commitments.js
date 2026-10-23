@@ -32,6 +32,9 @@ const SWEEP_AFTER_TURNS = 2;   // made at the close of turn k, handed back at th
 const LATER = '(?:after|once|when|later|next|then|afterwards|at the end|before (?:closing|finishing|wrapping up)|in a (?:moment|second|minute)|shortly)';
 const LATER_ES = '(?:despu[eé]s|cuando|una\\s+vez\\s+que|en\\s+cuanto|apenas|luego|m[aá]s\\s+tarde|al\\s+final|antes\\s+de\\s+(?:cerrar|terminar)|en\\s+un\\s+(?:momento|segundo|minuto)|enseguida|a\\s+continuaci[oó]n)';
 
+// First-person past forms that read as a future (stem + é, the stem ending in ar, er or ir).
+const PRETERITE_ES = '(?:paré|preparé|separé|comparé|declaré|reparé|aclaré|disparé|amparé|encaré|esperé|operé|generé|consideré|alteré|liberé|toleré|recuperé|superé|enumeré|numeré|aceleré|moderé|exageré|tiré|miré|giré|retiré|estiré|admiré|suspiré|inspiré|respiré|expiré)';
+
 const COMMIT_RE = [
   // I'll <verb> ... <later>
   new RegExp("\\bI(?:'ll| will)\\b[^.!?\\n]{0,80}?\\b" + LATER + '\\b', 'i'),
@@ -47,8 +50,10 @@ const COMMIT_RE = [
   // voy a <verb> ... <later>
   new RegExp('(?<!\\p{L})(?:lo\\s+|la\\s+)?voy\\s+a(?!\\p{L})[^.!?\\n]{0,80}?(?<!\\p{L})' + LATER_ES + '(?!\\p{L})', 'iu'),
   // the future tense, first person: actualizaré, correré, haré. The accent is
-  // required - without it "quiere" reads as a future.
-  new RegExp('(?<!\\p{L})(?:\\p{L}+(?:ar|er|ir)é|haré|diré|pondré|tendré|saldré|podré|sabré|querré|vendré)(?!\\p{L})[^.!?\\n]{0,80}?(?<!\\p{L})' + LATER_ES + '(?!\\p{L})', 'iu'),
+  // required - without it "quiere" reads as a future. The past of an -ar verb
+  // whose stem ends in ar, er or ir has the same shape - paré, esperé, miré,
+  // "Paré después de correr los tests" - so the common ones are listed out.
+  new RegExp('(?<!\\p{L})(?:(?!' + PRETERITE_ES + '(?!\\p{L}))\\p{L}+(?:ar|er|ir)é|haré|diré|pondré|tendré|saldré|podré|sabré|querré|vendré)(?!\\p{L})[^.!?\\n]{0,80}?(?<!\\p{L})' + LATER_ES + '(?!\\p{L})', 'iu'),
   // Después de eso / Luego / A continuación, voy a ...
   /(?<!\p{L})(?:despu[eé]s\s+de\s+(?:eso|esto)|luego|a\s+continuaci[oó]n|despu[eé]s),?\s+(?:voy\s+a|\p{L}+(?:ar|er|ir)é)(?!\p{L})/iu,
   // vuelvo sobre ... - not "vuelvo a correr", which is "I run it again"

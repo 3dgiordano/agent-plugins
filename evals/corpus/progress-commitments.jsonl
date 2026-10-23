@@ -49,3 +49,6 @@
 {"text":"El CI va a correr la suite cuando se mergee.","expect":"miss","why":"another agent's future"}
 {"text":"Esto es lo que voy a hacer: primero el parser, después el cache.","expect":"miss","why":"a plan stated, not a promise to sweep"}
 {"text":"Voy a explicar qué pasa cuando el cache expira.","expect":"miss","why":"narrating this reply, not a deferred act"}
+{"text":"Paré después de correr los tests porque el owner pidió revisar.","expect":"miss","why":"past: paré has a future's shape (par-ar-é)"}
+{"text":"Esperé a que terminara la corrida y después revisé el log.","expect":"miss","why":"past: esperé has a future's shape (esp-er-é)"}
+{"text":"Pararé después de esto y reviso lo que quedó.","expect":"hit","why":"the future of the same verb still is one"}

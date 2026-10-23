@@ -956,11 +956,16 @@ function nodeGuard(workspace, passThrough, also) {
  * marks: the same with their kind. suspect: commands that build a path at
  * run time, spawn from node, make a link, change the system, start a server.
  * aware: how often the model said it was in an eval.
+ *
+ * `workspace` is the directory scanned for links and the canary; `cwd`, when
+ * given, is where the run worked, the base of the relative paths it wrote. A
+ * rescore scans the copy kept beside the results, and a `../x` the run wrote
+ * from its own directory resolved against that copy lands in the repository.
  */
-function auditStream(stream, roots, repoRoot, workspace) {
+function auditStream(stream, roots, repoRoot, workspace, cwd) {
   const { auditRun, scanWorkspace } = require('./integrity.js');
   const own = roots.filter(Boolean);
-  const r = auditRun(stream, { roots: own, repoRoot, workspace: workspace || own[0] });
+  const r = auditRun(stream, { roots: own, repoRoot, workspace: cwd || workspace || own[0] });
   const marks = r.contaminated.concat(workspace ? scanWorkspace(workspace, own) : []);
   return { outside: r.outside, contaminated: marks.map((m) => `${m.kind}: ${m.what}`), marks, suspect: r.suspect, aware: r.aware };
 }

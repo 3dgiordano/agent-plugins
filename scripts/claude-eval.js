@@ -583,6 +583,8 @@ function main() {
     agent, model: model.id, cliModel: model.cli.model, effort: model.cli.effort, modelLine: model.line, reasoningLevel: model.reasoning, runs,
     skillVariant: skillVariant ? { plugin: skillVariant.plugin, name: skillVariant.name, sha256: skillVariant.sha256 } : null,
     pluginRef: pluginRef ? { ref: pluginRef.ref, commit: pluginRef.commit, version: pluginRef.version } : null,
+    // The working copy the WITH arm loads (unless pluginRef): commit, uncommitted plugins, a fingerprint each.
+    pluginSource: require('./pluginsource.js').source(ROOT),
   }, null, 2) + '\n');
   if (pluginRef) console.log(`the WITH arm loads the plugin at ${pluginRef.ref} (${pluginRef.commit.slice(0, 7)}, version ${pluginRef.version}), not the working copy`);
 
@@ -621,6 +623,8 @@ function main() {
         trace.collect(outDir, base);
         fs.writeFileSync(path.join(outDir, `${base}.txt`), text);
         fs.writeFileSync(path.join(outDir, `${base}.stream.jsonl`), String(r.stdout || ''));
+        // A declined request the CLI retried on another model (claude-bench.js parseClaude): kept and said, not excluded.
+        for (const fb of require('./claude-bench.js').parseClaude(r.stdout).fallbacks) console.log(`  FALLBACK ${arm} run ${i + 1}: ${fb.from} declined (${fb.category || 'safeguard'}), ${fb.to} answered from there`);
         // The host's own session folder for this workspace (~/.claude/projects):
         // its transcript goes beside the stream and the folder goes, as the
         // outcome bench does. Left behind, every run added one.
@@ -630,6 +634,10 @@ function main() {
         // dropped from the denominator rather than counted as a failure - and,
         // for a quiet case, rather than counted as a pass.
         if (!usable(text)) { dead += 1; continue; }
+        // Nor is a run that loaded another copy of ours, or none where one belongs (the CLI's init event).
+        const loadedDir = skillVariant ? require('./cursor-eval.js').pluginCopy(c.plugin, skillVariant.file) : pluginRef ? pluginRef.dir : path.join(PLUGINS, c.plugin);
+        const wrong = require('./claude-bench.js').loadedProblems(r.stdout, { plugin: c.plugin, withPlugin, dir: withPlugin ? loadedDir : null, version: pluginRef ? pluginRef.version : require('./pluginsource.js').versionOf(path.join(PLUGINS, c.plugin)) });
+        if (wrong.length) { console.log(`  VOID ${arm} run ${i + 1}: ${wrong.join('; ')}`); dead += 1; continue; }
         valid[arm] += 1;
         if (verdict(c, text, artifact)) score[arm] += 1;
       }

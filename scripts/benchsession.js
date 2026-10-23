@@ -150,6 +150,8 @@ function startSession(root, agents) {
     benchmark: benchmarkVersion(root),
     runs: suite.runs,
     plugins: pluginVersions(root),
+    // What the agent meets, per plugin: a version does not move on every change (scripts/pluginsource.js).
+    code: codeOf(root),
     agents: Object.assign({}, agents || {}),
     models: suite.models,
     slots: {},
@@ -167,6 +169,25 @@ function markAll(session, keyPrefix, reason) {
     if (keyPrefix && !key.startsWith(keyPrefix)) continue;
     slot.invalidAll = slot.invalidAll || [];
     if (!slot.invalidAll.includes(reason)) slot.invalidAll.push(reason);
+  }
+}
+
+function codeOf(root) {
+  const out = {};
+  for (const [name, p] of Object.entries(require('./pluginsource.js').fingerprints(root))) out[name] = p.sha256;
+  return out;
+}
+
+// Every stored case of one plugin, in every slot, marked for a rerun with the reason.
+function invalidatePlugin(session, cases, name, reason) {
+  for (const slot of Object.values(session.slots)) {
+    const fromSlot = (slot.cases || []).filter((id) => id === name || id.startsWith(`${name}/`));
+    const fromDisk = cases[name] || [];
+    const ids = [...new Set(fromSlot.concat(fromDisk))];
+    slot.invalidCases = slot.invalidCases || [];
+    for (const caseId of ids) {
+      if (!slot.invalidCases.some((item) => item.case === caseId)) slot.invalidCases.push({ case: caseId, reason });
+    }
   }
 }
 
@@ -192,18 +213,22 @@ function refreshDrift(root, agentsNow) {
     changes.push({ scope: 'plugin', id: name, was, now, reason });
     if (now == null) delete session.plugins[name];
     else session.plugins[name] = now;
-    for (const slot of Object.values(session.slots)) {
-      const fromSlot = (slot.cases || []).filter((id) => id === name || id.startsWith(`${name}/`));
-      const fromDisk = cases[name] || [];
-      const ids = [...new Set(fromSlot.concat(fromDisk))];
-      slot.invalidCases = slot.invalidCases || [];
-      for (const caseId of ids) {
-        if (!slot.invalidCases.some((item) => item.case === caseId)) {
-          slot.invalidCases.push({ case: caseId, reason });
-        }
-      }
+    invalidatePlugin(session, cases, name, reason);
+  }
+  // The code under the same version: a change between two releases keeps the number.
+  // A session from before this field takes today's code as its start.
+  const nowCode = codeOf(root);
+  if (session.code) {
+    for (const [name, sha] of Object.entries(nowCode)) {
+      const was = session.code[name] || null;
+      if (!was || was === sha || changes.some((c) => c.scope === 'plugin' && c.id === name)) continue;
+      const reason = `${name} code changed under ${nowPlugins[name]} (${was.slice(0, 7)} -> ${sha.slice(0, 7)})`;
+      changes.push({ scope: 'code', id: name, was, now: sha, reason });
+      invalidatePlugin(session, cases, name, reason);
     }
   }
+  const recorded = JSON.stringify(session.code || null) !== JSON.stringify(nowCode);
+  session.code = nowCode;
   const suite = readSuite(root);
   for (const model of suite.models) {
     const was = (session.models || []).find((item) => item.host === model.host && item.id === model.id);
@@ -228,7 +253,7 @@ function refreshDrift(root, agentsNow) {
     session.agents[host] = now;
     markAll(session, `${host}/`, reason);
   }
-  if (changes.length) writeSession(root, session);
+  if (changes.length || recorded) writeSession(root, session);
   return { session, changes };
 }
 

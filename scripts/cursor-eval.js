@@ -536,6 +536,8 @@ function main() {
     fs.mkdirSync(outDir, { recursive: true });
     fs.writeFileSync(path.join(outDir, 'run.json'), JSON.stringify({
       agent,
+      // The working copy the WITH arm loads: commit, uncommitted plugins, a fingerprint each.
+      pluginSource: require('./pluginsource.js').source(ROOT),
       model: model.id,
       modelLine: model.line,
       reasoningLevel: model.reasoning,

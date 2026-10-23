@@ -76,8 +76,9 @@ const CATEGORIES = [
       /(?<!\p{L})(?:sigamos|retomemos|continuemos|terminemos|(?:podemos|podr[ií]amos|puedo|podr[ií]a|conviene|sugiero)\s+(?:seguir|retomar|continuar|terminar|ver(?:lo)?|hacer(?:lo)?)|(?:lo\s+)?(?:seguir|retomar|continuar|terminar)[eé]|lo\s+(?:seguimos|retomamos|continuamos|terminamos|vemos|sigo|retomo|contin[uú]o|termino))\s+(?:[^.!?\n]{0,40}?\s)?(?:m[aá]s\s+tarde|m[aá]s\s+adelante|ma[ñn]ana|otro\s+d[ií]a|la\s+pr[oó]xima(?:\s+vez)?|en\s+(?:otra|una\s+nueva|una\s+pr[oó]xima|la\s+pr[oó]xima|una\s+futura)\s+(?:sesi[oó]n|conversaci[oó]n|ventana))(?!\p{L})/iu,
       // deferring the work to a session-shaped destination; "para la próxima corrida del CI" stays out
       /(?<!\p{L})(?:(?:voy|vamos)\s+a\s+(?:dejar|posponer|postergar|guardar)|dejo|dejar[eé]|pospongo|posponer[eé]|postergo|postergar[eé]|guardo)\s+(?:[^.!?\n]{0,40}?\s+)?(?:para|hasta)\s+(?:(?:una|la|el|un)\s+(?:pr[oó]xim[oa]|nuev[oa]|futur[oa]|siguiente|posterior)|otra|otro)\s+(?:sesi[oó]n|conversaci[oó]n|pasada|ronda|vez|PR|cambio)(?!\p{L})/iu,
-      /(?<!\p{L})(?:por|debido\s+a|dad[ao]s?|ante)\s+(?:las?\s+|los\s+)?(?:limitaciones|restricciones|l[ií]mites?)\s+de\s+(?:tiempo|contexto|tokens|longitud|espacio)(?!\p{L})/iu,
-      /(?<!\p{L})por\s+falta\s+de\s+(?:tiempo|contexto|espacio|tokens)(?!\p{L})/iu,
+      // "no por falta de tiempo" denies the reason: the negation keeps it out
+      /(?<!\p{L})(?<!(?<!\p{L})(?:no|ni)(?:\s+(?:es|fue|era))?\s{1,3})(?:por|debido\s+a|dad[ao]s?|ante)\s+(?:las?\s+|los\s+)?(?:limitaciones|restricciones|l[ií]mites?)\s+de\s+(?:tiempo|contexto|tokens|longitud|espacio)(?!\p{L})/iu,
+      /(?<!\p{L})(?<!(?<!\p{L})(?:no|ni)(?:\s+(?:es|fue|era))?\s{1,3})por\s+falta\s+de\s+(?:tiempo|contexto|espacio|tokens)(?!\p{L})/iu,
       /(?<!\p{L})(?:estoy|estamos|me\s+estoy|nos\s+estamos|me|nos)\s+(?:cerca\s+del?|llegando\s+al?|acerc[aá]ndo(?:me|nos)\s+al?|acercando\s+al?|acerco\s+al?|acercamos\s+al?|por\s+llegar\s+al?)\s+(?:l[ií]mite|tope|m[aá]ximo)\s+(?:del?\s+)?(?:contexto|tokens?|tiempo|presupuesto)(?!\p{L})/iu,
       // the agent's own budget, not "to save context for the reader"
       /(?<!\p{L})para\s+(?:ahorrar|conservar|no\s+gastar|no\s+consumir|cuidar|preservar)\s+(?:el\s+|mi\s+)?(?:contexto|tokens?)(?!\p{L})(?!\s+(?:del\s+lector|al\s+lector|para\s+el\s+lector|para\s+vos|para\s+ti|para\s+usted|del\s+usuario))/iu,

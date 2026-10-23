@@ -415,6 +415,8 @@ function main() {
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, 'run.json'), JSON.stringify({
     agent: version(cli), model: model.id, cliModel: model.cli.model, effort: model.cli.effort, modelLine: model.line, reasoningLevel: model.reasoning, runs,
+    // The working copy the WITH arm loads: commit, uncommitted plugins, a fingerprint each.
+    pluginSource: require('./pluginsource.js').source(ROOT),
   }, null, 2) + '\n');
 
   console.log(`Codex ${version(cli)}`);

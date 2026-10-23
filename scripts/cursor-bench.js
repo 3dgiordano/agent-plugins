@@ -384,6 +384,8 @@ function main() {
     agent: agentVersion,
     benchmark: benchmarkVersion(ROOT),
     plugins: pluginVersions(ROOT),
+    // Which code those versions are: the commit, the plugins with uncommitted changes, a fingerprint each.
+    pluginSource: require('./pluginsource.js').source(ROOT),
     model: modelId,
     guard,
     skillVariant: skillVariant ? { plugin: skillVariant.plugin, name: skillVariant.name, sha256: skillVariant.sha256 } : null,

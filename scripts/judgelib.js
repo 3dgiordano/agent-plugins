@@ -162,7 +162,8 @@ function readJudges(dir) {
     const raw = JSON.parse(fs.readFileSync(path.join(jd, f), 'utf8'));
     const clean = {};
     for (const [id, v] of Object.entries(raw)) {
-      const flagged = v && (v.toolCalls > 0 || (v.outside && v.outside.length) || (v.contaminated && v.contaminated.length));
+      // A verdict another model gave after the judge's safeguards declined (claude-bench.js parseClaude fallbacks) is not the judge's.
+      const flagged = v && (v.toolCalls > 0 || (v.outside && v.outside.length) || (v.contaminated && v.contaminated.length) || (v.fallbacks && v.fallbacks.length));
       clean[id] = flagged ? null : (v && v.verdict) || null;
     }
     (out[m[1]] = out[m[1]] || {})[Number(m[2])] = clean;

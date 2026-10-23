@@ -87,11 +87,15 @@ function context(event, text, note) {
  * enumerates 12 parts" and as a request that spans sessions. An unclosed
  * block runs to the end of the prompt.
  */
+// A background task's notification and another agent's message, which the
+// host puts in the prompt beside what the user typed, are not theirs either:
+// a notification's numbered result read as the request's parts.
 function userText(prompt) {
   if (typeof prompt !== 'string') return '';
   return prompt
     .replace(/<pasted_content\b[^>]*>[\s\S]*?<\/pasted_content\b[^>]*>/gi, ' ')
-    .replace(/<pasted_content\b[^>]*>[\s\S]*$/i, ' ');
+    .replace(/<pasted_content\b[^>]*>[\s\S]*$/i, ' ')
+    .replace(/<(task-notification|agent-message)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ');
 }
 
 /*
