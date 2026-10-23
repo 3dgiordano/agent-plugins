@@ -3814,7 +3814,11 @@ test('bench: a workspace reached through a link is fenced by its real path too (
   fs.writeFileSync(path.join(real, 't.js'), "require('fs').writeFileSync('out.txt', 'ok');");
   const g = nodeGuard(link, []);
   t.after(() => fs.rmSync(g.dir, { recursive: true, force: true }));
-  const r = spawnSync(process.execPath, [path.join(g.dir, 'launch.js'), path.join(real, 't.js')], { cwd: real, encoding: 'utf8', timeout: 30000 });
+  // The agent works at the fully resolved path, as getcwd() reports it on
+  // macOS - not the temp dir as os.tmpdir() spells it, which on macOS goes
+  // through the /var link and on a Windows runner is an 8.3 short name.
+  const where = fs.realpathSync.native(real);
+  const r = spawnSync(process.execPath, [path.join(g.dir, 'launch.js'), path.join(where, 't.js')], { cwd: where, encoding: 'utf8', timeout: 30000 });
   assert.equal(r.status, 0, r.stderr);
   assert.equal(fs.readFileSync(path.join(real, 'out.txt'), 'utf8'), 'ok');
 });
