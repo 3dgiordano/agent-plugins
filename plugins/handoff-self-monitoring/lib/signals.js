@@ -12,6 +12,12 @@
  *
  * The nudge fires once per turn (since the user's last message), on the first
  * of them. Everything is scoped to the current turn.
+ *
+ * A third signal is the moment a close often turns: a search that found
+ * nothing - a Glob or Grep with no match, an `ls` of an empty folder. What
+ * was looked for and is not there is where an agent decides between making
+ * the work with that gap named and stopping on it, so the line on what
+ * blocked means arrives with the result, once per turn.
  */
 
 const { outputText, looksFailed } = require('./fail.js');
@@ -38,7 +44,28 @@ const GATE_RES = [
 ];
 
 function freshTurn() {
-  return { tools: 0, fired: { closing: false } };
+  return { tools: 0, fired: { closing: false, empty: false } };
+}
+
+const SEARCH_TOOL_RE = /^(?:glob|grep|ls|list_dir|glob_file_search|file_search|grep_search)$/i;
+
+// A search tool's result with no match in it: Claude Code's Glob and Grep
+// answer {numFiles: 0, filenames: []}, other hosts a "No files found" line.
+function searchFoundNothing(response) {
+  if (response && typeof response === 'object' && !Array.isArray(response)) {
+    if (response.content) return false;
+    return response.numFiles === 0 || (Array.isArray(response.filenames) && !response.filenames.length);
+  }
+  return /^\s*no (?:files|matches|results) found\b/i.test(outputText(response));
+}
+
+// An `ls` alone whose output lists nothing but the folder and its parent.
+function lsFoundNothing(cmd, response) {
+  const segs = segments(cmd);
+  if (segs.length !== 1 || !/^\s*ls\b/.test(segs[0].code)) return false;
+  const out = response && typeof response === 'object' && typeof response.stdout === 'string' ? response.stdout : outputText(response);
+  const lines = String(out).split(/\r?\n/).filter((l) => l.trim());
+  return lines.every((l) => /^total \d+$/.test(l.trim()) || /\s\.{1,2}$/.test(l));
 }
 
 function commandOf(input) {
@@ -105,6 +132,15 @@ function labelOf(segment) {
  */
 function observe(turn, toolName, toolInput, toolResponse) {
   turn.tools += 1;
+  if (!turn.fired.empty) {
+    const name = String(toolName || '');
+    const search = SEARCH_TOOL_RE.test(name);
+    const cmd = !search && SHELL_TOOL_RE.test(name) ? commandOf(toolInput) : '';
+    if (search ? searchFoundNothing(toolResponse) : (cmd && lsFoundNothing(cmd, toolResponse))) {
+      turn.fired.empty = true;
+      return [{ kind: 'empty', label: search ? name : 'ls' }];
+    }
+  }
   if (turn.fired.closing) return [];
   if (!SHELL_TOOL_RE.test(String(toolName || ''))) return [];
   const cmd = commandOf(toolInput);

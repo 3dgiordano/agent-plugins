@@ -19,8 +19,10 @@ It answers *"can the reader act on what I wrote?"* — the transmission side of
 what I concluded true?"*. Knowing and having transmitted are two functions;
 this one covers the second.
 
-**Non-blocking by default.** Findings become a one-line retrospective on the
-next prompt; `HANDMON_STRICT=1` turns the Stop into a gate that fires once.
+**Non-blocking by default, with one exception.** Findings become a one-line
+retrospective on the next prompt; `HANDMON_STRICT=1` turns the Stop into a
+gate that fires once. The exception: a `blocked` close in a turn whose search
+found nothing blocks once in either mode.
 
 ## Why it works: a handoff protocol, not "explain better"
 
@@ -68,7 +70,9 @@ catch, but it does run the tests first.
 - **Skill** (`skills/handoff-self-monitoring/SKILL.md`) — the protocol:
   status first; the situation in the reader's terms; a fork written as a
   decision with a default, not offered as a favour; one action asked; blocked
-  means observed; the block is the close, not an appendix. Plus the handoff
+  means the output cannot be made - a refused write, no credential, a file
+  the request names not there - while a fact the agent lacks goes in as an
+  assumption with the default; the block is the close, not an appendix. Plus the handoff
   failure signatures and the `[HANDOFF]` block. Single source of truth; every
   host loads the same file.
 - **Hook adapters** — three layers, same on both hosts:
@@ -85,6 +89,14 @@ test / build / lint runner whose output shows no failure (`lib/fail.js`, the
 same copy the persistence and epistemic plugins use — a red run is not a
 close), and `git commit` / `git push` / a PR or MR opened. It fires on the
 first of them, once per turn.
+
+A second signal, also once per turn, is a search that found nothing: a Glob
+or Grep with no match (a "No files found" answer on hosts that reply in
+text), or an `ls` alone that lists only the folder and its parent. It is
+where a turn decides between making the work with that gap named and
+stopping on it, so the nudge says that what was not found is a gap, not a
+limit, and what `blocked` is for. The nudge names the tool, never what was
+searched. A `find` or an `ls` inside a pipeline is not read.
 
 The scanner (`lib/handoff.js`) looks for four things in the prose of the
 final message, one hit per kind, after stripping fenced code, inline code,
@@ -105,6 +117,10 @@ rules are:
   under `Options`, one choice per line; a `|` / `vs` line is still accepted)
   and a `Default` (own line, or trailing on `Options`)
 - `blocked` needs `Blocked-by`
+- `blocked` in a turn whose search found nothing is a finding: the limit may
+  be only that gap. It is read off the turn's own signal, not the block's
+  words; an agent whose request names what was not found keeps `blocked` on
+  its next close, since the gate blocks once
 - `waiting` needs `Waiting-on`: what is still out and its id, how its end
   reaches the agent or the reader, what is done with the result. It may also
   ride on `needs-decision`. `done` with a `Waiting-on`, or a `done` or
@@ -141,7 +157,11 @@ prompt, a tool call or a stop.
 
 **Default mode (non-blocking):** findings are written to the opt-in log and
 carried into the next prompt as a one-line retrospective (Claude Code). The
-turn ends normally.
+turn ends normally - except for one finding, a `blocked` close in a turn
+whose search found nothing, which blocks once as the strict gate does. Held
+for the next prompt, it never reached a one-turn task, and there the close
+was the work not delivered; the agent whose request names what was not found
+keeps `blocked` on its next close.
 
 **Strict mode** (`HANDMON_STRICT=1`): the gate blocks once. Claude Code: the
 `Stop` hook exits 2 with the reason, so the agent writes the block before
@@ -192,7 +212,8 @@ them from firing twice.
   a cryptic close of complete work is still a bad handoff.
 - **termination-self-monitoring** tests the *reason* for a stop; handoff
   formats the *stop itself* for the reader. A `blocked` with no observation
-  is a termination case first.
+  is a termination case first, and so is one whose only observation is that
+  something the agent looked for is not there, when the work is not about it.
 - **epistemic-self-monitoring** is the knowing side; this is the
   transmitting side. A `done` in the block carries the same evidence rule as
   a `[verified]` line.
@@ -248,7 +269,7 @@ Code) or `<project>/.cursor/logs/…` (Cursor); override with
 |-------|--------|---------|
 | `prompt` | `turn`, `load`, `retrospective` | cadence decision per user prompt (Claude Code) |
 | `session_start` | — | once per Cursor session |
-| `signal` | `actor`, `tools`, `signals: [{kind: closing, what: gate\|commit, label}]` | the pre-close nudge fired |
+| `signal` | `actor`, `tools`, `signals: [{kind: closing, what: gate\|commit, label}]` or `[{kind: empty, label}]` | the pre-close nudge or the found-nothing nudge fired |
 | `stop` | `actor`, `hits`, `blocks`, `status`, `violations`, `preclose`, `tools`, `strict`, `blocked` | per final message: which kinds hit, whether a block was there and complete, whether the pre-close nudge had fired this turn |
 | `subagent_stop` | same as `stop`, plus `agent` | a subagent's final message. Measured only: never blocks even under `HANDMON_STRICT`, and never parks a retrospective |
 
@@ -296,7 +317,7 @@ cursor/hand-observe-cursor.js
 cursor/hand-response-cursor.js
 cursor/hand-stop-cursor.js
 lib/handoff.js                     # final-message scanner + [HANDOFF] rules
-lib/signals.js                     # pre-close signal: first green gate or commit of the turn
+lib/signals.js                     # pre-close signals: first green gate or commit, first search that found nothing
 lib/fail.js                        # did a shell output look like a failure? (copy shared with persistence / epistemic)
 lib/messages.js                    # reminder texts shared by both adapters
 lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); sweep() drops its files older than seven days

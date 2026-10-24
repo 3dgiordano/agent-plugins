@@ -15,6 +15,9 @@ description: "Structured-handoff discipline for the final message of a turn. An 
 - A choice is written as a decision: the options, and a Default on its own
   line, even when a fact is still unknown - the default is what to do if it
   stays unknown. No "let me know", no "it depends" left for the reader.
+- A fact you lack is not a block: it goes in as an assumption. `blocked` is
+  a limit that stops the output itself - a refused write, no credential, a
+  file the request names not there.
 - End with one action for the reader.
 - In the reply, write the `[HANDOFF]` block: Status, Situation, Options with
   Default, Next. A question answered, with nothing done or left to decide,
@@ -22,9 +25,7 @@ description: "Structured-handoff discipline for the final message of a turn. An 
 
 **Purpose:** Make sure that when a turn ends, the reader can act on the
 message — see where the work stands, see what has to be decided, see what to
-do next — without reading your trace. The epistemic-self-monitoring skill
-covers whether a conclusion is true; this one, whether it reached the reader
-in a form they can use.
+do next — without reading your trace.
 
 **Key idea:** you have the whole trace; the reader has the message. The paths
 you read, the commands you ran, the names of the things that failed are
@@ -48,7 +49,6 @@ is that format for an agent's turn:
 | Background | Patient summary | `Situation` — what the reader has now, in their terms; the trace-register detail goes *below* the block |
 | Assessment | Situation awareness / contingency | `Options` with a default, or `Blocked-by` |
 | Recommendation | Action list | `Next` — the one action asked of the reader |
-| — | Synthesis by receiver | the reader's reply; a hook cannot do it for them |
 
 ## When to Activate
 
@@ -109,9 +109,13 @@ is that format for an agent's turn:
    When waiting, Next is `nothing until <it> ends`, never a bare `nothing`,
    which reads as finished. Your plan goes in `Waiting-on`.
 
-5. **Blocked means observed.** Same rule as the coverage-self-monitoring
-   skill: `blocked` carries the observed limit and the tool that showed it.
-   A `blocked` with no observation is a `needs-decision`, or a
+5. **Blocked means the output cannot be made.** `blocked` carries the
+   observed limit that stops the output asked for being made or delivered,
+   and the tool that showed it. A decision under an unknown is still a
+   decision, and the request is a source: a fact nobody gave you, or something
+   you looked for and did not find, goes in as a named assumption with the
+   Default for if it stays unknown. Permission to stop is not a limit. A
+   `blocked` with no such limit is a `needs-decision`, or a
    termination-self-monitoring case — test the reason there. A run still
    going stops nothing: that is `waiting`.
 
@@ -140,10 +144,9 @@ is that format for an agent's turn:
 
 Write the block at the close of the turn, **as a markdown list in the
 message, not inside a fenced code block**. Fences do not wrap; a long
-`Options` line becomes a horizontal scroll. Companion hooks read it; on
-hosts without hooks it is still the artifact that makes the handoff visible
-to the reader. Block field names stay in English (hooks parse them);
-`Situation`, `Options` and `Next` are in the language of the turn.
+`Options` line becomes a horizontal scroll. Block field names stay in
+English (hooks parse them); `Situation`, `Options` and `Next` are in the
+language of the turn.
 
 **Write the block. Do not announce writing it.** No "I loaded this skill", no
 "per the protocol", no note that a format was followed — the reader wants the
@@ -160,7 +163,7 @@ block whose marker is missing is not a block.
   - B: <choice> — <consequence>
 - Default: A, because <why>   *(needs-decision)*
 - Waiting-on: <what is still out, its id, what you do with its result>   *(waiting)*
-- Blocked-by: <the observed limit, and the tool that showed it>   *(blocked)*
+- Blocked-by: <the observed limit that stops the output, and the tool that showed it>   *(blocked)*
 - Next: <the one action asked of the reader, or: nothing (until <it> ends, if waiting)>
 
 Rules the hooks check:
@@ -174,6 +177,3 @@ Rules the hooks check:
 - No blank line inside the block — the scanner stops at the first one.
 - The act — an offer, a fork, a question to the reader, or a `returned` part
   in a `[COVERAGE CHECK]` — with no `[HANDOFF]` block is the finding.
-
-Keep it short. The value is in the reader being able to act — status,
-situation, the choice with a default, one action — not in the ceremony.

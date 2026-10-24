@@ -745,6 +745,14 @@ function rescore(dir) {
         saved.rescored = new Date().toISOString();
         fs.writeFileSync(costFile, JSON.stringify(saved, null, 2));
       }
+      // Suspect marks are scored but shown: a new rule's marks reach the report too.
+      const kindsOf = (list) => [...new Set((list || []).map((s) => s.kind))].sort();
+      if (JSON.stringify(kindsOf(saved.suspect)) !== JSON.stringify(kindsOf(audit.suspect))) {
+        changes.push(`${r.base}: suspect ${kindsOf(saved.suspect).join(', ') || '(none)'} -> ${kindsOf(audit.suspect).join(', ') || '(none)'}`);
+        saved.suspect = audit.suspect;
+        saved.rescored = new Date().toISOString();
+        fs.writeFileSync(costFile, JSON.stringify(saved, null, 2));
+      }
       if (audit.contaminated.length) { contaminated += 1; excluded[r.arm] += 1; continue; }
       if (!fs.existsSync(copy)) { changes.push(`${r.base}: no workspace copy - not graded`); dead += 1; excluded[r.arm] += 1; continue; }
       const graded = c.grade({ workspace: copy });

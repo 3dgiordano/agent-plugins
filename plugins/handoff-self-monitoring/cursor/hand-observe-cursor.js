@@ -35,7 +35,8 @@ function main(raw) {
 
   if (!fired.length) return;
   logEvent(cwdOf(data), { event: 'signal', host: 'cursor', conversation: cid, tools: st.turn.tools, signals: fired });
-  process.stdout.write(JSON.stringify({ additional_context: msg.preclose(fired[0]) }));
+  const text = fired[0].kind === 'empty' ? msg.nothingFound(fired[0]) : msg.preclose(fired[0]);
+  process.stdout.write(JSON.stringify({ additional_context: text }));
 }
 
 let buf = '';

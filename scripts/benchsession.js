@@ -389,6 +389,8 @@ function loadSessionRecords(root, id) {
     const present = new Set(((record.score && record.score.cases) || []).map((row) => row.case));
     const complete = expected.every((caseId) => present.has(caseId));
     record._pool = complete && invalidIds.size === 0;
+    // Where the run's per-run files are, for a report that reads them (bench-report.js failuresOf).
+    record._dir = path.dirname(file);
     if (!record._pool) {
       const why = (slot.invalidCases || []).map((item) => item.reason);
       notes.push(`${key} is left out of All plugins until these cases are re-run: ${why.join('; ') || 'the case list is incomplete'}`);

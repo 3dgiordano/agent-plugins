@@ -544,8 +544,11 @@ function tableRows(points) {
     const again = first ? '' : ' again';
     const named = (label, value) => `<td${again ? ' class="again"' : ''} data-label="${esc(label)}">${value}</td>`;
     const base = pairOf(points, p, 'without');
-    const gain = p.arm === 'with' ? gainHtml(base ? gainOf(p.pass, p.n, base.pass, base.n) : null) : '<span class="muted">base</span>';
-    return `<tr${first && i ? ' class="group"' : ''}>${named('Family', esc(FAMILY_LABEL[p.family] || p.family))}${named('Model', esc(p.line))}${named('Reasoning', esc(p.reasoning))}${cell('Arm', p.arm === 'with' ? 'With plugins' : 'Without plugins')}${cell('Passes', `${p.pass}/${p.n}`, true)}${cell('Rate', `${p.pct}%`, true)}${cell('Gain', gain, true)}${cell('Tokens', group(p.tokens), true)}${cell('Time', seconds(p.durationMs), true)}${cell('Tool calls', stepsOf(p.steps), true)}</tr>`;
+    const g = p.arm === 'with' && base ? gainOf(p.pass, p.n, base.pass, base.n) : null;
+    const gain = p.arm === 'with' ? gainHtml(g) : '<span class="muted">base</span>';
+    // As in By case: the with row's passes, rate and gain stand out only where it gained.
+    const won = (label, value) => `<td class="num${g && g.dir === 'up' ? ' won' : ''}" data-label="${esc(label)}">${value}</td>`;
+    return `<tr${first && i ? ' class="group"' : ''}>${named('Family', esc(FAMILY_LABEL[p.family] || p.family))}${named('Model', esc(p.line))}${named('Reasoning', esc(p.reasoning))}${cell('Arm', p.arm === 'with' ? 'With plugins' : 'Without plugins')}${won('Passes', `${p.pass}/${p.n}`)}${won('Rate', `${p.pct}%`)}${won('Gain', gain)}${cell('Tokens', group(p.tokens), true)}${cell('Time', seconds(p.durationMs), true)}${cell('Tool calls', stepsOf(p.steps), true)}</tr>`;
   }).join('\n');
 }
 
@@ -578,20 +581,24 @@ function renderCompact(points) {
 /*
  * One row per case, and per model the passes without the plugin beside the
  * passes with it. A case earns its place when the baseline fails and the
- * plugin fixes it: a without cell above 0 is a case still to work on (the
- * model does not need the plugin there), a with cell below its runs is the
- * plugin not getting through.
+ * plugin fixes it: a with cell in bold is a gain over the baseline, a with
+ * cell below its runs is the plugin not getting through.
  */
-/*
- * The grader's partial metric, as the mean share of its checks one arm's
- * runs passed. Only where the grader has more than one check, and only from
- * runs that stored it (scripts/behaviour.js caseFields).
- */
-function partial(row, armName) {
-  const m = row.metric;
-  if (!m || !(m.max > 1) || !m[armName] || !m[armName].length) return '';
-  const share = m[armName].reduce((s, x) => s + x, 0) / (m[armName].length * m.max);
-  return ` <span class="muted">· ${Math.round(100 * share)}%</span>`;
+// What one run is worth in a cell, from the runs the cells were scored on.
+function runWeight(records) {
+  const ns = new Set();
+  for (const record of records) {
+    for (const row of (record.score && record.score.cases) || []) {
+      if (row.validWith) ns.add(row.validWith);
+      if (row.validWithout) ns.add(row.validWithout);
+    }
+  }
+  if (!ns.size) return '';
+  const sorted = [...ns].sort((a, b) => a - b);
+  const lo = sorted[0];
+  const hi = sorted[sorted.length - 1];
+  if (lo === hi) return ` At ${lo} run${lo === 1 ? '' : 's'} a cell, one run is ${Math.round(100 / lo)} points.`;
+  return ` Cells have ${lo} to ${hi} runs: one run is ${Math.round(100 / hi)} to ${Math.round(100 / lo)} points.`;
 }
 
 function renderCaseMatrix(records, heading) {
@@ -603,6 +610,7 @@ function renderCaseMatrix(records, heading) {
   }).join('');
   const sub = models.map(() => '<th class="num">Without</th><th class="num">With</th><th class="num">Gain</th>').join('');
   const families = new Set(models.map(familyOf));
+  const failed = new Set(models.flatMap((record) => failuresOf(record).map((f) => failId(record, f.case, f.arm))));
   const notes = [];
   const markOf = new Map();
   for (const [caseId] of PLUGINS) {
@@ -617,22 +625,108 @@ function renderCaseMatrix(records, heading) {
       const named = splitModel(record);
       const row = ((record.score && record.score.cases) || []).find((item) => item.case === caseId);
       if (!row) return `${cell(`${named.line} without`, '-', true)}${cell(`${named.line} with`, '-', true)}${cell(`${named.line} gain`, '-', true)}`;
-      const wo = `<td class="num${row.without > 0 ? ' work' : ''}" data-label="${esc(named.line)} without">${row.without}/${row.validWithout}${partial(row, 'without')}</td>`;
-      const w = `<td class="num${row.with < row.validWith || !row.validWith ? ' gap' : ''}" data-label="${esc(named.line)} with">${row.with}/${row.validWith}${partial(row, 'with')}</td>`;
-      return wo + w + cell(`${named.line} gain`, gainHtml(gainOf(row.with, row.validWith, row.without, row.validWithout)), true);
+      const g = gainOf(row.with, row.validWith, row.without, row.validWithout);
+      // A cell with failed runs links to them under Failed runs.
+      const value = (pass, valid, armName) => {
+        const id = failId(record, caseId, armName);
+        return failed.has(id) ? `<a class="to-failed" href="#${esc(id)}" title="See what the grader found in the failed runs">${pass}/${valid}</a>` : `${pass}/${valid}`;
+      };
+      const wo = `<td class="num" data-label="${esc(named.line)} without">${value(row.without, row.validWithout, 'without')}</td>`;
+      // Bold only where the plugin gained: the with value, and its gain below.
+      const won = g && g.dir === 'up';
+      const w = `<td class="num${row.with < row.validWith || !row.validWith ? ' gap' : ''}${won ? ' won' : ''}" data-label="${esc(named.line)} with">${value(row.with, row.validWith, 'with')}</td>`;
+      return wo + w + `<td class="num${won ? ' won' : ''}" data-label="${esc(named.line)} gain">${gainHtml(g)}</td>`;
     }).join('');
     const mark = markOf.has(caseId) ? `<sup>${markOf.get(caseId)}</sup>` : '';
     return `<tr>${cell('Plugin', esc(label) + mark)}${cell('Case', esc(caseId.split('/')[1]))}${cells}</tr>`;
   }).join('\n');
   const footnotes = notes.map((n) => `<p class="muted">${n.mark} ${esc(FAMILY_LABEL[n.family] || n.family)}, ${esc(n.caseId.split('/')[1])}: ${esc(n.text)}${n.source ? ` <a href="${esc(n.source)}">${esc(n.source)}</a>` : ''}</p>`).join('\n');
   return `<h2>${esc(heading || 'By case')}</h2>
-  <p class="muted">The target for a case: 0 passes without the plugin, every run with it. A shaded without cell is a case the model passes unaided - still to work on. An outlined with cell is a run the plugin did not win. A dash is a case this set of runs did not include. A percentage beside a cell is the share of the grader's checks that arm's runs passed on average, where the grader has more than one; it is not the score. Gain is the with rate minus the without rate, in percentage points, the arm without the plugin always the base: ▲ the plugin raised the pass rate, = it left it as it was (it did not make the model worse), ▼ it lowered it. At three runs an arm, one run is 33 points.</p>
+  <p class="muted">Bold: the plugin gained over the base. Outlined: a run with the plugin failed - work to do. A run passes or fails as a whole. A cell with a red mark had failed runs: it links to what the grader found in each, under Failed runs.${runWeight(models)}</p>
   <div class="table-wrap"><table class="matrix">
     <thead><tr><th rowspan="2">Plugin</th><th rowspan="2">Case</th>${head}</tr><tr>${sub}</tr></thead>
     <tbody>
 ${rows}
     </tbody>
   </table></div>${footnotes ? '\n  ' + footnotes : ''}`;
+}
+
+/*
+ * Each scored run that failed, and what its grader found, from the run's
+ * *.grade.json beside run.json. The verdict is the run's; the grader's
+ * findings are there to diagnose it, run by run, never summed across runs.
+ * A run the audit left unscored (cost.json `contaminated`) is not listed, nor
+ * a case the session left off the page.
+ */
+const FAILURES = new WeakMap();
+
+function failuresOf(record) {
+  if (!FAILURES.has(record)) FAILURES.set(record, readFailures(record));
+  return FAILURES.get(record);
+}
+
+// The anchor of one model's failed runs in one case and arm: By case links its cell there.
+function failId(record, caseId, armName) {
+  return `failed-${familyOf(record)}-${record.model}-${caseId}-${armName}`.toLowerCase().replace(/[^a-z0-9.-]+/g, '-');
+}
+
+function readFailures(record) {
+  const dir = record._dir;
+  const cases = new Set(((record.score && record.score.cases) || []).map((row) => row.case));
+  if (!dir || !cases.size) return [];
+  let names = [];
+  try { names = fs.readdirSync(dir); } catch (_) { return []; }
+  const out = [];
+  for (const name of names.sort()) {
+    const m = name.match(/^(.+?)__(.+?)__(with|without)__(\d+)\.grade\.json$/);
+    if (!m || !cases.has(`${m[1]}/${m[2]}`)) continue;
+    let grade;
+    let cost = {};
+    try { grade = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8')); } catch (_) { continue; }
+    try { cost = JSON.parse(fs.readFileSync(path.join(dir, name.replace(/\.grade\.json$/, '.cost.json')), 'utf8')); } catch (_) {}
+    if (grade.pass || (cost.contaminated || []).length) continue;
+    // The grader's findings: its detail up to the size of the change, which some graders append and never score.
+    const found = String(grade.detail || 'no detail').split(' | ')[0].split('; ').map((s) => s.trim()).filter(Boolean);
+    out.push({ case: `${m[1]}/${m[2]}`, arm: m[3], run: Number(m[4]), found });
+  }
+  return out;
+}
+
+// Runs of one model, case and arm with the same findings share a row, each run still named.
+function renderFailures(records) {
+  const models = records.slice().sort((a, b) => FAMILY_ORDER.indexOf(familyOf(a)) - FAMILY_ORDER.indexOf(familyOf(b)) || (TIER_RANK[a.tier] ?? 99) - (TIER_RANK[b.tier] ?? 99));
+  const order = PLUGINS.map(([caseId]) => caseId);
+  const rows = [];
+  for (const record of models) {
+    const named = splitModel(record);
+    const groups = new Map();
+    for (const f of failuresOf(record)) {
+      const key = `${f.case}|${f.arm}|${f.found.join('\n')}`;
+      if (!groups.has(key)) groups.set(key, Object.assign({ runs: [] }, f));
+      groups.get(key).runs.push(f.run);
+    }
+    for (const g of groups.values()) rows.push(Object.assign({ named, family: familyOf(record), id: failId(record, g.case, g.arm) }, g));
+  }
+  if (!rows.length) return '';
+  const rank = (id) => (order.indexOf(id) === -1 ? 99 : order.indexOf(id));
+  rows.sort((a, b) => rank(a.case) - rank(b.case));
+  const anchored = new Set();
+  const body = rows.map((r) => {
+    const runs = r.runs.sort((x, y) => x - y);
+    const found = r.found.length > 1 ? `<ul>${r.found.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>` : esc(r.found[0]);
+    // The first row of a cell carries its anchor; the cell's other rows follow it.
+    const id = anchored.has(r.id) ? '' : ` id="${esc(r.id)}"`;
+    anchored.add(r.id);
+    return `<tr${id}>${cell('Plugin', esc(pluginLabel(r.case)))}${cell('Model', esc(r.named.line))}${cell('Arm', r.arm === 'with' ? 'With plugins' : 'Without plugins')}${cell(runs.length > 1 ? 'Runs' : 'Run', runs.join(', '))}${cell('What the grader found', found)}</tr>`;
+  }).join('\n');
+  return `<h2>Failed runs</h2>
+  <p class="muted">Each run that failed, and what its grader found in it, for diagnosis. Runs of one model and arm with the same findings share a row.</p>
+  <div class="table-wrap"><table class="failed">
+    <thead><tr><th>Plugin</th><th>Model</th><th>Arm</th><th>Run</th><th>What the grader found</th></tr></thead>
+    <tbody>
+${body}
+    </tbody>
+  </table></div>`;
 }
 
 function renderAudit(records, stamps) {
@@ -676,6 +770,7 @@ function renderPanelHtml(records, view, meta) {
     ? `<div class="chart">${svg}</div>
   ${renderCompact(summary)}
   ${view.id === 'all' ? matrix : ''}
+  ${view.id === 'all' ? renderFailures(records) : ''}
   ${view.id === 'all' && stamps ? renderAudit(records, stamps) : ''}
   <h2>By model</h2>
   <div class="table-wrap"><table class="models">
@@ -724,7 +819,53 @@ function datedBlock(stamps) {
   }).join('\n  ');
 }
 
-function versionBlock(meta) {
+/*
+ * The closing note. What depends on the runs is read from them: the cache
+ * tokens left out of the token line and the price, per family as each CLI
+ * reports them, and each drawn model's reasoning level, with the reason
+ * bench/suite.json gives where it gives one.
+ */
+function footNote(records, versionsNote) {
+  const suite = loadSuite();
+  const measured = records.filter((r) => !r.sample);
+  const families = FAMILY_ORDER.filter((f) => measured.some((r) => familyOf(r) === f))
+    .concat([...new Set(measured.map(familyOf))].filter((f) => !FAMILY_ORDER.includes(f)).sort());
+  const perFamily = families.map((family) => {
+    let runs = 0; let read = 0; let write = 0; let usd = 0; let priced = 0;
+    for (const record of measured.filter((r) => familyOf(r) === family)) {
+      for (const c of Object.values(record.costDetail || {})) {
+        if (!c || !c.runs) continue;
+        runs += c.runs;
+        read += c.cacheReadTokens || 0;
+        write += c.cacheWriteTokens || 0;
+        if (typeof c.usdList === 'number') { usd += c.usdList; priced += c.runs; }
+      }
+    }
+    const name = FAMILY_LABEL[family] || family;
+    const cache = runs && (read || write)
+      ? `${name} reads ${group(read / runs)} and writes ${group(write / runs)} cache tokens per run on average.`
+      : '';
+    const price = priced
+      ? `${name} reports a list price, $${(usd / priced).toFixed(2)} per run on average, which is not drawn.`
+      : `${name}'s CLI returns no price.`;
+    return [cache, price].filter(Boolean).join(' ');
+  }).filter(Boolean).join(' ');
+  const reasoning = sortedPointsFrom(pointsFrom(records).filter((p) => p.arm === 'with')).map((p) => {
+    const hit = (suite.models || []).find((m) => m.id === p.model && familyOf({ host: m.host }) === p.family);
+    return `${p.line} ${p.reasoning}${hit && hit.reasoningNote ? ` (${hit.reasoningNote})` : ''}`;
+  });
+  return [
+    'One page for the whole suite. All plugins pools the canonical cases, one per plugin. Each other control is that plugin alone. The rate is passes over runs that reached the model.',
+    'Tokens are the mean of input plus output; cache tokens are not in that line.',
+    perFamily,
+    'Tool calls are the mean of completed calls. The axis is tokens, not dollars. The discipline block is not the rate.',
+    reasoning.length ? `Reasoning level, as requested: ${reasoning.join(', ')}.` : '',
+    'A model that has not been run is absent.',
+    versionsNote,
+  ].filter(Boolean).join(' ');
+}
+
+function versionBlock(meta, records) {
   const root = path.join(__dirname, '..');
   if (meta && meta.dated) return datedBlock(meta.dated);
   if (meta && meta.draft) return '';
@@ -732,7 +873,9 @@ function versionBlock(meta) {
     return `<p class="muted">Benchmark ${esc(benchmarkVersion(root))}. A session records the plugin versions and the agent version with the runs.</p>`;
   }
   const session = meta.session;
-  const agents = Object.keys(session.agents || {}).sort();
+  // The agents of the runs on the page: a session also records hosts it has no scored run for yet.
+  const drawn = new Set((records || []).map(familyOf));
+  const agents = Object.keys(session.agents || {}).sort().filter((host) => !drawn.size || drawn.has(familyOf({ host })));
   const agentLine = agents.length
     ? agents.map((host) => `${host} ${session.agents[host]}`).join(', ')
     : 'not recorded yet';
@@ -754,8 +897,9 @@ function renderHtml(records, meta) {
         ? 'Each family is its own set of runs, made on its own date with its own agent and plugin versions, stamped below. Compare the two arms within a panel, not one panel with another. A filled mark is with the plugins; a hollow mark is the same model without them.'
         : 'Each panel is one product family. A filled mark is with the plugins. A hollow mark is the same model without them. A model that has not been run yet is absent.';
   const oneEach = !sample && !draft && records.length > 0 && records.every((r) => r.runs === 1);
+  const suiteRuns = loadSuite().runs;
   const oneBanner = oneEach
-    ? '<p class="banner">One run on each task. The suite rate is three runs, and this page is not that rate.</p>'
+    ? `<p class="banner">One run on each task.${suiteRuns > 1 ? ` The suite rate is ${suiteRuns} runs, and this page is not that rate.` : ''}</p>`
     : '';
   const sub = 'Pass rate on the same tasks, with the self-monitoring plugins and without them.';
   // Each control carries its view's gain over every model on the page, so a reader sees where to look.
@@ -809,14 +953,21 @@ function renderHtml(records, meta) {
   td.num, th.num { text-align: right; }
   table.matrix th[colspan] { text-align: center; }
   table.matrix th, table.matrix td { padding: 10px 8px; }
-  td.work { background: #f6e3d6; color: #8a3b12; font-weight: 600; }
+  td.won { font-weight: 600; background: #fbf1d6; }
   td.gap { box-shadow: inset 0 0 0 2px #c06028; }
+  table.failed ul { margin: 0; padding-left: 18px; }
+  table.failed td { white-space: normal; }
+  table.failed td:not(:last-child) { white-space: nowrap; }
+  a.to-failed { color: inherit; white-space: nowrap; text-decoration: underline dotted ${GAIN_COLOR.down}; text-underline-offset: 3px; }
+  a.to-failed::after { content: ' ↓'; color: ${GAIN_COLOR.down}; font-size: 11px; font-weight: 600; }
+  table.failed tr { scroll-margin-top: 16px; }
+  table.failed tr:target td, table.failed tr.hit td { background: #fbe9e7; }
   table.models th, table.models td { padding: 10px 8px; }
   table.models td { white-space: nowrap; }
   table.models tr.group td { border-top: 2px solid #c9c7bd; }
   table.models td.again { visibility: hidden; }
-  .gain { font-weight: 600; white-space: nowrap; }
-  .gain.up { color: ${GAIN_COLOR.up}; }
+  .gain { white-space: nowrap; }
+  .gain.up { color: ${GAIN_COLOR.up}; font-weight: 600; }
   .gain.flat { color: ${GAIN_COLOR.flat}; }
   .gain.down { color: ${GAIN_COLOR.down}; }
   .switch button .gain { font-size: 13px; margin-left: 4px; }
@@ -844,6 +995,8 @@ function renderHtml(records, meta) {
     td { display: flex; justify-content: space-between; gap: 16px; padding: 6px 0; border: 0; text-align: right; }
     td::before { content: attr(data-label); color: ${MUTED}; text-align: left; }
     td.num, th.num { text-align: right; }
+    table.failed td { display: block; text-align: left; }
+    table.failed td::before { display: block; }
   }
   @media (max-width: 520px) {
     .chart { display: none; }
@@ -857,13 +1010,13 @@ function renderHtml(records, meta) {
   <p class="muted">${esc(sub)}</p>
   <p class="${sample || draft ? 'banner' : ''}">${esc(head)}</p>
   ${oneBanner}
-  ${versionBlock(meta)}
+  ${versionBlock(meta, records)}
   <div class="legend"><span><i class="swatch dot fill"></i>With plugins</span><span><i class="swatch dot"></i>Without plugins</span><span>Each panel names the model and its reasoning. Color only tells the models apart.</span></div>
   <nav class="switch" aria-label="Plugin">
     ${buttons}
   </nav>
 ${sections}
-  <p class="note">One page for the whole suite. All plugins pools the canonical cases, one per plugin. Each other control is that plugin alone. The rate is passes over runs that reached the model. Tokens are the mean of input plus output. Cache reads are not included. Tool calls are the mean of completed calls. The CLI does not return a price, so the axis is not in dollars. The discipline block is not the rate. Composer 2.5 stays on Default because the Cursor model list has no High id for it. The other models in the set are at High: Grok 4.6, Grok 4.7, Sonnet 5, Opus 5, Opus 5.5, GPT-5.6 Luna, GPT-5.6 Sol, and GPT-6 Astra. A model that has not been run is absent. ${esc(versionsNote)}</p>
+  <p class="note">${esc(footNote(records, versionsNote))}</p>
 </main>
 <script>
 document.querySelector('.switch').addEventListener('click', function (event) {
@@ -874,6 +1027,19 @@ document.querySelector('.switch').addEventListener('click', function (event) {
   for (var i = 0; i < buttons.length; i++) buttons[i].classList.toggle('on', buttons[i] === button);
   var panels = document.querySelectorAll('[data-panel]');
   for (var j = 0; j < panels.length; j++) panels[j].hidden = panels[j].getAttribute('data-panel') !== view;
+});
+// A By case cell with failed runs: scroll to its rows and mark them, also where the page has no URL to carry a #fragment.
+document.addEventListener('click', function (event) {
+  var link = event.target.closest('a.to-failed');
+  if (!link) return;
+  var row = document.getElementById(link.getAttribute('href').slice(1));
+  if (!row) return;
+  event.preventDefault();
+  var hits = document.querySelectorAll('table.failed tr.hit');
+  for (var i = 0; i < hits.length; i++) hits[i].classList.remove('hit');
+  for (var r = row; r && (r === row || !r.id); r = r.nextElementSibling) r.classList.add('hit');
+  row.scrollIntoView({ block: 'start' });
+  try { history.replaceState(null, '', link.getAttribute('href')); } catch (_) {}
 });
 </script>
 </body>
@@ -915,6 +1081,7 @@ function loadDir(dir) {
   // A skill-variant run measures a text that has not shipped: never drawn as the plugin's result.
   if (record.skillVariant) throw new Error(`${file} ran the skill variant "${record.skillVariant.name}" of ${record.skillVariant.plugin}: an experiment, not a plugin result`);
   record.audit = auditOf(dir);
+  record._dir = dir;
   return record;
 }
 

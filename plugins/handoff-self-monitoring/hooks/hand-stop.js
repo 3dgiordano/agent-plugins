@@ -13,6 +13,8 @@
  * shows the user the finding as a one-line notice (systemMessage). Run
  * this mode first: it measures how often a close names a decision without
  * formulating it before anyone decides a blocking gate is worth its cost.
+ * One finding blocks once in this mode too: a blocked close in a turn whose
+ * search found nothing.
  *
  * Strict (env HANDMON_STRICT truthy): blocks the stop once per turn (exit 2
  * with the reason on stderr) so the agent writes the block before finishing.
@@ -25,7 +27,7 @@
 const { logEvent, strict, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
-const { scan } = require('../lib/handoff.js');
+const { scan, closedBlocked } = require('../lib/handoff.js');
 const msg = require('../lib/messages.js');
 const { cwdOf, context, actorOf } = require('../lib/host.js');
 
@@ -46,11 +48,18 @@ function main(raw) {
   const subagent = data.hook_event_name === 'SubagentStop';
 
   const res = scan(data.last_assistant_message || '');
-  const blocking = strict() && res.violations.length > 0 && !data.stop_hook_active && !subagent;
-
   // Each close is measured on its own actor's turn (hand-observe.js).
   const actor = actorOf(data);
   const st = state.load(HOST, sid, actor);
+  // A blocked close in a turn whose search found nothing: the limit may be
+  // only that gap. Read off the turn's own signal, not the block's words. It
+  // blocks once in either mode: in a one-turn task the next prompt that would
+  // carry the finding never comes, and the agent whose request names what was
+  // not found keeps blocked on its next close.
+  const onNothing = closedBlocked(res, data.last_assistant_message) && Boolean(st.turn && st.turn.fired && st.turn.fired.empty);
+  if (onNothing) res.violations.push(msg.blockedOnNothing());
+  const blocking = (strict() ? res.violations.length > 0 : onNothing) && !data.stop_hook_active && !subagent;
+
   logEvent(cwdOf(data), Object.assign({
     event: subagent ? 'subagent_stop' : 'stop', session: sid, actor, agent: data.agent_type || null, hits: res.hits, blocks: res.blocks, status: res.status,
     violations: res.violations, strict: strict(), blocked: blocking

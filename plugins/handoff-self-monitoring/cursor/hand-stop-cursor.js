@@ -6,7 +6,8 @@
  *
  * Default (non-strict): does nothing -- the findings stay in the log and the
  * next sessionStart/turn carries no retrospective (Cursor has no non-blocking
- * per-prompt injection point).
+ * per-prompt injection point). One finding is submitted once in this mode
+ * too: a blocked close in a turn whose search found nothing.
  *
  * Strict (env HANDMON_STRICT truthy): returns a `followup_message`, which
  * Cursor submits as the next user turn, so the agent writes the [HANDOFF]
@@ -31,11 +32,13 @@ function main(raw) {
 
   const st = state.load(HOST, cid);
   const pending = Array.isArray(st.pending) ? st.pending : [];
+  const onNothing = st.pendingBlock === true;
   st.pending = [];
+  st.pendingBlock = false;
   state.save(HOST, cid, st);
 
   const firstStop = !data.loop_count;
-  const blocking = strict() && pending.length > 0 && firstStop && data.status !== 'aborted';
+  const blocking = (strict() ? pending.length > 0 : onNothing) && firstStop && data.status !== 'aborted';
 
   logEvent(cwdOf(data), { event: 'stop', host: 'cursor', conversation: cid, status: data.status, violations: pending, blocked: blocking });
 

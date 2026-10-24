@@ -80,6 +80,18 @@ function preclose(signal) {
     `Default on its own line, Next. Trace detail below it. ${POINTER}`;
 }
 
+function nothingFound(signal) {
+  return `[handoff self-monitoring] \`${signal.label}\` found nothing. What you looked for and did not find is a ` +
+    'gap in what you have, not a limit: if the work can still be made from the request, make it and name the gap - ' +
+    'a reader handed nothing is worse off than one handed the work with its gaps named. Blocked is for what stops ' +
+    `the output itself: a refused write, no credential, a file the request names not there. ${POINTER}`;
+}
+
+function blockedOnNothing() {
+  return 'Status is blocked in a turn whose search found nothing - what was not found is a gap, not a limit: make ' +
+    'the work from what the request gives, name the gap in it, and close needs-decision with its Default';
+}
+
 function retrospective(violations) {
   return '[handoff self-monitoring] Your previous close left the reader without a handoff: ' +
     violations.join('; ') + '. Unless the owner\'s message already settles it, open this turn with the ' +
@@ -102,4 +114,4 @@ function notice(violations) {
   return host.notice('handoff self-monitoring', violations, 'the agent is reminded on your next message');
 }
 
-module.exports = { LOAD, preclose, retrospective, blockReason, notice };
+module.exports = { LOAD, preclose, nothingFound, blockedOnNothing, retrospective, blockReason, notice };

@@ -8,6 +8,7 @@
       "line": "Composer 2.5",
       "tier": "low",
       "reasoning": "Default",
+      "reasoningNote": "the Cursor model list has no High id for it",
       "driver": "cursor",
       "cli": {
         "model": "composer-2.5",

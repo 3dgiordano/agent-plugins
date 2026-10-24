@@ -1156,6 +1156,21 @@ test('handoff pre-close: the label is the run, a red TAP run is no close, a runn
   assert.equal(run('git add -A && git commit -m "fix: npm test"', '')[0].label, 'git commit', 'a commit whose message names a run');
 });
 
+test('handoff signals: a search that found nothing fires once per turn, a search that found something does not', () => {
+  const S = require(path.join(plugin(HAN), 'lib/signals.js'));
+  const t = S.freshTurn();
+  assert.deepEqual(S.observe(t, 'Glob', { pattern: '**/*' }, { filenames: ['a.js'], numFiles: 1 }), [], 'a match');
+  assert.deepEqual(S.observe(t, 'Grep', { pattern: 'x' }, { mode: 'content', numFiles: 0, filenames: [], content: 'a.js:1:x', numLines: 1 }), [], 'content is a match');
+  assert.deepEqual(S.observe(t, 'Glob', { pattern: '**/*' }, { filenames: [], numFiles: 0 }), [{ kind: 'empty', label: 'Glob' }]);
+  assert.deepEqual(S.observe(t, 'Grep', { pattern: 'x' }, { filenames: [], numFiles: 0 }), [], 'once per turn');
+  assert.equal(S.observe(t, 'Bash', { command: 'npm test' }, { stdout: 'Tests: 5 passed', stderr: '' })[0].kind, 'closing', 'the pre-close keeps its own once');
+  const ls = (command, stdout) => S.observe(S.freshTurn(), 'Bash', { command }, { stdout, stderr: '' });
+  assert.deepEqual(ls('ls -la "/c/x"', 'total 0\ndrwxr-xr-x 1 u g 0 Oct 23 23:49 .\ndrwxr-xr-x 1 u g 0 Oct 23 23:50 ..'), [{ kind: 'empty', label: 'ls' }]);
+  assert.deepEqual(ls('ls -la', 'total 4\n-rw-r--r-- 1 u g 3 Oct 23 23:49 notes.md'), [], 'a file listed');
+  assert.deepEqual(ls('ls && cat x', ''), [], 'ls in a pipeline is not a listing alone');
+  assert.deepEqual(S.observe(S.freshTurn(), 'glob_file_search', {}, 'No files found'), [{ kind: 'empty', label: 'glob_file_search' }], 'a host that answers in text');
+});
+
 test('handoff (claude): load on turn 1, pre-close nudge once, retrospective after an unhanded decision, silent otherwise', (t) => {
   const sid = uid('han');
   t.after(() => cleanupTemp(`handmon_claude_${sid}`));
@@ -1285,6 +1300,44 @@ test('handoff (claude): strict mode blocks once with exit 2, never re-blocks, pa
   assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: offerMsg, stop_hook_active: true }), strict).code, 0);
   assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: goodHand }), strict).code, 0);
   assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: 'done' }), strict).code, 0);
+});
+
+test('handoff (claude): a blocked close after a search that found nothing blocks once, in the default mode too', (t) => {
+  const sid = uid('han');
+  t.after(() => cleanupTemp(`handmon_claude_${sid}`));
+  const strict = { HANDMON_STRICT: '1' };
+  const cc = (x) => Object.assign({ session_id: sid, cwd: os.tmpdir() }, x);
+  const blockedHand = '[HANDOFF]\n- Status: blocked\n- Situation: the file was not written\n- Blocked-by: the folder is empty\n- Next: add the files';
+  const empty = () => hook(HAN, 'hooks/hand-observe.js', cc({ tool_name: 'Glob', tool_input: { pattern: '**/*' }, tool_response: { filenames: [], numFiles: 0 } }));
+  hook(HAN, 'hooks/hand-prompt.js', cc({}));
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: blockedHand }), strict).code, 0, 'no empty search this turn: a blocked close stands');
+  hook(HAN, 'hooks/hand-prompt.js', cc({}));
+  assert.match(JSON.parse(empty().out).hookSpecificOutput.additionalContext, /`Glob` found nothing/);
+  const gate = hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: blockedHand }));
+  assert.equal(gate.code, 2, 'default mode');
+  assert.match(gate.err, /search found nothing - what was not found is a gap, not a limit/);
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: blockedHand, stop_hook_active: true })).code, 0, 'never re-blocks');
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: goodHand })).code, 0, 'a good block passes');
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: offerMsg })).code, 0, 'the other findings still never block by default');
+  hook(HAN, 'hooks/hand-prompt.js', cc({}));
+  empty();
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: blockedHand.replace('[HANDOFF]\n', '') })).code, 2, 'the fields without the marker: still a blocked close');
+  hook(HAN, 'hooks/hand-prompt.js', cc({}));
+  empty();
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: blockedHand }), strict).code, 2, 'strict: the same');
+});
+
+test('handoff (cursor): a blocked close after a search that found nothing is submitted once, in the default mode too', (t) => {
+  const cid = uid('hanc');
+  t.after(() => cleanupTemp(`handmon_cursor_${cid}`));
+  const noCC = { CLAUDECODE: '' };
+  const cu = (x) => Object.assign({ conversation_id: cid, workspace_roots: [os.tmpdir()] }, x);
+  const blockedHand = '[HANDOFF]\n- Status: blocked\n- Situation: the file was not written\n- Blocked-by: the folder is empty\n- Next: add the files';
+  assert.match(JSON.parse(hook(HAN, 'cursor/hand-observe-cursor.js', cu({ tool_name: 'glob_file_search', tool_input: {}, tool_output: 'No files found' }), noCC).out).additional_context, /found nothing/);
+  hook(HAN, 'cursor/hand-response-cursor.js', cu({ text: blockedHand }), noCC);
+  assert.match(JSON.parse(hook(HAN, 'cursor/hand-stop-cursor.js', cu({ status: 'completed', loop_count: 0 }), noCC).out).followup_message, /search found nothing/);
+  hook(HAN, 'cursor/hand-response-cursor.js', cu({ text: blockedHand }), noCC);
+  assert.equal(hook(HAN, 'cursor/hand-stop-cursor.js', cu({ status: 'completed', loop_count: 0 }), noCC).out, '', 'the turn was reset: no empty search, no gate');
 });
 
 test('handoff (cursor): sessionStart, postToolUse pre-close, afterAgentResponse parks findings and resets the turn, stop gate strict-only and once', (t) => {
@@ -4315,6 +4368,10 @@ test('bench report: gain is the with rate minus the without rate, in points, sho
   assert.match(buttons, /data-view="hygiene-self-monitoring\/the-header-case">Hygiene <span class="gain up"/, 'the control shows its case\'s gain');
   assert.match(buttons, /data-view="all"[^>]*>All plugins <span class="gain flat"/, 'the pool: 5/9 against 5/9');
   assert.match(html, /<span class="muted">base<\/span>/, 'the without row of By model is the base');
+  // By case: no shading on the without column; bold only where the plugin gained.
+  assert.doesNotMatch(html, /class="num work"/);
+  const withCells = [...html.matchAll(/<td class="num([^"]*)" data-label="Opus 5\.5 with">(\d)\/3/g)].map((m) => `${m[2]}${m[1]}`);
+  assert.deepEqual(withCells, ['2 gap', '0 gap', '3 won'], 'executive (flat), persistence (down), hygiene (up) - in the page order');
 });
 
 test('bench report: By model puts each model\'s base first, a rule above each later model, and names the model once', () => {
@@ -4330,6 +4387,9 @@ test('bench report: By model puts each model\'s base first, a rule above each la
   const rows = [...section.slice(0, section.indexOf('</table>')).matchAll(/<tr( class="group")?><td( class="again")? data-label="Family">[^<]*<\/td><td(?: class="again")? data-label="Model">([^<]*)<\/td><td(?: class="again")? data-label="Reasoning">[^<]*<\/td><td data-label="Arm">([^<]*)<\/td>/g)]
     .map((m) => `${m[3]} ${m[4]}${m[1] ? ' rule' : ''}${m[2] ? ' again' : ''}`);
   assert.deepEqual(rows, ['Haiku 5.5 Without plugins', 'Haiku 5.5 With plugins again', 'Opus 5.5 Without plugins rule', 'Opus 5.5 With plugins again']);
+  // A with row that gained stands out (bold, cream) in its passes, rate and gain; the base row does not.
+  const won = [...section.slice(0, section.indexOf('</table>')).matchAll(/<td class="num( won)?" data-label="Passes">(\d+\/\d+)/g)].map((m) => `${m[2]}${m[1] || ''}`);
+  assert.deepEqual(won, ['1/3', '3/3 won', '1/3', '3/3 won']);
 });
 
 test('bench report: a case\'s host note marks the case, with its source, only where that host is drawn', () => {
@@ -4349,6 +4409,46 @@ test('bench report: a case\'s host note marks the case, with its source, only wh
   const cursor = renderHtml([rec('cursor', 'grok-4.7-high')], {});
   assert.doesNotMatch(cursor, /Termination<sup>/, 'another host: no mark');
   assert.ok(!cursor.includes(note.source), 'another host: no note');
+});
+
+test('bench report: a cell is passes over runs; what a grader found is listed per failed run, never summed across runs', () => {
+  const { renderHtml } = require('./bench-report.js');
+  const hyg = 'hygiene-self-monitoring/the-header-case';
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bench-report-'));
+  try {
+    const put = (arm, i, grade, cost) => {
+      const base = `hygiene-self-monitoring__the-header-case__${arm}__${i}`;
+      fs.writeFileSync(path.join(dir, `${base}.grade.json`), JSON.stringify(grade));
+      fs.writeFileSync(path.join(dir, `${base}.cost.json`), JSON.stringify(cost || {}));
+    };
+    const twoFound = 'the proxy forwards names as sent: x; append, set, delete and init: y | change: index.js -1/+2 lines';
+    put('without', 1, { pass: false, metric: 2, metricMax: 4, detail: twoFound });
+    put('without', 2, { pass: false, metric: 2, metricMax: 4, detail: twoFound });
+    put('without', 3, { pass: false, metric: 3, metricMax: 4, detail: 'append, set, delete and init: y' });
+    put('with', 1, { pass: true, metric: 4, metricMax: 4, detail: 'ok' });
+    put('with', 2, { pass: false, metric: 0, metricMax: 4, detail: 'left' }, { contaminated: ['read outside'] });
+    const cost = { tokensMean: 100, durationMsMean: 1000, stepsMean: 3 };
+    const row = { case: hyg, with: 1, validWith: 1, without: 0, validWithout: 3, metric: { max: 4, with: [4], without: [2, 2, 3] } };
+    const rec = {
+      family: 'claude', host: 'claude', model: 'opus-5.5-high', tier: 'high', runs: 3, benchmark: '1.0.0', agent: 'claude-agent', plugins: {}, _dir: dir,
+      score: { with: { pass: 1, n: 1, pct: 100 }, without: { pass: 0, n: 3, pct: 0 }, cases: [row] }, costDetail: { with: cost, without: cost },
+    };
+    const html = renderHtml([rec], {});
+    const link = html.match(/data-label="Opus 5\.5 without"><a class="to-failed" href="#([^"]+)"[^>]*>0\/3<\/a><\/td>/);
+    assert.ok(link, 'the cell is the verdict alone, linked to its failed runs');
+    assert.match(html, new RegExp(`<tr id="${link[1]}">`), 'the link lands on the first row of that cell');
+    assert.match(html, /data-label="Opus 5\.5 with">1\/1<\/td>/, 'a cell with no failed run is not linked');
+    assert.doesNotMatch(html, /checks \d+\/\d+|7\/12|58%/, 'no check count summed across runs');
+    const failed = html.slice(html.indexOf('<h2>Failed runs</h2>'), html.indexOf('</table>', html.indexOf('<h2>Failed runs</h2>')));
+    const rows = [...failed.matchAll(/data-label="Runs?">([^<]*)<\/td><td data-label="What the grader found">(.*?)<\/td><\/tr>/g)].map((m) => `${m[1]} = ${m[2].replace(/<[^>]+>/g, '|').replace(/\|+/g, '|')}`);
+    assert.deepEqual(rows, [
+      '1, 2 = |the proxy forwards names as sent: x|append, set, delete and init: y|',
+      '3 = append, set, delete and init: y',
+    ], 'runs with the same findings share a row; the size of the change is not a finding');
+    assert.doesNotMatch(failed, /With plugins/, 'a passing run and a run the audit left unscored are not listed');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('bench report: --dated stamps each family with its own date and versions; without it, mixed versions are refused', () => {
@@ -4576,6 +4676,59 @@ test('integrity: a call the host or the guard refused read nothing - suspect, no
   assert.deepEqual(audit(started('a', { path: tmp })), [['search above its roots'], []]);
   // Another call's refusal does not clear it.
   assert.deepEqual(audit(started('a', { path: tmp }), started('b', { path: tmp }), done('b', restricted), done('a', 'x')), [['search above its roots'], ['refused: search above its roots']]);
+});
+
+test('integrity: a read of the run\'s own session file and a write outside the workspace are suspect', () => {
+  const { auditRun } = require('./integrity.js');
+  const W = path.win32;
+  const tmp = 'C:\\Users\\u\\AppData\\Local\\Temp';
+  const ws = W.join(tmp, 'aaaaaaaaaaaa');
+  const own = W.join(tmp, 'bbbbbbbbbbbb');
+  const session = 'C:\\Users\\u\\.claude\\projects\\C--Users-u-AppData-Local-Temp-aaaaaaaaaaaa';
+  const opts = { platform: 'win32', roots: [ws, own, session], repoRoot: 'C:\\work\\agent-plugins', tmp, profile: 'C:\\Users\\u', workspace: ws };
+  const call = (kind, args, result) => [JSON.stringify({ type: 'tool_call', subtype: 'started', call_id: 'a', tool_call: { [kind]: { args } } }),
+    JSON.stringify({ type: 'tool_call', subtype: 'completed', call_id: 'a', tool_call: { [kind]: { args: {}, result: result || 'ok' } } })];
+  const audit = (lines) => { const r = auditRun(lines.join('\n'), opts); return [r.contaminated.map((m) => m.kind), r.suspect.map((m) => m.kind)]; };
+  // Reading the transcript, by path or by a search over its folder.
+  assert.deepEqual(audit(call('readToolCall', { path: W.join(session, 'x.jsonl') })), [[], ['its own session file']]);
+  assert.deepEqual(audit(call('grepToolCall', { path: session, pattern: 'orders' })), [[], ['its own session file']]);
+  assert.deepEqual(audit(call('bashToolCall', { command: `cat "/c/Users/u/.claude/projects/C--Users-u-AppData-Local-Temp-aaaaaaaaaaaa/x.jsonl"`, workingDirectory: ws })), [[], ['its own session file']]);
+  // Listing the folder the host names to the model reads nothing.
+  assert.deepEqual(audit(call('globToolCall', { path: session, pattern: '**/*' })), [[], []]);
+  assert.deepEqual(audit(call('bashToolCall', { command: `ls -la "/c/Users/u/.claude/projects/C--Users-u-AppData-Local-Temp-aaaaaaaaaaaa"`, workingDirectory: ws })), [[], []]);
+  // A file written into the run's own temp folder, by a file tool or the shell.
+  assert.deepEqual(audit(call('writeToolCall', { path: W.join(own, 'AppData\\Local\\Temp\\DECISION.md') })), [[], ['wrote outside the workspace']]);
+  assert.deepEqual(audit(call('bashToolCall', { command: 'echo x > /c/Users/u/AppData/Local/Temp/bbbbbbbbbbbb/out.txt', workingDirectory: ws })), [[], ['wrote outside the workspace']]);
+  assert.deepEqual(audit(call('bashToolCall', { command: 'node a.js | tee /c/Users/u/AppData/Local/Temp/bbbbbbbbbbbb/log.txt', workingDirectory: ws })), [[], ['wrote outside the workspace']]);
+  // Writes inside the workspace, in every spelling, and redirects that name no file.
+  for (const command of ['echo x > DECISION.md', 'echo x > /tmp/aaaaaaaaaaaa/DECISION.md', 'node a.js 2>&1 | tee out.txt', 'node a.js > /dev/null 2>&1', 'node -e "const f = (a) => a > 0"']) {
+    assert.deepEqual(audit(call('bashToolCall', { command, workingDirectory: ws })), [[], []], command);
+  }
+  assert.deepEqual(audit(call('writeToolCall', { path: W.join(ws, 'DECISION.md') })), [[], []]);
+  assert.deepEqual(audit(call('editToolCall', { path: 'src/a.js' })), [[], []]);
+  // A write the host refused wrote nothing.
+  assert.deepEqual(audit(call('writeToolCall', { path: W.join(own, 'x.md') }, 'Permission to use Write has been denied because Claude Code is running in don\'t ask mode.')), [[], ['refused: wrote outside the workspace']]);
+});
+
+test('integrity: Git Bash\'s /tmp is the temp root on Windows - a read there is checked, a cd there reads nothing', () => {
+  const { auditRun } = require('./integrity.js');
+  const W = path.win32;
+  const tmp = 'C:\\Users\\u\\AppData\\Local\\Temp';
+  const ws = W.join(tmp, 'aaaaaaaaaaaa');
+  const opts = { platform: 'win32', roots: [ws], repoRoot: 'C:\\work\\agent-plugins', tmp, profile: 'C:\\Users\\u', workspace: ws };
+  const bash = (command, result) => [JSON.stringify({ type: 'tool_call', subtype: 'started', call_id: 'a', tool_call: { bashToolCall: { args: { command, workingDirectory: ws } } } }),
+    JSON.stringify({ type: 'tool_call', subtype: 'completed', call_id: 'a', tool_call: { bashToolCall: { args: {}, result: result || 'ok' } } })];
+  const audit = (lines) => { const r = auditRun(lines.join('\n'), opts); return [r.contaminated.map((m) => m.kind), r.suspect.map((m) => m.kind)]; };
+  // Another session's folder, the temp root listed, a file left in the root.
+  assert.deepEqual(audit(bash('grep -rIl orders /tmp/claude')), [['another run or a temp file'], []]);
+  assert.deepEqual(audit(bash('ls -la /tmp | head -30')), [['search above its roots'], []]);
+  assert.deepEqual(audit(bash('node tools/render.js art/nepal.svg /tmp/nepal.png')), [['another run or a temp file'], []]);
+  // The workspace spelled from /tmp, and a cd that changes directory only.
+  assert.deepEqual(audit(bash('ls -la /tmp/aaaaaaaaaaaa/src && cat /tmp/aaaaaaaaaaaa/README.md')), [[], []]);
+  assert.deepEqual(audit(bash(`cd /tmp && node -e "require('${ws.replace(/\\/g, '/')}/src/a.js')"`)), [[], ['worked from the temp root']]);
+  // PowerShell's /tmp is C:\tmp: a stream with no Bash tool is not read this way.
+  const ps = [JSON.stringify({ type: 'tool_call', subtype: 'started', call_id: 'a', tool_call: { shellToolCall: { args: { command: 'Get-ChildItem /tmp/claude', workingDirectory: ws } } } })];
+  assert.deepEqual(audit(ps), [[], []]);
 });
 
 test('integrity: a read of the answer key leaves a mark whichever way it was made (POSIX paths)', () => {

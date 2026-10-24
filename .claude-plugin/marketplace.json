@@ -35,7 +35,7 @@
     {
       "name": "handoff-self-monitoring",
       "source": "./plugins/handoff-self-monitoring",
-      "description": "Structured-handoff discipline: the final message of a turn closes with a [HANDOFF] block modelled on SBAR / I-PASS - Status, Situation in the reader's terms, Options with a default, one Next action - so the reader can act without the trace. Hooks inject the format on the first closing-shaped tool call and flag a decision named but not handed off. Shared skill + per-host hooks. Non-blocking by default, opt-in strict gate."
+      "description": "Structured-handoff discipline: the final message of a turn closes with a [HANDOFF] block modelled on SBAR / I-PASS - Status, Situation in the reader's terms, Options with a default, one Next action - so the reader can act without the trace. Hooks inject the format on the first closing-shaped tool call and flag a decision named but not handed off. Shared skill + per-host hooks. Non-blocking by default except a blocked close after a search that found nothing, which blocks once; opt-in strict gate."
     },
     {
       "name": "progress-self-monitoring",

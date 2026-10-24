@@ -10,7 +10,7 @@ Short answers to the questions people ask first, and to the assumptions that are
 
 ### Is this a guardrail, a sandbox or a security tool?
 
-**No.** The plugins do not stop an agent from doing anything. They never block by default (three have an opt-in gate, below), they do not restrict commands, files or network access, and they do not protect your machine. To limit what an agent can do, use your host's permission settings or real isolation: a container, a VM, a separate user.
+**No.** The plugins do not stop an agent from doing anything. They never block by default (three have an opt-in gate, below; handoff's one default stop asks once for a close the agent ended `blocked` after a search found nothing, and the agent may keep it), they do not restrict commands, files or network access, and they do not protect your machine. To limit what an agent can do, use your host's permission settings or real isolation: a container, a VM, a separate user.
 
 The repository's bench does fence the agent it tests: its shell admits only `node`, and that `node` runs under Node's permission model, confined to the run's workspace, with what it refuses recorded. The agent's other tools are audited afterwards, and a run that touched anything outside its workspace is dropped. That is the **test harness**, there to keep measurements honest ([bench/GUARDS.md](../bench/GUARDS.md)). None of it is installed with a plugin.
 

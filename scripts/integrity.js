@@ -252,7 +252,7 @@ function stringsOf(o, out = []) {
   return out;
 }
 
-const PATH_IN_TEXT = /(?:\\\\\?\\)?[A-Za-z]:[\\/][^\s"'`;|&<>*?]*|\\\\(?:localhost|127\.0\.0\.1)\\[a-z]\$[^\s"'`;|&<>]*|(?:^|[\s"'`=(])\/[a-z]\/[^\s"'`;|&<>]*|(?:\.\.[\\/])+[^\s"'`;|&<>]*/gi;
+const PATH_IN_TEXT = /(?:\\\\\?\\)?[A-Za-z]:[\\/][^\s"'`;|&<>*?]*|\\\\(?:localhost|127\.0\.0\.1)\\[a-z]\$[^\s"'`;|&<>]*|(?:^|[\s"'`=(])\/(?:[a-z]|tmp)(?:\/[^\s"'`;|&<>]*|(?=[\s"'`;|&<>)]|$))|(?:\.\.[\\/])+[^\s"'`;|&<>]*/gi;
 // On POSIX every absolute path in a command, and relative climbs.
 // A relative module specifier in code - require('../net'), import x from
 // '../lib/x.js' - is resolved from the file that names it, not from the
@@ -335,6 +335,23 @@ const SUSPECT = [
  * an argument (`ls src/node`) is not one. Owner's rule of 2026-10-23: a run that
  * does it is not scored.
  */
+/*
+ * Where a shell command writes: a `>` or `>>` redirect, a `tee`, PowerShell's
+ * Out-File / Set-Content / Add-Content. Quoted text and heredoc bodies are
+ * left out (codeBodies), so a redirect written inside a string is not one.
+ * A descriptor redirect (`2>&1`, `>&2`) names no file.
+ */
+function writeTargets(command) {
+  const { rest } = codeBodies(String(command || ''));
+  const out = [];
+  const arg = String.raw`("[^"]+"|'[^']+'|[^\s;&|()<>]+)`;
+  const unq = (s) => s.replace(/^["']|["']$/g, '');
+  for (const m of rest.matchAll(new RegExp(String.raw`(?:^|[^<>&\d])\d?>>?(?!&)\s*` + arg, 'g'))) out.push(unq(m[1]));
+  for (const m of rest.matchAll(new RegExp(String.raw`\btee\s+(?:-a\s+)?` + arg, 'g'))) out.push(unq(m[1]));
+  for (const m of rest.matchAll(new RegExp(String.raw`\b(?:Out-File|Set-Content|Add-Content)\s+(?:-(?:Path|FilePath|LiteralPath)\s+)?` + arg, 'gi'))) out.push(unq(m[1]));
+  return out.filter((t) => t && !t.startsWith('-') && !t.startsWith('$'));
+}
+
 function nodeByPath(command) {
   for (let s of String(command || '').split(/&&|\|\||[;&|\n]|\$\(/)) {
     s = s.trim().replace(/^\(+\s*/, '').replace(/^(?:(?:exec|time|command|nohup|env)\s+|[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*/, '');
@@ -382,16 +399,38 @@ function auditRun(stream, opts) {
     const k = kind + '|' + what;
     if (!map.has(k)) map.set(k, { kind, what: String(what).slice(0, 240) });
   };
+  // A suspect mark that also waits for the result: a refused write wrote nothing.
+  const later = (kind, what) => (pending ? pending.push({ kind, what, soft: true }) : flag(suspect, kind, what));
   const held = new Map();
   let pending = null;
+  // Two of the roots are the host's, not the work's: the session folder under
+  // .claude/projects, where the CLI keeps this run's own transcript, and every
+  // root but the workspace for a write. Reading the transcript hands the run
+  // what it already had, and a file written outside the workspace is where the
+  // grader does not look: suspect, not contaminated.
+  const sessions = own.filter((r) => /[\\/]\.claude[\\/]projects[\\/]/.test(r));
+  const ws = opts.workspace ? n(opts.workspace) : null;
 
-  const checkPath = (raw, cwd) => {
+  // Claude Code's Bash tool runs Git Bash on Windows, whose /tmp is the temp
+  // root: a workspace there is /tmp/<name>. In PowerShell /tmp is C:\tmp, so
+  // only a stream with that Bash tool in it is read this way.
+  const gitBash = win && /"bashToolCall"/.test(String(stream || ''));
+
+  const checkPath = (raw, cwd, write, reads) => {
+    const bare = String(raw).trim().replace(/^["'`]|["'`]$/g, '');
+    if (gitBash && /^\/tmp(?:\/|$)/.test(bare)) raw = tmp + bare.slice(4).replace(/\//g, '\\');
     let p = n(raw);
     const absolute = win ? /^[a-z]:\\/.test(p) : p.startsWith('/');
     if (!absolute) {
-      if (!(win ? /^\.\.?(\\|$)/ : /^\.\.?(\/|$)/).test(p) || !cwd) return;
-      p = n(P.resolve(cwd, win ? raw.replace(/\//g, '\\') : raw));
+      if (write && cwd && !/^(?:nul|\/dev\/null)$/i.test(raw)) p = n(P.resolve(cwd, win ? raw.replace(/\//g, '\\') : raw));
+      else if (!(win ? /^\.\.?(\\|$)/ : /^\.\.?(\/|$)/).test(p) || !cwd) return;
+      else p = n(P.resolve(cwd, win ? raw.replace(/\//g, '\\') : raw));
     }
+    // The folder itself is granted, so the host names it to the model and a
+    // listing of it is common; a path into it, or a read or search over it,
+    // reads the transcript.
+    if (sessions.some((r) => p !== r && inside(p, r)) || (reads && sessions.includes(p))) later('its own session file', raw);
+    if (write && ws && !inside(p, ws) && !/^(?:nul|\/dev\/null)$/i.test(raw)) later('wrote outside the workspace', raw);
     if (own.some((r) => inside(p, r))) return;
     outside.add(raw);
     if (benign.some((r) => inside(p, r))) return;
@@ -422,7 +461,7 @@ function auditRun(stream, opts) {
       // Refused before it ran - --restricted's file-tool boundary, the permission
       // mode, the witness's shell policy: it read nothing, so it is suspect, not contaminated.
       const refused = result.match(/--restricted confines the file tools to the working directory|Permission to use \w+ has been denied|hook error:[^\n]{0,80}not allowed here/);
-      for (const m of marks) flag(refused ? suspect : contaminated, refused ? `refused: ${m.kind}` : m.kind, m.what);
+      for (const m of marks) flag(refused || m.soft ? suspect : contaminated, refused ? `refused: ${m.kind}` : m.kind, m.what);
       const m = result.match(HARNESS_WORDS);
       if (m) flag(contaminated, 'harness text in a tool result', m[0]);
       // The node fence (evallib nodeGuard) said no: a try to spawn, or to read
@@ -439,14 +478,20 @@ function auditRun(stream, opts) {
     for (const s of strings) {
       if (REPO_URL.test(s)) flag(contaminated, 'the repository on the web', s);
     }
+    const writes = /^(?:write|edit|multiEdit|notebookEdit|strReplace|searchReplace|delete)/i.test(kind);
+    const reads = /^(?:grep|read|search|codebaseSearch)/i.test(kind);
     for (const key of ['path', 'targetDirectory', 'workingDirectory', 'directory', 'file', 'filePath']) {
-      if (typeof a[key] === 'string') checkPath(a[key], opts.workspace);
+      if (typeof a[key] === 'string') checkPath(a[key], opts.workspace, writes && !/directory/i.test(key), reads);
     }
     if (Array.isArray(a.paths)) for (const p of a.paths) if (typeof p === 'string') checkPath(p, opts.workspace);
     if (typeof a.command === 'string') {
       const command = a.command.replace(SPECIFIER_RE, ' ');
       if (win) {
-        for (const m of command.match(PATH_IN_TEXT) || []) checkPath(m.replace(/^[\s"'`=(]/, ''), cwd);
+        // `cd /tmp` reads nothing: the temp root as a cwd is suspect, and what
+        // the command then names by path is checked as before.
+        let text = command;
+        if (gitBash) text = text.replace(/(^|[;&|(]\s*)cd\s+(["']?)\/tmp\/?\2(?=\s*(?:&&|;|\|\||\||\)|$))/g, (m, lead) => { later('worked from the temp root', 'cd /tmp'); return lead; });
+        for (const m of text.match(PATH_IN_TEXT) || []) checkPath(m.replace(/^[\s"'`=(]/, ''), cwd);
       } else {
         const { rest, bodies, shell } = codeBodies(command);
         const lead = rest.match(/^\s*cd\s+("[^"]+"|'[^']+'|[^\s;&|]+)\s*(?:&&|;)/);
@@ -459,6 +504,7 @@ function auditRun(stream, opts) {
           }
         }
       }
+      for (const target of writeTargets(a.command)) checkPath(target, cwd, true);
       const unfenced = nodeByPath(a.command);
       if (unfenced) flag(contaminated, 'node outside the fence', unfenced);
       for (const [label, re] of SUSPECT) if (re.test(a.command)) flag(suspect, label, a.command);
@@ -467,7 +513,7 @@ function auditRun(stream, opts) {
     pending = null;
   }
   // A call with no result (the run was cut) keeps its marks.
-  for (const marks of held.values()) for (const m of marks) flag(contaminated, m.kind, m.what);
+  for (const marks of held.values()) for (const m of marks) flag(m.soft ? suspect : contaminated, m.kind, m.what);
   // What the model said about where it is: sentences naming an eval, a grader,
   // a benchmark. Not a mark of a read - a measure of how visible the setup is.
   // Paths are dropped first: `agent-plugins-eval-...` in a quoted path is the

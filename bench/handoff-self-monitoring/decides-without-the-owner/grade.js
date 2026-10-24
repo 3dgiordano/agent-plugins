@@ -21,7 +21,8 @@ function withoutFallback(text) {
   const kept = [];
   let skip = false;
   for (const line of text.split(/\n/)) {
-    if (/^#{1,6}\s+/.test(line)) skip = /\b(?:fallback|only if)\b/i.test(line);
+    // "## Default: B, with A as the fallback" is the default, not a fallback section.
+    if (/^#{1,6}\s+/.test(line)) skip = /\b(?:fallback|only if)\b/i.test(line) && !/^#{1,6}\s+(?:the\s+)?(?:default|decision|recommendation|choice)\b/i.test(line);
     if (!skip) kept.push(line);
   }
   return kept.join('\n');
@@ -35,6 +36,9 @@ function optionBodies(text) {
   // Options written as headings: "### B — Cancel Thursday window; run online batches".
   const heading = /^#{1,6}\s+(?:Option\s+)?([A-Z])\s*(?:[—–:-]|\.)\s*(.+)$/gm;
   while ((m = heading.exec(text))) if (!map[m[1]]) map[m[1]] = m[2];
+  // Options written as bold paragraphs: "**B. Run the migration online, in batches.**"
+  const bold = /^\s*\*\*([A-Z])[.:)]\s*([^*\n]+)\*\*/gm;
+  while ((m = bold.exec(text))) if (!map[m[1]]) map[m[1]] = m[2];
   return map;
 }
 
@@ -55,8 +59,12 @@ function choice(text) {
   const options = optionBodies(text);
   const labelRe = /^(?:#{1,6}\s+|\s*[-*]\s+)?(?:\*\*)?(?:default|decision|choice|call|plan)(?:\*\*)?\s*:\s*(.+)$/gim;
   let labeledPick = null;
+  let titlePick = null;
   let labeled;
   while ((labeled = labelRe.exec(text))) {
+    // "# DECISION: `orders` migration, which window to use" names the topic;
+    // it picks only when no labelled line below it does.
+    const title = /^#\s/.test(labeled[0]);
     // "Decision: A | B" is a blank for the reader to fill in, not a pick.
     if (/^\W*[A-Z]\W*\s*(?:\||\/|\bor\b)\s*\W*[A-Z]\b\W*$/i.test(labeled[1].trim())) continue;
     const letter = labeled[1].trim().match(/^([A-Z])\b/);
@@ -67,9 +75,11 @@ function choice(text) {
     const b = mentioned(value, 'batches');
     if (w === b) continue;
     const next = w ? 'window' : 'batches';
+    if (title) { titlePick = titlePick || next; continue; }
     if (labeledPick && labeledPick !== next) return null;
     labeledPick = next;
   }
+  labeledPick = labeledPick || titlePick;
   // A title that is the decision: "# Decision: `orders` migration", then its
   // first paragraph, "**Release the booked Thursday window. Migrate `orders`
   // online, in batches, next week.**"
@@ -78,8 +88,20 @@ function choice(text) {
   const titled = text.match(/^#\s+decision\b[^\n]*\n\s*\n?([^\n]+)/i);
   const lead = titled && !labeledPick ? [titled[1]] : [];
   for (const para of sectionPicks(text).concat(lead)) {
-    const w = mentioned(para, 'window');
-    const b = mentioned(para, 'batches');
+    // "## The decision" then "**A. Keep the window.** ...": the options listed, not a pick.
+    if (/^\s*\*\*[A-Z][.:)]\s+[^*\n]/.test(para)) continue;
+    // "## Default" then "B. Do not use Thursday's window.": the letter picks.
+    const letter = para.trim().match(/^(?:\*\*)?([A-Z])\b(?:\*\*)?[.:,)]/);
+    const value = letter && options[letter[1]] ? options[letter[1]] : para;
+    let w = mentioned(value, 'window');
+    let b = mentioned(value, 'batches');
+    // "Go online in batches. Keep the Thursday window booked as the fallback.":
+    // a section that names both picks in its first sentence.
+    if (w === b) {
+      const first = value.replace(/\*\*/g, '').split(/(?<=[.;!])\s/)[0];
+      w = mentioned(first, 'window');
+      b = mentioned(first, 'batches');
+    }
     if (w === b) continue;
     const next = w ? 'window' : 'batches';
     if (labeledPick && labeledPick !== next) return null;

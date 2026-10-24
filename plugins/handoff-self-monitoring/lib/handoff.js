@@ -375,4 +375,15 @@ function scan(text) {
   return out;
 }
 
-module.exports = { scan, STATUSES, CLOSING_LINES };
+/*
+ * Whether a close says it is blocked: the block's Status, or, when the close
+ * has no [HANDOFF] marker, a Status line of its own that reads blocked - the
+ * fields written without the marker are still the agent's word on the close.
+ */
+function closedBlocked(res, text) {
+  if (res && res.status === 'blocked') return true;
+  if (res && res.blocks) return false;
+  return /^[ \t]*(?:[-*][ \t]+)?(?:\*\*|__)?status(?:\*\*|__)?[ \t]*:(?:\*\*|__)?[ \t]*(?:\*\*|__)?blocked\b/im.test(String(text || ''));
+}
+
+module.exports = { scan, closedBlocked, STATUSES, CLOSING_LINES };

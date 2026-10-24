@@ -39,7 +39,8 @@ function main(raw) {
 
   if (!fired.length) return;
   logEvent(cwdOf(data), { event: 'signal', session: sid, actor, tools: st.turn.tools, signals: fired });
-  process.stdout.write(context('PostToolUse', msg.preclose(fired[0])));
+  const text = fired[0].kind === 'empty' ? msg.nothingFound(fired[0]) : msg.preclose(fired[0]);
+  process.stdout.write(context('PostToolUse', text));
 }
 
 let buf = '';
