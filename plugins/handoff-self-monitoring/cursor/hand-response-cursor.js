@@ -15,7 +15,7 @@
 const { logEvent, strict } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
-const { scan, closedBlocked } = require('../lib/handoff.js');
+const { scan, stopOnNothing } = require('../lib/handoff.js');
 const msg = require('../lib/messages.js');
 const { cwdOf } = require('../lib/host.js');
 
@@ -29,9 +29,9 @@ function main(raw) {
   const res = scan(data.text || '');
   const st = state.load(HOST, cid);
   // A blocked close in a turn whose search found nothing (hooks/hand-stop.js).
-  const onNothing = closedBlocked(res, data.text) && Boolean(st.turn && st.turn.fired && st.turn.fired.empty);
-  if (onNothing) res.violations.push(msg.blockedOnNothing());
-  st.pendingBlock = onNothing; // blocks once in either mode (cursor/hand-stop-cursor.js)
+  const onNothing = stopOnNothing(res, data.text, st.turn && st.turn.fired);
+  if (onNothing) res.violations.push(onNothing === 'blocked' ? msg.blockedOnNothing() : msg.askedOnNothing());
+  st.pendingBlock = Boolean(onNothing); // blocks once in either mode (cursor/hand-stop-cursor.js)
   st.turns = (st.turns || 0) + 1;
   logEvent(cwdOf(data), Object.assign({
     event: 'stop', host: 'cursor', conversation: cid, turn: st.turns, hits: res.hits, blocks: res.blocks,

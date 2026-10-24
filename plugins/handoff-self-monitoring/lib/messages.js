@@ -89,7 +89,14 @@ function nothingFound(signal) {
 
 function blockedOnNothing() {
   return 'Status is blocked in a turn whose search found nothing - what was not found is a gap, not a limit: make ' +
-    'the work from what the request gives, name the gap in it, and close needs-decision with its Default';
+    'what the request asks now, from what it gives, with the gap named in it; whether to make it is not a decision ' +
+    'to hand back';
+}
+
+function askedOnNothing() {
+  return 'Status is needs-decision in a turn whose search found nothing and that wrote nothing - asking whether to ' +
+    'make the work, or on what, is not the decision: make what the request asks now, from what it gives, with the ' +
+    'gap named in it and the open choice decided by its Default';
 }
 
 function retrospective(violations) {
@@ -114,4 +121,4 @@ function notice(violations) {
   return host.notice('handoff self-monitoring', violations, 'the agent is reminded on your next message');
 }
 
-module.exports = { LOAD, preclose, nothingFound, blockedOnNothing, retrospective, blockReason, notice };
+module.exports = { LOAD, preclose, nothingFound, blockedOnNothing, askedOnNothing, retrospective, blockReason, notice };

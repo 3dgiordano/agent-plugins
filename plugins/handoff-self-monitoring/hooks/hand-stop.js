@@ -27,7 +27,7 @@
 const { logEvent, strict, notices } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
-const { scan, closedBlocked } = require('../lib/handoff.js');
+const { scan, stopOnNothing } = require('../lib/handoff.js');
 const msg = require('../lib/messages.js');
 const { cwdOf, context, actorOf } = require('../lib/host.js');
 
@@ -56,9 +56,18 @@ function main(raw) {
   // blocks once in either mode: in a one-turn task the next prompt that would
   // carry the finding never comes, and the agent whose request names what was
   // not found keeps blocked on its next close.
-  const onNothing = closedBlocked(res, data.last_assistant_message) && Boolean(st.turn && st.turn.fired && st.turn.fired.empty);
-  if (onNothing) res.violations.push(msg.blockedOnNothing());
-  const blocking = (strict() ? res.violations.length > 0 : onNothing) && !data.stop_hook_active && !subagent;
+  const onNothing = stopOnNothing(res, data.last_assistant_message, st.turn && st.turn.fired);
+  if (onNothing) res.violations.push(onNothing === 'blocked' ? msg.blockedOnNothing() : msg.askedOnNothing());
+  // The continuation of a held blocked close may hand the work back as a
+  // question instead: that is held once more, and that is the last - two holds
+  // in a turn, and only when the kind changes, so it never loops.
+  const turn = st.turn || (st.turn = signals.freshTurn());
+  const again = Boolean(data.stop_hook_active) && onNothing === 'asked' && turn.held === 'blocked';
+  const blocking = Boolean((strict() ? res.violations.length > 0 : onNothing) && (!data.stop_hook_active || again) && !subagent);
+  if (blocking && onNothing) {
+    turn.held = again ? 'asked-after-blocked' : onNothing;
+    state.save(HOST, sid, st, actor);
+  }
 
   logEvent(cwdOf(data), Object.assign({
     event: subagent ? 'subagent_stop' : 'stop', session: sid, actor, agent: data.agent_type || null, hits: res.hits, blocks: res.blocks, status: res.status,

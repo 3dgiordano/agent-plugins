@@ -96,11 +96,16 @@ function choice(text) {
     let w = mentioned(value, 'window');
     let b = mentioned(value, 'batches');
     // "Go online in batches. Keep the Thursday window booked as the fallback.":
-    // a section that names both picks in its first sentence.
+    // a section that names both picks in the first sentence that names one, its
+    // conditions left out - "Use Option B (online batches) unless finance
+    // confirms the Thursday window is clear" picks the batches.
     if (w === b) {
-      const first = value.replace(/\*\*/g, '').split(/(?<=[.;!])\s/)[0];
-      w = mentioned(first, 'window');
-      b = mentioned(first, 'batches');
+      for (const sentence of value.replace(/\*\*/g, '').split(/(?<=[.;!])\s/)) {
+        const main = sentence.split(/\b(?:unless|if|except|until)\b/i)[0];
+        const sw = mentioned(main, 'window');
+        const sb = mentioned(main, 'batches');
+        if (sw !== sb) { w = sw; b = sb; break; }
+      }
     }
     if (w === b) continue;
     const next = w ? 'window' : 'batches';

@@ -1167,8 +1167,25 @@ test('handoff signals: a search that found nothing fires once per turn, a search
   const ls = (command, stdout) => S.observe(S.freshTurn(), 'Bash', { command }, { stdout, stderr: '' });
   assert.deepEqual(ls('ls -la "/c/x"', 'total 0\ndrwxr-xr-x 1 u g 0 Oct 23 23:49 .\ndrwxr-xr-x 1 u g 0 Oct 23 23:50 ..'), [{ kind: 'empty', label: 'ls' }]);
   assert.deepEqual(ls('ls -la', 'total 4\n-rw-r--r-- 1 u g 3 Oct 23 23:49 notes.md'), [], 'a file listed');
-  assert.deepEqual(ls('ls && cat x', ''), [], 'ls in a pipeline is not a listing alone');
+  assert.deepEqual(ls('ls && cat x', ''), [], 'an empty ls output in a longer command says nothing about the folder');
+  const emptyListing = 'total 1536\ndrwxr-xr-x 1 u g 0 Oct 24 11:53 .\ndrwxr-xr-x 1 u g 0 Oct 24 11:54 ..\n';
+  assert.deepEqual(ls('ls -la "/c/x" && find "/c/x" -maxdepth 3 | head', emptyListing + '/c/x\n'), [{ kind: 'empty', label: 'ls' }], 'an empty long listing among other output');
+  assert.deepEqual(ls('cd "/c/x" && pwd && ls -la && echo ---', '/tmp/x\n' + emptyListing + '---\n'), [{ kind: 'empty', label: 'ls' }]);
+  assert.deepEqual(ls('ls -la "/c/x" && echo ---', 'total 4\ndrwxr-xr-x 1 u g 0 Oct 24 11:53 .\ndrwxr-xr-x 1 u g 0 Oct 24 11:54 ..\n-rw-r--r-- 1 u g 3 Oct 24 11:53 a.js\n---\n'), [], 'a listing with a file in it');
+  assert.deepEqual(ls('find . -name x && echo ok', emptyListing), [], 'no ls in the command');
   assert.deepEqual(S.observe(S.freshTurn(), 'glob_file_search', {}, 'No files found'), [{ kind: 'empty', label: 'glob_file_search' }], 'a host that answers in text');
+  const w = S.freshTurn();
+  S.observe(w, 'Read', { file_path: 'a' }, 'x');
+  assert.equal(w.fired.wrote, false);
+  S.observe(w, 'Write', { file_path: 'DECISION.md' }, { type: 'create' });
+  assert.equal(w.fired.wrote, true, 'a file tool that writes marks the turn as having made something');
+  const { stopOnNothing, closedStatus } = require(path.join(plugin(HAN), 'lib/handoff.js'));
+  assert.equal(closedStatus(null, '- Status: needs-decision\n- Next: x'), 'needs-decision', 'the fields without the marker');
+  assert.equal(stopOnNothing({ status: 'needs-decision', blocks: 1 }, '', { empty: true, wrote: false }), 'asked');
+  assert.equal(stopOnNothing({ status: 'needs-decision', blocks: 1 }, '', { empty: true, wrote: true }), null);
+  assert.equal(stopOnNothing({ status: 'blocked', blocks: 1 }, '', { empty: true, wrote: true }), 'blocked', 'blocked on nothing stays a finding after a write');
+  assert.equal(stopOnNothing({ status: 'done', blocks: 1 }, '', { empty: true, wrote: false }), null);
+  assert.equal(stopOnNothing({ status: 'blocked', blocks: 1 }, '', { empty: false }), null);
 });
 
 test('handoff (claude): load on turn 1, pre-close nudge once, retrospective after an unhanded decision, silent otherwise', (t) => {
@@ -1317,11 +1334,35 @@ test('handoff (claude): a blocked close after a search that found nothing blocks
   assert.equal(gate.code, 2, 'default mode');
   assert.match(gate.err, /search found nothing - what was not found is a gap, not a limit/);
   assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: blockedHand, stop_hook_active: true })).code, 0, 'never re-blocks');
-  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: goodHand })).code, 0, 'a good block passes');
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: doneHand })).code, 0, 'a done close passes');
   assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: offerMsg })).code, 0, 'the other findings still never block by default');
   hook(HAN, 'hooks/hand-prompt.js', cc({}));
   empty();
   assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: blockedHand.replace('[HANDOFF]\n', '') })).code, 2, 'the fields without the marker: still a blocked close');
+  // needs-decision that hands back whether to do the work: held once when nothing was written.
+  const askHand = '[HANDOFF]\n- Status: needs-decision\n- Situation: the file was not written\n- Options:\n  - A: add the files, then I write it\n  - B: I write it from your message\n- Default: A, because the folder is empty\n- Next: answer A or B';
+  hook(HAN, 'hooks/hand-prompt.js', cc({}));
+  empty();
+  const asked = hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: askHand }));
+  assert.equal(asked.code, 2, 'needs-decision, nothing written');
+  assert.match(asked.err, /asking whether to make the work, or on what, is not the decision/);
+  hook(HAN, 'hooks/hand-prompt.js', cc({}));
+  empty();
+  hook(HAN, 'hooks/hand-observe.js', cc({ tool_name: 'Write', tool_input: { file_path: 'DECISION.md', content: 'x' }, tool_response: { type: 'create' } }));
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: askHand })).code, 0, 'needs-decision after the work was written stands');
+  hook(HAN, 'hooks/hand-prompt.js', cc({}));
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: askHand })).code, 0, 'no empty search: a needs-decision stands');
+  // Held blocked, then the work handed back as a question: held once more, the last time.
+  hook(HAN, 'hooks/hand-prompt.js', cc({}));
+  empty();
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: blockedHand })).code, 2);
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: askHand, stop_hook_active: true })).code, 2, 'the question after the hold');
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: askHand, stop_hook_active: true })).code, 0, 'two holds, never a third');
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: blockedHand, stop_hook_active: true })).code, 0, 'blocked again after the holds stands');
+  hook(HAN, 'hooks/hand-prompt.js', cc({}));
+  empty();
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: askHand })).code, 2);
+  assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: askHand, stop_hook_active: true })).code, 0, 'a question held once stands on its next close');
   hook(HAN, 'hooks/hand-prompt.js', cc({}));
   empty();
   assert.equal(hook(HAN, 'hooks/hand-stop.js', cc({ last_assistant_message: blockedHand }), strict).code, 2, 'strict: the same');

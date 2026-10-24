@@ -44,8 +44,11 @@ const GATE_RES = [
 ];
 
 function freshTurn() {
-  return { tools: 0, fired: { closing: false, empty: false } };
+  return { tools: 0, fired: { closing: false, empty: false, wrote: false } };
 }
+
+// A tool that writes a file: the turn made something, whatever it then asks.
+const WRITE_TOOL_RE = /^(?:write|edit|multiedit|notebookedit|write_file|edit_file|search_replace|str_replace|apply_patch)$/i;
 
 const SEARCH_TOOL_RE = /^(?:glob|grep|ls|list_dir|glob_file_search|file_search|grep_search)$/i;
 
@@ -59,13 +62,22 @@ function searchFoundNothing(response) {
   return /^\s*no (?:files|matches|results) found\b/i.test(outputText(response));
 }
 
-// An `ls` alone whose output lists nothing but the folder and its parent.
+// An `ls` whose output lists nothing but the folder and its parent: alone, or,
+// in a longer command, a long listing (`total N`, then `.` and `..`) that ends
+// there - an empty folder among the command's other output.
 function lsFoundNothing(cmd, response) {
   const segs = segments(cmd);
-  if (segs.length !== 1 || !/^\s*ls\b/.test(segs[0].code)) return false;
+  const runsLs = segs.filter((s) => /^\s*(?:cd\s+\S+\s*)?ls\b/.test(s.code));
+  if (!runsLs.length) return false;
   const out = response && typeof response === 'object' && typeof response.stdout === 'string' ? response.stdout : outputText(response);
-  const lines = String(out).split(/\r?\n/).filter((l) => l.trim());
-  return lines.every((l) => /^total \d+$/.test(l.trim()) || /\s\.{1,2}$/.test(l));
+  const lines = String(out).split(/\r?\n/);
+  if (segs.length === 1) return lines.filter((l) => l.trim()).every((l) => /^total \d+$/.test(l.trim()) || /\s\.{1,2}$/.test(l));
+  for (let i = 0; i + 2 < lines.length; i++) {
+    if (!/^total \d+$/.test(lines[i].trim()) || !/\s\.$/.test(lines[i + 1]) || !/\s\.\.$/.test(lines[i + 2])) continue;
+    const next = lines[i + 3];
+    if (next === undefined || !/^[-dlbcps][rwxsStT-]{9}/.test(next)) return true;
+  }
+  return false;
 }
 
 function commandOf(input) {
@@ -132,6 +144,7 @@ function labelOf(segment) {
  */
 function observe(turn, toolName, toolInput, toolResponse) {
   turn.tools += 1;
+  if (WRITE_TOOL_RE.test(String(toolName || ''))) turn.fired.wrote = true;
   if (!turn.fired.empty) {
     const name = String(toolName || '');
     const search = SEARCH_TOOL_RE.test(name);

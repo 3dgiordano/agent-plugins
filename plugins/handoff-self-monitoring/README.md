@@ -92,11 +92,13 @@ first of them, once per turn.
 
 A second signal, also once per turn, is a search that found nothing: a Glob
 or Grep with no match (a "No files found" answer on hosts that reply in
-text), or an `ls` alone that lists only the folder and its parent. It is
+text), or an `ls` that lists only the folder and its parent - alone, or a
+long listing that ends there among a longer command's output. It is
 where a turn decides between making the work with that gap named and
 stopping on it, so the nudge says that what was not found is a gap, not a
 limit, and what `blocked` is for. The nudge names the tool, never what was
-searched. A `find` or an `ls` inside a pipeline is not read.
+searched. A `find` alone, or a short `ls` inside a longer command, is not
+read. The turn also records whether a file tool wrote anything.
 
 The scanner (`lib/handoff.js`) looks for four things in the prose of the
 final message, one hit per kind, after stripping fenced code, inline code,
@@ -118,9 +120,12 @@ rules are:
   and a `Default` (own line, or trailing on `Options`)
 - `blocked` needs `Blocked-by`
 - `blocked` in a turn whose search found nothing is a finding: the limit may
-  be only that gap. It is read off the turn's own signal, not the block's
-  words; an agent whose request names what was not found keeps `blocked` on
-  its next close, since the gate blocks once
+  be only that gap. So is `needs-decision` in such a turn when no file tool
+  wrote anything: a close that hands back whether to make the work instead of
+  making it. Both are read off the turn's own signals, not the block's words,
+  and a close with the fields and no marker is read by its own Status line;
+  an agent whose request names what was not found keeps `blocked` on its
+  next close
 - `waiting` needs `Waiting-on`: what is still out and its id, how its end
   reaches the agent or the reader, what is done with the result. It may also
   ride on `needs-decision`. `done` with a `Waiting-on`, or a `done` or
@@ -157,11 +162,13 @@ prompt, a tool call or a stop.
 
 **Default mode (non-blocking):** findings are written to the opt-in log and
 carried into the next prompt as a one-line retrospective (Claude Code). The
-turn ends normally - except for one finding, a `blocked` close in a turn
-whose search found nothing, which blocks once as the strict gate does. Held
-for the next prompt, it never reached a one-turn task, and there the close
-was the work not delivered; the agent whose request names what was not found
-keeps `blocked` on its next close.
+turn ends normally - except for one finding, a close that stops on a search
+that found nothing (`blocked`, or `needs-decision` with nothing written),
+which blocks as the strict gate does. Held for the next prompt, it never
+reached a one-turn task, and there the close was the work not delivered.
+On Claude Code a held `blocked` whose continuation hands the work back as a
+question is held once more, and that is the last: two holds in a turn, only
+when the kind changes. Cursor submits one follow-up (`loop_limit: 1`).
 
 **Strict mode** (`HANDMON_STRICT=1`): the gate blocks once. Claude Code: the
 `Stop` hook exits 2 with the reason, so the agent writes the block before

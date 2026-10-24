@@ -376,14 +376,29 @@ function scan(text) {
 }
 
 /*
- * Whether a close says it is blocked: the block's Status, or, when the close
- * has no [HANDOFF] marker, a Status line of its own that reads blocked - the
- * fields written without the marker are still the agent's word on the close.
+ * The status a close gives itself: the block's Status, or, when the close has
+ * no [HANDOFF] marker, a Status line of its own - the fields written without
+ * the marker are still the agent's word on the close.
  */
-function closedBlocked(res, text) {
-  if (res && res.status === 'blocked') return true;
-  if (res && res.blocks) return false;
-  return /^[ \t]*(?:[-*][ \t]+)?(?:\*\*|__)?status(?:\*\*|__)?[ \t]*:(?:\*\*|__)?[ \t]*(?:\*\*|__)?blocked\b/im.test(String(text || ''));
+function closedStatus(res, text) {
+  if (res && res.status) return res.status;
+  if (res && res.blocks) return null;
+  const m = String(text || '').match(/^[ \t]*(?:[-*][ \t]+)?(?:\*\*|__)?status(?:\*\*|__)?[ \t]*:(?:\*\*|__)?[ \t]*(?:\*\*|__)?(done|waiting|needs-decision|blocked)\b/im);
+  return m ? m[1].toLowerCase() : null;
 }
 
-module.exports = { scan, closedBlocked, STATUSES, CLOSING_LINES };
+/*
+ * The one close the Stop holds once in either mode, read off the turn's own
+ * signals: a search found nothing, and the close stops on it - `blocked`, or
+ * `needs-decision` in a turn that wrote nothing, which hands back whether to
+ * do the work instead of doing it. Returns 'blocked', 'asked' or null.
+ */
+function stopOnNothing(res, text, fired) {
+  if (!fired || !fired.empty) return null;
+  const status = closedStatus(res, text);
+  if (status === 'blocked') return 'blocked';
+  if (status === 'needs-decision' && !fired.wrote) return 'asked';
+  return null;
+}
+
+module.exports = { scan, closedStatus, stopOnNothing, STATUSES, CLOSING_LINES };
