@@ -301,7 +301,7 @@ the full lists and the per-host notes.
 | [handoff-self-monitoring](plugins/handoff-self-monitoring/) | available | Structured-handoff discipline: the final message closes with a `[HANDOFF]` block modelled on SBAR / I-PASS — status, situation in the reader's terms, options with a default, one next action. Injects the format on the first green gate or commit of the turn; flags a decision named but not handed off. Non-blocking by default except a blocked close after a search that found nothing, which blocks once; opt-in strict gate. |
 | [integrity-self-monitoring](plugins/integrity-self-monitoring/) | available | Real-result discipline: when a service, a key or consistent tests are missing, the result is an error that says so, not a fallback that looks done. Reads each edit to product code for made-up data where a service was asked for, or code that reads its caller, and each shell command for a change to the machine or a server started; each finding is said once, with what it means for you. Nothing on the prompt. Never blocks. |
 | [progress-self-monitoring](plugins/progress-self-monitoring/) | available | Cross-session ledger discipline: what a session leaves `blocked` or `returned`, with the reason, and the next action, kept in `.agent/progress.md` and re-opened before the next session works. Announces the ledger's open items when a session opens or continues after a compaction; notices a turn that edited files and left it untouched. Never blocks. |
-| [hygiene-self-monitoring](plugins/hygiene-self-monitoring/) | new (0.1) | Change-scope discipline: the public functions a change reaches - an exported function, a helper other callers use, a sibling fixed for consistency - are recorded file by file, and the close names what the request does not and puts it back or offers it to the owner. Size is not the measure. Non-blocking by default, opt-in strict gate. |
+| [hygiene-self-monitoring](plugins/hygiene-self-monitoring/) | new (0.1) | Change-scope discipline: the public functions a change reaches - an exported function, a helper other callers use, a sibling fixed for consistency - are recorded file by file, and the close names what the request does not and puts it back or offers it to the owner. Size is not the measure. Non-blocking by default except a block that contradicts itself, which blocks once; opt-in strict gate. |
 
 Each plugin folder has its own README with design notes, host differences,
 debugging tips and the research it draws on. What each host runs is in
@@ -329,10 +329,12 @@ here is exactly what they are:
   changed in three decisions. No hook writes any
   of them. What a hook
   reads never becomes what it says: [SECURITY.md](SECURITY.md).
-- **Never blocking by default, with one exception.** Every hook fails silent: an error in a hook
-  lets the prompt, tool call or stop proceed. The exception is handoff's: a
-  `blocked` close in a turn whose search found nothing blocks once, because
-  the finding is otherwise held for a next prompt a one-turn task never has. Five opt-in gates exist —
+- **Never blocking by default, with two exceptions.** Every hook fails silent: an error in a hook
+  lets the prompt, tool call or stop proceed. The exceptions stop a close the
+  agent itself contradicts, once, because the finding is otherwise held for a
+  next prompt a one-turn task never has: handoff's, a close that stops on a
+  search that found nothing, and hygiene's, a block that keeps what its own
+  Outside names or says it put back what the code still has. Five opt-in gates exist —
   `EPIMON_STRICT` (an incomplete closure block), `TERMMON_STRICT` (a
   state-shaped reason to stop with no checkable one), `HANDMON_STRICT` (a
   decision named with no handoff), `ASPMON_STRICT` (a close after a change

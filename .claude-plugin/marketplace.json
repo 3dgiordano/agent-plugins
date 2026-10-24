@@ -55,7 +55,7 @@
     {
       "name": "hygiene-self-monitoring",
       "source": "./plugins/hygiene-self-monitoring",
-      "description": "Change-scope self-check: the public functions a change reaches - an exported function, a helper other callers use, a sibling fixed for consistency - are recorded file by file, and the close names what the request does not and puts it back or to the owner. Shared skill + per-host hooks. Non-blocking by default, opt-in strict gate."
+      "description": "Change-scope self-check: the public functions a change reaches - an exported function, a helper other callers use, a sibling fixed for consistency - are recorded file by file, and the close names what the request does not and puts it back or to the owner. Shared skill + per-host hooks. Non-blocking by default except a block that contradicts itself, which blocks once; opt-in strict gate."
     }
   ]
 }

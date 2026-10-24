@@ -6,7 +6,7 @@ Keep a change to what the request names. A fix can keep the request's own check 
 
 It answers *"is the size and the kind of this change still the request's - or does it reach public behaviour the request does not name?"*
 
-**Non-blocking by default.** Findings become a one-line retrospective on the next prompt; `HYGMON_STRICT=1` turns the Stop into a gate that fires once.
+**Non-blocking by default, with one exception.** Findings become a one-line retrospective on the next prompt; `HYGMON_STRICT=1` turns the Stop into a gate that fires once. The exception: a block that contradicts itself - its Outside names a change and its Decision keeps it, or its Decision puts back or offers what the code still has - holds the close once in either mode.
 
 ## Why it works: the reach is recorded, not remembered
 
@@ -38,7 +38,7 @@ A finding carries the path, the lines and the count - never a function's name, n
 
 ## The gate - non-blocking by default, strict on request
 
-**Default:** findings go to the opt-in log and into the next prompt as one line (Claude Code, Codex). The turn ends normally. The user sees one notice line (`systemMessage`); `HYGMON_NOTICE=0` turns that off.
+**Default:** findings go to the opt-in log and into the next prompt as one line (Claude Code, Codex). The turn ends normally - except for the block contradicting itself - Outside named and the Decision `keep`, or a `revert-extra` or `ask-owner` while a public function the request does not name is still changed - which blocks once as the strict gate does: the block against its own words or against the code, so it has few false alarms, and parked for the next prompt it never reached a one-turn task. The finding offers the way out of a wrong label too: what the request needs is not outside, and moves to Request names with the words of the request that need it. The agent may keep its close on the next stop. The user sees one notice line (`systemMessage`); `HYGMON_NOTICE=0` turns that off.
 
 **Strict** (`HYGMON_STRICT=1`): the gate blocks once. Claude Code exits 2. Cursor returns a `followup_message` once (`loop_limit: 1`).
 

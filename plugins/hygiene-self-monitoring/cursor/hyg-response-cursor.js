@@ -27,6 +27,7 @@ function main(raw) {
     reached = groups.length;
     res = scan(data.text || '', groups);
     st.pending = res.violations;
+    st.pendingBlock = Boolean(res.contradicts); // submitted once in either mode (cursor/hyg-stop-cursor.js)
   });
   logEvent(cwdOf(data), { event: 'response', host: 'cursor', conversation: cid, block: res.block, decision: res.decision || null, reached, violations: res.violations.length, strict: strict() });
 }

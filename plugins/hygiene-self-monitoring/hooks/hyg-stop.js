@@ -10,8 +10,9 @@
  * whether a change was right - only whether the block accounts for what the
  * edits reached.
  *
- * Default: park the finding for the next prompt, and show the user one line.
- * Strict (HYGMON_STRICT): block the stop once. A subagent close is measured
+ * Default: park the finding for the next prompt, and show the user one line -
+ * except the block's own contradictions - Outside named and kept, or put back
+ * or offered while the code still has it - which block the stop once. Strict (HYGMON_STRICT): block the stop once on any finding. A subagent close is measured
  * only - never blocks, never parks.
  *
  * Fails silent: any error lets the stop proceed.
@@ -40,7 +41,10 @@ function main(raw) {
     ? reachedAll(state.load(HOST, sid, actor))
     : reachedWith(state.load(HOST, sid), state.actors(HOST, sid).map((a) => state.load(HOST, sid, a)));
   const res = scan(data.last_assistant_message || '', groups);
-  const blocking = strict() && res.violations.length > 0 && !data.stop_hook_active && !subagent;
+  // A block that contradicts itself - keeps what its own Outside names, or
+  // says it put back what the code still has - holds the close once in either
+  // mode: parked for the next prompt, it never reached a one-turn task.
+  const blocking = Boolean(strict() ? res.violations.length > 0 : res.contradicts) && !data.stop_hook_active && !subagent;
 
   logEvent(cwdOf(data), {
     event: subagent ? 'subagent_stop' : 'stop', session: sid, actor, block: res.block, decision: res.decision || null,

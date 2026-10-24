@@ -1,7 +1,7 @@
 {
   "name": "hygiene-self-monitoring",
   "version": "0.4.0",
-  "description": "Keep a change to what the request names. Bundles the hygiene-self-monitoring skill (the 'what': list the public behaviour a change reaches - an exported function, a helper other callers use, a sibling fixed for consistency, a documented default - mark what the request names, and put back or offer to the owner what it does not; size is not the measure) with per-host hooks (the 'when') that record which public functions the session's edits changed, file and line, and read the [HYGIENE CHECK] at the close against that record. Non-blocking by default; HYGMON_STRICT=1 blocks once. Claude Code: SessionStart load + baseline, PostToolUse reach record and nudge, Stop read of the block, UserPromptSubmit retrospective.",
+  "description": "Keep a change to what the request names. Bundles the hygiene-self-monitoring skill (the 'what': list the public behaviour a change reaches - an exported function, a helper other callers use, a sibling fixed for consistency, a documented default - mark what the request names, and put back or offer to the owner what it does not; size is not the measure) with per-host hooks (the 'when') that record which public functions the session's edits changed, file and line, and read the [HYGIENE CHECK] at the close against that record. Non-blocking by default, except a block that contradicts itself (Outside kept, or put back while the code still has it), which blocks once; HYGMON_STRICT=1 blocks once on any finding. Claude Code: SessionStart load + baseline, PostToolUse reach record and nudge, Stop read of the block, UserPromptSubmit retrospective.",
   "author": {
     "name": "David Giordano",
     "url": "https://github.com/3dgiordano"

@@ -84,18 +84,24 @@ function scan(text, reached) {
     return { block: false, violations };
   }
   const decision = decisionOf(b.decision);
-  if (!isNone(b.outside) && decision && decision.toLowerCase() === 'keep') {
-    violations.push('Outside names a change and the Decision is keep - what is outside the request goes back as it was (revert-extra) or to the owner (ask-owner)');
+  // The block's own contradictions: it names a change outside the request and
+  // keeps it, or says it put back or offered what the code still has. The
+  // Stop holds these in either mode (hooks/hyg-stop.js).
+  const kept = !isNone(b.outside) && Boolean(decision) && decision.toLowerCase() === 'keep';
+  if (kept) {
+    violations.push('Outside names a change and the Decision is keep - if it is outside the request, it goes back as it was (revert-extra) or to the owner (ask-owner); if the request needs it, it is not outside: move it to Request names and quote what in the request needs it');
   }
   const unnamed = groups.filter((g) => g.how !== 'added' && !named(g, b.request));
   const count = `${unnamed.length} public function${unnamed.length > 1 ? 's' : ''} this session changed ${unnamed.length > 1 ? 'are' : 'is'}`;
   if (isNone(b.outside)) {
     if (unnamed.length) violations.push(`Outside is none, while ${count} not in Request names (${where(unnamed)})`);
-  } else if (decision && decision.toLowerCase() !== 'keep' && unnamed.length) {
-    // The record is the code as it stands: a function put back is no longer in it.
-    violations.push(`the Decision is ${decision.toLowerCase()}, while ${count} still changed and not in Request names (${where(unnamed)}) - put back means the code is as it was`);
   }
-  return { block: true, decision: decision || null, violations };
+  // The record is the code as it stands: a function put back is no longer in it.
+  const unreverted = !isNone(b.outside) && Boolean(decision) && decision.toLowerCase() !== 'keep' && unnamed.length > 0;
+  if (unreverted) {
+    violations.push(`the Decision is ${decision.toLowerCase()}, while ${count} still changed and not in Request names (${where(unnamed)}) - put back means the code is as it was, and ask-owner puts it back too; if the request needs a change, it is not outside: move it to Request names and quote what in the request needs it`);
+  }
+  return { block: true, decision: decision || null, kept, contradicts: kept || unreverted, violations };
 }
 
 module.exports = { parse, scan };

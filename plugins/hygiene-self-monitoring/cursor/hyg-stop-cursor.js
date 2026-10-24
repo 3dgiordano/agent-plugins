@@ -3,7 +3,9 @@
  * Hygiene self-monitoring - Cursor stop hook.
  *
  * Default: does nothing. The findings stay in the log. Cursor has no
- * non-blocking per-prompt injection point for the retrospective.
+ * non-blocking per-prompt injection point for the retrospective. One finding
+ * is submitted once in this mode too: the block contradicting itself
+ * (Outside named and kept, or put back while the code still has it).
  *
  * Strict (HYGMON_STRICT): returns a followup_message once (loop_count === 0,
  * loop_limit 1), so the agent accounts for what its edits reached. Fails
@@ -24,13 +26,16 @@ function main(raw) {
   const cid = data.conversation_id || 'noconversation';
 
   let pending = [];
+  let kept = false;
   state.update(HOST, cid, (st) => {
     pending = Array.isArray(st.pending) ? st.pending : [];
+    kept = st.pendingBlock === true;
     st.pending = [];
+    st.pendingBlock = false;
   });
 
   const firstStop = !data.loop_count;
-  const blocking = strict() && pending.length > 0 && firstStop && data.status !== 'aborted';
+  const blocking = (strict() ? pending.length > 0 : kept) && firstStop && data.status !== 'aborted';
   logEvent(cwdOf(data), { event: 'stop', host: 'cursor', conversation: cid, status: data.status, violations: pending.length, blocked: blocking });
   if (blocking) process.stdout.write(JSON.stringify({ followup_message: msg.blockReason(pending) }));
 }

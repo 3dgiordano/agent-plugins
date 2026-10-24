@@ -5053,6 +5053,20 @@ test('hygiene (claude): session start takes the baseline, an edit that reaches t
   assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: close.replace('- Request names: has()', '- Request names: has() and delete()') }), { HYGMON_STRICT: '1' }).code, 0);
   // A subagent close is measured only.
   assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'SubagentStop', last_assistant_message: 'done' }), { HYGMON_STRICT: '1' }).code, 0);
+  // The block's own contradiction - Outside named, Decision keep - holds the close once by default.
+  const keptClose = '[HYGIENE CHECK]\n- Request names: has()\n- Change reaches: has, delete\n- Outside: delete() now folds case too\n- Decision: keep';
+  const held = hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: keptClose }));
+  assert.equal(held.code, 2, 'default mode');
+  assert.match(held.err, /^Hygiene gate: Outside names a change and the Decision is keep/);
+  assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', stop_hook_active: true, last_assistant_message: keptClose })).code, 0, 'once');
+  // ask-owner while delete() still folds case: the other contradiction, held once too.
+  const offered = hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: keptClose.replace('Decision: keep', 'Decision: ask-owner') }));
+  assert.equal(offered.code, 2, 'put back or offered while the code still has it');
+  assert.match(offered.err, /the Decision is ask-owner, while 1 public function this session changed is still changed and not in Request names \(index\.js line \d+\) - put back means the code is as it was, and ask-owner puts it back too/);
+  assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', stop_hook_active: true, last_assistant_message: keptClose.replace('Decision: keep', 'Decision: ask-owner') })).code, 0, 'once');
+  assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: close })).code, 0, 'Outside none still waits for the next prompt by default');
+  assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: keptClose.replace('Decision: keep', 'Decision: ask-owner').replace('- Request names: has()', '- Request names: has() and delete()') })).code, 0, 'offered, and the request names it: nothing to hold');
+  assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'SubagentStop', last_assistant_message: keptClose })).code, 0, 'a subagent is never held');
 });
 
 test('hygiene (claude): an edit without a read or a snapshot takes its baseline from the text it replaced', (t) => {
@@ -5095,6 +5109,10 @@ test('hygiene (cursor): sessionStart loads and takes the workspace baseline, pos
   const gate = JSON.parse(hook(HYG, 'cursor/hyg-stop-cursor.js', { conversation_id: cid, loop_count: 0 }, Object.assign({ HYGMON_STRICT: '1' }, env)).out);
   assert.match(gate.followup_message, /^Hygiene gate: no \[HYGIENE CHECK\], while this session's edits changed the code of 2 public functions/);
   assert.equal(hook(HYG, 'cursor/hyg-stop-cursor.js', { conversation_id: cid, loop_count: 1 }, Object.assign({ HYGMON_STRICT: '1' }, env)).out, '', 'once');
+  // Outside named and kept: submitted once in the default mode too.
+  hook(HYG, 'cursor/hyg-response-cursor.js', { conversation_id: cid, workspace_roots: [dir], text: '[HYGIENE CHECK]\n- Request names: parse()\n- Change reaches: parse, legacy\n- Outside: legacy() decodes + too\n- Decision: keep' }, env);
+  assert.match(JSON.parse(hook(HYG, 'cursor/hyg-stop-cursor.js', { conversation_id: cid, loop_count: 0 }, env).out).followup_message, /Outside names a change and the Decision is keep/);
+  assert.equal(hook(HYG, 'cursor/hyg-stop-cursor.js', { conversation_id: cid, loop_count: 0 }, env).out, '', 'consumed');
 });
 
 /*
