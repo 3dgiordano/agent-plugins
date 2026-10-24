@@ -89,7 +89,7 @@ function scan(text, reached) {
   // Stop holds these in either mode (hooks/hyg-stop.js).
   const kept = !isNone(b.outside) && Boolean(decision) && decision.toLowerCase() === 'keep';
   if (kept) {
-    violations.push('Outside names a change and the Decision is keep - if it is outside the request, it goes back as it was (revert-extra) or to the owner (ask-owner); if the request needs it, it is not outside: move it to Request names and quote what in the request needs it');
+    violations.push('Outside names a change and the Decision is keep - if it is outside the request, it goes back as it was (revert-extra) or to the owner (ask-owner); if the request needs it, show it by a run - a fix that changes only what the request names fails the request\'s own example - and then it moves to Request names');
   }
   const unnamed = groups.filter((g) => g.how !== 'added' && !named(g, b.request));
   const count = `${unnamed.length} public function${unnamed.length > 1 ? 's' : ''} this session changed ${unnamed.length > 1 ? 'are' : 'is'}`;
@@ -99,7 +99,7 @@ function scan(text, reached) {
   // The record is the code as it stands: a function put back is no longer in it.
   const unreverted = !isNone(b.outside) && Boolean(decision) && decision.toLowerCase() !== 'keep' && unnamed.length > 0;
   if (unreverted) {
-    violations.push(`the Decision is ${decision.toLowerCase()}, while ${count} still changed and not in Request names (${where(unnamed)}) - put back means the code is as it was, and ask-owner puts it back too; if the request needs a change, it is not outside: move it to Request names and quote what in the request needs it`);
+    violations.push(`the Decision is ${decision.toLowerCase()}, while ${count} still changed and not in Request names (${where(unnamed)}) - put back means the code is as it was, and ask-owner puts it back too; if the request needs a change, show it by a run - a fix that changes only what the request names fails the request's own example - and then it moves to Request names`);
   }
   return { block: true, decision: decision || null, kept, contradicts: kept || unreverted, violations };
 }

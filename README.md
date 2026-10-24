@@ -232,10 +232,12 @@ hears how many and where - the path and the lines, never the names:
 [hygiene self-monitoring] Since the session started, your edits changed the
 code of 3 public functions (src/headers.js lines 17, 30, 35). The request may
 name some of them; each one it does not name is outside it - put it back, or
-offer it to the owner with what it would change for callers. Close with the
-[HYGIENE CHECK] markdown list: Request names, Change reaches, Outside,
-Decision (keep | revert-extra | ask-owner). If you do not know what these
-markers ask for, load the hygiene-self-monitoring skill ("Core Protocol").
+offer it to the owner with what it would change for callers. Before you count
+one as needed, try a fix that changes only what the request names and run the
+request's own example. Close with the [HYGIENE CHECK] markdown list: Request
+names, Change reaches, Outside, Decision (keep | revert-extra | ask-owner). If
+you do not know what these markers ask for, load the hygiene-self-monitoring
+skill ("Core Protocol").
 ```
 
 The epistemic line arrives when a claim is about to be closed on, and asks for

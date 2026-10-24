@@ -13,6 +13,9 @@ description: "Change-scope discipline for a fix or a feature that touches shared
   names.
 - One it does not name is left as it was, or put to the owner as a decision.
   It is never kept on your own call.
+- "The request needs it" is shown by a run, not argued: try a fix that
+  changes only what the request names and run the request's own example.
+  Only if no such fix makes it pass does the request need more.
 - Size is not the measure: a one-line change can reach three public
   functions, and a long tidy-up can reach none.
 - Write the `[HYGIENE CHECK]` block: Request names, Change reaches, Outside,
@@ -64,6 +67,14 @@ against the request.
 
    Neither is wrong in itself; each is a change the owner did not ask for,
    made on their behalf.
+
+   **Needed is a run, not an argument.** A function the request does not name
+   is needed only if no fix that leaves it as it was makes the request's own
+   example pass. The pull to count it needed comes as a reason - the design
+   stays coherent, a standard the request cites covers it too, the code is
+   shared - and a reason is not that run. Try the narrow fix: change only
+   what the request names, run the example. If it passes, the rest is
+   outside, however coherent the wider change looks.
 
 4. **Decide, and say so.** Outside the request means one of two things: put
    it back as it was (`revert-extra`), or put it back too and offer the change

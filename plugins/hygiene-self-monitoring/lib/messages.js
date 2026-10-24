@@ -17,6 +17,7 @@ const LOAD =
 function nudge(n, where) {
   return `[hygiene self-monitoring] Since the session started, your edits changed the code of ${n} public functions (${where}). ` +
     'The request may name some of them; each one it does not name is outside it - put it back, or offer it to the owner with what it would change for callers. ' +
+    'Before you count one as needed, try a fix that changes only what the request names and run the request\'s own example. ' +
     `Close with the [HYGIENE CHECK] markdown list: ${FIELDS}. ${PROTOCOL}`;
 }
 
