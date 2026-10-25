@@ -1,0 +1,69 @@
+{
+  "name": "3dgiordano-agent-plugins",
+  "owner": {
+    "name": "3dgiordano"
+  },
+  "metadata": {
+    "description": "Reusable plugins for coding agents (Claude Code, Codex, Cursor, Factory Droid, and Agent Plugins-compatible hosts) by 3dgiordano."
+  },
+  "plugins": [
+    {
+      "name": "executive-self-monitoring",
+      "source": "./plugins/executive-self-monitoring",
+      "description": "Plan-anchored drift self-check: shared skill + per-host cadence hook, installable as one unit.",
+      "category": "developer-tools"
+    },
+    {
+      "name": "epistemic-self-monitoring",
+      "source": "./plugins/epistemic-self-monitoring",
+      "description": "Observation-vs-conjecture discipline: claims carry their evidence and a named falsifier; only verified claims become facts or closures. Shared skill + per-host hooks.",
+      "category": "developer-tools"
+    },
+    {
+      "name": "persistence-self-monitoring",
+      "source": "./plugins/persistence-self-monitoring",
+      "description": "Persist-or-quit signal: counts repeated attempts on the same file, command or error and effort since the user last spoke, and nudges only when a threshold is crossed. Shared skill + per-host hooks. Never blocks.",
+      "category": "developer-tools"
+    },
+    {
+      "name": "termination-self-monitoring",
+      "source": "./plugins/termination-self-monitoring",
+      "description": "Checkable-reason discipline: a state-shaped reason to stop, defer or narrow (context budget, long session, not confident enough, given the complexity, a run of apologies) is replaced by a checkable one or dropped, and the work continues. Shared skill + per-host hooks. Non-blocking by default, opt-in strict gate.",
+      "category": "developer-tools"
+    },
+    {
+      "name": "coverage-self-monitoring",
+      "source": "./plugins/coverage-self-monitoring",
+      "description": "Parts-ledger discipline: the parts of a request, the hardest first, each closed as done, blocked with an observed reason, or returned to the owner. Hooks count stubs and TODOs written per turn and flag deferred work with no closing ledger. Shared skill + per-host hooks. Never blocks.",
+      "category": "developer-tools"
+    },
+    {
+      "name": "handoff-self-monitoring",
+      "source": "./plugins/handoff-self-monitoring",
+      "description": "Structured-handoff discipline: the final message of a turn closes with a [HANDOFF] block modelled on SBAR / I-PASS - Status, Situation in the reader's terms, Options with a default, one Next action - so the reader can act without the trace. Hooks inject the format on the first closing-shaped tool call and flag a decision named but not handed off. Shared skill + per-host hooks. Non-blocking by default except a blocked close after a search that found nothing, which blocks once; opt-in strict gate.",
+      "category": "developer-tools"
+    },
+    {
+      "name": "progress-self-monitoring",
+      "source": "./plugins/progress-self-monitoring",
+      "description": "Cross-session ledger discipline: what a session leaves blocked or returned, with the reason, and the next action, kept in .agent/progress.md and re-opened before the next session works. Hooks announce the ledger's open items when a session opens or continues after a compaction, and notice a turn that edited files and left it untouched. Shared skill + per-host hooks. Never blocks."
+    },
+    {
+      "name": "integrity-self-monitoring",
+      "source": "./plugins/integrity-self-monitoring",
+      "description": "Real-result discipline: when a service, a key or consistent tests are missing, the result is an error that says so, not a fallback that looks done. Hooks read each edit to product code for made-up data where a service was asked for (a rate table, a catch that answers, a missing key answered, a second host) or code that reads its caller, and each shell command for a change to the machine or a server started; each finding is said once, with what it means for the user. Shared skill + per-host hooks. No message on the prompt. Never blocks."
+    },
+    {
+      "name": "aspiration-self-monitoring",
+      "source": "./plugins/aspiration-self-monitoring",
+      "description": "Review-before-you-close self-check: a close with an edited file nobody reviewed in its medium (a document read, an image viewed, code run) is named, and the result is compared, point by point, with a source the agent did not write - the original, the specification, the real input, the owner's words. Shared skill + per-host hooks. Non-blocking by default, opt-in strict gate.",
+      "category": "developer-tools"
+    },
+    {
+      "name": "hygiene-self-monitoring",
+      "source": "./plugins/hygiene-self-monitoring",
+      "description": "Change-scope self-check: the public functions a change reaches - an exported function, a helper other callers use, a sibling fixed for consistency - are recorded file by file, and the close names what the request does not and puts it back or to the owner. Shared skill + per-host hooks. Non-blocking by default except a block that contradicts itself, which blocks once; opt-in strict gate.",
+      "category": "developer-tools"
+    }
+  ]
+}

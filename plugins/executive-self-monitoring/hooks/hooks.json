@@ -65,7 +65,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Read|Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell",
+        "matcher": "Read|Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Create|ApplyPatch|Execute",
         "hooks": [
           {
             "type": "command",

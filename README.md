@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/3dgiordano/agent-plugins/actions/workflows/ci.yml/badge.svg)](https://github.com/3dgiordano/agent-plugins/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-![Works with](https://img.shields.io/badge/works%20with-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20Agent%20Plugins-informational)
+![Works with](https://img.shields.io/badge/works%20with-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20Factory%20Droid%20%C2%B7%20Agent%20Plugins-informational)
 
 [![DeepWiki](https://img.shields.io/badge/DeepWiki-3dgiordano%2Fagent--plugins-blue.svg?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAyCAYAAAAnWDnqAAAAAXNSR0IArs4c6QAAA05JREFUaEPtmUtyEzEQhtWTQyQLHNak2AB7ZnyXZMEjXMGeK/AIi+QuHrMnbChYY7MIh8g01fJoopFb0uhhEqqcbWTp06/uv1saEDv4O3n3dV60RfP947Mm9/SQc0ICFQgzfc4CYZoTPAswgSJCCUJUnAAoRHOAUOcATwbmVLWdGoH//PB8mnKqScAhsD0kYP3j/Yt5LPQe2KvcXmGvRHcDnpxfL2zOYJ1mFwrryWTz0advv1Ut4CJgf5uhDuDj5eUcAUoahrdY/56ebRWeraTjMt/00Sh3UDtjgHtQNHwcRGOC98BJEAEymycmYcWwOprTgcB6VZ5JK5TAJ+fXGLBm3FDAmn6oPPjR4rKCAoJCal2eAiQp2x0vxTPB3ALO2CRkwmDy5WohzBDwSEFKRwPbknEggCPB/imwrycgxX2NzoMCHhPkDwqYMr9tRcP5qNrMZHkVnOjRMWwLCcr8ohBVb1OMjxLwGCvjTikrsBOiA6fNyCrm8V1rP93iVPpwaE+gO0SsWmPiXB+jikdf6SizrT5qKasx5j8ABbHpFTx+vFXp9EnYQmLx02h1QTTrl6eDqxLnGjporxl3NL3agEvXdT0WmEost648sQOYAeJS9Q7bfUVoMGnjo4AZdUMQku50McDcMWcBPvr0SzbTAFDfvJqwLzgxwATnCgnp4wDl6Aa+Ax283gghmj+vj7feE2KBBRMW3FzOpLOADl0Isb5587h/U4gGvkt5v60Z1VLG8BhYjbzRwyQZemwAd6cCR5/XFWLYZRIMpX39AR0tjaGGiGzLVyhse5C9RKC6ai42ppWPKiBagOvaYk8lO7DajerabOZP46Lby5wKjw1HCRx7p9sVMOWGzb/vA1hwiWc6jm3MvQDTogQkiqIhJV0nBQBTU+3okKCFDy9WwferkHjtxib7t3xIUQtHxnIwtx4mpg26/HfwVNVDb4oI9RHmx5WGelRVlrtiw43zboCLaxv46AZeB3IlTkwouebTr1y2NjSpHz68WNFjHvupy3q8TFn3Hos2IAk4Ju5dCo8B3wP7VPr/FGaKiG+T+v+TQqIrOqMTL1VdWV1DdmcbO8KXBz6esmYWYKPwDL5b5FA1a0hwapHiom0r/cKaoqr+27/XcrS5UwSMbQAAAABJRU5ErkJggg==)](https://deepwiki.com/3dgiordano/agent-plugins)
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/3dgiordano)](https://github.com/sponsors/3dgiordano)
@@ -15,7 +15,8 @@ Cognitive scaffolding for coding agents, by [3dgiordano](https://github.com/3dgi
 
 ## In one minute
 
-Ten independent plugins for Claude Code, Codex and Cursor. Each one gives a
+Ten independent plugins for Claude Code, Codex and Cursor, and for Factory
+Droid from its documentation. Each one gives a
 coding agent one of the self-checks a careful engineer runs in the
 background — *am I still on the plan?*, *is this actually verified?*, *is it
 worth another try?*, *is that a reason or a phrase?*, *did I do the hard
@@ -287,6 +288,13 @@ then `/hooks` once in a `codex` session to trust the plugin's hooks.
 **Cursor** — Dashboard → Plugins → Add Marketplace → *Import from Repo*,
 `3dgiordano/agent-plugins`, then install from Customize → Plugins.
 
+**Factory Droid** (built from its documentation; not run on Droid yet)
+
+```
+droid plugin marketplace add 3dgiordano/agent-plugins
+droid plugin install persistence-self-monitoring@agent-plugins
+```
+
 Swap in any of the other nine, or install all ten: [Install](#install) has
 the full lists and the per-host notes.
 
@@ -346,11 +354,12 @@ here is exactly what they are:
 - **Visible when it finds something.** A finding - a close without its
   block, a counter over its threshold, open items in the ledger - also shows
   you one line in the transcript (Claude Code and Codex; Cursor has no field
-  for it). The ledger's line comes with your first message, not when the
+  for it, and Droid documents none). The ledger's line comes with your first message, not when the
   session opens: the desktop app does not show a notice sent at session
   start. Off per plugin with `*_NOTICE=0`.
 - **Tested as the host runs them.** CI drives every adapter with the JSON its
-  host sends, on Ubuntu, Windows and macOS, Node 18/20/22.
+  host sends (for Droid, the JSON its hooks reference documents), on Ubuntu,
+  Windows and macOS, Node 18/20/22.
 
 ## Research, not only software
 
@@ -382,12 +391,14 @@ GitHub's "Cite this repository" ([CITATION.cff](CITATION.cff)).
 ## Requirements
 
 - **`node` on the host's PATH, Node 18 or later.** Every hook is launched as
-  `node <script>`, by Claude Code, Codex or Cursor. The hooks use Node's
+  `node <script>`, by Claude Code, Codex, Cursor or Droid. The hooks use Node's
   built-ins only (`fs`, `os`, `path`), with no packages and no network.
 - **A host that runs plugin hooks**: Claude Code, Codex (after trusting the
   hooks once with `/hooks`), or Cursor. On Cursor headless (`agent -p`),
-  hooks run only when the process was not started from Git Bash. Any other
-  Agent Skills or Agent Plugins client gets the skills and no hooks.
+  hooks run only when the process was not started from Git Bash. Factory
+  Droid runs the Claude Code hooks, without the close checks
+  ([Factory Droid](#factory-droid)). Any other Agent Skills or Agent Plugins
+  client gets the skills and no hooks.
 - Nothing else: no build step, no install script, no service.
 
 What this repository's own test pipeline, evals and bench need is in
@@ -475,6 +486,50 @@ from Repo*, `3dgiordano/agent-plugins`), then install the plugin from
 **Customize → Plugins**. Cursor loads the shared skill directly and registers the
 `sessionStart` hook from `cursor/hooks.json`. Restart Cursor after installing.
 
+### Factory Droid
+
+Droid reads `.factory-plugin/marketplace.json` and installs each plugin's
+Claude Code layout as it is (it renames `.claude-plugin/` in its own cache,
+not in the repository), so it runs the same `hooks/hooks.json`. It registers
+the marketplace under the repository's name, so the plugin id ends in
+`@agent-plugins`; `droid plugin marketplace list` shows the name it
+registered.
+
+```
+droid plugin marketplace add 3dgiordano/agent-plugins
+droid plugin install executive-self-monitoring@agent-plugins
+droid plugin install epistemic-self-monitoring@agent-plugins
+droid plugin install persistence-self-monitoring@agent-plugins
+droid plugin install termination-self-monitoring@agent-plugins
+droid plugin install aspiration-self-monitoring@agent-plugins
+droid plugin install coverage-self-monitoring@agent-plugins
+droid plugin install handoff-self-monitoring@agent-plugins
+droid plugin install progress-self-monitoring@agent-plugins
+droid plugin install integrity-self-monitoring@agent-plugins
+droid plugin install hygiene-self-monitoring@agent-plugins
+```
+
+`--scope project` installs for the project instead of for you.
+
+**Not run on Droid yet.** This follows Factory's
+[plugins](https://docs.factory.com/cli/configuration/plugins) and
+[hooks](https://docs.factory.com/reference/hooks-reference) references. The
+tests drive every hook with the payloads they document; no Droid session has
+run them. What follows from those references:
+
+- The skill, its text when a session starts, the prompt reminders and the
+  counters on tool calls work as on Claude Code: Droid has the same events,
+  sends `cwd`, and takes `hookSpecificOutput.additionalContext`. Its tools
+  are `Create`, `Edit`, `ApplyPatch` and `Execute`, and the hooks count them.
+- The close checks do not reach Droid: its `Stop` event does not send the
+  agent's final message, and its transcript format is not documented. A
+  finding about the turn's edits, such as progress's untouched ledger, still
+  reaches the agent on the next prompt.
+- Droid has no subagent-start event, so a subagent does not get the skill's
+  text.
+- Droid documents no `systemMessage`, so the one-line notice to you may not
+  show.
+
 ### Local development
 
 To test changes from a checkout instead of GitHub, register the folder path as
@@ -488,13 +543,14 @@ same `<plugin>@3dgiordano-agent-plugins` name.
 .claude-plugin/marketplace.json   # Claude Code marketplace index
 .cursor-plugin/marketplace.json   # Cursor marketplace index (same plugins)
 .agents/plugins/marketplace.json  # Codex marketplace index (same plugins)
+.factory-plugin/marketplace.json  # Factory Droid marketplace index (same plugins, Claude Code layout)
 plugins/<name>/
   .plugin/plugin.json             # Agent Plugins portable manifest (not at the root: see How it works)
   .claude-plugin/plugin.json      # Claude Code manifest
   .codex-plugin/plugin.json       # Codex manifest (points at skills/ and hooks/hooks.json)
   .cursor-plugin/plugin.json      # Cursor manifest (points hooks at cursor/)
   skills/<name>/SKILL.md          # shared core - the single source of truth
-  hooks/                          # Claude Code + Codex hook adapter
+  hooks/                          # Claude Code + Codex (+ Droid) hook adapter
   cursor/                         # Cursor hook adapter
   lib/                            # code shared by the adapters
 docs/                             # how it works, evidence, research, FAQ
@@ -537,7 +593,8 @@ each candidate threshold — the number is the signal only if it stays rare.
 CI runs the suite on Ubuntu, Windows and macOS across Node 18/20/22 for every push
 and pull request. The tests drive each hook script with the JSON its host
 sends and inspect stdout, stderr and exit codes, so a change that breaks a
-Claude Code, Codex or Cursor contract fails before it ships.
+Claude Code, Codex or Cursor contract, or Droid's documented one, fails
+before it ships.
 
 ## License
 

@@ -33,7 +33,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash|PowerShell|Monitor|BashOutput|TaskOutput",
+        "matcher": "Bash|PowerShell|Monitor|BashOutput|TaskOutput|Execute",
         "hooks": [
           {
             "type": "command",

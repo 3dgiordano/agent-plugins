@@ -102,32 +102,33 @@ Each plugin is one folder with a host-neutral skill and thin per-host hook adapt
 | **Claude Code** | `.claude-plugin/plugin.json` + `hooks/hooks.json`, installed from this repository as a marketplace |
 | **Codex** (CLI, ChatGPT desktop) | `.codex-plugin/plugin.json` + the same `hooks/hooks.json`; trust the hooks once with `/hooks` |
 | **Cursor** | `.cursor-plugin/plugin.json` + `cursor/hooks.json` |
+| **Factory Droid** | `.factory-plugin/marketplace.json` + the Claude Code layout and `hooks/hooks.json`, which Droid translates on install. Built from Factory's plugin and hooks references; not run on Droid yet |
 | **Any [Agent Plugins](https://agent-plugins.org) client** | `.plugin/plugin.json`: the portable core, skill only, no hooks. Kept out of the plugin root on purpose: Codex reads a root `plugin.json` through a loader that has no hooks slot and then ignores its own manifest ([openai/codex#39895](https://github.com/openai/codex/issues/39895)) |
 
-The skill is the same everywhere; the *when* depends on the events a host exposes. Codex exposes the same events as Claude Code, with the same payload and output envelope, so it runs the Claude Code adapter unchanged. Cursor has no non-blocking per-prompt event and cannot add context after the final message, so some reminders are logged there but not shown to the agent:
+The skill is the same everywhere; the *when* depends on the events a host exposes. Codex exposes the same events as Claude Code, with the same payload and output envelope, so it runs the Claude Code adapter unchanged. Cursor has no non-blocking per-prompt event and cannot add context after the final message, so some reminders are logged there but not shown to the agent. Droid runs the Claude Code adapter too, but its `Stop` event does not send the final message, so no close check reaches it (the Droid column follows its hooks reference, not a run):
 
-| Layer | Claude Code · Codex | Cursor |
-| --- | --- | --- |
-| The skill's text in context (handoff, progress, coverage, executive, hygiene, aspiration) | `SessionStart`: startup, `/clear`, compaction, and a resume that never had it; `SubagentStart` for every subagent | `sessionStart`; subagents do not get it (`subagentStart` takes no context) |
-| Ask for the skill (the other four), for an agent that does not know the marker | first prompt (+ periodic reminder, and after a compaction); a subagent at its start (persistence, epistemic, termination) | session start |
-| A subagent's own record (`agent_id`): its counts and nudges are its own; its changes reach the main agent, its reviews do not | ✓ | **—**: no subagent id read yet (not probed), one record per conversation |
-| Executive checkpoint cadence | every 5th prompt | once per session |
-| Executive changed-document line | ✓ (Claude Code) | — |
-| Executive plan write-back (the third decision since the plan last changed; an answered `revise-plan` with the plan unchanged) | ✓ | — |
-| Persistence counters + nudges | ✓ | ✓ |
-| Epistemic observe nudge | ✓ | ✓ |
-| Epistemic / termination close scan | ✓ + retrospective on the next prompt, strict gate | scan + strict gate (`followup_message`); **no retrospective** |
-| Coverage stub counter | ✓ | ✓ |
-| Coverage ledger prompt (3+ enumerated parts) | ✓ | **—** |
-| Coverage close scan (deferred work vs. `[COVERAGE CHECK]`) | ✓ + retrospective | **log only**: the agent is not told |
-| Handoff pre-close nudge (first green gate or commit) | ✓ | ✓ |
-| Handoff close scan (decision named vs. `[HANDOFF]`) | ✓ + retrospective, strict gate | scan + strict gate (`followup_message`); **no retrospective** |
-| Progress ledger status (open items at session start / after compaction) | ✓ (`SessionStart`, first prompt as fallback) | ✓ (`sessionStart`) |
-| Progress stale-ledger finding (edits, ledger untouched) | ✓ retrospective, once per ledger version | **log only**: the agent is not told |
-| Progress claim watch (the session's own claim runs out, ran out, is gone, or shares its item) | ✓ (`PostToolUse` while it holds one, and the next prompt) | **—**: claims are counted in the session-start status; no token, the agent picks its own |
-| Integrity reader (each edit and shell command) | ✓ | ✓ |
-| Integrity close (the block, a dispute shown to you) | ✓ | **log only**; not at all on a headless run |
-| Hygiene edit record + nudge (public functions the edits changed, path and lines) | ✓ | ✓ |
-| Hygiene close (the block against the record) | ✓ + retrospective, strict gate | scan + strict gate (`followup_message`); not at all on a headless run |
+| Layer | Claude Code · Codex | Cursor | Factory Droid |
+| --- | --- | --- | --- |
+| The skill's text in context (handoff, progress, coverage, executive, hygiene, aspiration) | `SessionStart`: startup, `/clear`, compaction, and a resume that never had it; `SubagentStart` for every subagent | `sessionStart`; subagents do not get it (`subagentStart` takes no context) | `SessionStart`: startup, `/clear`, compaction; subagents do not get it (no subagent-start event) |
+| Ask for the skill (the other four), for an agent that does not know the marker | first prompt (+ periodic reminder, and after a compaction); a subagent at its start (persistence, epistemic, termination) | session start | first prompt (+ periodic reminder, and after a compaction); not a subagent at its start |
+| A subagent's own record (`agent_id`): its counts and nudges are its own; its changes reach the main agent, its reviews do not | ✓ | **—**: no subagent id read yet (not probed), one record per conversation | **—**: no subagent id in the documented payload |
+| Executive checkpoint cadence | every 5th prompt | once per session | every 5th prompt |
+| Executive changed-document line | ✓ (Claude Code) | — | ? (`Read`'s input is not documented) |
+| Executive plan write-back (the third decision since the plan last changed; an answered `revise-plan` with the plan unchanged) | ✓ | — | **—**: `Stop` sends no final message |
+| Persistence counters + nudges | ✓ | ✓ | ✓ |
+| Epistemic observe nudge | ✓ | ✓ | ✓ (`Execute`) |
+| Epistemic / termination close scan | ✓ + retrospective on the next prompt, strict gate | scan + strict gate (`followup_message`); **no retrospective** | **—**: `Stop` sends no final message |
+| Coverage stub counter | ✓ | ✓ | ? `Edit` only, if it sends the old and new text (not documented) |
+| Coverage ledger prompt (3+ enumerated parts) | ✓ | **—** | ✓ |
+| Coverage close scan (deferred work vs. `[COVERAGE CHECK]`) | ✓ + retrospective | **log only**: the agent is not told | **—** |
+| Handoff pre-close nudge (first green gate or commit) | ✓ | ✓ | ✓ |
+| Handoff close scan (decision named vs. `[HANDOFF]`) | ✓ + retrospective, strict gate | scan + strict gate (`followup_message`); **no retrospective** | **—** |
+| Progress ledger status (open items at session start / after compaction) | ✓ (`SessionStart`, first prompt as fallback) | ✓ (`sessionStart`) | ✓ (`SessionStart`) |
+| Progress stale-ledger finding (edits, ledger untouched) | ✓ retrospective, once per ledger version | **log only**: the agent is not told | ✓ retrospective |
+| Progress claim watch (the session's own claim runs out, ran out, is gone, or shares its item) | ✓ (`PostToolUse` while it holds one, and the next prompt) | **—**: claims are counted in the session-start status; no token, the agent picks its own | ✓ |
+| Integrity reader (each edit and shell command) | ✓ | ✓ | ✓ |
+| Integrity close (the block, a dispute shown to you) | ✓ | **log only**; not at all on a headless run | **—** |
+| Hygiene edit record + nudge (public functions the edits changed, path and lines) | ✓ | ✓ | ✓ |
+| Hygiene close (the block against the record) | ✓ + retrospective, strict gate | scan + strict gate (`followup_message`); not at all on a headless run | **—** |
 
-So on Cursor, coverage is the skill plus the stub counter; the closing discipline reaches the agent only through the skill text. Any other Agent Skills client gets the skills and no hooks. Each plugin's README has its design notes, host differences and debugging tips.
+So on Cursor, coverage is the skill plus the stub counter; the closing discipline reaches the agent only through the skill text, and on Droid the same holds for every close check. Any other Agent Skills client gets the skills and no hooks. Each plugin's README has its design notes, host differences and debugging tips.

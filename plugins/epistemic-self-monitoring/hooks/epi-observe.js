@@ -39,7 +39,7 @@ const conjecture = require('../lib/conjecture.js');
 const { cwdOf, context, actorOf } = require('../lib/host.js');
 
 const MIN_GAP_ON_ERROR = 3;   // nudge on error output, but not more often than this
-const SHELL_TOOLS = /^(?:Bash|PowerShell|Monitor|BashOutput|TaskOutput)$/;
+const SHELL_TOOLS = /^(?:Bash|PowerShell|Monitor|BashOutput|TaskOutput|Execute)$/; // Execute: Droid's shell
 const HOST = 'claude';
 
 function outputOf(data) {

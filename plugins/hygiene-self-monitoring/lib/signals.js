@@ -19,7 +19,8 @@ const fs = require('fs');
 const path = require('path');
 const reach = require('./reach.js');
 
-const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff/i;
+// Droid names the tool that writes a new file Create.
+const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff|^create$/i;
 const NOT_EDIT_RE = /todo|clipboard|memory/i;
 const READ_TOOL_RE = /^read$|read_file|readfile|view_file|open_file/i;
 

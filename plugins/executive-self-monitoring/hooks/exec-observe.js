@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /*
  * Executive self-monitoring - Claude Code PostToolUse hook
- * (matcher: Read|Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell).
+ * (matcher: Read|Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell, and
+ * Droid's Create|ApplyPatch|Execute).
  *
  * Records which documents the agent read, and their mtime, so the next
  * prompt can say that one changed on disk since the agent's last Read, Write
@@ -23,7 +24,7 @@ function main(raw) {
   let data = {};
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
   const sid = data.session_id || 'nosession';
-  if (/^(?:Bash|PowerShell)$/.test(String(data.tool_name || ''))) {
+  if (/^(?:Bash|PowerShell|Execute)$/.test(String(data.tool_name || ''))) {
     reads.shellRan('claude', sid, data.tool_input && data.tool_input.command, actorOf(data));
     return;
   }

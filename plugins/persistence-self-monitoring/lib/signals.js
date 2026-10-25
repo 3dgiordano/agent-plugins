@@ -28,7 +28,8 @@ const MAX_KEYS = 64; // bound the per-turn maps so state can never grow unbounde
 
 const { outputText, looksFailed, errorSignature } = require('./fail.js');
 
-const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff/i;
+// Droid names the tool that writes a new file Create.
+const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff|^create$/i;
 const SHELL_TOOL_RE = /bash|shell|terminal|command|exec|powershell/i;
 
 function freshTurn() {

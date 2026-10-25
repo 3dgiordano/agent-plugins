@@ -48,7 +48,8 @@ function freshTurn() {
 }
 
 // A tool that writes a file: the turn made something, whatever it then asks.
-const WRITE_TOOL_RE = /^(?:write|edit|multiedit|notebookedit|write_file|edit_file|search_replace|str_replace|apply_patch)$/i;
+// Create and ApplyPatch are Droid's.
+const WRITE_TOOL_RE = /^(?:write|edit|multiedit|notebookedit|write_file|edit_file|search_replace|str_replace|apply_patch|create|applypatch)$/i;
 
 const SEARCH_TOOL_RE = /^(?:glob|grep|ls|list_dir|glob_file_search|file_search|grep_search)$/i;
 

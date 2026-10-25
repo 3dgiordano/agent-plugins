@@ -22,7 +22,8 @@
  * last response (Cursor, which has no prompt hook).
  */
 
-const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff/i;
+// Droid names the tool that writes a new file Create.
+const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff|^create$/i;
 const NOT_EDIT_RE = /todo|clipboard|memory/i;
 const READ_TOOL_RE = /^read$|read_file|readfile|view_file|open_file/i;
 const SHELL_TOOL_RE = /bash|shell|terminal|command|exec|powershell/i;

@@ -24,8 +24,9 @@ const path = require('path');
 const code = require('./code.js');
 const commands = require('./commands.js');
 
-const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff|search_replace/i;
-const SHELL_TOOL_RE = /^(?:bash|shell|powershell|run_terminal_cmd|run_command|terminal|exec_command|local_shell)$|shell|terminal/i;
+// Droid names the tool that writes a new file Create, and its shell Execute.
+const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff|search_replace|^create$/i;
+const SHELL_TOOL_RE = /^(?:bash|shell|powershell|run_terminal_cmd|run_command|terminal|exec_command|local_shell|execute)$|shell|terminal/i;
 const MAX_FILE_BYTES = 1024 * 1024;
 const MAX_RAISED = 32;
 const MAX_SEEN = 256;

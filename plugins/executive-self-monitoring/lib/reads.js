@@ -37,7 +37,8 @@ const path = require('path');
 const DOC_RE = /\.(?:md|markdown|txt|rst|adoc)$/i;
 const MAX_FILES = 50;
 const READ_TOOL_RE = /^(?:Read|read_file|view)$/;
-const WRITE_TOOL_RE = /^(?:Write|Edit|MultiEdit|NotebookEdit|edit_file|write|apply_patch)$/;
+// Create and ApplyPatch are Droid's.
+const WRITE_TOOL_RE = /^(?:Write|Edit|MultiEdit|NotebookEdit|edit_file|write|apply_patch|Create|ApplyPatch)$/;
 
 // The lock: `wx` create, a real sleep between tries, a bounded wait, and a
 // stale-lock breaker for a process that died holding it. If it cannot be had

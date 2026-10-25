@@ -56,6 +56,10 @@ questions — so the design is agreed before code is written.
   and output envelope) and for Cursor (`cursor/`) unless a host cannot
   express it — then the README of the plugin explains the difference, as
   executive-self-monitoring does for Cursor's once-per-session cadence.
+- **Droid runs `hooks/` too.** Factory Droid installs the Claude Code layout
+  and runs `hooks/hooks.json`, so a match on a tool name also names Droid's
+  tools (`Create`, `ApplyPatch`, `Execute`), and a close that reads the final
+  message has nothing to read there: Droid's `Stop` does not send it.
 - **Hooks write the envelope, never plain text.** Everything a `hooks/`
   script says to the model goes out as
   `{"hookSpecificOutput":{"hookEventName":…,"additionalContext":…}}`
@@ -96,8 +100,9 @@ questions — so the design is agreed before code is written.
    ([openai/codex#39895](https://github.com/openai/codex/issues/39895)).
    `scripts/test.js` fails on a root `plugin.json` for that reason.
 
-2. Register it in all three marketplaces: `.claude-plugin/marketplace.json`
-   and `.cursor-plugin/marketplace.json` with `source: "./plugins/<name>"`,
+2. Register it in all four marketplaces: `.claude-plugin/marketplace.json`,
+   `.cursor-plugin/marketplace.json` and `.factory-plugin/marketplace.json`
+   (Factory Droid) with `source: "./plugins/<name>"`,
    and `.agents/plugins/marketplace.json` (Codex) with
    `source: { "source": "local", "path": "./plugins/<name>" }`.
 3. Set its version once for all four manifests — never edit it by hand:

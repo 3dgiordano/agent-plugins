@@ -28,7 +28,8 @@
 const { isLedgerPath } = require('./ledger.js');
 const { userText } = require('./host.js');
 
-const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff/i;
+// Droid names the tool that writes a new file Create.
+const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff|^create$/i;
 
 function freshTurn() {
   return { tools: 0, edits: 0, ledgerEdited: false };

@@ -23,7 +23,8 @@ const PARTS_MIN = 3;
 const STUBS_STEP = 3;
 const MAX_KEYS = 64;
 
-const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff/i;
+// Droid names the tool that writes a new file Create.
+const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff|^create$/i;
 
 // Markers that say "not done here". Deliberately excludes bare "stub" (test
 // doubles) and "mock": those are legitimate code, not deferrals.

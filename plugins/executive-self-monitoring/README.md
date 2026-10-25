@@ -53,6 +53,7 @@ Two pieces that install as one unit:
 | Claude Code, Codex | `exec-monitor.js` + `hooks/exec-stop.js` (`Stop`), `lib/writeback.js` | the plan write-back. The plan is the file the agent's latest [PLAN CHECK] names in `Plan`, whatever its name (read from the turn's blocks at the close), or, when no block has named a file, the one the `Plan:` line of `.agent/progress.md` points at. At the owner's third deciding prompt (a pick, an approval) since that file last changed - once it has been kept in the session - and on the second prompt after a [PLAN CHECK] that decided `revise-plan` if it has not changed since: one line, naming no file |
 | Claude Code, Codex | `hooks/exec-inject.js` (`SubagentStart`) + `hooks/exec-subagent-stop.js` (`SubagentStop`) | a subagent gets the skill's text at its start; at its close its reads are dropped, and with the opt-in log its [PLAN CHECK] and reads are measured, never gated |
 | Cursor | `cursor/exec-monitor-cursor.js` (`sessionStart`) | once per session |
+| Factory Droid (from its hooks reference; not run on Droid yet) | the Claude Code adapters above; the `PostToolUse` matcher also names Droid's `Create`, `ApplyPatch` and `Execute` | the cadence as on Claude Code; no subagent start (Droid has no such event), and a [PLAN CHECK] at the close is not read (its `Stop` sends no final message) |
 | Agent Plugins client | *(none)* | skill only — the agent decides when to apply it |
 
 All adapters are plain Node (ships with Claude Code and Cursor), have no
