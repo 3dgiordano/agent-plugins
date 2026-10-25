@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * Epistemic self-monitoring - Cursor postToolUse hook.
+ * Epistemic self-monitoring - Cursor postToolUse and postToolUseFailure hook.
  *
  * Same job as the Claude Code PostToolUse adapter: right after a shell
  * observation that looks like a failure, inject the expectation-vs-observation
@@ -32,7 +32,11 @@ function main(raw) {
   if (!SHELL_TOOL_RE.test(String(data.tool_name || ''))) return;
   const cid = data.conversation_id || 'noconversation';
 
-  const failed = looksFailed(outputText(data.tool_output).slice(0, 4000));
+  // A failed call comes as postToolUseFailure, with error_message and no
+  // tool_output (postToolUse fires only for a call that succeeded): the host's
+  // word is the failure, whatever the message looks like. An interrupt is not one.
+  const hostFailed = data.hook_event_name === 'postToolUseFailure' && !data.is_interrupt && (!data.failure_type || data.failure_type === 'error');
+  const failed = hostFailed || looksFailed(outputText(data.tool_output).slice(0, 4000));
   let st;
   const fire = state.update(HOST, cid, (s) => {
     st = s;

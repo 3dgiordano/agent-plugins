@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /*
- * Persistence self-monitoring - Cursor postToolUse hook (all tools).
+ * Persistence self-monitoring - Cursor postToolUse and postToolUseFailure
+ * hook (all tools).
  *
  * Same job as the Claude Code PostToolUse adapter: record the call into the
  * turn's counters and, only when a threshold is crossed, inject a nudge with
@@ -20,16 +21,24 @@ const { cwdOf } = require('../lib/host.js');
 
 const HOST = 'cursor';
 
+// Cursor's word that the call failed: an error, not the user interrupting it.
+function hostFailure(data) {
+  return data.hook_event_name === 'postToolUseFailure' && !data.is_interrupt && (!data.failure_type || data.failure_type === 'error');
+}
+
 function main(raw) {
   let data = {};
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
   const cid = data.conversation_id || 'noconversation';
 
+  // A failed call comes as postToolUseFailure, with error_message and no
+  // tool_output (postToolUse fires only for a call that succeeded).
+  const failed = hostFailure(data);
   let st;
   const fired = state.update(HOST, cid, (s) => {
     st = s;
     if (!st.turn) st.turn = signals.freshTurn();
-    return signals.observe(st.turn, data.tool_name, data.tool_input, data.tool_output);
+    return signals.observe(st.turn, data.tool_name, data.tool_input, failed ? { stderr: String(data.error_message || '') } : data.tool_output, failed);
   });
 
   if (!fired.length) return;

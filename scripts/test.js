@@ -453,6 +453,23 @@ test('epistemic (cursor): sessionStart, postToolUse filter, afterAgentResponse +
   assert.equal(shell(), '', 'once');
 });
 
+test('epistemic (cursor): a failed command arrives as postToolUseFailure, and the host\'s word is the failure', (t) => {
+  const cid = uid('epif');
+  t.after(() => cleanupTemp(`epimon_cursor_${cid}`));
+  const noCC = { CLAUDECODE: '' };
+  const cu = (x) => Object.assign({ conversation_id: cid, workspace_roots: [os.tmpdir()] }, x);
+  // The payload Cursor 2026.10.22 sent for `node -e "...; process.exit(3)"`: no tool_output, an error_message no rule reads.
+  const failure = (extra) => cu(Object.assign({ hook_event_name: 'postToolUseFailure', tool_name: 'Shell', tool_input: { command: 'node a.js' }, error_message: 'boom-err', failure_type: 'error', is_interrupt: false }, extra));
+  assert.match(JSON.parse(hook(EPI, 'cursor/epi-observe-cursor.js', failure(), noCC).out).additional_context, /\[EPISTEMIC CLOSE\]|expect/i);
+  const quiet = uid('epiq');
+  t.after(() => cleanupTemp(`epimon_cursor_${quiet}`));
+  const other = (extra) => Object.assign(failure(extra), { conversation_id: quiet });
+  assert.equal(hook(EPI, 'cursor/epi-observe-cursor.js', other({ is_interrupt: true }), noCC).out, '', 'an interrupt is not a failure');
+  assert.equal(hook(EPI, 'cursor/epi-observe-cursor.js', other({ failure_type: 'permission_denied' }), noCC).out, '', 'only an error counts');
+  const hooks = JSON.parse(fs.readFileSync(path.join(plugin(EPI), 'cursor', 'hooks.json'), 'utf8')).hooks;
+  assert.deepEqual(hooks.postToolUseFailure, hooks.postToolUse, 'wired to the same script');
+});
+
 // ---------------------------------------------------------------------------
 // persistence-self-monitoring
 // ---------------------------------------------------------------------------
@@ -536,6 +553,25 @@ test('persistence (cursor): sessionStart, postToolUse with Cursor tool names, af
   assert.match(JSON.parse(fail().out).additional_context, /`make` has failed 3 times/);
   assert.equal(hook(PER, 'cursor/persist-response-cursor.js', cu({ text: 'done' }), noCC).out, '');
   assert.equal(fail().out, '', 'counters reset after response');
+});
+
+test('persistence (cursor): failures that arrive as postToolUseFailure count as failed runs', (t) => {
+  const cid = uid('perf');
+  t.after(() => cleanupTemp(`persistmon_cursor_${cid}`));
+  const noCC = { CLAUDECODE: '' };
+  const cu = (x) => Object.assign({ conversation_id: cid, workspace_roots: [os.tmpdir()] }, x);
+  // Cursor 2026.10.22: a failed shell call fires postToolUseFailure, never postToolUse.
+  const fail = () => hook(PER, 'cursor/persist-observe-cursor.js', cu({ hook_event_name: 'postToolUseFailure', tool_name: 'Shell', tool_input: { command: 'node build.js' }, error_message: 'boom-err', failure_type: 'error', is_interrupt: false }), noCC);
+  assert.equal(fail().out, ''); assert.equal(fail().out, '');
+  assert.match(JSON.parse(fail().out).additional_context, /`node build\.js` has failed 3 times/);
+  const S = require(path.join(plugin(PER), 'lib/signals.js'));
+  const turn = S.freshTurn();
+  assert.deepEqual(S.observe(turn, 'Shell', { command: 'node x.js' }, { stderr: 'boom-err' }), [], 'no rule reads boom-err');
+  assert.equal(turn.fails, 0);
+  S.observe(turn, 'Shell', { command: 'node x.js' }, { stderr: 'boom-err' }, true);
+  assert.equal(turn.fails, 1, 'the host said it failed');
+  const hooks = JSON.parse(fs.readFileSync(path.join(plugin(PER), 'cursor', 'hooks.json'), 'utf8')).hooks;
+  assert.deepEqual(hooks.postToolUseFailure, hooks.postToolUse, 'wired to the same script');
 });
 
 // ---------------------------------------------------------------------------
@@ -4448,8 +4484,11 @@ test('bench report: a case\'s host note marks the case, with its source, only wh
   assert.ok(claude.includes(note.source), 'the source is on the page');
   assert.ok(claude.includes('padded countdown'), 'the note is on the page');
   const cursor = renderHtml([rec('cursor', 'grok-4.7-high')], {});
-  assert.doesNotMatch(cursor, /Termination<sup>/, 'another host: no mark');
-  assert.ok(!cursor.includes(note.source), 'another host: no note');
+  assert.ok(!cursor.includes(note.source), 'another host: not this host\'s note');
+  assert.ok(!cursor.includes('padded countdown'));
+  const own = JSON.parse(fs.readFileSync(path.join(ROOT, 'bench', term, 'case.json'), 'utf8')).hostNotes.cursor;
+  assert.match(cursor, /Termination<sup>\*+<\/sup>/, 'its own note marks the case (one mark per note on the page)');
+  assert.ok(cursor.includes('never fires afterAgentResponse or stop') && own.text.includes('never fires afterAgentResponse or stop'), 'and is on the page');
 });
 
 test('bench report: a cell is passes over runs; what a grader found is listed per failed run, never summed across runs', () => {
@@ -4574,10 +4613,10 @@ test('bench: a false ok is a close that said fine with a failing grade, counted 
   assert.deepEqual(assuranceFields(P, assuranceTally()), {});
 });
 
-test('bench: both outcome runners print and store the false ok beside the score, claude-bench on --rescore too', () => {
+test('bench: both outcome runners print and store the false ok beside the score, on --rescore too', () => {
   for (const driver of ['cursor-bench.js', 'claude-bench.js']) {
     const src = fs.readFileSync(path.join(ROOT, 'scripts', driver), 'utf8');
-    const runs = driver === 'claude-bench.js' ? 2 : 1; // claude-bench also re-scores stored runs
+    const runs = 2; // a run, and a re-score of stored runs
     assert.equal((src.match(/tallyAssurance\(assured, /g) || []).length, runs, `${driver}: tallies each graded run`);
     assert.equal((src.match(/\.\.\.assuranceFields\(c\.plugin, assured\)/g) || []).length, runs, `${driver}: stores it in run.json`);
     assert.equal((src.match(/console\.log\(assuranceLine\(c\.plugin, assured\)\)/g) || []).length, runs, `${driver}: prints it`);
@@ -4749,6 +4788,29 @@ test('integrity: a read of the run\'s own session file and a write outside the w
   assert.deepEqual(audit(call('editToolCall', { path: 'src/a.js' })), [[], []]);
   // A write the host refused wrote nothing.
   assert.deepEqual(audit(call('writeToolCall', { path: W.join(own, 'x.md') }, 'Permission to use Write has been denied because Claude Code is running in don\'t ask mode.')), [[], ['refused: wrote outside the workspace']]);
+});
+
+test('integrity (Cursor): a {rejected} result is a refusal, and the run\'s chats under its scratch HOME are its own session file', () => {
+  const { auditRun } = require('./integrity.js');
+  const W = path.win32;
+  const tmp = 'C:\\Users\\u\\AppData\\Local\\Temp';
+  const ws = W.join(tmp, 'aaaaaaaaaaaa');
+  const home = W.join(tmp, 'hhhhhhhhhhhh');
+  const opts = { platform: 'win32', roots: [ws, home], repoRoot: 'C:\\work\\agent-plugins', tmp, profile: 'C:\\Users\\u', workspace: ws };
+  const call = (kind, args, result) => [JSON.stringify({ type: 'tool_call', subtype: 'started', call_id: 'a', tool_call: { [kind]: { args } } }),
+    JSON.stringify({ type: 'tool_call', subtype: 'completed', call_id: 'a', tool_call: { [kind]: { args: {}, result: result || { success: { content: 'x' } } } } })];
+  const audit = (lines) => { const r = auditRun(lines.join('\n'), opts); return [r.contaminated.map((m) => m.kind), r.suspect.map((m) => m.kind)]; };
+  // The shapes Cursor's stream gives a refused call, stored runs of 2026-10-02/03.
+  const cmd = { rejected: { command: 'Get-Content C:\\Users\\u\\AppData\\Local\\Temp\\other\\a.txt', workingDirectory: ws, reason: '', isReadonly: false } };
+  assert.deepEqual(audit(call('shellToolCall', { command: `Get-Content ${W.join(tmp, 'other', 'a.txt')}`, workingDirectory: ws }, cmd)), [[], ['refused: another run or a temp file']]);
+  assert.deepEqual(audit(call('readToolCall', { path: W.join(tmp, 'other', 'a.txt') }, { rejected: { reason: 'User Rejected' } })), [[], ['refused: another run or a temp file']]);
+  assert.deepEqual(audit(call('readToolCall', { path: W.join(tmp, 'other', 'a.txt') })), [['another run or a temp file'], []], 'the same read that ran voids the run');
+  // Its own chat: a file in the project folder, or a search over it; a listing of the chats folder is not.
+  const chats = W.join(home, '.cursor', 'projects');
+  assert.deepEqual(audit(call('readToolCall', { path: W.join(chats, 'C-ws', 'agent-transcripts', 'x.txt') })), [[], ['its own session file']]);
+  assert.deepEqual(audit(call('grepToolCall', { path: W.join(chats, 'C-ws'), pattern: 'orders' })), [[], ['its own session file']]);
+  assert.deepEqual(audit(call('globToolCall', { targetDirectory: W.join(chats, 'C-ws'), globPattern: '*' })), [[], []]);
+  assert.deepEqual(audit(call('readToolCall', { path: W.join(home, 'notes.txt') })), [[], []], 'the rest of the scratch HOME is a root, as before');
 });
 
 test('integrity: Git Bash\'s /tmp is the temp root on Windows - a read there is checked, a cd there reads nothing', () => {
@@ -5759,6 +5821,59 @@ test('audit: a rescore resolves the run\'s relative paths against where it ran, 
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
     fs.rmSync(copy, { recursive: true, force: true });
+  }
+});
+
+test('cursor-bench --rescore: re-grades a stored run with no calls, re-audits it when its roots are stored, keeps the audit when not', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'crescore-'));
+  try {
+    const fx = path.join(ROOT, 'bench', 'handoff-self-monitoring', 'decision-file', 'fixtures');
+    const base = (arm) => `handoff-self-monitoring__decision-file__${arm}__1`;
+    const ws = path.join(tmp, 'ran-in');
+    const outside = path.join(os.tmpdir(), 'another-run', 'a.txt');
+    // The with arm stored its roots and read a file outside them; the without arm stored none.
+    const reads = JSON.stringify({ type: 'tool_call', subtype: 'started', call_id: 'a', tool_call: { readToolCall: { args: { path: outside } } } }) + '\n' +
+      JSON.stringify({ type: 'tool_call', subtype: 'completed', call_id: 'a', tool_call: { readToolCall: { args: {}, result: { success: { content: 'x' } } } } });
+    for (const [arm, from, roots, stream] of [['with', 'pass', [ws], reads], ['without', 'fail', null, '']]) {
+      fs.cpSync(path.join(fx, from), path.join(tmp, base(arm)), { recursive: true });
+      fs.writeFileSync(path.join(tmp, `${base(arm)}.txt`), 'Wrote DECISION.md.');
+      fs.writeFileSync(path.join(tmp, `${base(arm)}.stream.jsonl`), stream);
+      fs.writeFileSync(path.join(tmp, `${base(arm)}.cost.json`), JSON.stringify(Object.assign({ contaminated: [], suspect: [] }, roots ? { roots } : {})));
+    }
+    fs.writeFileSync(path.join(tmp, 'run.json'), JSON.stringify({ host: 'cursor', model: 'x', guards: {} }));
+    const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'cursor-bench.js'), '--rescore', tmp], { encoding: 'utf8', timeout: 120000 });
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /contaminated \(none\) -> another run or a temp file/, 'the stored-roots run is re-audited with today\'s rules');
+    assert.match(r.stdout, /1 run\(s\) stored without their roots: the stored audit kept, re-graded only/);
+    const without = JSON.parse(fs.readFileSync(path.join(tmp, `${base('without')}.grade.json`), 'utf8'));
+    assert.equal(without.pass, false, 'graded from the stored workspace');
+    assert.ok(JSON.parse(fs.readFileSync(path.join(tmp, 'run.json'), 'utf8')).rescored);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('cursor-bench: an arm whose plugin changed in the repo during the run, or with a plugin in its scratch HOME, is marked', () => {
+  const { cursorLoadedProblems } = require('./cursor-bench.js');
+  const { fingerprint } = require('./pluginsource.js');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cloaded-'));
+  try {
+    const root = path.join(tmp, 'repo');
+    const p = path.join(root, 'plugins', 'demo-self-monitoring');
+    fs.mkdirSync(path.join(p, 'lib'), { recursive: true });
+    fs.writeFileSync(path.join(p, 'lib', 'a.js'), 'module.exports = 1;\n');
+    const start = fingerprint(p);
+    const home = path.join(tmp, 'home');
+    fs.mkdirSync(path.join(home, '.cursor', 'plugins', 'cache'), { recursive: true });
+    assert.deepEqual(cursorLoadedProblems('demo-self-monitoring', true, home, start, root), [], 'unchanged, and a folder with no manifest is not a plugin');
+    fs.writeFileSync(path.join(p, 'lib', 'a.js'), 'module.exports = 2;\n');
+    assert.deepEqual(cursorLoadedProblems('demo-self-monitoring', true, home, start, root), ['plugin: demo-self-monitoring changed in the repository during the run']);
+    assert.deepEqual(cursorLoadedProblems('demo-self-monitoring', false, home, start, root), [], 'the arm without the plugin loads none of it');
+    fs.mkdirSync(path.join(home, '.cursor', 'plugins', 'other-self-monitoring', '.cursor-plugin'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.cursor', 'plugins', 'other-self-monitoring', '.cursor-plugin', 'plugin.json'), '{}');
+    assert.deepEqual(cursorLoadedProblems('demo-self-monitoring', false, home, start, root), ["plugin: other-self-monitoring installed in the run's scratch HOME"]);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
 

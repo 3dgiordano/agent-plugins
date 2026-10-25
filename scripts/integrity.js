@@ -429,7 +429,11 @@ function auditRun(stream, opts) {
     // The folder itself is granted, so the host names it to the model and a
     // listing of it is common; a path into it, or a read or search over it,
     // reads the transcript.
-    if (sessions.some((r) => p !== r && inside(p, r)) || (reads && sessions.includes(p))) later('its own session file', raw);
+    // Cursor keeps its chats under the run's scratch HOME, a root:
+    // <HOME>\.cursor\projects\<project>\... - the same rule, per project folder.
+    const chat = p.match(win ? /^(.*\\\.cursor\\projects\\[^\\]+)(\\.*)?$/ : /^(.*\/\.cursor\/projects\/[^/]+)(\/.*)?$/);
+    const cursorChat = chat && own.some((r) => inside(chat[1], r)) && (chat[2] || reads);
+    if (cursorChat || sessions.some((r) => p !== r && inside(p, r)) || (reads && sessions.includes(p))) later('its own session file', raw);
     if (write && ws && !inside(p, ws) && !/^(?:nul|\/dev\/null)$/i.test(raw)) later('wrote outside the workspace', raw);
     if (own.some((r) => inside(p, r))) return;
     outside.add(raw);
@@ -459,8 +463,10 @@ function auditRun(stream, opts) {
       const marks = held.get(o.call_id) || [];
       held.delete(o.call_id);
       // Refused before it ran - --restricted's file-tool boundary, the permission
-      // mode, the witness's shell policy: it read nothing, so it is suspect, not contaminated.
-      const refused = result.match(/--restricted confines the file tools to the working directory|Permission to use \w+ has been denied|hook error:[^\n]{0,80}not allowed here/);
+      // mode, the witness's shell policy, Cursor's {rejected: {...}} result (its
+      // reason is often empty): it read nothing, so it is suspect, not contaminated.
+      const rejected = call.result && typeof call.result === 'object' && !Array.isArray(call.result) && call.result.rejected;
+      const refused = rejected || result.match(/--restricted confines the file tools to the working directory|Permission to use \w+ has been denied|hook error:[^\n]{0,80}not allowed here/);
       for (const m of marks) flag(refused || m.soft ? suspect : contaminated, refused ? `refused: ${m.kind}` : m.kind, m.what);
       const m = result.match(HARNESS_WORDS);
       if (m) flag(contaminated, 'harness text in a tool result', m[0]);

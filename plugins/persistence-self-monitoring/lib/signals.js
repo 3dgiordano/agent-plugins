@@ -128,7 +128,9 @@ function commandOf(input) {
  * Record one tool call into the turn state and return the list of signals
  * that fired: [{kind:'edits', key, count}, {kind:'cmds'|'errs', key, count}, {kind:'effort', count}]
  */
-function observe(turn, toolName, toolInput, toolOutput) {
+// hostFailed: the host said the call failed - Cursor's postToolUseFailure -
+// whatever its text looks like; the text still keys the same-error count.
+function observe(turn, toolName, toolInput, toolOutput, hostFailed) {
   const fired = [];
   const name = String(toolName || '');
 
@@ -145,7 +147,7 @@ function observe(turn, toolName, toolInput, toolOutput) {
 
   if (SHELL_TOOL_RE.test(name)) {
     const out = outputText(toolOutput).slice(0, 6000);
-    if (looksFailed(out)) {
+    if (hostFailed === true || looksFailed(out)) {
       if (typeof turn.fails === 'number') turn.fails += 1;
       if (Array.isArray(turn.failLog)) {
         const raw = toolInput && typeof toolInput === 'object' ? String(toolInput.command || toolInput.cmd || toolInput.script || '').slice(0, 2000) : '';

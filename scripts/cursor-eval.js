@@ -351,14 +351,19 @@ function probeHooks(cli, model) {
   const args = ['-p', '--output-format', 'stream-json', '--trust', '--workspace', ws, '--model', model, '--plugin-dir', plugin];
   const agent = (run(cli.bin, ['--version'], env).stdout || '').trim();
   const r = run(cli.bin, args, env, prompt, root, { timeout: 600000, maxBuffer: 50 * 1024 * 1024 });
+  // What the model had in front of it: its reply and reasoning, and the tool
+  // results, where Cursor 2026.10.16 puts a hook's context. The final result
+  // event alone missed it: a run whose connection drops and retries can end
+  // without one (2026-10-24).
   let text = '';
   let toolCalls = 0;
   for (const line of String(r.stdout || '').split(/\r?\n/)) {
     if (!line.startsWith('{')) continue;
     try {
       const o = JSON.parse(line);
-      if (o.type === 'result' && typeof o.result === 'string') text = o.result;
-      if (o.type === 'tool_call' && o.subtype === 'completed') toolCalls += 1;
+      if (o.type === 'result' && typeof o.result === 'string') text += '\n' + o.result;
+      if (o.type === 'assistant' || o.type === 'thinking') text += '\n' + JSON.stringify(o.message || o.text || '');
+      if (o.type === 'tool_call' && o.subtype === 'completed') { toolCalls += 1; text += '\n' + JSON.stringify(o.tool_call); }
     } catch (_) { /* not an event line */ }
   }
   const fired = fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split(/\r?\n/).filter(Boolean) : [];

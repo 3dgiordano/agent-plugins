@@ -45,7 +45,7 @@ same file does the job the feeling would have done.
 | | Claude Code | Cursor |
 |---|-------------|--------|
 | **Turn boundary** (reset counters; first turn names the block and the skill) | `UserPromptSubmit` | `sessionStart` (load) + `afterAgentResponse` (reset) |
-| **Count every tool call**, nudge on threshold | `PostToolUse`, no matcher → `additionalContext` | `postToolUse` → `additional_context` |
+| **Count every tool call**, nudge on threshold | `PostToolUse`, no matcher → `additionalContext` | `postToolUse` and `postToolUseFailure` → `additional_context`; a call Cursor reports as failed (`failure_type: error`) is a failed run whatever its `error_message` reads - Cursor sends a failed call there, never to `postToolUse` |
 | **Turn summary** to the log | `Stop` (log only, never blocks) | `afterAgentResponse` |
 
 Cursor has no non-blocking per-prompt event (`beforeSubmitPrompt` can only
@@ -181,7 +181,7 @@ hooks/persist-stop.js               # Stop and SubagentStop: the turn's summary,
 hooks/persist-subagent-start.js     # a subagent, which has no prompt of its own, gets the load at its start
 hooks/persist-session-start.js      # a compacted session loads the discipline again; a resumed one keeps it
 hooks/persist-session-end.js
-cursor/hooks.json                   # Cursor: sessionStart, postToolUse, afterAgentResponse
+cursor/hooks.json                   # Cursor: sessionStart, postToolUse, postToolUseFailure, afterAgentResponse
 cursor/persist-session-start.js   # also sweeps aged state (Cursor has no session-end event)
 cursor/persist-observe-cursor.js
 cursor/persist-response-cursor.js

@@ -11,6 +11,11 @@
         "command": "node ./cursor/epi-observe-cursor.js"
       }
     ],
+    "postToolUseFailure": [
+      {
+        "command": "node ./cursor/epi-observe-cursor.js"
+      }
+    ],
     "afterAgentResponse": [
       {
         "command": "node ./cursor/epi-response-cursor.js"

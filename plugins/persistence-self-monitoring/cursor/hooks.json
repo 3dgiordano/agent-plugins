@@ -11,6 +11,11 @@
         "command": "node ./cursor/persist-observe-cursor.js"
       }
     ],
+    "postToolUseFailure": [
+      {
+        "command": "node ./cursor/persist-observe-cursor.js"
+      }
+    ],
     "afterAgentResponse": [
       {
         "command": "node ./cursor/persist-response-cursor.js"

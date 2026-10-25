@@ -47,7 +47,7 @@ choosing your own.
 | Layer | Claude Code | Cursor |
 |-------|-------------|--------|
 | **Load** the discipline | `UserPromptSubmit`: first turn, then every 10th | `sessionStart` → `additional_context` |
-| **Observe** — expectation vs. observation nudge right after a shell result | `PostToolUse` (matcher `Bash\|PowerShell\|Monitor\|BashOutput\|TaskOutput`: every tool that returns a command's output) → `additionalContext`; on output that `lib/fail.js` classes as a failure — the same line rules as persistence, never a bare "error" or "failed" (rate-limited); after a claim the agent marked as a conjecture, the claim nudge instead (`lib/conjecture.js`) | `postToolUse` (self-filtered to shell tools) → `additional_context`; the claim nudge after a response that marked a conjecture |
+| **Observe** — expectation vs. observation nudge right after a shell result | `PostToolUse` (matcher `Bash\|PowerShell\|Monitor\|BashOutput\|TaskOutput`: every tool that returns a command's output) → `additionalContext`; on output that `lib/fail.js` classes as a failure — the same line rules as persistence, never a bare "error" or "failed" (rate-limited); after a claim the agent marked as a conjecture, the claim nudge instead (`lib/conjecture.js`) | `postToolUse` (self-filtered to shell tools) and `postToolUseFailure` → `additional_context`; a call Cursor reports as failed (`failure_type: error`) is a failure whatever its `error_message` reads - Cursor sends a failed call there, never to `postToolUse`; the claim nudge after a response that marked a conjecture |
 | **Close** — scan the final message for `[EPISTEMIC CLOSE]` blocks | `Stop` reads `last_assistant_message` | `afterAgentResponse` scans `text`, `stop` acts on it |
 
 Cadence constants sit at the top of each adapter (`EVERY_N_TURNS`,
@@ -196,7 +196,7 @@ hooks/epi-observe.js
 hooks/epi-stop.js
 hooks/epi-session-start.js          # a compacted session loads the discipline again; a resumed one keeps it
 hooks/epi-session-end.js
-cursor/hooks.json                  # Cursor: sessionStart, postToolUse, afterAgentResponse, stop
+cursor/hooks.json                  # Cursor: sessionStart, postToolUse, postToolUseFailure, afterAgentResponse, stop
 cursor/epi-session-start.js   # also sweeps aged state (Cursor has no session-end event)
 cursor/epi-observe-cursor.js
 cursor/epi-response-cursor.js
