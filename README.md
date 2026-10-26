@@ -48,20 +48,30 @@ send nothing anywhere.
   <img src="assets/bench-results.svg" width="100%" alt="Pass rate per model without and with the plugins on benchmark 1.2.0: every model passes more of the canonical cases with them, the Grok models on Cursor by the widest margin">
 </p>
 
-> **Where the evidence stands** (exploratory). The figure is the current
-> session: benchmark 1.2.0, one canonical case per plugin, three runs per case
-> and arm, six models on Claude Code and Cursor. It is drawn from the
-> session's runs and stamped with the benchmark version and the date of the
-> latest one (`node scripts/bench-report.js --out <dir> --figure
-> assets/bench-results.svg`); a model short of a case says so on its line.
-> With the plugins every model passes more of the cases; the gap is widest
-> where the model alone does least, the Grok models on Cursor. A case every
-> model already passes alone shows no gain; the figure counts every case a
-> model has, not only the ones that separate. These are not yet a confirmatory result: the cases
-> and graders are the plugins' author's, kept when the unaided model failed
-> them, not pre-registered and not checked against blind labels
-> ([docs/STUDY-PROTOCOL.md](docs/STUDY-PROTOCOL.md) is the plan). Dates,
-> versions, costs and limits: [docs/EVIDENCE.md](docs/EVIDENCE.md).
+<details>
+<summary><b>About these numbers</b> — how they are measured, and what they do not show yet</summary>
+
+<br>
+
+The figure is the current bench session: benchmark 1.2.0, one canonical case
+per plugin, three runs per case and arm, six models on Claude Code and
+Cursor. It is drawn from the session's runs and stamped with the benchmark
+version and the date of the latest one (`node scripts/bench-report.js --out
+<dir> --figure assets/bench-results.svg`); a model short of a case says so on
+its line.
+
+With the plugins every model passes more of the cases; the gap is widest
+where the model alone does least, the Grok models on Cursor. A case every
+model already passes alone shows no gain; the figure counts every case a
+model has, not only the ones that separate.
+
+These are exploratory results, not yet a confirmatory one: the cases and
+graders are the plugins' author's, kept when the unaided model failed them,
+not pre-registered and not checked against blind labels
+([docs/STUDY-PROTOCOL.md](docs/STUDY-PROTOCOL.md) is the plan). Dates,
+versions, costs and limits: [docs/EVIDENCE.md](docs/EVIDENCE.md).
+
+</details>
 
 More: [How it works](docs/HOW-IT-WORKS.md) · [Evidence](docs/EVIDENCE.md) ·
 [Research](docs/RESEARCH.md) · [FAQ](docs/FAQ.md) · [Security](SECURITY.md)
