@@ -36,8 +36,9 @@ function optionBodies(text) {
   // Options written as headings: "### B — Cancel Thursday window; run online batches".
   const heading = /^#{1,6}\s+(?:Option\s+)?([A-Z])\s*(?:[—–:-]|\.)\s*(.+)$/gm;
   while ((m = heading.exec(text))) if (!map[m[1]]) map[m[1]] = m[2];
-  // Options written as bold paragraphs: "**B. Run the migration online, in batches.**"
-  const bold = /^\s*\*\*([A-Z])[.:)]\s*([^*\n]+)\*\*/gm;
+  // Options written as bold paragraphs: "**B. Run the migration online, in batches.**",
+  // or as a list of them: "- **A. Thursday window.** One outage, already booked."
+  const bold = /^\s*(?:[-*]\s+)?\*\*([A-Z])[.:)]\s*([^*\n]+)\*\*/gm;
   while ((m = bold.exec(text))) if (!map[m[1]]) map[m[1]] = m[2];
   return map;
 }

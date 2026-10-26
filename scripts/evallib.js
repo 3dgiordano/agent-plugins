@@ -956,6 +956,22 @@ function nodeGuard(workspace, passThrough, also) {
 }
 
 /*
+ * The fence for a host whose shell puts a folder of its own, with a node.exe
+ * in it, ahead of the fence's folder: the Cursor CLI on Windows puts its
+ * install folder there, the node.exe it runs on (measured on 2026.10.22), so
+ * a bare `node` was that node.exe, unfenced. With no .EXE in PATHEXT a bare
+ * `node` does not match a node.exe, and the fence's node.cmd is the first
+ * `node` on the PATH. The shell admits only `node`; the CLI starts PowerShell
+ * and its own node by full path. Empty off Windows.
+ */
+function fenceFirstEnv(source = process.env, platform = process.platform) {
+  if (platform !== 'win32') return {};
+  const key = Object.keys(source).find((k) => k.toUpperCase() === 'PATHEXT') || 'PATHEXT';
+  const exts = String(source[key] || '.COM;.EXE;.BAT;.CMD').split(';').filter((e) => e && e.toUpperCase() !== '.EXE');
+  return { [key]: exts.join(';') };
+}
+
+/*
  * Where did the agent go? Every path a tool call named, and every shell
  * command, checked against the roots this invocation owns (its workspace, its
  * HOME, the plugin copy, the witness). The CLI cannot fence the agent in: on
@@ -1020,4 +1036,4 @@ function dropWorkspace(ws) {
 
 const quote = (s) => (/[\s"]/.test(s) ? `"${s.replace(/"/g, '\\"')}"` : s);
 
-module.exports = { ROOT, PLUGINS, MARKER, SCANNER, ARTIFACT, CLAIM, cursorUserMcp, declared, assuranceTally, tallyAssurance, assuranceLine, assuranceFields, wilson, markerGraded, seed, harvest, readArtifact, graderFor, cases, gradingOf, usable, reached, verdict, reportLine, summaryLines, scratchWorkspace, sweepWorkspaces, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, neutralDir, quote, stallOf, nodeGuard, permissionFlags };
+module.exports = { ROOT, PLUGINS, MARKER, SCANNER, ARTIFACT, CLAIM, cursorUserMcp, declared, assuranceTally, tallyAssurance, assuranceLine, assuranceFields, wilson, markerGraded, seed, harvest, readArtifact, graderFor, cases, gradingOf, usable, reached, verdict, reportLine, summaryLines, scratchWorkspace, sweepWorkspaces, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, neutralDir, quote, stallOf, nodeGuard, fenceFirstEnv, permissionFlags };

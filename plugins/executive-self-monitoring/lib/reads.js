@@ -175,4 +175,30 @@ function changed(host, sid, actor) {
   return out;
 }
 
-module.exports = { observe, shellRan, changed, update, file, DOC_RE };
+/*
+ * A tool call on a host that does not name its edit tool the way
+ * WRITE_TOOL_RE does (Cursor): any call that is not a read and points at a
+ * document read earlier is the agent's own write to it, and takes its mtime.
+ */
+function touched(host, sid, toolInput, cwd, actor) {
+  const p = pathOf(toolInput, cwd);
+  if (!p || !DOC_RE.test(p)) return;
+  update(host, sid, (st) => {
+    if (!st.files[p]) return false;
+    const m = mtimeOf(p);
+    if (m === null) return false;
+    st.files[p] = { mtimeMs: m, seenAt: st.files[p].seenAt };
+    return true;
+  }, actor);
+}
+
+// The line that says it, the same on every host: the paths, never the text.
+function changedLine(paths) {
+  if (!paths.length) return '';
+  return `[executive self-monitoring] ${paths.slice(0, 3).map((p) => '`' + p + '`').join(', ')}${paths.length > 3 ? ` and ${paths.length - 3} more` : ''} changed on disk since your last Read, Write or Edit of ${paths.length === 1 ? 'it' : 'them'}. ` +
+    'Re-open before you go on: what you remember of it is not what it says now. If the change moves ' +
+    'the work to another part, or drops one, quote the objective again and check that the gate still ' +
+    'needs the part the objective names.';
+}
+
+module.exports = { observe, shellRan, touched, changed, changedLine, update, file, DOC_RE };

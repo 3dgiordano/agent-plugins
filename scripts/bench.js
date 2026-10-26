@@ -10,6 +10,12 @@
  *   node scripts/bench.js --isolate --host cursor --models cursor-grok-4.6-high
  *   node scripts/bench.js --finish
  *   node scripts/bench.js --finish --discard
+ *   node scripts/bench.js --not-scored <host/model> <plugin/case> --reason "<text>"
+ *
+ * --not-scored records the owner's call on a case a slot lists as not scored
+ * (no valid run in one arm): it is reported so, with the reason, instead of
+ * run until a run gets through. The slot leaves All plugins; the session can
+ * close; a later stage that scores the case takes the mark off.
  *
  * --start pins the benchmark version, the plugin versions, and the agent
  * version it can see. Later stages write into that session. A re-run of a
@@ -110,7 +116,9 @@ function printSlots(session) {
       continue;
     }
     const bad = (slot.invalidAll || []).length || (slot.invalidCases || []).length;
-    console.log(`  ${key}  ${bad ? 'invalid' : 'stored'}  agent ${slot.agent || '(none)'}`);
+    const unscored = (slot.notScored || []).length ? `, ${slot.notScored.length} case(s) not scored` : '';
+    console.log(`  ${key}  ${bad ? 'invalid' : 'stored'}${unscored}  agent ${slot.agent || '(none)'}`);
+    for (const item of slot.notScored || []) console.log(`    not scored  ${item.case}: ${item.reason}`);
   }
   for (const key of Object.keys(session.slots || {}).sort()) {
     if (!seen.has(key)) console.log(`  ${key}  stored, not in the current suite`);
@@ -171,6 +179,22 @@ function main() {
       printSlots(session);
     } catch (err) {
       console.error(err.message);
+      process.exitCode = 1;
+    }
+    return;
+  }
+
+  if (argv.includes('--not-scored')) {
+    const [key, caseId] = argv.slice(argv.indexOf('--not-scored') + 1, argv.indexOf('--not-scored') + 3);
+    try {
+      const session = sessionLib.readCurrent(ROOT);
+      if (!session) throw new Error('No session. Start one with node scripts/bench.js --start');
+      sessionLib.markNotScored(ROOT, session, key, caseId, val(argv, '--reason'));
+      console.log(`${key}  ${caseId} recorded as not scored`);
+      printSlots(sessionLib.readCurrent(ROOT));
+    } catch (err) {
+      console.error(err.message);
+      console.error('usage: node scripts/bench.js --not-scored <host/model> <plugin/case> --reason "<what voided its runs>"');
       process.exitCode = 1;
     }
     return;
@@ -315,8 +339,9 @@ function main() {
     if (dry) continue;
     fs.rmSync(tmpDir, { recursive: true, force: true });
     if (filter && fs.existsSync(finalDir)) fs.cpSync(finalDir, tmpDir, { recursive: true });
+    const started = Date.now();
     const child = spawnSync(process.execPath, args, { cwd: ROOT, stdio: 'inherit' });
-    if (child.status !== 0) {
+    if (child.status !== 0 && !finishedSince(tmpDir, started)) {
       fs.rmSync(tmpDir, { recursive: true, force: true });
       console.error(`\n${model.id} exited ${child.status}. The stored result for ${key} was left in place. Later models in this command were not started.`);
       process.exitCode = child.status || 1;
@@ -325,6 +350,9 @@ function main() {
     fs.rmSync(finalDir, { recursive: true, force: true });
     fs.renameSync(tmpDir, finalDir);
     const record = JSON.parse(fs.readFileSync(path.join(finalDir, 'run.json'), 'utf8'));
+    // The driver finished and wrote its record, then exited non-zero: a case
+    // it could not score (stored as one to re-run), or a stop it names.
+    if (child.status !== 0) process.exitCode = child.status;
     try {
       // Re-read: a stage for another model may have stored its slot while this one ran.
       sessionLib.assignSlot(ROOT, sessionLib.readSession(ROOT, session.id), model.host, model.id, record);
@@ -334,9 +362,26 @@ function main() {
       return;
     }
     console.log(`stored ${key}`);
+    if ((record.unscored || []).length) console.log(`  not scored, to re-run: ${record.unscored.join(', ')}`);
+    // A stop (the quota window) holds for the models after it too.
+    if (record.stopped) {
+      console.error(`\n${model.id} stopped before the end: ${record.stopped}. Later models in this command were not started.`);
+      return;
+    }
   }
 }
 
-module.exports = { stageFilter };
+// Whether the driver wrote a finished run.json in dir during this stage: what
+// it scored is then a result, whatever its exit code says about the rest.
+function finishedSince(dir, since) {
+  try {
+    const record = JSON.parse(fs.readFileSync(path.join(dir, 'run.json'), 'utf8'));
+    return !!record.finished && Date.parse(record.finished) >= since;
+  } catch (_) {
+    return false;
+  }
+}
+
+module.exports = { stageFilter, finishedSince };
 
 if (require.main === module) main();

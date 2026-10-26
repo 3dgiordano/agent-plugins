@@ -5,6 +5,11 @@
       {
         "command": "node ./cursor/exec-monitor-cursor.js"
       }
+    ],
+    "postToolUse": [
+      {
+        "command": "node ./cursor/exec-observe-cursor.js"
+      }
     ]
   }
 }

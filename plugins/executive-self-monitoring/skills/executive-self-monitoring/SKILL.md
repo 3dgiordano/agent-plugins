@@ -18,8 +18,10 @@ description: "Keeps work inside the plan that defines it, by re-opening that art
   place.
 - When the plan changes - work moved to another part, a part dropped, the
   file changed on disk - quote the objective again and ask: could the gate
-  pass with the part the objective names doing nothing? If it could, the gate
-  no longer tests the objective; that is `revise-plan`, and the owner's call.
+  pass with the part the objective names doing nothing? Answer by effect -
+  would the result change without it - not by whether its name still shows.
+  If it could, the gate no longer tests the objective; that is `revise-plan`,
+  the owner's call: a question for them, not a stop to the work they asked.
 - Keep the plan current: a decision that changes it, a step closed, a gate
   passed or failed goes into the plan, not only into results or notes.
 - Anything that does not serve that gate - a fix noticed on the way, a
@@ -75,10 +77,15 @@ Not on every task — reserve it for where drift actually happens:
    ask one question: **could the gate pass with the part the objective names
    doing nothing?** Answer it with what you have — a run with that part
    removed or frozen, the numbers you already measured, a read of what the
-   gate computes. If it could, the gate no longer tests the objective. That is
-   `revise-plan`, and it is the owner's to decide: put the objective, what the
-   gate measures now, and what shows it, in front of them. Do not close the
-   stage on the gate in the meantime.
+   gate computes. Doing nothing is about effect, not names: a part reached
+   under another name or through another part still does its work if the
+   result changes without it; a part still called whose removal changes
+   nothing does none. If the gate could pass so, it no longer tests the objective.
+   That is `revise-plan`, and it is the owner's to decide: put the objective,
+   what the gate measures now, and what shows it, in front of them. It is a
+   question, not a stop: the work they asked for is still done as the plan
+   now reads. What waits is the claim that the gate shows the objective - do
+   not close the stage on the gate in the meantime.
 
 ## Common drift signatures
 

@@ -2,13 +2,14 @@
 /*
  * Executive self-monitoring - Cursor sessionStart hook.
  *
- * Cursor's hook model differs from Claude Code's: only `sessionStart` can inject
- * context non-blockingly (via `additional_context`). `beforeSubmitPrompt` can
- * only BLOCK a prompt, which would violate the "self-check, not a blocker"
- * principle. So the Cursor adapter injects the checkpoint ONCE per session at
- * start -- the equivalent of the Claude Code hook's "fire on turn 1". The
- * every-Nth-turn cadence is intentionally not reproduced (it can't be done
- * without blocking).
+ * Cursor's hook model differs from Claude Code's: no prompt hook can add
+ * context - `beforeSubmitPrompt` can only BLOCK a prompt, which would violate
+ * the "self-check, not a blocker" principle. So the Cursor adapter injects the
+ * checkpoint ONCE per session at start -- the equivalent of the Claude Code
+ * hook's "fire on turn 1". The every-Nth-turn cadence is intentionally not
+ * reproduced. What the prompt hook also says on Claude Code - a document
+ * changed on disk since it was read - comes after a tool call here
+ * (exec-observe-cursor.js), whose `additional_context` reaches the model.
  *
  * The protocol lives in the shared skill. A pointer alone was measured not to
  * load it (the skill opened 0 times in 28 Claude runs while the discipline

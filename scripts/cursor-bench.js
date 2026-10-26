@@ -58,8 +58,8 @@ const path = require('path');
 
 const AGENT_CLI_DRIVER = true;
 
-const { findCli, authState, argsFor, globalInstalls, run, pluginCopy } = require('./cursor-eval.js');
-const { reached, seed, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, quote, MARKER, stallOf, nodeGuard, permissionFlags, assuranceTally, tallyAssurance, assuranceLine, assuranceFields } = require('./evallib.js');
+const { findCli, directLaunch, authState, argsFor, globalInstalls, run, pluginCopy } = require('./cursor-eval.js');
+const { reached, seed, scratchWorkspace, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, quote, MARKER, stallOf, nodeGuard, fenceFirstEnv, permissionFlags, assuranceTally, tallyAssurance, assuranceLine, assuranceFields } = require('./evallib.js');
 const { ROOT, loadCases, armOrder, keepAttempts, intentToTreat, ittLines, moveChildren, layOverlay } = require('./benchlib.js');
 const { benchmarkVersion, pluginVersions } = require('./benchsession.js');
 const { recordRun, caseFields, caseLines } = require('./behaviour.js');
@@ -562,6 +562,13 @@ function main() {
   const { fingerprint } = require('./pluginsource.js');
   const codeAtStart = new Map(found.map((c) => [c.plugin, fingerprint(path.join(ROOT, 'plugins', c.plugin))]));
   const loadedProblems = (c, withPlugin, home) => cursorLoadedProblems(c.plugin, withPlugin, home, codeAtStart.get(c.plugin));
+  // On Windows a fenced run starts the CLI without its shim, so its shell can
+  // be given a PATHEXT that puts the fence first (evallib fenceFirstEnv).
+  const direct = fence ? directLaunch(cli.bin) : null;
+  const agentRun = (a, e, input, cwd, lim) => (direct
+    ? run(direct.bin, direct.pre.concat(a), Object.assign({}, e, fenceFirstEnv(), { CURSOR_INVOKED_AS: direct.invokedAs }), input, cwd, lim)
+    : run(cli.bin, a, e, input, cwd, lim));
+  runRecord.fenceLaunch = direct ? `direct ${direct.version}, PATHEXT without .EXE` : fence ? 'shim' : null;
 
   for (const c of found) {
     const score = { with: 0, without: 0 };
@@ -607,7 +614,7 @@ function main() {
       seed(ws, c);
       const limits = { timeout: timeoutMin * 60 * 1000, maxBuffer: 50 * 1024 * 1024, idle: idleMin * 60 * 1000 };
       const args = argsFor(c, withPlugin, model, ws, 'stream-json', variantFile);
-      const r = run(cli.bin, args, runEnv, c.prompt, cliCwd, limits);
+      const r = agentRun(args, runEnv, c.prompt, cliCwd, limits);
       let parsed = parseAgent(r.stdout);
       let turnStreams = [String(r.stdout || '')];
       if (c.turns && c.turns.length > 1) {
@@ -618,7 +625,7 @@ function main() {
           // What changed in the repository since the last message (turns/NN/).
           const overlay = c.turnFiles && c.turnFiles[k + 1];
           if (overlay) layOverlay(overlay, ws);
-          const rn = run(cli.bin, args.concat(['--resume', parts[0].sessionId]), runEnv, next, cliCwd, limits);
+          const rn = agentRun(args.concat(['--resume', parts[0].sessionId]), runEnv, next, cliCwd, limits);
           streams.push(String(rn.stdout || ''));
           parts.push(parseAgent(rn.stdout));
         }
@@ -640,7 +647,7 @@ function main() {
           moveChildren(chats, path.join(held, String(k + 1)));
           const overlay = c.sessionFiles && c.sessionFiles[k + 1];
           if (overlay) layOverlay(overlay, ws);
-          const rn = run(cli.bin, args, runEnv, next, cliCwd, limits);
+          const rn = agentRun(args, runEnv, next, cliCwd, limits);
           streams.push(String(rn.stdout || ''));
           parts.push(parseAgent(rn.stdout));
         }
@@ -765,7 +772,9 @@ function main() {
   }
 
   if (priorCases.length) {
-    const ran = new Set(scored.map((row) => row.case));
+    // A case re-run here and left unscored drops its earlier row: that row is
+    // what the re-run was meant to replace.
+    const ran = new Set(scored.concat(unscored).map((row) => row.case));
     scored = priorCases.filter((row) => !ran.has(row.case)).concat(scored);
     const rebuilt = bucketsFromDir(outDir);
     costAll.with = rebuilt.with;
@@ -802,6 +811,8 @@ function main() {
   // Every case that ran, scored or not (benchlib.js intentToTreat).
   runRecord.intentToTreat = intentToTreat(scored.concat(unscored));
   for (const l of ittLines(runRecord.intentToTreat)) console.log(l);
+  // The session keeps the stage and lists these to re-run (benchsession.js assignSlot).
+  runRecord.unscored = unscored.map((row) => row.case);
   runRecord.armOrder = armOrders;
   runRecord.hooksRan = hooksAll;
   runRecord.costDetail = { with: summarizeCost(costAll.with), without: summarizeCost(costAll.without) };

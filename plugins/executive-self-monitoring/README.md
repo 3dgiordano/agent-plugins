@@ -53,6 +53,7 @@ Two pieces that install as one unit:
 | Claude Code, Codex | `exec-monitor.js` + `hooks/exec-stop.js` (`Stop`), `lib/writeback.js` | the plan write-back. The plan is the file the agent's latest [PLAN CHECK] names in `Plan`, whatever its name (read from the turn's blocks at the close), or, when no block has named a file, the one the `Plan:` line of `.agent/progress.md` points at. At the owner's third deciding prompt (a pick, an approval) since that file last changed - once it has been kept in the session - and on the second prompt after a [PLAN CHECK] that decided `revise-plan` if it has not changed since: one line, naming no file |
 | Claude Code, Codex | `hooks/exec-inject.js` (`SubagentStart`) + `hooks/exec-subagent-stop.js` (`SubagentStop`) | a subagent gets the skill's text at its start; at its close its reads are dropped, and with the opt-in log its [PLAN CHECK] and reads are measured, never gated |
 | Cursor | `cursor/exec-monitor-cursor.js` (`sessionStart`) | once per session |
+| Cursor | `cursor/exec-observe-cursor.js` (`postToolUse`) | a document the agent read that changed on disk since its last read or edit of it: named with the result of the next tool call, once per change - the same record and line as on Claude Code, which says it at the next prompt. Any tool that points at a document read earlier, other than a read, is the agent's own edit; so is a shell command that names it |
 | Factory Droid (from its hooks reference; not run on Droid yet) | the Claude Code adapters above; the `PostToolUse` matcher also names Droid's `Create`, `ApplyPatch` and `Execute` | the cadence as on Claude Code; no subagent start (Droid has no such event), and a [PLAN CHECK] at the close is not read (its `Stop` sends no final message) |
 | Agent Plugins client | *(none)* | skill only — the agent decides when to apply it |
 
@@ -69,7 +70,10 @@ the only non-blocking injection point is `sessionStart`. So the Cursor adapter
 injects the checkpoint once at session start (equivalent to the Claude Code
 hook's "fire on turn 1"); the every-Nth-turn cadence is intentionally not
 reproduced. The skill itself is available in Cursor for the agent to invoke at
-any time.
+any time. The one thing the Claude Code prompt hook says on any turn - a
+document read earlier changed on disk - comes on Cursor with the next tool
+call's result (`postToolUse`, whose `additional_context` reaches the model):
+before its next step, not before its first.
 
 ## The objective, not the last approved step (1.9.0)
 
@@ -90,6 +94,13 @@ an approved option or a derived document is quoted as serving the plan, and
 after a revision the skill asks one question: could the gate pass with the
 part the objective names doing nothing? If it could, that is `revise-plan`,
 the owner's call. The changed-document line asks the same question.
+
+The question is answered by effect, not by names: a part reached under
+another name or through another part still does its work if the result
+changes without it, and a part still called whose removal changes nothing
+does none. And `revise-plan` is a question, not a stop: the work the owner
+asked for is still done as the plan now reads; what waits is the claim that
+the gate shows the objective.
 
 Not shown: that the change moves the rate. A four-turn replay of that arc on
 a toy world (`bench/executive-self-monitoring/the-gate-the-tracker-passes`)
@@ -112,8 +123,8 @@ Cursor rule — keep the skill itself generic.
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 
 - **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed.
-- **Reads, on Claude Code:** the modification time of the documents the agent read (`.md`, `.markdown`, `.txt`, `.rst`, `.adoc`) - never their text - so the next prompt can say that one changed on disk since the agent's last Read, Write or Edit of it (`lib/reads.js`). A change made through the shell, the agent's own included, is one such change. What it says is the path and that fact. From 1.9.0 each agent keeps its own reads: a subagent's read of the plan is not the main agent's, and a subagent's edit of a document the main agent read is a change the main agent is told about at its next prompt (on Cursor, where no subagent id is read yet, one record as before). A subagent's reads are deleted at its close. For the plan write-back (1.9.0) it also reads the opening words of the owner's prompt, to tell a decision (an option letter, an approval) from anything else; at the close of a turn, the turn's part of the session transcript (its last 2 MB, the agent's text since the owner's prompt; the final message when the transcript cannot be read), for the `[PLAN CHECK]` blocks' `Plan` path and `revise-plan`; the `Plan:` line of `.agent/progress.md`, when the project keeps one and no block has named a file; and the modification time of the file either names. It keeps that path, a count and a time - no text - and says no file name.
-- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `execmon_…` (the cadence counter, and on Claude Code the documents read with their modification times and the plan write-back's count of decisions; a subagent's reads in a file of their own, ending `--<agent id>.reads.json`, deleted when it stops), kept for a resumed session and swept with this plugin's files there older than seven days; only with `EXECMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
+- **Reads, on Claude Code and Cursor:** the modification time of the documents the agent read (`.md`, `.markdown`, `.txt`, `.rst`, `.adoc`) - never their text - so the next prompt (on Cursor, the next tool call) can say that one changed on disk since the agent's last Read, Write or Edit of it (`lib/reads.js`). A change made through the shell, the agent's own included, is one such change. What it says is the path and that fact. From 1.9.0 each agent keeps its own reads: a subagent's read of the plan is not the main agent's, and a subagent's edit of a document the main agent read is a change the main agent is told about at its next prompt (on Cursor, where no subagent id is read yet, one record as before). A subagent's reads are deleted at its close. For the plan write-back (1.9.0) it also reads the opening words of the owner's prompt, to tell a decision (an option letter, an approval) from anything else; at the close of a turn, the turn's part of the session transcript (its last 2 MB, the agent's text since the owner's prompt; the final message when the transcript cannot be read), for the `[PLAN CHECK]` blocks' `Plan` path and `revise-plan`; the `Plan:` line of `.agent/progress.md`, when the project keeps one and no block has named a file; and the modification time of the file either names. It keeps that path, a count and a time - no text - and says no file name.
+- **Writes:** one small state file per session in `<temp>/3dgiordano-agent-plugins/`, named `execmon_…` (the cadence counter; on Claude Code and Cursor the documents read with their modification times; on Claude Code the plan write-back's count of decisions; a subagent's reads in a file of their own, ending `--<agent id>.reads.json`, deleted when it stops), kept for a resumed session and swept with this plugin's files there older than seven days; only with `EXECMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
 - **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them.
 
 The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
@@ -184,8 +195,9 @@ hooks/exec-session-end.js
 hooks/exec-inject.js               # the skill's text at session start, after /clear or compaction, and for a subagent
 hooks/exec-subagent-stop.js        # a subagent's close: measured (opt-in log), its reads dropped
 hooks/exec-stop.js                 # the main agent's close: the plan its [PLAN CHECK] names, and a revise-plan, for the plan write-back
-cursor/hooks.json                 # Cursor: sessionStart
+cursor/hooks.json                 # Cursor: sessionStart, postToolUse
 cursor/exec-monitor-cursor.js
+cursor/exec-observe-cursor.js      # the documents read; one that changed on disk, named with the next tool result
 lib/execlog.js                    # shared opt-in logger
 lib/writeback.js                  # the plan write-back: decisions since the plan last changed, an answered revise-plan
 lib/host.js                       # cwdOf(): the project dir from the event, else the host env var, else null

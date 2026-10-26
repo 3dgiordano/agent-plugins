@@ -1241,8 +1241,15 @@ function main() {
     });
   }
 
+  // A stop at the quota window leaves the stage's later cases not run: their
+  // earlier rows stay below, and the session must not take them as run now
+  // (benchsession.js assignSlot).
+  const reached = new Set(scored.concat(unscored).map((row) => row.case));
+  runRecord.notReached = stopped ? found.map((c) => `${c.plugin}/${c.id}`).filter((id) => !reached.has(id)) : [];
   if (priorCases.length) {
-    const ran = new Set(scored.map((row) => row.case));
+    // A case re-run here and left unscored drops its earlier row: that row is
+    // what the re-run was meant to replace.
+    const ran = reached;
     scored = priorCases.filter((row) => !ran.has(row.case)).concat(scored);
     const rebuilt = bucketsFromDir(outDir);
     costAll.with = rebuilt.with;
@@ -1271,6 +1278,8 @@ function main() {
   // is the plainest exclusion there is.
   runRecord.intentToTreat = intentToTreat(scored.concat(unscored));
   for (const l of ittLines(runRecord.intentToTreat)) console.log(l);
+  // The session keeps the stage and lists these to re-run (benchsession.js assignSlot).
+  runRecord.unscored = unscored.map((row) => row.case);
   runRecord.armOrder = armOrders;
   runRecord.hooksRan = hooksAll;
   runRecord.costDetail = { with: summarizeCost(costAll.with), without: summarizeCost(costAll.without) };

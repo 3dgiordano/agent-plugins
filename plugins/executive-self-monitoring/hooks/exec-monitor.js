@@ -60,12 +60,7 @@ function main(raw) {
   const moved = reads.changed('claude', sid).map((p) => (cwd && !path.relative(cwd, p).startsWith('..') ? path.relative(cwd, p) : p).split(path.sep).join('/'));
 
 
-  const changedLine = moved.length
-    ? `[executive self-monitoring] ${moved.slice(0, 3).map((p) => '`' + p + '`').join(', ')}${moved.length > 3 ? ` and ${moved.length - 3} more` : ''} changed on disk since your last Read, Write or Edit of ${moved.length === 1 ? 'it' : 'them'}. ` +
-      'Re-open before you go on: what you remember of it is not what it says now. If the change moves ' +
-      'the work to another part, or drops one, quote the objective again and check that the gate still ' +
-      'needs the part the objective names.'
-    : '';
+  const changedLine = reads.changedLine(moved);
   // Whether the plan keeps up with what is decided on it (lib/writeback.js):
   // the third decision since a plan document last changed, or a revise-plan
   // the owner has answered with the plan still unchanged.

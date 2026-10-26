@@ -301,9 +301,14 @@ function expectedCases(root) {
 function assignSlot(root, session, host, modelId, record) {
   const key = slotKey(host, modelId);
   const prev = session.slots[key] || { invalidAll: [], invalidCases: [] };
-  const ranCases = ((record.score && record.score.cases) || []).map((row) => row.case);
+  // A case the stage was stopped before (the quota window) keeps its earlier
+  // row in the record, and whatever made it one to re-run.
+  const notReached = record.notReached || [];
+  const ranCases = ((record.score && record.score.cases) || []).map((row) => row.case).filter((id) => !notReached.includes(id));
+  // A case recorded as not scored (markNotScored) leaves the list once a run scores it.
+  const notScored = (prev.notScored || []).filter((item) => !ranCases.includes(item.case));
   const expected = expectedCases(root);
-  const full = expected.length > 0 && expected.every((id) => ranCases.includes(id));
+  const full = expected.length > 0 && expected.every((id) => ranCases.includes(id) || notScored.some((item) => item.case === id));
   if (!full && (prev.invalidAll || []).length) {
     const err = new Error(`${key} was invalidated for the whole model. Re-run every case for it.`);
     err.code = 'NEED_FULL';
@@ -316,6 +321,12 @@ function assignSlot(root, session, host, modelId, record) {
     invalidCases = [];
   } else {
     invalidCases = (prev.invalidCases || []).filter((item) => !ranCases.includes(item.case));
+  }
+  // A case the stage ran and could not score - no valid run in one arm - is
+  // one to re-run, not a reason to drop the cases it did score.
+  for (const id of record.unscored || []) {
+    if (notScored.some((item) => item.case === id)) continue;
+    if (!invalidCases.some((item) => item.case === id)) invalidCases.push({ case: id, reason: `${id} not scored: no valid run in one arm` });
   }
   if (record.benchmark !== session.benchmark) {
     invalidAll = [`run benchmark ${record.benchmark} != session ${session.benchmark}`];
@@ -333,8 +344,38 @@ function assignSlot(root, session, host, modelId, record) {
     invalidAll,
     invalidCases,
   };
+  if (notScored.length) session.slots[key].notScored = notScored;
   writeSession(root, session);
   return session.slots[key];
+}
+
+/*
+ * The owner's call on a case a slot could not score - no valid run in one
+ * arm, stage after stage - that it is reported as not scored, with the reason
+ * observed, rather than run until a run gets through: the runs that would
+ * score it are the ones that did not do what voided the others. Only a case
+ * the slot lists as not scored can be recorded so; a case to re-run for any
+ * other reason stays one. The slot leaves All plugins (loadSessionRecords),
+ * the session can close, and a later stage that scores the case takes it off.
+ */
+function markNotScored(root, session, key, caseId, reason) {
+  const slot = session.slots[key];
+  if (!slot) throw new Error(`${key} has no stored slot`);
+  if (!reason || !String(reason).trim()) throw new Error('a not-scored case needs the reason observed');
+  // A case already recorded so takes a corrected reason.
+  const item = (slot.invalidCases || []).find((x) => x.case === caseId);
+  const recorded = (slot.notScored || []).some((x) => x.case === caseId);
+  if (!recorded && (!item || !/ not scored: /.test(item.reason))) throw new Error(`${key} does not list ${caseId} as not scored`);
+  slot.notScored = (slot.notScored || []).filter((x) => x.case !== caseId).concat([{ case: caseId, reason: String(reason).trim(), since: new Date().toISOString() }]);
+  slot.invalidCases = (slot.invalidCases || []).filter((x) => x.case !== caseId);
+  // Complete now, as a full stage is: what it lists for other cases of the
+  // plugins is about cases this slot never ran.
+  const expected = expectedCases(root);
+  if (expected.every((id) => (slot.cases || []).includes(id) || slot.notScored.some((x) => x.case === id))) {
+    slot.invalidCases = slot.invalidCases.filter((x) => (slot.cases || []).includes(x.case));
+  }
+  writeSession(root, session);
+  return slot;
 }
 
 function assertSameVersions(records) {
@@ -387,13 +428,19 @@ function loadSessionRecords(root, id) {
       });
     }
     const present = new Set(((record.score && record.score.cases) || []).map((row) => row.case));
-    const complete = expected.every((caseId) => present.has(caseId));
+    record._notScored = slot.notScored || [];
+    // A case recorded as not scored is accounted for: the model is pooled over
+    // the cases it has, and the page says how many (bench-report.js).
+    const complete = expected.every((caseId) => present.has(caseId) || record._notScored.some((item) => item.case === caseId));
     record._pool = complete && invalidIds.size === 0;
     // Where the run's per-run files are, for a report that reads them (bench-report.js failuresOf).
     record._dir = path.dirname(file);
     if (!record._pool) {
       const why = (slot.invalidCases || []).map((item) => item.reason);
       notes.push(`${key} is left out of All plugins until these cases are re-run: ${why.join('; ') || 'the case list is incomplete'}`);
+    } else if (record._notScored.length) {
+      const why = record._notScored.map((item) => `${item.case} not scored - ${item.reason}`);
+      notes.push(`${key} is in All plugins over ${present.size} of ${present.size + record._notScored.length} cases: ${why.join('; ')}`);
     }
     records.push(record);
   }
@@ -412,6 +459,7 @@ module.exports = {
   listInvalid,
   finishSession,
   assignSlot,
+  markNotScored,
   slotKey,
   slotFolder,
   sessionDir,

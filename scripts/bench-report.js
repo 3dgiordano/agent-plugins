@@ -282,12 +282,17 @@ function pointsFrom(records) {
     if (record._pool === false) continue;
     const score = record.score || {};
     const cost = record.costDetail || {};
+    // A model pooled over fewer cases - one recorded as not scored - says how many wherever it is named.
+    const scored = (score.cases || []).length;
+    const missing = (record._notScored || []).length;
+    const partial = missing ? `${scored} of ${scored + missing} cases` : null;
     for (const armName of ['with', 'without']) {
       const s = score[armName];
       const c = cost[armName];
       if (!s || s.pct == null || !pushPoint(out, record, armName, s.pass, s.n, c)) {
         throw new Error(`${record.model || familyOf(record)}: missing score or tokens for ${armName}`);
       }
+      out[out.length - 1].partial = partial;
     }
   }
   return out;
@@ -328,7 +333,7 @@ function layoutFamily(points) {
   const boxes = [legendBox()];
   const labeled = placed.slice().sort((a, b) => a.y - b.y || a.x - b.x || (a.arm < b.arm ? -1 : 1));
   for (const p of labeled) {
-    const text = p.arm === 'with' ? p.line : '';
+    const text = p.arm === 'with' ? `${p.line}${p.partial ? ` (${p.partial})` : ''}` : '';
     if (!text) {
       p.text = '';
       continue;
@@ -429,7 +434,7 @@ function renderPanel(family, points, title) {
     const hit = placed.find((p) => p.tier === tier && p.arm === 'with') || placed.find((p) => p.tier === tier);
     if (!hit || seenTier.has(tier)) continue;
     seenTier.add(tier);
-    labels.push({ color: hit.color, text: `${hit.line} · ${hit.reasoning}` });
+    labels.push({ color: hit.color, text: `${hit.line} · ${hit.reasoning}${hit.partial ? ` (${hit.partial})` : ''}` });
   }
   let lx = LEFT;
   const ly = TOP + PLOT_H + 36;
@@ -548,7 +553,7 @@ function tableRows(points) {
     const gain = p.arm === 'with' ? gainHtml(g) : '<span class="muted">base</span>';
     // As in By case: the with row's passes, rate and gain stand out only where it gained.
     const won = (label, value) => `<td class="num${g && g.dir === 'up' ? ' won' : ''}" data-label="${esc(label)}">${value}</td>`;
-    return `<tr${first && i ? ' class="group"' : ''}>${named('Family', esc(FAMILY_LABEL[p.family] || p.family))}${named('Model', esc(p.line))}${named('Reasoning', esc(p.reasoning))}${cell('Arm', p.arm === 'with' ? 'With plugins' : 'Without plugins')}${won('Passes', `${p.pass}/${p.n}`)}${won('Rate', `${p.pct}%`)}${won('Gain', gain)}${cell('Tokens', group(p.tokens), true)}${cell('Time', seconds(p.durationMs), true)}${cell('Tool calls', stepsOf(p.steps), true)}</tr>`;
+    return `<tr${first && i ? ' class="group"' : ''}>${named('Family', esc(FAMILY_LABEL[p.family] || p.family))}${named('Model', `${esc(p.line)}${p.partial ? ` <span class="muted">(${esc(p.partial)})</span>` : ''}`)}${named('Reasoning', esc(p.reasoning))}${cell('Arm', p.arm === 'with' ? 'With plugins' : 'Without plugins')}${won('Passes', `${p.pass}/${p.n}`)}${won('Rate', `${p.pct}%`)}${won('Gain', gain)}${cell('Tokens', group(p.tokens), true)}${cell('Time', seconds(p.durationMs), true)}${cell('Tool calls', stepsOf(p.steps), true)}</tr>`;
   }).join('\n');
 }
 
@@ -571,7 +576,7 @@ function renderCompact(points) {
         return `<p class="meter"><span>${name} ${point.pass}/${point.n} · ${point.pct}%</span><span class="track"><span class="${open ? 'open' : 'solid'}" style="width:${point.pct}%;${paint}"></span></span></p>`;
       };
       const gain = withoutPoint ? `<p class="meter"><span>Gain over without ${gainHtml(gainOf(withPoint.pass, withPoint.n, withoutPoint.pass, withoutPoint.n))}</span></p>` : '';
-      return `<li><p class="who"><i style="background:${color}"></i>${esc(withPoint.line)} · ${esc(withPoint.reasoning)}</p>${meter(withPoint, false)}${meter(withoutPoint, true)}${gain}</li>`;
+      return `<li><p class="who"><i style="background:${color}"></i>${esc(withPoint.line)} · ${esc(withPoint.reasoning)}${withPoint.partial ? ` <span class="muted">(${esc(withPoint.partial)})</span>` : ''}</p>${meter(withPoint, false)}${meter(withoutPoint, true)}${gain}</li>`;
     }).join('');
     return `<h3>${esc(FAMILY_LABEL[family] || family)}</h3><ul>${items}</ul>`;
   }).join('');
@@ -612,6 +617,7 @@ function renderCaseMatrix(records, heading) {
   const families = new Set(models.map(familyOf));
   const failed = new Set(models.flatMap((record) => failuresOf(record).map((f) => failId(record, f.case, f.arm))));
   const notes = [];
+  const notScored = [];
   const markOf = new Map();
   for (const [caseId] of PLUGINS) {
     for (const [family, note] of Object.entries(HOST_NOTES[caseId] || {})) {
@@ -624,6 +630,13 @@ function renderCaseMatrix(records, heading) {
     const cells = models.map((record) => {
       const named = splitModel(record);
       const row = ((record.score && record.score.cases) || []).find((item) => item.case === caseId);
+      // The owner's call on a case no stage could score (benchsession markNotScored), with its reason below the table.
+      const unscored = (record._notScored || []).find((item) => item.case === caseId);
+      if (!row && unscored) {
+        notScored.push({ record, caseId, reason: unscored.reason, mark: '†'.repeat(notScored.length + 1) });
+        const tag = `<span title="${esc(unscored.reason)}">not scored${'†'.repeat(notScored.length)}</span>`;
+        return `${cell(`${named.line} without`, tag, true)}${cell(`${named.line} with`, tag, true)}${cell(`${named.line} gain`, '-', true)}`;
+      }
       if (!row) return `${cell(`${named.line} without`, '-', true)}${cell(`${named.line} with`, '-', true)}${cell(`${named.line} gain`, '-', true)}`;
       const g = gainOf(row.with, row.validWith, row.without, row.validWithout);
       // A cell with failed runs links to them under Failed runs.
@@ -640,7 +653,9 @@ function renderCaseMatrix(records, heading) {
     const mark = markOf.has(caseId) ? `<sup>${markOf.get(caseId)}</sup>` : '';
     return `<tr>${cell('Plugin', esc(label) + mark)}${cell('Case', esc(caseId.split('/')[1]))}${cells}</tr>`;
   }).join('\n');
-  const footnotes = notes.map((n) => `<p class="muted">${n.mark} ${esc(FAMILY_LABEL[n.family] || n.family)}, ${esc(n.caseId.split('/')[1])}: ${esc(n.text)}${n.source ? ` <a href="${esc(n.source)}">${esc(n.source)}</a>` : ''}</p>`).join('\n');
+  const footnotes = notes.map((n) => `<p class="muted">${n.mark} ${esc(FAMILY_LABEL[n.family] || n.family)}, ${esc(n.caseId.split('/')[1])}: ${esc(n.text)}${n.source ? ` <a href="${esc(n.source)}">${esc(n.source)}</a>` : ''}</p>`)
+    .concat(notScored.map((n) => { const named = splitModel(n.record); return `<p class="muted">${n.mark} ${esc(named.line)} · ${esc(named.reasoning)}, ${esc(n.caseId.split('/')[1])}: not scored - ${esc(n.reason)}</p>`; }))
+    .join('\n');
   return `<h2>${esc(heading || 'By case')}</h2>
   <p class="muted">Bold: the plugin gained over the base. Outlined: a run with the plugin failed - work to do. A run passes or fails as a whole. A cell with a red mark had failed runs: it links to what the grader found in each, under Failed runs.${runWeight(models)}</p>
   <div class="table-wrap"><table class="matrix">
@@ -865,9 +880,25 @@ function footNote(records, versionsNote) {
   ].filter(Boolean).join(' ');
 }
 
+/*
+ * Cursor runs from before the bench's node fence held on Cursor: run.json
+ * names the fence (nodeGuard) and not how the CLI was started for it
+ * (fenceLaunch, cursor-bench.js). Their `node` was the CLI's own; the audit
+ * is what kept a run that used it out of the score (bench/GUARDS.md).
+ */
+function fenceNote(records) {
+  const before = (records || []).filter((r) => familyOf(r) === 'cursor' && r.nodeGuard && !/^direct\b/.test(r.fenceLaunch || ''));
+  if (!before.length) return null;
+  const names = before.map((r) => { const n = splitModel(r); return `${n.line} · ${n.reasoning}`; });
+  return `${names.join(', ')} ran before the bench's node fence held on Cursor: the agent's node was the CLI's own, unfenced, and the audit is what kept a run that used it out of the score (bench/GUARDS.md).`;
+}
+
 function versionBlock(meta, records) {
   const root = path.join(__dirname, '..');
-  if (meta && meta.dated) return datedBlock(meta.dated);
+  if (meta && meta.dated) {
+    const fence = fenceNote(records);
+    return datedBlock(meta.dated.map((s) => (s.family === 'cursor' && fence ? Object.assign({}, s, { notes: s.notes.concat([fence]) }) : s)));
+  }
   if (meta && meta.draft) return '';
   if (!meta || !meta.session) {
     return `<p class="muted">Benchmark ${esc(benchmarkVersion(root))}. A session records the plugin versions and the agent version with the runs.</p>`;
@@ -880,7 +911,7 @@ function versionBlock(meta, records) {
     ? agents.map((host) => `${host} ${session.agents[host]}`).join(', ')
     : 'not recorded yet';
   const rows = Object.keys(session.plugins || {}).sort().map((name) => `<dt>${esc(name)}</dt><dd>${esc(session.plugins[name])}</dd>`).join('');
-  const notes = (meta.notes || []).map((note) => `<p class="banner">${esc(note)}</p>`).join('\n  ');
+  const notes = (meta.notes || []).concat([fenceNote(records)].filter(Boolean)).map((note) => `<p class="banner">${esc(note)}</p>`).join('\n  ');
   return `<dl class="versions"><dt>Benchmark</dt><dd>${esc(session.benchmark)}</dd><dt>Session</dt><dd>${esc(session.status)} ${esc(session.id)}</dd><dt>Agent</dt><dd>${esc(agentLine)}</dd>${rows}</dl>
   ${notes}`;
 }

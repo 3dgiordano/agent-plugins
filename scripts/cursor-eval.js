@@ -143,6 +143,29 @@ function findCli() {
 }
 
 /*
+ * The CLI without its Windows shim: the node.exe and index.js of the newest
+ * version folder, chosen as cursor-agent.ps1 chooses it (by the date in the
+ * folder's name), or null. The shim starts that node.exe through PowerShell's
+ * `&`, which runs a file whose extension is not in PATHEXT as a document,
+ * outside the console: under evallib fenceFirstEnv the CLI printed nothing
+ * and exited 0 (measured on 2026.10.22). Started directly, it runs.
+ */
+function directLaunch(bin) {
+  if (process.platform !== 'win32' || !bin) return null;
+  const root = path.join(path.dirname(bin), 'versions');
+  const dated = (n) => { const m = /^(\d{4})\.(\d{1,2})\.(\d{1,2})(?:-\d{2}-\d{2}-\d{2})?-[a-f0-9]+$/.exec(n); return m ? Number(m[1] + m[2].padStart(2, '0') + m[3].padStart(2, '0')) : null; };
+  let names = [];
+  try { names = fs.readdirSync(root).filter((n) => dated(n) !== null); } catch (_) { return null; }
+  names.sort((a, b) => dated(b) - dated(a) || (a < b ? 1 : -1));
+  for (const n of names) {
+    const node = path.join(root, n, 'node.exe');
+    const index = path.join(root, n, 'index.js');
+    if (fs.existsSync(node) && fs.existsSync(index)) return { bin: node, pre: [index], invokedAs: path.basename(bin), version: n };
+  }
+  return null;
+}
+
+/*
  * `input` is the PROMPT, and it goes on stdin rather than in argv.
  *
  * On Windows the CLI is a .cmd shim, which spawnSync can only start through a
@@ -629,4 +652,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { findCli, authState, argsFor, globalInstalls, run, killTree, pluginCopy, cursorModels, chooseModels };
+module.exports = { findCli, directLaunch, authState, argsFor, globalInstalls, run, killTree, pluginCopy, cursorModels, chooseModels };

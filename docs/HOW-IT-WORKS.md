@@ -113,7 +113,7 @@ The skill is the same everywhere; the *when* depends on the events a host expose
 | Ask for the skill (the other four), for an agent that does not know the marker | first prompt (+ periodic reminder, and after a compaction); a subagent at its start (persistence, epistemic, termination) | session start | first prompt (+ periodic reminder, and after a compaction); not a subagent at its start |
 | A subagent's own record (`agent_id`): its counts and nudges are its own; its changes reach the main agent, its reviews do not | ✓ | **—**: no subagent id read yet (not probed), one record per conversation | **—**: no subagent id in the documented payload |
 | Executive checkpoint cadence | every 5th prompt | once per session | every 5th prompt |
-| Executive changed-document line | ✓ (Claude Code) | — | ? (`Read`'s input is not documented) |
+| Executive changed-document line | ✓ (Claude Code), at the next prompt | ✓ with the next tool call's result (`postToolUse`) | ? (`Read`'s input is not documented) |
 | Executive plan write-back (the third decision since the plan last changed; an answered `revise-plan` with the plan unchanged) | ✓ | — | **—**: `Stop` sends no final message |
 | Persistence counters + nudges | ✓ | ✓ | ✓ |
 | Epistemic observe nudge | ✓ | ✓ | ✓ (`Execute`) |

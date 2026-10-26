@@ -2702,6 +2702,47 @@ test('executive (claude): a document read earlier that changed on disk, not by t
   assert.match(prompt('Go on.'), /PLAN\.md/);
 });
 
+test('executive (cursor): a document read earlier that changed on disk is named with the next tool call\'s result, once; the agent\'s own edit is not', (t) => {
+  const stamp = uid('reads-cursor');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'exec-reads-cursor-'));
+  t.after(() => { cleanupTemp(stamp); fs.rmSync(dir, { recursive: true, force: true }); });
+  const cid = `${stamp}-exec`;
+  const plan = path.join(dir, 'PLAN.md');
+  const code = path.join(dir, 'src', 'billing.js');
+  fs.mkdirSync(path.dirname(code));
+  fs.writeFileSync(plan, '1. a\n2. b\n');
+  fs.writeFileSync(code, 'x');
+  const EXE = 'executive-self-monitoring';
+  // Cursor's payload: conversation_id, the tool's name and input; the hook runs from the plugin folder.
+  const call = (name, input) => {
+    const r = hook(EXE, 'cursor/exec-observe-cursor.js', { hook_event_name: 'postToolUse', conversation_id: cid, tool_name: name, tool_input: input });
+    return r.out ? JSON.parse(r.out).additional_context : '';
+  };
+  const touch = (f, text, ms) => { fs.writeFileSync(f, text); const t2 = (Date.now() + ms) / 1000; fs.utimesSync(f, t2, t2); };
+  assert.equal(call('Read', { path: plan }), '', 'a read says nothing');
+  assert.equal(call('Read', { path: code }), '', 'nothing changed');
+  // The plan changes between two turns; the next turn opens on another file.
+  touch(plan, '1. a\n2. b (revised)\n', 5000);
+  const said = call('Read', { path: code });
+  assert.match(said, /`[^`]*PLAN\.md` changed on disk since your last Read, Write or Edit of it\. Re-open before you go on/);
+  assert.doesNotMatch(said, /revised/, 'the file\'s text is never said');
+  assert.equal(call('Read', { path: code }), '', 'the same change is said once');
+  // The agent's own edit, whatever the tool is called, and its own shell command naming the file, are not news.
+  touch(plan, '1. a\n2. b\n3. c\n', 9000);
+  assert.equal(call('Edit', { path: plan, old_string: 'b', new_string: 'b' }), '', 'its own edit moved the record');
+  assert.equal(call('Read', { path: code }), '');
+  touch(plan, '1. a\n', 11000);
+  assert.equal(call('Shell', { command: 'Add-Content PLAN.md "x"' }), '', 'a shell command naming it is its own change');
+  // A re-read takes the change in: nothing to say about it after.
+  touch(plan, '1. b\n', 13000);
+  assert.equal(call('Read', { path: plan }), '', 're-opened: nothing to say');
+  // Code is not a document; the hooks file wires the observer.
+  touch(code, 'y', 15000);
+  assert.equal(call('Read', { path: path.join(dir, 'README.txt') }), '');
+  const wired = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins', EXE, 'cursor', 'hooks.json'), 'utf8')).hooks.postToolUse;
+  assert.deepEqual(wired.map((h) => h.command), ['node ./cursor/exec-observe-cursor.js']);
+});
+
 test('executive (claude): parallel tool calls record every document read, and the agent\'s own write is not lost to a parallel read', async (t) => {
   const stamp = uid('reads-par');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'exec-reads-par-'));
@@ -4042,6 +4083,64 @@ test('outcome bench session: a stage with no filter runs the canonical cases, an
   assert.deepEqual([loaded.records.length, loaded.records[0]._pool, loaded.notes], [1, true, []]);
 });
 
+test('outcome bench session: a finished stage with an unscored case is kept, with that case to re-run', (t) => {
+  const lib = require('./benchsession.js');
+  const { finishedSince } = require('./bench.js');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bench-unscored-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  for (const name of ['coverage-self-monitoring', 'epistemic-self-monitoring']) {
+    for (const rel of ['.plugin/plugin.json', '.claude-plugin/plugin.json', '.cursor-plugin/plugin.json', '.codex-plugin/plugin.json']) {
+      const file = path.join(root, 'plugins', name, rel);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, JSON.stringify({ name, version: '0.2.0' }));
+    }
+    fs.mkdirSync(path.join(root, 'bench', name, 'canon'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'bench', name, 'canon', 'grade.js'), 'module.exports = {}\n');
+  }
+  fs.writeFileSync(path.join(root, 'bench', 'benchmark.json'), JSON.stringify({ version: '1.0.0', cases: { 'coverage-self-monitoring': 'canon', 'epistemic-self-monitoring': 'canon' } }));
+  const session = lib.startSession(root, { cursor: 'agent-1' });
+  const record = (cases, unscored) => ({ agent: 'agent-1', benchmark: '1.0.0', plugins: session.plugins, host: 'cursor', score: { cases: cases.map((c) => ({ case: c })) }, unscored });
+  let slot = lib.assignSlot(root, lib.readCurrent(root), 'cursor', 'm', record(['epistemic-self-monitoring/canon'], ['coverage-self-monitoring/canon']));
+  assert.deepEqual(slot.invalidCases.map((i) => i.case), ['coverage-self-monitoring/canon'], 'the unscored case is listed to re-run');
+  assert.deepEqual(lib.listInvalid(lib.readCurrent(root)).map((p) => p.slot), ['cursor/m']);
+  assert.throws(() => lib.finishSession(root, false), /no longer match/, 'the session cannot close with it');
+  // The owner's call instead: reported as not scored, with the reason. The session can close, the slot leaves the pool.
+  assert.throws(() => lib.markNotScored(root, lib.readCurrent(root), 'cursor/m', 'epistemic-self-monitoring/canon', 'x'), /does not list/, 'only a case listed as not scored');
+  assert.throws(() => lib.markNotScored(root, lib.readCurrent(root), 'cursor/m', 'coverage-self-monitoring/canon', ' '), /reason/);
+  slot = lib.markNotScored(root, lib.readCurrent(root), 'cursor/m', 'coverage-self-monitoring/canon', 'its runs searched outside the workspace');
+  assert.deepEqual([slot.invalidCases, slot.notScored.map((i) => i.case)], [[], ['coverage-self-monitoring/canon']]);
+  assert.deepEqual(lib.listInvalid(lib.readCurrent(root)), [], 'nothing left to re-run');
+  const slotDir = path.join(lib.sessionDir(root, session.id), slot.dir);
+  fs.mkdirSync(slotDir, { recursive: true });
+  fs.writeFileSync(path.join(slotDir, 'run.json'), JSON.stringify(record(['epistemic-self-monitoring/canon'], ['coverage-self-monitoring/canon'])));
+  const loaded = lib.loadSessionRecords(root);
+  assert.deepEqual([loaded.records[0]._pool, loaded.records[0]._notScored.length], [true, 1], 'pooled over the cases it has');
+  assert.match(loaded.notes[0], /in All plugins over 1 of 2 cases: coverage-self-monitoring\/canon not scored - its runs searched outside the workspace/);
+  // A stage that leaves it unscored again keeps the call; one that scores it (merged, so the record holds both) takes it off.
+  slot = lib.assignSlot(root, lib.readCurrent(root), 'cursor', 'm', record(['epistemic-self-monitoring/canon'], ['coverage-self-monitoring/canon']));
+  assert.deepEqual([slot.invalidCases, slot.notScored.length], [[], 1]);
+  slot = lib.assignSlot(root, lib.readCurrent(root), 'cursor', 'm', record(['epistemic-self-monitoring/canon', 'coverage-self-monitoring/canon'], []));
+  assert.deepEqual([slot.invalidCases, slot.notScored], [[], undefined]);
+  // A stage stopped at the quota window before a case keeps that case's earlier row; it is not taken as run.
+  const s2 = lib.readCurrent(root);
+  s2.slots['cursor/m'].invalidCases = [{ case: 'epistemic-self-monitoring/canon', reason: 'code changed' }];
+  const stoppedRecord = Object.assign(record(['epistemic-self-monitoring/canon', 'coverage-self-monitoring/canon'], []), { notReached: ['epistemic-self-monitoring/canon'] });
+  slot = lib.assignSlot(root, s2, 'cursor', 'm', stoppedRecord);
+  assert.deepEqual(slot.invalidCases, [{ case: 'epistemic-self-monitoring/canon', reason: 'code changed' }], 'the mark stays');
+
+  // bench.js keeps a stage only when the driver finished it during this stage.
+  const dir = path.join(root, 'stage.incoming');
+  fs.mkdirSync(dir);
+  const since = Date.now();
+  assert.equal(finishedSince(dir, since), false, 'no run.json');
+  fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify({ started: new Date(since).toISOString() }));
+  assert.equal(finishedSince(dir, since), false, 'started, never finished');
+  fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify({ finished: new Date(since - 60000).toISOString() }));
+  assert.equal(finishedSince(dir, since), false, 'a finished record from an earlier stage (--merge copies it in)');
+  fs.writeFileSync(path.join(dir, 'run.json'), JSON.stringify({ finished: new Date(since + 1000).toISOString() }));
+  assert.equal(finishedSince(dir, since), true);
+});
+
 test('bench: every overlay a driver lays - between turns and between sessions - goes through layOverlay', () => {
   for (const driver of ['claude-bench.js', 'cursor-bench.js']) {
     const src = fs.readFileSync(path.join(ROOT, 'scripts', driver), 'utf8');
@@ -4150,6 +4249,38 @@ test('bench: `node --test` runs inside the node fence - its runner stays in one 
   assert.equal(r.status, 0, (r.stdout + r.stderr).slice(0, 300));
   assert.match(r.stdout, /# pass 1/);
   assert.doesNotMatch(r.stdout + r.stderr, /ERR_ACCESS_DENIED/);
+});
+
+test('bench: the fence holds when a host puts its own node.exe ahead of it on the PATH, as Cursor does on Windows', (t) => {
+  const { nodeGuard, fenceFirstEnv, permissionFlags } = require('./evallib.js');
+  assert.deepEqual(fenceFirstEnv({ PATHEXT: '.COM;.EXE;.BAT;.CMD' }, 'win32'), { PATHEXT: '.COM;.BAT;.CMD' });
+  assert.deepEqual(fenceFirstEnv({ PathExt: '.exe;.cmd' }, 'win32'), { PathExt: '.cmd' }, 'the key keeps its spelling');
+  assert.deepEqual(fenceFirstEnv({ PATHEXT: '.EXE' }, 'linux'), {}, 'nothing off Windows');
+  if (process.platform !== 'win32') { t.skip('PATHEXT is a Windows lookup'); return; }
+  // Without its shim the CLI is the newest version folder's node.exe and index.js, chosen by date as the shim does.
+  const { directLaunch } = require('./cursor-eval.js');
+  const install = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-cursor-install-'));
+  t.after(() => fs.rmSync(install, { recursive: true, force: true }));
+  for (const v of ['2026.9.30-aaa111', '2026.10.22-27dcf5f', '2026.10.3-bbb222', 'not-a-version']) {
+    fs.mkdirSync(path.join(install, 'versions', v), { recursive: true });
+    for (const f of ['node.exe', 'index.js']) fs.writeFileSync(path.join(install, 'versions', v, f), '');
+  }
+  fs.writeFileSync(path.join(install, 'agent.cmd'), '');
+  const d = directLaunch(path.join(install, 'agent.cmd'));
+  assert.deepEqual([d.version, path.basename(d.bin), d.pre.map((p) => path.basename(p)), d.invokedAs], ['2026.10.22-27dcf5f', 'node.exe', ['index.js'], 'agent.cmd']);
+  if (!permissionFlags()) { t.skip(`no permission model on node ${process.version}`); return; }
+  const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-fence-first-ws-'));
+  const first = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-plugins-fence-first-'));
+  // A node.exe that is not node: whoami prints a name, never the fence's line.
+  fs.copyFileSync(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'whoami.exe'), path.join(first, 'node.exe'));
+  const g = nodeGuard(ws, []);
+  t.after(() => { for (const d of [ws, first, g.dir]) fs.rmSync(d, { recursive: true, force: true }); });
+  const key = Object.keys(g.env)[0];
+  const env = Object.assign({}, process.env, { [key]: first + path.delimiter + g.env[key] });
+  const probe = "node -e \"console.log(process.permission ? 'fenced' : 'open')\"";
+  const run = (e) => spawnSync('powershell.exe', ['-NoProfile', '-Command', probe], { cwd: ws, env: e, encoding: 'utf8' });
+  assert.doesNotMatch(run(env).stdout, /fenced|open/, 'without it the first node.exe runs');
+  assert.match(run(Object.assign(env, fenceFirstEnv())).stdout, /fenced/);
 });
 
 test('bench: a workspace reached through a link is fenced by its real path too (macOS: /var is a link to /private/var)', (t) => {
@@ -4544,6 +4675,29 @@ test('bench report: gain is the with rate minus the without rate, in points, sho
   assert.doesNotMatch(html, /class="num work"/);
   const withCells = [...html.matchAll(/<td class="num([^"]*)" data-label="Opus 5\.5 with">(\d)\/3/g)].map((m) => `${m[2]}${m[1]}`);
   assert.deepEqual(withCells, ['2 gap', '0 gap', '3 won'], 'executive (flat), persistence (down), hygiene (up) - in the page order');
+});
+
+test('bench report: a case recorded as not scored says so with its reason, and Cursor runs from before the fence held carry a note', () => {
+  const { renderHtml } = require('./bench-report.js');
+  const cost = { tokensMean: 100, durationMsMean: 1000, stepsMean: 3 };
+  const hyg = 'hygiene-self-monitoring/the-header-case';
+  const integ = 'integrity-self-monitoring/the-blocked-part-stays-blocked';
+  const rec = (fenceLaunch) => ({
+    family: 'cursor', host: 'cursor', model: 'composer-2.5', tier: 'mid', runs: 3, benchmark: '1.0.0', agent: 'cursor-agent', plugins: {},
+    nodeGuard: '--permission', fenceLaunch,
+    score: { with: { pass: 3, n: 3, pct: 100 }, without: { pass: 0, n: 3, pct: 0 }, cases: [{ case: hyg, with: 3, validWith: 3, without: 0, validWithout: 3 }] },
+    costDetail: { with: cost, without: cost },
+    _notScored: [{ case: integ, reason: '13 of 18 runs searched outside the workspace' }],
+  });
+  const meta = { session: { benchmark: '1.0.0', status: 'open', id: 's', agents: { cursor: 'cursor-agent' }, plugins: {} }, notes: [] };
+  const html = renderHtml([rec(undefined)], meta);
+  assert.match(html, /not scored†/, 'the cell says not scored');
+  assert.match(html, /† Composer 2\.5[^<]*, the-blocked-part-stays-blocked: not scored - 13 of 18 runs searched outside the workspace/, 'with its reason below the table');
+  assert.match(html, /ran before the bench&#39;s node fence held on Cursor|ran before the bench's node fence held on Cursor/, 'the fence note');
+  // Pooled over the case it has, and named so in the chart, the panel and By model.
+  assert.match(html, /<text[^>]*>Composer 2\.5 \(1 of 2 cases\)<\/text>/, 'the chart labels it');
+  assert.match(html, /data-label="Model">Composer 2\.5 <span class="muted">\(1 of 2 cases\)<\/span>/, 'By model names it with its case count');
+  assert.doesNotMatch(renderHtml([rec('direct 2026.10.22-27dcf5f, PATHEXT without .EXE')], meta), /node fence held/, 'no note once the fence held');
 });
 
 test('bench report: By model puts each model\'s base first, a rule above each later model, and names the model once', () => {

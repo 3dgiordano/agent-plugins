@@ -88,7 +88,7 @@ a project file, stated here so they can be checked:
   definition. Its state file holds those, never the code. Its message names a
   path, line numbers and a count; never a function's name or the code. It
   never writes a project file.
-- `executive-self-monitoring`, on Claude Code, reads **the modification time**
+- `executive-self-monitoring`, on Claude Code and Cursor, reads **the modification time**
   of each document the agent read or wrote with a file tool (`.md`,
   `.markdown`, `.txt`, `.rst`, `.adoc`), at most 50 per session; never its
   text. Its message names that path and that it changed on disk since the
