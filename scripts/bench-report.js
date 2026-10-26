@@ -1164,6 +1164,97 @@ function datedStamps(records, dates, notes) {
   });
 }
 
+/*
+ * The README figure: each model's pass rate over the canonical cases, without
+ * the plugin and with it, one line per model. A standalone SVG with its own
+ * plate (it is shown on light and dark pages alike), stamped with the
+ * benchmark version and the date of the latest run it draws. A model's rate
+ * is read from the cases its slot stands for (a case to re-run or recorded
+ * as not scored is left out, and the line says how many it has).
+ */
+const FIGURE_FAMILY = { claude: { label: 'Claude Code', color: '#3B82F6' }, cursor: { label: 'Cursor', color: '#E4573D' }, codex: { label: 'Codex', color: '#7C3AED' } };
+
+function figureRows(records, expected) {
+  return records.map((record) => {
+    const rows = (record.score && record.score.cases) || [];
+    const sum = (k) => rows.reduce((s, r) => s + (r[k] || 0), 0);
+    const named = splitModel(record);
+    return {
+      family: familyOf(record),
+      tier: record.tier || 'mid',
+      line: named.line,
+      reasoning: named.reasoning,
+      cases: rows.length,
+      expected,
+      without: { pass: sum('without'), n: sum('validWithout') },
+      with: { pass: sum('with'), n: sum('validWith') },
+    };
+  }).filter((r) => r.with.n && r.without.n)
+    .sort((a, b) => (FAMILY_ORDER.indexOf(b.family) - FAMILY_ORDER.indexOf(a.family)) || ((TIER_RANK[a.tier] ?? 9) - (TIER_RANK[b.tier] ?? 9)) || (a.line < b.line ? -1 : 1));
+}
+
+function renderFigure(records, info) {
+  const rows = figureRows(records, info.expected);
+  const W = 1000;
+  const X0 = 400;
+  const X1 = 820;
+  const top = 150;
+  const step = 40;
+  const pct = (a) => Math.round((100 * a.pass) / a.n);
+  const x = (p) => Math.round(X0 + ((X1 - X0) * p) / 100);
+  const families = [];
+  for (const r of rows) if (!families.includes(r.family)) families.push(r.family);
+  let y = top;
+  const parts = [];
+  for (const fam of families) {
+    const f = FIGURE_FAMILY[fam] || { label: fam, color: '#52606D' };
+    parts.push(`<text x="40" y="${y}" font-size="13" font-weight="600" fill="${f.color}">${esc(f.label)}</text>`);
+    y += 26;
+    for (const r of rows.filter((row) => row.family === fam)) {
+      const a = pct(r.without);
+      const b = pct(r.with);
+      const partial = r.cases < r.expected ? ` (${r.cases} of ${r.expected} cases)` : '';
+      parts.push(`<text x="40" y="${y + 5}" font-size="15" fill="#1F2933">${esc(r.line)} <tspan fill="#52606D" font-size="13">${esc(r.reasoning)}${esc(partial)}</tspan></text>`);
+      parts.push(`<line x1="${x(a)}" y1="${y}" x2="${x(b)}" y2="${y}" stroke="${f.color}" stroke-width="4" stroke-linecap="round"/>`);
+      parts.push(`<circle cx="${x(a)}" cy="${y}" r="8" fill="#FFFFFF" stroke="${f.color}" stroke-width="3"/>`);
+      parts.push(`<circle cx="${x(b)}" cy="${y}" r="8" fill="${f.color}"/>`);
+      parts.push(`<text x="${X1 + 28}" y="${y + 5}" font-size="15" fill="#52606D">${a}% <tspan fill="#1F2933" font-weight="600">→ ${b}%</tspan></text>`);
+      y += step;
+    }
+    y += 10;
+  }
+  const grid = [0, 25, 50, 75, 100].map((p) => `<line x1="${x(p)}" y1="${top + 10}" x2="${x(p)}" y2="${y - 14}" stroke="#D9DEE5" stroke-width="1"/><text x="${x(p)}" y="${y + 4}" font-size="12" fill="#52606D" text-anchor="middle">${p}%</text>`).join('');
+  const H = y + 74;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="Segoe UI, system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif" role="img">
+<title>Pass rate without and with the plugins, per model - benchmark ${esc(info.benchmark)}, ${esc(info.date)}</title>
+<rect width="${W}" height="${H}" rx="16" fill="#F4F6F9"/>
+<text x="40" y="52" font-size="24" font-weight="600" fill="#1F2933">Pass rate without and with the plugins</text>
+<text x="40" y="80" font-size="14" fill="#52606D">Benchmark ${esc(info.benchmark)} · updated ${esc(info.date)} · ${info.expected} canonical cases, one per plugin · ${info.runs} runs per case and arm</text>
+<circle cx="48" cy="102" r="6" fill="#FFFFFF" stroke="#52606D" stroke-width="2.5"/><text x="60" y="107" font-size="13" fill="#52606D">without the plugin</text>
+<circle cx="200" cy="102" r="6" fill="#52606D"/><text x="212" y="107" font-size="13" fill="#52606D">with the plugin</text>
+${grid}
+${parts.join('\n')}
+<text x="40" y="${H - 24}" font-size="12" fill="#52606D">Exploratory: the cases and graders are the plugins' author's. Agents: ${esc(info.agents)}.</text>
+</svg>
+`;
+}
+
+// What the figure is stamped with, from the session and the runs it draws.
+function figureInfo(records, meta) {
+  const days = records.map((r) => String(r.finished || r.started || '').slice(0, 10)).filter(Boolean).sort();
+  const session = (meta && meta.session) || {};
+  const agents = Object.entries(session.agents || {}).filter(([host]) => records.some((r) => familyOf(r) === familyOf({ host }))).map(([host, v]) => `${(FIGURE_FAMILY[familyOf({ host })] || { label: host }).label} ${String(v).replace(/\s*\(.*\)$/, '')}`);
+  let expected = 0;
+  try { expected = require('./benchsession.js').expectedCases(path.join(__dirname, '..')).length; } catch (_) { /* no benchmark file */ }
+  return {
+    benchmark: session.benchmark || (records[0] && records[0].benchmark) || '?',
+    date: days.length ? days[days.length - 1] : '?',
+    runs: session.runs || (records[0] && records[0].runs) || '?',
+    expected,
+    agents: agents.join(', ') || 'not recorded',
+  };
+}
+
 function main() {
   const argv = process.argv.slice(2);
   const sample = argv.includes('--sample');
@@ -1175,7 +1266,7 @@ function main() {
     process.exitCode = 1;
     return;
   }
-  const valued = new Set(['--out', '--session', '--date', '--note']);
+  const valued = new Set(['--out', '--session', '--date', '--note', '--figure']);
   const dirs = argv.filter((a, i) => !a.startsWith('--') && !valued.has(argv[i - 1]));
   const dated = argv.includes('--dated');
   const suite = loadSuite();
@@ -1226,8 +1317,14 @@ function main() {
   fs.writeFileSync(path.join(outDir, 'report.svg'), renderSvg(records, null, meta.dated));
   fs.writeFileSync(path.join(outDir, 'report.html'), renderHtml(records, meta));
   console.log(path.join(outDir, 'report.html'));
+  // --figure <file>: the README's dumbbell, from the same runs.
+  const figIdx = argv.indexOf('--figure');
+  if (figIdx !== -1 && argv[figIdx + 1]) {
+    fs.writeFileSync(argv[figIdx + 1], renderFigure(records, figureInfo(records, meta)));
+    console.log(argv[figIdx + 1]);
+  }
 }
 
 if (require.main === module) main();
 
-module.exports = { renderSvg, renderHtml, SAMPLE, datedStamps, auditOf };
+module.exports = { renderSvg, renderHtml, renderFigure, figureRows, SAMPLE, datedStamps, auditOf };

@@ -44,18 +44,22 @@ send nothing anywhere.
 | Plain Node hooks and a skill per plugin; install only the ones you want | A framework, or a replacement for your agent, your prompts or your review |
 | Simple triggers, tested against real sessions | A way to make the model smarter: same model, more explicit decisions |
 
-> **Where the evidence stands** (exploratory). The last full Claude Code
-> session (2026-09-27; Sonnet 5, Opus 5, Opus 5.5; n=3 per case) passed 60 of
-> 72 graded tasks with a plugin against 41 of 72 without. That total no
-> longer measures the current plugins: 9 points of its gain came from
-> progress's `leftover-bug`, retired on 2026-10-21 because only the plugin
-> arm was told about the note it seeded (without it, 51 of 63 against 41 of
-> 63), and executive's case no longer separates the arms on Opus 5.5. A
-> session on the current suite (Haiku, Sonnet and Opus 5.5) is the next
-> measurement. On Cursor (2026-09-23), both Grok models gained strongly and
-> Composer 2.5 little. These are not yet a confirmatory result: the
-> cases and graders are the plugins' author's, kept when the unaided model
-> failed them, not pre-registered and not checked against blind labels
+<p align="center">
+  <img src="assets/bench-results.svg" width="100%" alt="Pass rate per model without and with the plugins on benchmark 1.2.0: every model passes more of the canonical cases with them, the Grok models on Cursor by the widest margin">
+</p>
+
+> **Where the evidence stands** (exploratory). The figure is the current
+> session: benchmark 1.2.0, one canonical case per plugin, three runs per case
+> and arm, six models on Claude Code and Cursor. It is drawn from the
+> session's runs and stamped with the benchmark version and the date of the
+> latest one (`node scripts/bench-report.js --out <dir> --figure
+> assets/bench-results.svg`); a model short of a case says so on its line.
+> With the plugins every model passes more of the cases; the gap is widest
+> where the model alone does least, the Grok models on Cursor. A case every
+> model already passes alone shows no gain; the figure counts every case a
+> model has, not only the ones that separate. These are not yet a confirmatory result: the cases
+> and graders are the plugins' author's, kept when the unaided model failed
+> them, not pre-registered and not checked against blind labels
 > ([docs/STUDY-PROTOCOL.md](docs/STUDY-PROTOCOL.md) is the plan). Dates,
 > versions, costs and limits: [docs/EVIDENCE.md](docs/EVIDENCE.md).
 

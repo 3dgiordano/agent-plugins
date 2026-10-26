@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 536" width="1000" height="536" font-family="Segoe UI, system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif" role="img">
+<title>Pass rate without and with the plugins, per model - benchmark 1.2.0, 2026-10-26</title>
+<rect width="1000" height="536" rx="16" fill="#F4F6F9"/>
+<text x="40" y="52" font-size="24" font-weight="600" fill="#1F2933">Pass rate without and with the plugins</text>
+<text x="40" y="80" font-size="14" fill="#52606D">Benchmark 1.2.0 · updated 2026-10-26 · 10 canonical cases, one per plugin · 3 runs per case and arm</text>
+<circle cx="48" cy="102" r="6" fill="#FFFFFF" stroke="#52606D" stroke-width="2.5"/><text x="60" y="107" font-size="13" fill="#52606D">without the plugin</text>
+<circle cx="200" cy="102" r="6" fill="#52606D"/><text x="212" y="107" font-size="13" fill="#52606D">with the plugin</text>
+<line x1="400" y1="160" x2="400" y2="448" stroke="#D9DEE5" stroke-width="1"/><text x="400" y="466" font-size="12" fill="#52606D" text-anchor="middle">0%</text><line x1="505" y1="160" x2="505" y2="448" stroke="#D9DEE5" stroke-width="1"/><text x="505" y="466" font-size="12" fill="#52606D" text-anchor="middle">25%</text><line x1="610" y1="160" x2="610" y2="448" stroke="#D9DEE5" stroke-width="1"/><text x="610" y="466" font-size="12" fill="#52606D" text-anchor="middle">50%</text><line x1="715" y1="160" x2="715" y2="448" stroke="#D9DEE5" stroke-width="1"/><text x="715" y="466" font-size="12" fill="#52606D" text-anchor="middle">75%</text><line x1="820" y1="160" x2="820" y2="448" stroke="#D9DEE5" stroke-width="1"/><text x="820" y="466" font-size="12" fill="#52606D" text-anchor="middle">100%</text>
+<text x="40" y="150" font-size="13" font-weight="600" fill="#3B82F6">Claude Code</text>
+<text x="40" y="181" font-size="15" fill="#1F2933">Haiku 5.5 <tspan fill="#52606D" font-size="13">High (9 of 10 cases)</tspan></text>
+<line x1="728" y1="176" x2="820" y2="176" stroke="#3B82F6" stroke-width="4" stroke-linecap="round"/>
+<circle cx="728" cy="176" r="8" fill="#FFFFFF" stroke="#3B82F6" stroke-width="3"/>
+<circle cx="820" cy="176" r="8" fill="#3B82F6"/>
+<text x="848" y="181" font-size="15" fill="#52606D">78% <tspan fill="#1F2933" font-weight="600">→ 100%</tspan></text>
+<text x="40" y="221" font-size="15" fill="#1F2933">Sonnet 5.5 <tspan fill="#52606D" font-size="13">High (9 of 10 cases)</tspan></text>
+<line x1="694" y1="216" x2="820" y2="216" stroke="#3B82F6" stroke-width="4" stroke-linecap="round"/>
+<circle cx="694" cy="216" r="8" fill="#FFFFFF" stroke="#3B82F6" stroke-width="3"/>
+<circle cx="820" cy="216" r="8" fill="#3B82F6"/>
+<text x="848" y="221" font-size="15" fill="#52606D">70% <tspan fill="#1F2933" font-weight="600">→ 100%</tspan></text>
+<text x="40" y="261" font-size="15" fill="#1F2933">Opus 5.5 <tspan fill="#52606D" font-size="13">High (9 of 10 cases)</tspan></text>
+<line x1="723" y1="256" x2="820" y2="256" stroke="#3B82F6" stroke-width="4" stroke-linecap="round"/>
+<circle cx="723" cy="256" r="8" fill="#FFFFFF" stroke="#3B82F6" stroke-width="3"/>
+<circle cx="820" cy="256" r="8" fill="#3B82F6"/>
+<text x="848" y="261" font-size="15" fill="#52606D">77% <tspan fill="#1F2933" font-weight="600">→ 100%</tspan></text>
+<text x="40" y="306" font-size="13" font-weight="600" fill="#E4573D">Cursor</text>
+<text x="40" y="337" font-size="15" fill="#1F2933">Composer 2.5 <tspan fill="#52606D" font-size="13">Default (9 of 10 cases)</tspan></text>
+<line x1="568" y1="332" x2="702" y2="332" stroke="#E4573D" stroke-width="4" stroke-linecap="round"/>
+<circle cx="568" cy="332" r="8" fill="#FFFFFF" stroke="#E4573D" stroke-width="3"/>
+<circle cx="702" cy="332" r="8" fill="#E4573D"/>
+<text x="848" y="337" font-size="15" fill="#52606D">40% <tspan fill="#1F2933" font-weight="600">→ 72%</tspan></text>
+<text x="40" y="377" font-size="15" fill="#1F2933">Grok 4.6 <tspan fill="#52606D" font-size="13">High</tspan></text>
+<line x1="530" y1="372" x2="807" y2="372" stroke="#E4573D" stroke-width="4" stroke-linecap="round"/>
+<circle cx="530" cy="372" r="8" fill="#FFFFFF" stroke="#E4573D" stroke-width="3"/>
+<circle cx="807" cy="372" r="8" fill="#E4573D"/>
+<text x="848" y="377" font-size="15" fill="#52606D">31% <tspan fill="#1F2933" font-weight="600">→ 97%</tspan></text>
+<text x="40" y="417" font-size="15" fill="#1F2933">Grok 4.7 <tspan fill="#52606D" font-size="13">High</tspan></text>
+<line x1="555" y1="412" x2="820" y2="412" stroke="#E4573D" stroke-width="4" stroke-linecap="round"/>
+<circle cx="555" cy="412" r="8" fill="#FFFFFF" stroke="#E4573D" stroke-width="3"/>
+<circle cx="820" cy="412" r="8" fill="#E4573D"/>
+<text x="848" y="417" font-size="15" fill="#52606D">37% <tspan fill="#1F2933" font-weight="600">→ 100%</tspan></text>
+<text x="40" y="512" font-size="12" fill="#52606D">Exploratory: the cases and graders are the plugins' author's. Agents: Cursor 2026.10.22-27dcf5f, Claude Code 2.1.283.</text>
+</svg>

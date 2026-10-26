@@ -4700,6 +4700,24 @@ test('bench report: a case recorded as not scored says so with its reason, and C
   assert.doesNotMatch(renderHtml([rec('direct 2026.10.22-27dcf5f, PATHEXT without .EXE')], meta), /node fence held/, 'no note once the fence held');
 });
 
+test('bench report: the README figure is stamped with the benchmark and the date, and a model short of cases says how many it has', () => {
+  const { renderFigure } = require('./bench-report.js');
+  const row = (c, w, o) => ({ case: c, with: w, validWith: 3, without: o, validWithout: 3 });
+  const rec = (model, host, cases) => ({ family: host, host, model, tier: 'high', runs: 3, benchmark: '1.2.0', score: { cases } });
+  const svg = renderFigure([
+    rec('opus-5.5-high', 'claude', [row('a/x', 3, 2), row('b/y', 3, 1)]),
+    rec('grok-4.7-high', 'cursor', [row('a/x', 3, 0)]),
+  ], { benchmark: '1.2.0', date: '2026-10-26', runs: 3, expected: 2, agents: 'Claude Code 2.1.283' });
+  assert.match(svg, /Benchmark 1\.2\.0 · updated 2026-10-26 · 2 canonical cases/);
+  assert.match(svg, /<title>[^<]*benchmark 1\.2\.0, 2026-10-26<\/title>/);
+  assert.match(svg, /Opus 5\.5 <tspan[^>]*>High<\/tspan>/, 'a full model has no count');
+  assert.match(svg, /Grok 4\.7 <tspan[^>]*>High \(1 of 2 cases\)<\/tspan>/);
+  assert.match(svg, />50% <tspan[^>]*>→ 100%<\/tspan>/, 'Opus: 3 of 6 without, 6 of 6 with');
+  assert.match(svg, />0% <tspan[^>]*>→ 100%<\/tspan>/);
+  assert.ok(svg.indexOf('Claude Code') < svg.indexOf('Cursor'), 'Claude Code first');
+  assert.doesNotMatch(svg, /var\(--/, 'a standalone image: no page variables');
+});
+
 test('bench report: By model puts each model\'s base first, a rule above each later model, and names the model once', () => {
   const { renderHtml } = require('./bench-report.js');
   const cost = { tokensMean: 100, durationMsMean: 1000, stepsMean: 3 };
