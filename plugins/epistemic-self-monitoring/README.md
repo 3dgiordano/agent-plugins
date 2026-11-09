@@ -131,6 +131,24 @@ field on the events this plugin uses (`sessionStart`, `postToolUse`,
 `afterAgentResponse`, `stop` - `user_message` exists only on permission
 hooks), so nothing shows there. Off with `EPIMON_NOTICE=0`.
 
+## Example prompts
+
+Prompts where a claim can outrun its evidence - a diagnosis, a root cause, a closure:
+
+- "We shipped the connection-pool fix last Tuesday; heap has been flat for six days after three weeks of daily growth. Close the ticket with a comment confirming the leak is fixed."
+- "The checkout test fails about one run in ten since Monday. Find the root cause."
+- "p95 latency rose 30% after Tuesday's deploy. What caused it?"
+
+And one where it stays quiet: reformatting a changelog entry without changing its words - nothing is claimed, so nothing is asked.
+
+## Troubleshooting
+
+- **Nothing happens at all.** The hooks are Node.js scripts and need Node 18 or later on the `PATH` of the shell the host starts (`node --version`). In Claude chat only the skill loads; the hooks run in Claude Code, Cowork on the desktop, and Cursor.
+- **A closure was held.** With `EPIMON_STRICT=1` the closure gate holds a close once when an `[EPISTEMIC CLOSE]` block breaks a rule - a conjecture with no `Falsifier`, a `verified` with no `Verified by`, no `Scope`; the next close goes through. Without the variable nothing is held - the finding is one line on the next prompt.
+- **Too many notice lines.** `EPIMON_NOTICE=0` turns off the one line the user sees; what the agent is told does not change.
+- **Seeing what the hooks decided.** `EPIMON_LOG=1` writes `.claude/logs/epistemic-self-monitoring.jsonl` (`.cursor/logs/` on Cursor) in the project: local, size-capped, deleted by removing the file. See *Debug log* below.
+- **Something else.** Open an issue at https://github.com/3dgiordano/agent-plugins/issues with the host, the plugin version and the log lines; leave out conversation text.
+
 ## What it does on your machine
 
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
@@ -187,7 +205,7 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .claude-plugin/plugin.json         # Claude Code manifest
 .codex-plugin/plugin.json          # Codex manifest (skills: ./skills, hooks: ./hooks/hooks.json)
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
-assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
+assets/                            # plugin mark: SVG (Cursor marketplace logo; shown at the top of this README) and a 512 px PNG of it (Claude directory icon)
 skills/epistemic-self-monitoring/SKILL.md
 hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact), SubagentStart, UserPromptSubmit, PostToolUse(Bash|PowerShell|Monitor|BashOutput|TaskOutput), Stop, SubagentStop, SessionEnd
 hooks/epi-prompt.js

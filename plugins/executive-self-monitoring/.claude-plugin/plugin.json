@@ -1,22 +1,26 @@
 {
   "name": "executive-self-monitoring",
-  "version": "1.11.0",
-  "description": "Plan-anchored drift self-check for coding agents. Bundles the executive-self-monitoring skill (the 'what': re-ground in the active plan/gate before substantive work) with a per-host cadence hook (the 'when'). Not a blocker - a periodic nudge to avoid investing effort outside the plan. Claude Code: fires on session start, then every Nth turn.",
+  "displayName": "Executive Self-Monitoring",
+  "version": "1.11.1",
+  "description": "Plan-anchored self-check: the agent re-reads the plan or ticket that defines the work, quotes its goal and its gate, names what pulls away from it, and keeps the plan current as decisions change it. Part of the 3dgiordano agent-plugins collection.",
   "author": {
-    "name": "David Giordano",
+    "name": "David Giordano (3dgiordano)",
     "url": "https://github.com/3dgiordano"
   },
   "homepage": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/executive-self-monitoring",
   "repository": "https://github.com/3dgiordano/agent-plugins",
+  "icon": "./assets/icon.png",
   "documentationUrl": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/executive-self-monitoring#readme",
   "supportUrl": "https://github.com/3dgiordano/agent-plugins/issues",
-  "privacyPolicyUrl": "https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md",
+  "privacyPolicyUrl": "https://github.com/3dgiordano/agent-plugins/blob/main/PRIVACY.md",
   "license": "Apache-2.0",
   "keywords": [
     "drift",
     "self-monitoring",
     "executive-control",
     "goal-maintenance",
-    "agent-loop"
+    "agent-loop",
+    "3dgiordano",
+    "agent-plugins"
   ]
 }

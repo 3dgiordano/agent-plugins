@@ -198,6 +198,16 @@ the runner runs this `scanClose` on each turn's final message itself.
 An entry is the agent's word, not a verdict. Confirm it, add the sentence to
 the test suite as a miss, and only then change the pattern.
 
+## Example prompts
+
+Prompts with several parts, one of them clearly the hard one:
+
+- "In a new file `queue.js`, implement `enqueue(item)`, `size()`, and `drain(handler, {concurrency})`, which runs at most `concurrency` handlers at once, keeps completion order, and on a rejection waits for the ones in flight before rejecting with the first error."
+- "Add CSV export, a date-range filter and server-side pagination to the orders page."
+- "Move the three remaining endpoints to the new auth middleware, keep the old tokens working until the end of the month, and update the tests."
+
+And one where it stays quiet: "What is the difference between `flat()` and `flatMap()`?" - one part, so no ledger is asked for.
+
 ## What it does on your machine
 
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
@@ -251,7 +261,7 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .claude-plugin/plugin.json         # Claude Code manifest
 .codex-plugin/plugin.json          # Codex manifest (skills: ./skills, hooks: ./hooks/hooks.json)
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
-assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
+assets/                            # plugin mark: SVG (Cursor marketplace logo; shown at the top of this README) and a 512 px PNG of it (Claude directory icon)
 skills/coverage-self-monitoring/SKILL.md
 hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact; startup|resume|clear|compact), SubagentStart, UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/cov-prompt.js

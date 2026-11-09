@@ -248,6 +248,25 @@ field on the events this plugin uses (`sessionStart`, `postToolUse`,
 `afterAgentResponse`, `stop` - `user_message` exists only on permission
 hooks), so nothing shows there. Off with `HANDMON_NOTICE=0`.
 
+## Example prompts
+
+Prompts whose close the reader has to act on - a run, a review, a choice:
+
+- "Run the dry run of the March customer import; under 0.5% rejected rows turn the `customers_v2` flag on, otherwise leave it off. Tell me where things stand."
+- "Run the staging import in the background - it takes about half an hour - and tell me where things stand."
+- "Review this migration for anything that will bite us: `orders` has 40M rows, the service writes to it continuously, and I would rather not use Saturday's maintenance window."
+- "Write `slug(title)` with tests and run them; accented characters can be folded to ASCII or stripped - pick the one you would ship."
+
+And one where it stays quiet: "What does `-p` do in `curl`?" - a question answered, nothing to hand off.
+
+## Troubleshooting
+
+- **Nothing happens at all.** The hooks are Node.js scripts and need Node 18 or later on the `PATH` of the shell the host starts (`node --version`). In Claude chat only the skill loads; the hooks run in Claude Code, Cowork on the desktop, and Cursor.
+- **A close was held once.** By default the only close held is one that stops on a search that found nothing (`blocked`, or `needs-decision` with nothing written); with `HANDMON_STRICT=1` any handoff finding holds the close once. See *The handoff gate*.
+- **Too many notice lines.** `HANDMON_NOTICE=0` turns off the one line the user sees; what the agent is told does not change.
+- **Seeing what the hooks decided.** `HANDMON_LOG=1` writes `.claude/logs/handoff-self-monitoring.jsonl` (`.cursor/logs/` on Cursor) in the project: local, size-capped, deleted by removing the file. See *Debug log* below.
+- **Something else.** Open an issue at https://github.com/3dgiordano/agent-plugins/issues with the host, the plugin version and the log lines; leave out conversation text.
+
 ## What it does on your machine
 
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
@@ -309,7 +328,7 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .claude-plugin/plugin.json         # Claude Code manifest
 .codex-plugin/plugin.json          # Codex manifest (skills: ./skills, hooks: ./hooks/hooks.json)
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
-assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
+assets/                            # plugin mark: SVG (Cursor marketplace logo; shown at the top of this README) and a 512 px PNG of it (Claude directory icon)
 skills/handoff-self-monitoring/SKILL.md
 hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact; startup|resume|clear|compact), SubagentStart, UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/hand-prompt.js

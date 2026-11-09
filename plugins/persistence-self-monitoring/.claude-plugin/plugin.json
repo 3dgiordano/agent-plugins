@@ -1,16 +1,29 @@
 {
   "name": "persistence-self-monitoring",
-  "version": "0.5.1",
-  "description": "Persist-or-quit self-check for coding agents. Bundles the persistence-self-monitoring skill (the 'what': name the hypothesis held, count the variants, name a rival, decide) with per-host hooks (the 'when') that count what an agent cannot feel - the same file edited N times, the same command or error failing N times, tool calls piling up since the user's last message - and speak only when a threshold is crossed. Never blocks. Claude Code: UserPromptSubmit turn boundary, PostToolUse counters on every tool, Stop turn summary (log only).",
+  "displayName": "Persistence Self-Monitoring",
+  "version": "0.5.2",
+  "description": "Persist-or-quit signal: counts repeated attempts on the same file, command or error, and asks the agent to switch approach or report to you when a threshold is crossed. Part of the 3dgiordano agent-plugins collection.",
   "author": {
-    "name": "David Giordano",
+    "name": "David Giordano (3dgiordano)",
     "url": "https://github.com/3dgiordano"
   },
   "homepage": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/persistence-self-monitoring",
   "repository": "https://github.com/3dgiordano/agent-plugins",
+  "icon": "./assets/icon.png",
   "documentationUrl": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/persistence-self-monitoring#readme",
   "supportUrl": "https://github.com/3dgiordano/agent-plugins/issues",
-  "privacyPolicyUrl": "https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md",
+  "privacyPolicyUrl": "https://github.com/3dgiordano/agent-plugins/blob/main/PRIVACY.md",
   "license": "Apache-2.0",
-  "keywords": ["persistence", "self-monitoring", "sunk-cost", "perseveration", "stuck-detection", "effort-regulation", "metacognition", "agent-loop"]
+  "keywords": [
+    "persistence",
+    "self-monitoring",
+    "sunk-cost",
+    "perseveration",
+    "stuck-detection",
+    "effort-regulation",
+    "metacognition",
+    "agent-loop",
+    "3dgiordano",
+    "agent-plugins"
+  ]
 }

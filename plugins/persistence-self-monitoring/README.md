@@ -117,6 +117,24 @@ Cursor has no user-visible field on the events this plugin uses
 only on permission hooks), so nothing shows there. Off with
 `PERSISTMON_NOTICE=0`.
 
+## Example prompts
+
+Prompts where an approach has already failed more than once:
+
+- "`npm test` fails with `Cannot find module 'node:sqlite'`. I already tried reinstalling `node_modules`, clearing the cache, deleting the lockfile and pinning an older minor - same error each time. What next, and why is it different?"
+- "The build fails on CI but not on my machine; this is the fourth fix we try."
+- "Keep going until the flaky end-to-end test is green."
+
+And one where it stays quiet: the first `npm ci` error, with nothing tried yet - one failure is not a pattern.
+
+## Troubleshooting
+
+- **Nothing happens at all.** The hooks are Node.js scripts and need Node 18 or later on the `PATH` of the shell the host starts (`node --version`). In Claude chat only the skill loads; the hooks run in Claude Code, Cowork on the desktop, and Cursor.
+- **It never says anything.** It speaks only when a counter crosses its threshold - repeated edits to one file, a command failing again, a recurring error, many tool calls since the last prompt. A short task crosses none.
+- **Too many notice lines.** `PERSISTMON_NOTICE=0` turns off the one line the user sees; what the agent is told does not change.
+- **Seeing what the hooks decided.** `PERSISTMON_LOG=1` writes `.claude/logs/persistence-self-monitoring.jsonl` (`.cursor/logs/` on Cursor) in the project: local, size-capped, deleted by removing the file. See *Debug log* below.
+- **Something else.** Open an issue at https://github.com/3dgiordano/agent-plugins/issues with the host, the plugin version and the log lines; leave out conversation text.
+
 ## What it does on your machine
 
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
@@ -172,7 +190,7 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .claude-plugin/plugin.json          # Claude Code manifest
 .codex-plugin/plugin.json           # Codex manifest (skills: ./skills, hooks: ./hooks/hooks.json)
 .cursor-plugin/plugin.json          # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
-assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
+assets/                            # plugin mark: SVG (Cursor marketplace logo; shown at the top of this README) and a 512 px PNG of it (Claude directory icon)
 skills/persistence-self-monitoring/SKILL.md
 hooks/hooks.json                    # Claude Code + Codex: SessionStart(resume|compact), SubagentStart, UserPromptSubmit, PostToolUse (all), Stop, SubagentStop, SessionEnd
 hooks/persist-prompt.js

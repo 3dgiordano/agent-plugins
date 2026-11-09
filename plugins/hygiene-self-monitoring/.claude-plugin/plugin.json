@@ -1,16 +1,18 @@
 {
   "name": "hygiene-self-monitoring",
-  "version": "0.4.0",
-  "description": "Keep a change to what the request names. Bundles the hygiene-self-monitoring skill (the 'what': list the public behaviour a change reaches - an exported function, a helper other callers use, a sibling fixed for consistency, a documented default - mark what the request names, and put back or offer to the owner what it does not; size is not the measure) with per-host hooks (the 'when') that record which public functions the session's edits changed, file and line, and read the [HYGIENE CHECK] at the close against that record. Non-blocking by default, except a block that contradicts itself (Outside kept, or put back while the code still has it), which blocks once; HYGMON_STRICT=1 blocks once on any finding. Claude Code: SessionStart load + baseline, PostToolUse reach record and nudge, Stop read of the block, UserPromptSubmit retrospective.",
+  "displayName": "Hygiene Self-Monitoring",
+  "version": "0.4.1",
+  "description": "Change-scope self-check: the agent lists the public functions its change reaches, and puts back - or brings to you - any the request did not name. Part of the 3dgiordano agent-plugins collection.",
   "author": {
-    "name": "David Giordano",
+    "name": "David Giordano (3dgiordano)",
     "url": "https://github.com/3dgiordano"
   },
   "homepage": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/hygiene-self-monitoring",
   "repository": "https://github.com/3dgiordano/agent-plugins",
+  "icon": "./assets/icon.png",
   "documentationUrl": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/hygiene-self-monitoring#readme",
   "supportUrl": "https://github.com/3dgiordano/agent-plugins/issues",
-  "privacyPolicyUrl": "https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md",
+  "privacyPolicyUrl": "https://github.com/3dgiordano/agent-plugins/blob/main/PRIVACY.md",
   "license": "Apache-2.0",
   "keywords": [
     "hygiene",
@@ -18,6 +20,8 @@
     "scope",
     "minimal-change",
     "public-api",
-    "agent-loop"
+    "agent-loop",
+    "3dgiordano",
+    "agent-plugins"
   ]
 }

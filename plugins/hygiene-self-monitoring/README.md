@@ -42,6 +42,24 @@ A finding carries the path, the lines and the count - never a function's name, n
 
 **Strict** (`HYGMON_STRICT=1`): the gate blocks once. Claude Code exits 2. Cursor returns a `followup_message` once (`loop_limit: 1`).
 
+## Example prompts
+
+Prompts that fix or add something in code other code calls:
+
+- "Fix issue #31: `get()` and `has()` on the headers class are case-sensitive - after `h.set('Content-Type', 'text/html')`, `h.get('content-type')` returns `null`."
+- "Fix the off-by-one in `paginate()` that drops the last item of every page."
+- "The date helper returns the wrong ISO week number around New Year; fix it."
+
+And one where it stays quiet: "What is the difference between `module.exports` and `exports`?" - nothing is changed.
+
+## Troubleshooting
+
+- **Nothing happens at all.** The hooks are Node.js scripts and need Node 18 or later on the `PATH` of the shell the host starts (`node --version`). In Claude chat only the skill loads; the hooks run in Claude Code, Cowork on the desktop, and Cursor.
+- **A close was held once.** By default the only close held is a `[HYGIENE CHECK]` that contradicts its own words or the code; with `HYGMON_STRICT=1` any finding holds the close once. See *The gate*.
+- **Too many notice lines.** `HYGMON_NOTICE=0` turns off the one line the user sees; what the agent is told does not change.
+- **Seeing what the hooks decided.** `HYGMON_LOG=1` writes `.claude/logs/hygiene-self-monitoring.jsonl` (`.cursor/logs/` on Cursor) in the project: local, size-capped, deleted by removing the file. See *Debug log* below.
+- **Something else.** Open an issue at https://github.com/3dgiordano/agent-plugins/issues with the host, the plugin version and the log lines; leave out conversation text.
+
 ## What it does on your machine
 
 - **Reads:** the hook event's JSON; the code files near the project root at session start (at most 200, five levels deep, skipping `node_modules`, `.git`, `dist`, `build` and the like, each under 256 KB); a code file the agent reads or edits. JavaScript and TypeScript only.

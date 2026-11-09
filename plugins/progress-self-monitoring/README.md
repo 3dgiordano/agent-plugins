@@ -244,6 +244,25 @@ user-visible field on the events this plugin uses (`sessionStart`,
 `postToolUse`, `afterAgentResponse` - `user_message` exists only on permission
 hooks), so nothing shows there. Off with `PROGRESSMON_NOTICE=0`.
 
+## Example prompts
+
+Prompts where work outlives the session:
+
+- "Let's pick up where we left off on 0.3.0."
+- "We are setting up release tooling over a few sessions: write the changelog and publish scripts now; `NPM_TOKEN` is not set here and I can only set it in a later session."
+- "Publishing moves to CI: take the `publish:npm` script out of `package.json` and put a deprecation note at the top of `scripts/publish.js`. That is all for now."
+- "When `stats` walks a directory it also enters hidden ones such as `.git`; make it skip them."
+
+And one where it stays quiet: "What do `some()` and `every()` return on an empty array?" - nothing is left open, so no ledger is written.
+
+## Troubleshooting
+
+- **Nothing happens at all.** The hooks are Node.js scripts and need Node 18 or later on the `PATH` of the shell the host starts (`node --version`). In Claude chat only the skill loads; the hooks run in Claude Code, Cowork on the desktop, and Cursor.
+- **It never mentions the ledger.** It speaks only when `.agent/progress.md` exists with open items that are not too old; with no ledger, or nothing open, it stays silent. It never writes the file - the agent does.
+- **Too many notice lines.** `PROGRESSMON_NOTICE=0` turns off the one line the user sees; what the agent is told does not change.
+- **Seeing what the hooks decided.** `PROGRESSMON_LOG=1` writes `.claude/logs/progress-self-monitoring.jsonl` (`.cursor/logs/` on Cursor) in the project: local, size-capped, deleted by removing the file. See *Debug log* below.
+- **Something else.** Open an issue at https://github.com/3dgiordano/agent-plugins/issues with the host, the plugin version and the log lines; leave out conversation text.
+
 ## What it does on your machine
 
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
@@ -318,7 +337,7 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .claude-plugin/plugin.json         # Claude Code manifest
 .codex-plugin/plugin.json          # Codex manifest (skills: ./skills, hooks: ./hooks/hooks.json)
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
-assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
+assets/                            # plugin mark: SVG (Cursor marketplace logo; shown at the top of this README) and a 512 px PNG of it (Claude directory icon)
 skills/progress-self-monitoring/SKILL.md
 hooks/hooks.json                   # Claude Code + Codex: SessionStart, SubagentStart, UserPromptSubmit, PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/prog-session-start.js        # ledger status at the session boundary (and after compaction)

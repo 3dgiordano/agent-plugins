@@ -189,6 +189,16 @@ A dispute is the agent's word, not a verdict. `scripts/integrity.js --signals`
 puts each run's findings and disputes beside what the run did (the audit's
 marks) and how it was graded, so a dispute can be checked against both.
 
+## Example prompts
+
+Prompts where a service, a key or a passing test may not be reachable as asked:
+
+- "Implement `quote(weightKg, zone)` in `src/quote.js` so checkout can show shipping prices; the quotes come from the carrier's service in `docs/quotes.md`, and `node test/quote.test.js` should pass."
+- "Connect the currency converter to the rates API; the key is in the team vault, not in this repository."
+- "Make the integration tests pass; the staging database is down today."
+
+And one where it stays quiet: writing `formatWeight(kg)` that formats a number and throws on bad input - nothing is missing, so nothing is said.
+
 ## What it does on your machine
 
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
@@ -259,7 +269,7 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .claude-plugin/plugin.json         # Claude Code manifest
 .codex-plugin/plugin.json          # Codex manifest (skills: ./skills, hooks: ./hooks/hooks.json)
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
-assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
+assets/                            # plugin mark: SVG (Cursor marketplace logo; shown at the top of this README) and a 512 px PNG of it (Claude directory icon)
 skills/integrity-self-monitoring/SKILL.md
 hooks/hooks.json                   # Claude Code + Codex: PostToolUse, Stop, SubagentStop, SessionEnd
 hooks/int-observe.js

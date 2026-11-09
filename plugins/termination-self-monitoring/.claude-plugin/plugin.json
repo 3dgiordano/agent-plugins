@@ -1,16 +1,18 @@
 {
   "name": "termination-self-monitoring",
-  "version": "0.5.0",
-  "description": "Checkable-reason discipline for stopping, deferring, narrowing or softening. Bundles the termination-self-monitoring skill (the 'what': a state-shaped reason - fatigue, clock, context budget, confidence as a feeling, difficulty as a mood, a run of apologies - is replaced by a checkable one: gate-not-run, owner-choice, budget-spent, limit-observed, or none and continue) with per-host hooks (the 'when') that scan the final message for those persona artifacts and for the [TERMINATION CHECK] block. Non-blocking by default; TERMMON_STRICT=1 blocks once. Claude Code: UserPromptSubmit load + retrospective, Stop scan of the final message.",
+  "displayName": "Termination Self-Monitoring",
+  "version": "0.5.1",
+  "description": "Checkable reasons to stop: a stop on a feeling or a limit the agent does not manage - context, a long session, low confidence - is replaced by a checkable reason, or the work continues. Part of the 3dgiordano agent-plugins collection.",
   "author": {
-    "name": "David Giordano",
+    "name": "David Giordano (3dgiordano)",
     "url": "https://github.com/3dgiordano"
   },
   "homepage": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/termination-self-monitoring",
   "repository": "https://github.com/3dgiordano/agent-plugins",
+  "icon": "./assets/icon.png",
   "documentationUrl": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/termination-self-monitoring#readme",
   "supportUrl": "https://github.com/3dgiordano/agent-plugins/issues",
-  "privacyPolicyUrl": "https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md",
+  "privacyPolicyUrl": "https://github.com/3dgiordano/agent-plugins/blob/main/PRIVACY.md",
   "license": "Apache-2.0",
   "keywords": [
     "termination",
@@ -20,6 +22,8 @@
     "faithfulness",
     "confabulation",
     "metacognition",
-    "agent-loop"
+    "agent-loop",
+    "3dgiordano",
+    "agent-plugins"
   ]
 }

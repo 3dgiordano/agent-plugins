@@ -183,7 +183,7 @@ Inspiration for the design; none of these tested this plugin. The map is in [doc
 .claude-plugin/plugin.json         # Claude Code manifest
 .codex-plugin/plugin.json          # Codex manifest (skills: ./skills, hooks: ./hooks/hooks.json)
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
-assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
+assets/                            # plugin mark: SVG (Cursor marketplace logo; shown at the top of this README) and a 512 px PNG of it (Claude directory icon)
 skills/aspiration-self-monitoring/SKILL.md
 hooks/hooks.json                   # Claude Code + Codex: SessionStart, SubagentStart, UserPromptSubmit, PostToolUse, Stop, SessionEnd, SubagentStop
 hooks/aspir-prompt.js              # load, retrospective, the turn's count starts

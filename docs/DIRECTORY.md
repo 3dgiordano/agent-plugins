@@ -4,13 +4,13 @@ What it takes to list these plugins in Anthropic's plugin directory, where
 this repository stands against each rule, and the checklist every release
 runs through so a release does not drift out of compliance.
 
-Reviewed on 2026-09-28 against:
+Reviewed on 2026-09-28; the Policy table re-read on 2026-11-08 against:
 
 - [Publish to the directory](https://claude.com/docs/directory/publish)
 - [Plugin pre-submission checklist](https://claude.com/docs/plugins/pre-submission-checklist)
 - [Submit your plugin](https://claude.com/docs/plugins/submit)
 - [Plugin feature support across platforms](https://claude.com/docs/plugins/platform-support)
-- [Anthropic Software Directory Policy](https://support.claude.com/en/articles/13145358-anthropic-software-directory-policy) (effective 2026-04-15)
+- [Anthropic Software Directory Policy](https://support.claude.com/en/articles/13145358-anthropic-software-directory-policy) (re-read 2026-11-08. Against the Wayback Machine captures of 2026-09-28 and 2026-10-19 (unchanged) and 2026-10-25 (changed), the edits in between are: a new 1.B on high-risk use cases, which moved the old 1.B-1.F to 1.C-1.G; 1.A names high-risk areas; 1.G gains "and must not persistently store or use conversation content to build user profiles or attempt to make any changes to Claude's behavior across sessions"; a new 3.H on notifying material changes, which moved the old 3.H to 3.I)
 - [Anthropic Software Directory Terms](https://support.claude.com/en/articles/13145338-anthropic-software-directory-terms) (2026-03-16)
 
 These pages change. Re-read them before each submission and at least once a
@@ -19,7 +19,7 @@ moves.
 
 ## How the directory sees this repository
 
-- **Eight submissions, not one.** The portal takes one plugin folder per
+- **Ten submissions, not one.** The portal takes one plugin folder per
   submission. Each plugin is submitted as **Plugin bundle**, repository
   `3dgiordano/agent-plugins`, plugin path `plugins/<name>`. The organization
   that submits a folder first owns its listing, so submit from the account
@@ -66,26 +66,28 @@ in backticks or a code block").
 
 | § | Rule (short) | Status |
 | --- | --- | --- |
-| 1.A | Usage Policy | Meets. |
-| 1.B | No circumventing guardrails, system instructions or sandbox | Meets. Hooks add context and a one-line notice; they never alter output. The four strict gates are opt-in env vars and block a stop at most once per turn. |
-| 1.C | Privacy first | Meets: nothing leaves the machine; no network calls, no child processes (SECURITY.md, checked by `scripts/test.js`). |
-| 1.D | Only necessary data; no extraneous conversation data, **including for logging** | **Risk.** The opt-in debug logs (`*_LOG`) and the opt-in coverage misread log store clipped phrases of the agent's own messages on the user's disk. Off by default, local, documented, but the rule names logging (*Decisions*, 3). |
-| 1.E | No IP infringement | Meets: own code, Apache-2.0; research is cited, not copied. |
-| 1.F | Never query or extract Claude memory, chat history, summaries or user files | Meets, disclosed: hooks read only the event the host sends (no `transcript_path` read anywhere). Four read a project file and emit only counts and metadata: progress (`.agent/progress.md`), integrity (the file an edit just wrote), executive (mtimes only), hygiene (the JavaScript and TypeScript files near the root at session start and a code file the agent reads or edits, kept as exported names, line numbers and hashes; it emits a path, lines and a count). |
-| 2.A-B | Narrow, exact descriptions | **Risk, low.** Skill descriptions end with long trigger lists (e.g. "debugging, root cause, ... verify, confirm"); a reviewer may read them as broader than the skill. |
+| 1.A | Usage Policy, high-risk use cases, supported regions | Meets. |
+| 1.B | High-risk use cases: human in the loop, disclosure | N/A: no high-risk use case. |
+| 1.C | No circumventing guardrails, system instructions or sandbox | Meets. Hooks add context and a one-line notice; they never alter output. The strict gates are opt-in env vars and hold a stop at most once per turn; handoff and hygiene hold one kind of close once by default. Note, not a finding: the skills ask for blocks about the agent's own work in the reply; on Opus 5 a field list in persistence's load once ended runs with the `reasoning_extraction` refusal category, and removing the list stopped it (.agent/progress-opus5-stop.md). |
+| 1.D | Privacy first | Meets: nothing leaves the machine; no network calls, no child processes (SECURITY.md, checked by `scripts/test.js`); [PRIVACY.md](../PRIVACY.md). |
+| 1.E | Only necessary data; no extraneous conversation data, **including for logging** | No review has named this rule. What the code does: nothing is collected by the developer and nothing leaves the machine. Two logs exist, both off by default and written only when the user sets a variable: the debug log (`*_LOG=1`, `<project>/.claude/logs/` or `.cursor/logs/`, rotated at ~256 KB) and coverage's misread log (`COVMON_MISREAD_LOG`, at most 50 entries). They hold counts, paths and clipped phrases (at most 200 characters) of the agent's own messages and of code it edited; no prompt text (SECURITY.md, *Scope notes*; PRIVACY.md). The rule names logging, so the choice of what the logs keep is recorded in *Decisions*, 3. |
+| 1.F | No IP infringement | Meets: own code, Apache-2.0; research is cited, not copied. |
+| 1.G | Never query or extract data from Claude's memory, chat history, conversation summaries, or user-generated or uploaded files; never persistently store or use conversation content to build user profiles or to change Claude's behaviour across sessions | **Open question, not a finding.** No review has named this rule. What the code does: on Claude Code, executive (at a turn's close, plan write-back) and epistemic (after a shell command, conjecture marks) read the last 2 MB of the session transcript file whose path the host passes to every hook (`transcript_path`, a documented common input field), parse only the agent's text since the owner's last prompt, and keep a path, a count and a time (executive) or one entry id (epistemic) in a per-session temp state file - no text stored, nothing sent, nothing carried to another session. Anthropic's own marketplace plugins `ralph-loop` and `hookify` read the same file. The Policy does not say whether reading the running session's own transcript counts as extracting chat history; the hooks reference recommends `last_assistant_message` on Stop for the final text. The clause added in October is about storing or using conversation content to profile users or change behaviour across sessions: no hook stores conversation content; progress's `.agent/progress.md` is a project file the agent writes with ordinary tools and the user owns, and the hook reads only its counts (*Decisions*, 7-8). The other project reads emit only counts and metadata: progress, integrity (the file an edit just wrote), executive (mtimes), hygiene (exported names, line numbers and hashes). |
+| 2.A-B | Narrow, exact descriptions | No review has named this rule. What the descriptions are: each `SKILL.md` description states the discipline in one or two sentences and ends with a `Triggers -` list of 11 to 26 phrases (413 to 934 characters in all), e.g. epistemic's "debugging, root cause, diagnose, ... verify, confirm". Each list names the situations the skill text covers. |
 | 2.C | No confusion with other listings | See name hold above. |
 | 2.D-E | No coercing calls to external software; no interfering with tools | Meets: the prompt hooks point at the plugin's own skill only; no hook blocks a tool call. Note: with all ten installed, each prompt carries up to ten reminders. |
 | 2.F | No behavioural instructions pulled from external sources | Meets: every message is static text in `lib/messages.js`; session values are counts, paths and the agent's own short phrases (SECURITY.md, *Scope notes*). |
 | 2.G | No hidden, obfuscated or encoded instructions | Meets: readable unminified source; the check fails on invisible/bidi characters, long encoded runs and over-long lines. |
-| 3.A | Privacy policy link | Partial: `privacyPolicyUrl` points at `SECURITY.md`, which states the data behaviour but is not titled a privacy policy (*Decisions*, 5). |
+| 3.A | Privacy policy link | Meets from 2026-11-08: every `privacyPolicyUrl` points at [PRIVACY.md](../PRIVACY.md). |
 | 3.B | Verified contact and support channel | Meets: `supportUrl` (issues), private vulnerability reporting (SECURITY.md), the portal's contact email. |
-| 3.C | Document functionality, purpose **and troubleshooting** | **Gap** in 7 of 10 READMEs: no troubleshooting section (coverage, integrity and aspiration have one). Flagged by the check as a warning. |
+| 3.C | Document functionality, purpose **and troubleshooting** | Meets from 2026-11-08: every README has a *Troubleshooting* section or a *When … wrong* / *When the scan misreads* section. |
 | 3.D | Test accounts with sample data | N/A: no service, no account. |
-| 3.E | **At least three working prompt examples** | **Gap** in 9 of 10 READMEs (aspiration lists its prompts). The eval prompts under `evals/` work but those READMEs list none. Flagged as a warning. |
+| 3.E | **At least three working prompt examples** | Meets from 2026-11-08: every README has *Example prompts* with at least three, drawn from its `evals/*/prompt.md` where one exists. |
 | 3.F | Own the endpoints and domains it reaches | N/A: reaches none. |
 | 3.G | Maintain, fix in reasonable time | Meets: SECURITY.md, 7-day acknowledgement. |
-| 3.H | Agree to the Terms | At submission (the four acknowledgements). |
-| 4 | Money, AI image/video/audio generation, ads | None apply. |
+| 3.H | Notify Anthropic of material changes (added in October) | Each release that changes what a hook reads or emits is a material change: say so in the portal. |
+| 3.I | Agree to the Terms; follow published design guidelines | At submission (the four acknowledgements). |
+| 4 | Money, AI image/video/audio generation, ads, adult content | None apply. |
 | 5 | MCP servers | N/A: no MCP server. |
 
 ## Software Directory Terms (the submitter's obligations)
@@ -110,18 +112,25 @@ in backticks or a code block").
    hold) or add a distinctive project prefix before the first submission -
    the name cannot change cheaply afterwards. Default: keep, and let the
    portal's Validate answer.
-3. **Opt-in logs vs. Policy 1.D.** Default: keep them off by default and
+3. **Opt-in logs vs. Policy 1.E.** Default: keep them off by default and
    state in each README that they never leave the machine; if a reviewer
    objects, drop the text fields and keep only counts.
 4. **Tracked ref.** Default: submit with a tag the release moves (for
    example `directory`), so work on `main` is not scanned and held as a
    version.
-5. **Privacy policy.** Default: add `PRIVACY.md` (no collection, what stays
-   on disk, for how long, how to delete it) and point every
-   `privacyPolicyUrl` at it.
-6. **README gaps (3.C, 3.E).** Add to each plugin README an *Examples*
-   section with three prompts that make the plugin act (drawn from its
-   `evals/*/prompt.md`) and a *Troubleshooting* section.
+5. **Privacy policy.** Done 2026-11-08: `PRIVACY.md`, and every
+   `privacyPolicyUrl` points at it.
+6. **README gaps (3.C, 3.E).** Done 2026-11-08: *Example prompts* and
+   *Troubleshooting* in each plugin README.
+7. **Transcript reads (1.G), if a reviewer raises them.** Executive's plan
+   write-back and epistemic's conjecture marks read the running session's
+   transcript (see the 1.G row for exactly what). Options then: work from
+   `last_assistant_message` alone, which misses blocks written before the
+   final message; or argue the reading from the facts in the 1.G row. Owner's
+   call; nothing to change until a review names it.
+8. **Cross-session behaviour (1.G), if a reviewer raises it.** Progress
+   carries work across sessions through a project file, not through stored
+   conversation content. Owner's call.
 
 ## Every release
 

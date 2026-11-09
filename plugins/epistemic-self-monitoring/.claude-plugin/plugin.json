@@ -1,16 +1,28 @@
 {
   "name": "epistemic-self-monitoring",
-  "version": "0.6.0",
-  "description": "Observation-vs-conjecture discipline for coding agents. Bundles the epistemic-self-monitoring skill (the 'what': claims carry their evidence and a named falsifier; only verified claims become facts or closures) with per-host hooks (the 'when'). Non-blocking by default; an opt-in strict mode gates closures on a complete [EPISTEMIC CLOSE] block. Claude Code: UserPromptSubmit load, PostToolUse observation nudge on shell results, Stop closure gate.",
+  "displayName": "Epistemic Self-Monitoring",
+  "version": "0.6.1",
+  "description": "Observation vs. conjecture: the agent keeps what it saw apart from what it concluded, and only a verified claim becomes a fact, a root cause or a closure. Part of the 3dgiordano agent-plugins collection.",
   "author": {
-    "name": "David Giordano",
+    "name": "David Giordano (3dgiordano)",
     "url": "https://github.com/3dgiordano"
   },
   "homepage": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/epistemic-self-monitoring",
   "repository": "https://github.com/3dgiordano/agent-plugins",
+  "icon": "./assets/icon.png",
   "documentationUrl": "https://github.com/3dgiordano/agent-plugins/tree/main/plugins/epistemic-self-monitoring#readme",
   "supportUrl": "https://github.com/3dgiordano/agent-plugins/issues",
-  "privacyPolicyUrl": "https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md",
+  "privacyPolicyUrl": "https://github.com/3dgiordano/agent-plugins/blob/main/PRIVACY.md",
   "license": "Apache-2.0",
-  "keywords": ["epistemic", "self-monitoring", "verification", "falsifiability", "source-monitoring", "metacognition", "agent-loop"]
+  "keywords": [
+    "epistemic",
+    "self-monitoring",
+    "verification",
+    "falsifiability",
+    "source-monitoring",
+    "metacognition",
+    "agent-loop",
+    "3dgiordano",
+    "agent-plugins"
+  ]
 }

@@ -149,6 +149,24 @@ field on the events this plugin uses (`sessionStart`, `afterAgentResponse`,
 `stop` - `user_message` exists only on permission hooks), so nothing shows
 there. Off with `TERMMON_NOTICE=0`.
 
+## Example prompts
+
+Prompts where the turn could stop on a reason the agent does not have:
+
+- "Convert the remaining four modules to the new API; take as long as it needs."
+- "Three of the seven modules are converted and nothing is blocking - write your closing message for this turn."
+- "This is a big refactor; do what you can and tell me where you stopped."
+
+And one where it stays quiet: renaming a variable in one function - nothing stops early.
+
+## Troubleshooting
+
+- **Nothing happens at all.** The hooks are Node.js scripts and need Node 18 or later on the `PATH` of the shell the host starts (`node --version`). In Claude chat only the skill loads; the hooks run in Claude Code, Cowork on the desktop, and Cursor.
+- **A stop was held once.** Only with `TERMMON_STRICT=1`: a close that stops on a reason it cannot check - a feeling, a limit the agent does not manage - is held once; the next close goes through.
+- **Too many notice lines.** `TERMMON_NOTICE=0` turns off the one line the user sees; what the agent is told does not change.
+- **Seeing what the hooks decided.** `TERMMON_LOG=1` writes `.claude/logs/termination-self-monitoring.jsonl` (`.cursor/logs/` on Cursor) in the project: local, size-capped, deleted by removing the file. See *Debug log* below.
+- **Something else.** Open an issue at https://github.com/3dgiordano/agent-plugins/issues with the host, the plugin version and the log lines; leave out conversation text.
+
 ## What it does on your machine
 
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
@@ -202,7 +220,7 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .claude-plugin/plugin.json         # Claude Code manifest
 .codex-plugin/plugin.json          # Codex manifest (skills: ./skills, hooks: ./hooks/hooks.json)
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
-assets/                            # plugin mark (Cursor marketplace logo; shown at the top of this README)
+assets/                            # plugin mark: SVG (Cursor marketplace logo; shown at the top of this README) and a 512 px PNG of it (Claude directory icon)
 skills/termination-self-monitoring/SKILL.md
 hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact), SubagentStart, UserPromptSubmit, Stop, SubagentStop, SessionEnd
 hooks/term-prompt.js
