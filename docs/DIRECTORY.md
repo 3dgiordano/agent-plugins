@@ -62,6 +62,32 @@ Fixed on 2026-09-28: each README's *Layout* block wrote `assets/logo.svg`
 inside a code block, which holds a version ("don't write bundled image paths
 in backticks or a code block").
 
+## Refused for organizations that aren't Verified (observed 2026-11-08)
+
+The portal's "Directory policy" check refused executive 1.11.1 with two
+findings; the scan had passed. Both apply to every plugin in this
+repository as it stands, and the portal says changing a hook's type does
+not help and that there is no way yet to ask to become Verified:
+
+| Code | What it refuses | Here |
+| --- | --- | --- |
+| `LOCAL_CODE_HOOK_COMMAND` | Any hook, of any type, from an organization that isn't Verified | every plugin's `hooks/hooks.json` |
+| `LOCAL_CODE_FILE_TYPE` | Any file that isn't Markdown, text, JSON, YAML or a PNG, JPEG, GIF, WebP or ICO image, starts with `#!`, is a package-manager config, or isn't UTF-8 / holds a NUL byte (a license, a readme, `.gitignore` and the icon may stay) | `hooks/*.js`, `lib/*.js`, `cursor/*.js`, `assets/logo.svg`, and the `.js` and data files under `evals/*/files/`: 14 to 42 files per plugin |
+
+Neither rule is in the Software Directory Policy, the pre-submission
+checklist (which still lists Node hooks as held for a reviewer) or any page of
+the claude.com or code.claude.com docs, searched in full on 2026-11-08. No
+official date: developers report the refusals since about 2026-11-05 in
+[anthropics/claude-plugins-official#7024](https://github.com/anthropics/claude-plugins-official/issues/7024)
+(opened 2026-11-06, no answer from Anthropic there as of 2026-11-08), with the
+same rule for mods and local MCP servers; one report quotes a 2026-11-06
+wording that let prompt hooks stay, where ours of 2026-11-08 covers every type.
+
+The holds in the next section were read as "a reviewer reads it"; for an
+organization that isn't Verified they are refusals. What stays allowed: the
+manifests, the README, `SKILL.md`, the eval `prompt.md` / `case.json` /
+grader files, and `assets/icon.png` (*Decisions*, 9).
+
 ## Software Directory Policy
 
 | § | Rule (short) | Status |
@@ -131,6 +157,12 @@ in backticks or a code block").
 8. **Cross-session behaviour (1.G), if a reviewer raises it.** Progress
    carries work across sessions through a project file, not through stored
    conversation content. Owner's call.
+9. **Hooks and scripts refused (2026-11-08).** Options: a skill-only
+   directory edition of each plugin, built from `plugins/<name>` into its
+   own folder (manifest, README for that edition, `SKILL.md` without the
+   hook references, `icon.png`), submitted as new listings while the
+   marketplace keeps the full plugin; or no directory listing, the
+   marketplace only. Owner's call.
 
 ## Every release
 
