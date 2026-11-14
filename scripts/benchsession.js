@@ -358,6 +358,13 @@ function assignSlot(root, session, host, modelId, record) {
  * other reason stays one. The slot leaves All plugins (loadSessionRecords),
  * the session can close, and a later stage that scores the case takes it off.
  */
+/*
+ * The owner's call on a case a slot lists to re-run: report it as not scored,
+ * with the reason observed, instead of running it again. A case no stage could
+ * score (no valid run in one arm), or one a change voided that will not be run
+ * again under the versions the session measured - the session is closed as the
+ * record of those versions.
+ */
 function markNotScored(root, session, key, caseId, reason) {
   const slot = session.slots[key];
   if (!slot) throw new Error(`${key} has no stored slot`);
@@ -365,7 +372,7 @@ function markNotScored(root, session, key, caseId, reason) {
   // A case already recorded so takes a corrected reason.
   const item = (slot.invalidCases || []).find((x) => x.case === caseId);
   const recorded = (slot.notScored || []).some((x) => x.case === caseId);
-  if (!recorded && (!item || !/ not scored: /.test(item.reason))) throw new Error(`${key} does not list ${caseId} as not scored`);
+  if (!recorded && !item) throw new Error(`${key} does not list ${caseId} as not scored or to re-run`);
   slot.notScored = (slot.notScored || []).filter((x) => x.case !== caseId).concat([{ case: caseId, reason: String(reason).trim(), since: new Date().toISOString() }]);
   slot.invalidCases = (slot.invalidCases || []).filter((x) => x.case !== caseId);
   // Complete now, as a full stage is: what it lists for other cases of the
@@ -422,10 +429,20 @@ function loadSessionRecords(root, id) {
       continue;
     }
     const invalidIds = new Set((slot.invalidCases || []).map((item) => item.case));
+    // A case recorded as not scored has no scored row, whatever the run file
+    // still holds from runs a change voided: its rows leave the totals too.
+    const notScoredIds = new Set((slot.notScored || []).map((item) => item.case));
     if (record.score && record.score.cases) {
-      record.score = Object.assign({}, record.score, {
-        cases: record.score.cases.filter((row) => !invalidIds.has(row.case)),
-      });
+      const cases = record.score.cases.filter((row) => !invalidIds.has(row.case) && !notScoredIds.has(row.case));
+      const score = Object.assign({}, record.score, { cases });
+      if (cases.length !== record.score.cases.length) {
+        for (const [arm, valid] of [['with', 'validWith'], ['without', 'validWithout']]) {
+          const pass = cases.reduce((s, row) => s + (row[arm] || 0), 0);
+          const n = cases.reduce((s, row) => s + (row[valid] || 0), 0);
+          score[arm] = Object.assign({}, record.score[arm], { pass, n, pct: n ? Math.round((pass / n) * 100) : null });
+        }
+      }
+      record.score = score;
     }
     const present = new Set(((record.score && record.score.cases) || []).map((row) => row.case));
     record._notScored = slot.notScored || [];

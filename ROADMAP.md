@@ -34,7 +34,7 @@ A plugin's tier changes only with a new measurement, never with a change of word
 
 Work that spends no model usage comes first, because measurement capacity is the binding limit:
 
-1. **The open bench session.** Decide the invalidation policy (a version or metadata change voids every cell today), then finish benchmark 1.2.0 or close it as it stands. Until then, `scripts/bench-report.js` runs only with `--session <id>`.
+1. **The bench session.** Done on 2026-11-14: benchmark 1.2.0 is closed as the record of release 0.20.0, executive's Claude cells recorded as not scored, and `scripts/bench-report.js` only reads a session. Open: whether a session should be voided by a version or metadata change, or only by a change to what the agent receives.
 2. **Public claims.** The README figure says it is a development-set score, with intervals, next to the figure.
 3. **CI.** `bench-check.js` in CI, a real one-version-step check against the previous tag, and the host-parity gate tightened.
 4. **The ledger.** Fold `.agent/progress.md` into a handful of themes, each with a decision or a default.

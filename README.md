@@ -54,12 +54,12 @@ send nothing anywhere.
 
 <br>
 
-The figure is the current bench session: benchmark 1.2.0, one canonical case
+The figure is the last bench session, closed as the record of release 0.20.0: benchmark 1.2.0, one canonical case
 per plugin, three runs per case and arm, six models on Claude Code and
 Cursor. It is drawn from the session's runs and stamped with the benchmark
 version and the date of the latest one; a model short of a case says so on
 its line. To draw it again:
-`node scripts/bench-report.js --out <dir> --figure assets/bench-results.svg`.
+`node scripts/bench-report.js --session 2026-10-23T16-42-34-216Z --out <dir> --figure assets/bench-results.svg`.
 
 With the plugins every model passes more of the cases; the gap is widest
 where the model alone does least, the Grok models on Cursor. A case every

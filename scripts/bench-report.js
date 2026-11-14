@@ -23,8 +23,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { benchmarkVersion, assertSameVersions, loadSessionRecords, refreshDrift } = require('./benchsession.js');
-const { findCli, run } = require('./cursor-eval.js');
+const { benchmarkVersion, assertSameVersions, loadSessionRecords } = require('./benchsession.js');
 
 const W = 760;
 const H = 480;
@@ -1292,13 +1291,11 @@ function main() {
         assertSameVersions(records);
       }
     } else {
+      // Read-only: a report never changes the session it draws. Whether the
+      // code moved since the runs is the bench's call when it runs a stage
+      // (scripts/bench.js); drawing a figure once voided a whole session.
       const sessionIdx = argv.indexOf('--session');
       const sessionId = sessionIdx !== -1 ? argv[sessionIdx + 1] : null;
-      if (!sessionId) {
-        const cli = findCli();
-        const version = cli ? (run(cli.bin, ['--version']).stdout || '').trim() : '';
-        refreshDrift(root, version ? { cursor: version } : {});
-      }
       const loaded = loadSessionRecords(root, sessionId);
       records = loaded.records.map((record) => applySuite(record, suite));
       meta = loaded;
