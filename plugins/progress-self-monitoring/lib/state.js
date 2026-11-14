@@ -98,10 +98,21 @@ function sleep(ms) {
   try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); } catch (_) {}
 }
 
+const BUSY = new Set(['EEXIST', 'EPERM', 'EACCES', 'EBUSY']);
+const DENIED_TRIES = 25;
+
 function acquire(lock) {
   const deadline = Date.now() + LOCK_WAIT_MS;
+  let denied = 0;
   for (;;) {
-    try { fs.closeSync(fs.openSync(lock, 'wx')); return true; } catch (e) { if (!e || e.code !== 'EEXIST') return false; }
+    try { fs.closeSync(fs.openSync(lock, 'wx')); return true; } catch (e) {
+      // Held: EEXIST - and on Windows a lock another process is deleting
+      // answers EPERM, EACCES or EBUSY. Denied again and again with no lock
+      // there is a temp dir that cannot be written: waiting will not clear it.
+      // Any other error (no directory, a full or read-only disk) gives up now.
+      if (!e || !BUSY.has(e.code)) return false;
+      if (e.code !== 'EEXIST' && ++denied > DENIED_TRIES && !fs.existsSync(lock)) return false;
+    }
     try { if (Date.now() - fs.statSync(lock).mtimeMs > LOCK_STALE_MS) fs.unlinkSync(lock); } catch (_) {}
     if (Date.now() >= deadline) return false;
     sleep(LOCK_STEP_MS);
