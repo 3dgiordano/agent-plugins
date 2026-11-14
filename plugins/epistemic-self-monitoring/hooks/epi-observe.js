@@ -35,7 +35,7 @@
 const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const msg = require('../lib/messages.js');
-const { outputText, looksFailed } = require('../lib/fail.js');
+const { outputText, looksFailed, failureLine } = require('../lib/fail.js');
 const conjecture = require('../lib/conjecture.js');
 const { cwdOf, context, actorOf } = require('../lib/host.js');
 
@@ -57,6 +57,25 @@ function outputOf(data) {
  * is not the command's result.
  */
 const EXIT_LINE = /^Exit code (\d+)\s*(?:\r?\n|$)/;
+
+/*
+ * A command that only reads, answering that a path is not there - `ls x`,
+ * `cat x`, `grep y x` with "No such file or directory" - looked for something
+ * and found out it is absent: an observation, not a failed attempt. The same
+ * command rule persistence applies (its lib/signals.js READ_ONLY_RE). The
+ * shared lib/fail.js keeps reading the line as a failure: handoff counts it as
+ * a search that found nothing.
+ */
+const READ_ONLY_RE = /^\s*(?:cd\s+[^;&|]+\s*(?:&&|;)\s*)*(?:grep|egrep|rg|cat|head|tail|ls|find|wc|sed\s+-n|git\s+(?:diff|log|show|status|grep|ls-files))\b[^;&]*$/i;
+const ABSENT_RE = /\bno such file or directory\b|\bcannot access\b/i;
+// Redirections of a stream (2>&1, 2>/dev/null) are not a second command.
+const REDIRECT_RE = /\s\d?>&\d\b|\s\d?>\s*\/dev\/null\b/g;
+function absenceOnly(data, text) {
+  const cmd = data.tool_input && typeof data.tool_input === 'object' ? String(data.tool_input.command || '') : '';
+  if (!READ_ONLY_RE.test(cmd.replace(REDIRECT_RE, ' '))) return false;
+  const line = failureLine(text);
+  return Boolean(line) && ABSENT_RE.test(line);
+}
 function failureOf(data) {
   if (data.is_interrupt) return null;
   const text = typeof data.error === 'string' ? data.error : outputText(data.error);
@@ -77,7 +96,8 @@ function main(raw) {
   const failure = event === 'PostToolUseFailure' ? failureOf(data) : null;
   if (event === 'PostToolUseFailure' && !failure) return;
 
-  const failed = failure ? Boolean(failure.failed) : looksFailed(outputOf(data).slice(0, 4000));
+  const text = failure ? failure.text.slice(0, 4000) : outputOf(data).slice(0, 4000);
+  const failed = (failure ? Boolean(failure.failed) : looksFailed(text)) && !absenceOnly(data, text);
   const marked = conjecture.latestMarked(conjecture.transcriptOf(data, actor));
   let st;
   const fire = state.update(HOST, sid, (s) => {

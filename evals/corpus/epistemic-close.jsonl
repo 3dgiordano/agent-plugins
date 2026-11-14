@@ -49,3 +49,5 @@
 {"text": "[EPISTEMIC CLOSE]\n- Claim: the retry loop double-counts\n- Status: verified\n- Verified by: ``\n- Scope: src/retry.js", "expect": "hit", "why": "empty inline code is still empty"}
 {"text": "[EPISTEMIC CLOSE]\r\n- Claim: the retry loop double-counts\r\n- Status: verified\r\n- Verified by: `npm test`\r\n- Scope: src/retry.js\r\n", "expect": "miss", "why": "CRLF line ends, code-only Verified by"}
 {"text": "[EPISTEMIC CLOSE]\r\n- Claim: the retry loop double-counts\r\n- Status: verified\r\n- Scope: src/retry.js\r\n", "expect": "hit", "why": "CRLF line ends, no Verified by"}
+{"text":"[EPISTEMIC CLOSE]\n- Claim: the cache is stale. **Status:** verified. **Verified by:** cleared it and reran npm test, 12 of 12 pass. **Scope:** this repo, not production.","expect":"miss","why":"fields written inline in bold after the claim (a stored close of this shape was reported as missing Status and Scope)"}
+{"text":"[EPISTEMIC CLOSE]\n- Claim: the retry loop hides the timeout. **Status:** conjecture. **Scope:** the client only.","expect":"hit","why":"inline fields, a conjecture with no Falsifier"}

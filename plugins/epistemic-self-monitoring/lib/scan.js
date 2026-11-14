@@ -33,11 +33,23 @@ const BLOCK_RE = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?\[EPISTEMIC CLOSE\](?:[ \t
 const EM = '(?:\\*\\*|__|\\*|_)?';
 const unemphasise = (s) => s.replace(/^(\*\*|__|\*|_)([\s\S]*)\1$/, '$2').trim();
 
+// A field written inline, after another on the same line: `- Claim: x.
+// **Status:** verified. **Scope:** this repo.` reported both as missing. It
+// counts only in bold or after a sentence end, so "the Status: field" inside
+// a claim is not read as one; its value runs to the next field or the line end.
+const NAMES = 'Claim|Status|Evidence|Falsifier|Verified by|Scope';
+function inlineField(block, name) {
+  const re = new RegExp('(?:(?:^|[\\s(;|])(?:\\*\\*|__)' + name + '(?:\\*\\*|__)?[ \\t]*:(?:\\*\\*|__)?|[.;][ \\t]+' + name + '[ \\t]*:)[ \\t]*(.*?)(?=[ \\t.;]*(?:\\*\\*|__)(?:' + NAMES + ')(?:\\*\\*|__)?[ \\t]*:|[.;][ \\t]+(?:' + NAMES + ')[ \\t]*:|$)', 'im');
+  const m = block.match(re);
+  return m ? m[1].replace(/[ \t.;]+$/, '') : null;
+}
+
 function field(block, name) {
   const re = new RegExp('^[ 	]*[-*]?[ 	]*' + EM + name + EM + '[ 	]*:' + EM + '[ 	]*(.*)$', 'im');
   const m = block.match(re);
-  if (!m) return null;
-  const v = unemphasise(m[1].trim());
+  const raw = m ? m[1] : inlineField(block, name);
+  if (raw === null) return null;
+  const v = unemphasise(raw.trim());
   // Treat placeholders left from the template as empty. Inline code is read
   // as its content: `npm test` is filled, an empty `` is not.
   const bare = v.replace(/`/g, '').trim();
@@ -94,16 +106,17 @@ function scan(text) {
     // The block's body is the tail of the match; read it from the original.
     const end = m.index + m[0].length;
     const body = text.slice(end - m[1].length, end);
-    const claim = field(body, 'Claim') || '(unnamed claim)';
+    // Named by its place, never by its text: a finding carries no words of the message.
+    const claim = `[EPISTEMIC CLOSE] ${out.blocks}`;
     const status = (field(body, 'Status') || '').toLowerCase();
     const falsifier = field(body, 'Falsifier');
     const verifiedBy = field(body, 'Verified by');
     const scope = field(body, 'Scope');
 
-    if (!status) out.violations.push(`"${claim}": no Status (observed | conjecture | verified)`);
-    else if (status.startsWith('conjecture') && !falsifier) out.violations.push(`"${claim}": Status is conjecture but no Falsifier is named`);
-    else if (status.startsWith('verified') && !verifiedBy) out.violations.push(`"${claim}": Status is verified but "Verified by" is empty - what was run, and what did it look at?`);
-    if (!scope) out.violations.push(`"${claim}": no Scope (what it covers, what it does not)`);
+    if (!status) out.violations.push(`${claim}: no Status (observed | conjecture | verified)`);
+    else if (status.startsWith('conjecture') && !falsifier) out.violations.push(`${claim}: Status is conjecture but no Falsifier is named`);
+    else if (status.startsWith('verified') && !verifiedBy) out.violations.push(`${claim}: Status is verified but "Verified by" is empty - what was run, and what did it look at?`);
+    if (!scope) out.violations.push(`${claim}: no Scope (what it covers, what it does not)`);
     if (status.startsWith('conjecture')) out.conjectures += 1;
   }
   out.conjectures += out.tags.conjecture;

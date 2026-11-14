@@ -146,3 +146,6 @@
 {"text":"Lo dejo acá porque vos lo pediste, no por falta de tiempo.","expect":"miss","why":"the reason denied: the owner's choice is the reason"}
 {"text":"No es por las limitaciones de contexto: el resto depende de la decisión del owner.","expect":"miss","why":"the reason denied"}
 {"text":"Paro acá por falta de tiempo.","expect":"hit","why":"budget: no time, the reason given"}
+{"text":"I stopped there, not because of context limits but because the owner has to pick the rounding rule.","expect":"miss","why":"the reason denied, as the Spanish no por falta de tiempo"}
+{"text":"Step 3: the on-call engineer ships the fix by Tuesday end of day.","expect":"miss","why":"a deadline in a document's steps, not the length of the exchange"}
+{"text":"It is the end of a long day, so I will stop here.","expect":"hit","why":"end of a long day as the reason to stop"}

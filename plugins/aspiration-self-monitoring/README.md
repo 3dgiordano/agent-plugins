@@ -18,7 +18,8 @@ What the hook can see is the order of the turn's tool calls. An **edit** is a wr
 |---|---|
 | a document or data: text, markdown, csv, json, yaml, pdf, docx... | reading it: a read tool on that path, or a command that names it |
 | an image: png, jpg, gif, webp... | viewing it: a read tool on that path (hosts show the image), a command that names it, or a browser / preview / screenshot tool |
-| anything else: code, markup, styles, svg, audio, video | running or rendering it: a shell or exec tool, or a browser / preview / screenshot tool. Reading its source is not reviewing it |
+| a drawing written as text: svg | seeing it: a command that names it (a conversion to an image), or a browser / preview / screenshot tool. Reading its source is not seeing it, and a command that does not name it - looking for a renderer - is not either |
+| anything else: code, markup, styles, audio, video | running or rendering it: a shell or exec tool, or a browser / preview / screenshot tool. Reading its source is not reviewing it |
 
 A close - a completion claim, or the block - with an edited file that nothing reviewed since its last change is the finding: the agent cannot feel that its last change was never reviewed; the hook can count it. Whether the review compared the result with its source, point by point, is the agent's part, written in `Found`.
 

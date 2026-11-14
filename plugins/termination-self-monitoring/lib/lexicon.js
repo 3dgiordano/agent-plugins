@@ -24,12 +24,14 @@ const CATEGORIES = [
       // duration of the *exchange* (session, conversation, day), not the size of the *work* -
       // "this is a large task" is scoping, and a legitimate thing to say before starting
       /\b(?:this|it)\s+(?:has been|is)\s+(?:a\s+)?(?:long|lengthy|extended)\s+(?:session|conversation|day)\b/i,
-      /\b(?:end of|late in|deep into)\s+(?:a\s+)?(?:long\s+)?(?:session|day|conversation)\b/i,
+      // A day only as a long one: "by Tuesday end of day" in a document's steps is a deadline.
+      /\b(?:end of|late in|deep into)\s+(?:(?:a\s+)?(?:long\s+)?(?:session|conversation)|a\s+long\s+day)\b/i,
       /\bI(?:'ve| have)\s+been\s+(?:at|on|working on)\s+this\s+(?:for\s+)?(?:a while|a long time|too long|hours)\b/i,
       /\b(?:let(?:'s| us)|we can|we could|I(?:'ll| will|'d| would)(?: suggest)?)\s+(?:pick|take)\s+(?:this|it|that)\s+up\s+(?:later|tomorrow|next time|in (?:a|another|the next) (?:new |fresh )?(?:session|conversation|turn))\b/i,
       /\b(?:let(?:'s| us)|we\s+(?:can|could|should)|I(?:'ll| will|'d| would| can| could)(?:\s+(?:suggest|recommend|propose))?)\s+(?:we\s+|you\s+)?(?:continue|resume|revisit|finish|do|handle)\s+(?:this|it|that|the rest)?\s*(?:later|tomorrow|in (?:a|another) (?:new|fresh|separate|future) (?:session|conversation|context))\b/i,
       /\b(?:let(?:'s| us)|we\s+(?:can|could|should)|I(?:'ll| will|'d| would| can| could)(?:\s+(?:suggest|recommend|propose))?)\s+(?:we\s+|you\s+)?(?:start|continue|resume)\s+(?:this\s+|it\s+)?(?:in|with|from)\s+a\s+(?:new|fresh|clean)\s+(?:session|context|conversation)\b/i,
-      /\b(?:due to|given|because of)\s+(?:the\s+)?(?:time|context|length|token)\s+(?:constraints?|limits?|pressure|budget)\b/i,
+      // "not because of context limits" denies the reason, as the Spanish "no por falta de tiempo" below.
+      /(?<!\b(?:not|nor|isn't|wasn't)\s+(?:(?:just|only|merely)\s+)?)\b(?:due to|given|because of)\s+(?:the\s+)?(?:time|context|length|token)\s+(?:constraints?|limits?|pressure|budget)\b/i,
       // "under time pressure" only as the agent's own: opening the text, a
       // sentence, a paragraph or a list item, or after I'm / we're. "hand
       // invented details to someone acting on it cold, unsupervised, under time
@@ -54,7 +56,7 @@ const CATEGORIES = [
       // Deliberately NOT "budget": "I've used most of the budget you allocated"
       // is a project budget the owner set, which is a checkable reason.
       /\bI(?:'ve| have)\s+(?:used|consumed|burned|spent|gone\s+through)\s+(?:up\s+)?(?:a\s+lot\s+of|much|most\s+of|quite\s+a\s+bit\s+of|a\s+good\s+deal\s+of|significant)\s+(?:the\s+|my\s+)?(?:context|tokens?)\b/i,
-      /\b(?:given|considering|because\s+of|due\s+to)\s+how\s+(?:much|long)\s+(?:context|time|tokens?)\s+(?:this|it|that|we|I)\s+(?:has|have|'ve)?\s*(?:used|taken|consumed|spent)\b/i,
+      /(?<!\b(?:not|nor|isn't|wasn't)\s+(?:(?:just|only|merely)\s+)?)\b(?:given|considering|because\s+of|due\s+to)\s+how\s+(?:much|long)\s+(?:context|time|tokens?)\s+(?:this|it|that|we|I)\s+(?:has|have|'ve)?\s*(?:used|taken|consumed|spent)\b/i,
 
       // A clock the agent does not have. Scoped to this|it so that "the build
       // is taking too long" - an observation about a process - stays out.

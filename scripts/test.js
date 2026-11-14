@@ -406,6 +406,15 @@ test('epistemic scanner: judges only blocks, and only by the three rules', () =>
   const placeholder = scan(goodBlock.replace(/Verified by: .*/, 'Verified by: <what was run>')).violations;
   assert.equal(placeholder.length, 1, 'template placeholder must count as empty');
   assert.equal(scan(badBlock.replace(/- Scope:.*\n/, '')).violations.length, 2);
+  // Fields written inline after the claim, in bold or after a sentence end, are fields.
+  assert.deepEqual(scan('[EPISTEMIC CLOSE]\n- Claim: the cache is stale. **Status:** verified. **Verified by:** npm test passed. **Scope:** this repo only.\n').violations, []);
+  assert.deepEqual(scan('[EPISTEMIC CLOSE]\n- Claim: the cache is stale. Status: observed. Scope: this repo only.\n').violations, []);
+  const inlineConj = scan('[EPISTEMIC CLOSE]\n- Claim: the cache is stale. **Status:** conjecture. **Scope:** this repo.\n').violations;
+  assert.deepEqual(inlineConj, ['[EPISTEMIC CLOSE] 1: Status is conjecture but no Falsifier is named'], 'the one field really missing');
+  // A finding names the block by its place and carries none of the message's words.
+  const secret = 'the-claim-text-that-must-not-come-back';
+  const named = scan(`[EPISTEMIC CLOSE]\n- Claim: ok\n- Status: observed\n- Scope: x\n\n[EPISTEMIC CLOSE]\n- Claim: ${secret}\n`).violations;
+  assert.ok(named.length === 2 && named.every((v) => v.startsWith('[EPISTEMIC CLOSE] 2: ') && !v.includes(secret)), named.join(' | '));
   assert.deepEqual(scan('[observed] a [conjecture] b [verified - by: c]').tags, { observed: 1, conjecture: 1, verified: 1 });
 });
 
@@ -466,6 +475,23 @@ test('epistemic (claude): a non-zero exit counts as a failure when it is one - e
   const cfg = JSON.parse(fs.readFileSync(path.join(plugin(EPI), 'hooks/hooks.json'), 'utf8'));
   const m = (ev) => cfg.hooks[ev].find((h) => /epi-observe/.test(h.hooks[0].command)).matcher;
   assert.equal(m('PostToolUseFailure'), m('PostToolUse'), 'both events watch the same tools');
+});
+
+test('epistemic (claude): a command that only reads and finds a path absent made an observation, not a failed attempt', (t) => {
+  const run = (event, command, text) => {
+    const sid = uid('epiabsent');
+    t.after(() => cleanupTemp(`epimon_claude_${sid}`));
+    const ev = { session_id: sid, cwd: os.tmpdir(), hook_event_name: event, tool_name: 'Bash', tool_input: { command } };
+    return hook(EPI, 'hooks/epi-observe.js', Object.assign(ev, event === 'PostToolUseFailure' ? { error: text, is_interrupt: false } : { tool_response: { stdout: '', stderr: text } })).out;
+  };
+  assert.equal(run('PostToolUseFailure', 'ls missing.txt', "Exit code 2\nls: cannot access 'missing.txt': No such file or directory"), '');
+  assert.equal(run('PostToolUseFailure', 'cat a.txt', 'Exit code 1\ncat: a.txt: No such file or directory'), '');
+  assert.equal(run('PostToolUse', 'ls missing 2>&1 | head', 'ls: cannot access missing: No such file or directory'), '', 'a redirection is not a second command');
+  assert.match(run('PostToolUseFailure', 'grep -P "(" a.js', 'Exit code 2\ngrep: unmatched ( or \\('), /observation/, 'a read that broke is a failure');
+  assert.match(run('PostToolUseFailure', 'cat a && npm run build', 'Exit code 1\ncat: a: No such file or directory'), /observation/, 'not only a read');
+  assert.match(run('PostToolUseFailure', 'node run.js', "Exit code 1\nError: Cannot find module '/x/run.js'"), /observation/, 'not a read');
+  // The shared detector still reads the line: handoff counts it as a search that found nothing.
+  assert.ok(require(path.join(plugin(EPI), 'lib/fail.js')).looksFailed('cat: a.txt: No such file or directory'));
 });
 
 test('epistemic (claude): every tool that returns a command\'s output is observed - the host names the tool, not the shell', (t) => {
@@ -2423,7 +2449,7 @@ test('notices: a finding reaches the user as one systemMessage line; the load, a
     [HAN, 'hooks/hand-stop.js', 'HANDMON', offerMsg, /^\[handoff self-monitoring\] a decision named without a handoff \(offer: "Let me know"\) with no \[HANDOFF\] block - the agent is reminded on your next message$/],
     [TER, 'hooks/term-stop.js', 'TERMMON', budgetMsg, /^\[termination self-monitoring\] a state-shaped reason \(budget: .*\) with no \[TERMINATION CHECK\] block - the agent is reminded/],
     [COV, 'hooks/cov-stop.js', 'COVMON', deferMsg, /^\[coverage self-monitoring\] work that reads as deferred \(.*\) with no \[COVERAGE CHECK\] block - the agent is reminded/],
-    [EPI, 'hooks/epi-stop.js', 'EPIMON', badBlock, /^\[epistemic self-monitoring\] "x is dead code": Status is verified but "Verified by" is empty - the agent is reminded/],
+    [EPI, 'hooks/epi-stop.js', 'EPIMON', badBlock, /^\[epistemic self-monitoring] \[EPISTEMIC CLOSE\] 1: Status is verified but "Verified by" is empty - the agent is reminded/],
   ];
   for (const [name, script, pre, message, re] of STOPS) {
     const sid = `${stamp}-${pre}`;
@@ -2926,6 +2952,17 @@ test('aspiration: each edited file is reviewed in its medium, the close is judge
   assert.equal(open(), 0, 'a document is read, an image is viewed, whatever the path separators');
   assert.equal(stop(block(good)).out, '', 'a valid close after a review is quiet');
   assert.equal(prompt('Next.').text, '');
+
+  // A drawing written as text: its source read is not the drawing seen, nor is a command that only looks for a renderer.
+  tool('Write', { file_path: 'art/nepal.svg', content: '<svg/>' });
+  tool('Read', { file_path: 'art/nepal.svg' });
+  assert.equal(open(), 1, 'reading an SVG\'s source is not viewing it');
+  tool('Bash', { command: 'which rsvg-convert' });
+  assert.equal(open(), 1, 'a command that does not name it does not view it');
+  tool('Bash', { command: 'rsvg-convert art/nepal.svg -o out.png' });
+  assert.equal(open(), 0, 'a command that renders it does');
+  assert.equal(stop(block(good)).out, '');
+  prompt('Next.');
 
   tool('Edit', { file_path: 'index.html' });
   tool('mcp__Claude_Browser__computer', { action: 'screenshot' });

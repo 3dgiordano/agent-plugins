@@ -30,7 +30,11 @@ const SHELL_TOOL_RE = /bash|shell|terminal|command|exec|powershell/i;
 const RENDER_TOOL_RE = /screenshot|preview|navigate|read_page|get_page_text|snapshot|browser|computer/i;
 
 const TEXT_EXT = /\.(md|markdown|mdx|txt|rst|adoc|org|csv|tsv|json|jsonl|ya?ml|toml|ini|xml|docx?|odt|rtf|pdf|ipynb)$/i;
-const IMAGE_EXT = /\.(png|jpe?g|gif|webp|bmp|tiff?|ico|avif)$/i;
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|bmp|tiff?|ico|avif|svg)$/i;
+// A drawing written as text: reading its source is not seeing it. It is seen
+// rendered (a browser or preview tool), or by a command that names it - a
+// conversion to a raster image the agent then views.
+const SVG_EXT = /\.svg$/i;
 const LEDGER_RE = /(?:^|\/)\.agent\/progress(?:-[^/]+)?\.md$/;
 const MAX_PENDING = 64;
 const MAX_SEEN = 500;
@@ -121,8 +125,10 @@ function observe(st, toolName, toolInput, now) {
   if (kind === 'read') {
     const f = norm(filePathOf(toolInput));
     seen(st, f);
-    reviewed(f);
-    clear((k, m) => m !== 'run' && same(k, f));
+    if (!SVG_EXT.test(f)) {
+      reviewed(f);
+      clear((k, m) => m !== 'run' && same(k, f));
+    }
   } else if (kind === 'run') {
     const cmd = norm(commandOf(toolInput));
     for (const tok of cmd.match(PATH_TOKEN) || []) { seen(st, tok); reviewed(tok); }

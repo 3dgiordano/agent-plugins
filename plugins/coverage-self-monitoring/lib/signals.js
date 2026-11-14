@@ -229,19 +229,28 @@ const DEFERRAL_RES = [
   // Not "touch": "I have not touched the payment module" is scope kept, the
   // discipline executive asks for, not a part left undone (owner's decision,
   // 2026-09-25: 9 of 9 such session readings were restraint).
-  /\bI\s+(?:did\s+not|didn't|have\s+not|haven't)\s+(?:(?:implement|address|cover|handle|finish|wire|test)(?:ed|d)?|got\s+to|get\s+to)\b/i,
+  // Not after a guess in the same sentence: "My guess is the cache, but I
+  // haven't tested that" gives a claim its epistemic status, as "still open"
+  // does for an explanation below (2026-11-13 replay: 4 of 44 readings).
+  /(?<!\b(?:guess|reading|hypothes[ie]s|hunch|suspicion|theory|conjecture|likely\s+cause|suspect)\b[^.!?\n]{0,160})\bI\s+(?:did\s+not|didn't|have\s+not|haven't)\s+(?:(?:implement|address|cover|handle|finish|wire|test)(?:ed|d)?|got\s+to|get\s+to)\b/i,
   /\b(?:a\s+|the\s+)?(?:simplified|basic|minimal|initial|partial|naive|first[- ]pass|skeleton|bare[- ]bones|MVP|proof[- ]of[- ]concept)\s+(?:version|implementation|approach|solution|pass|form)\b/i,
   // Out of scope OF or FOR something - this turn (termination's reason), or a
   // named task ("out of scope for #155") - is scope kept, the owner's rule of
   // 2026-09-25; bare "out of scope, so I stubbed it" defers a part.
   /\bout\s+of\s+scope\b(?!\s+(?:of|for)\b)/i,
   /\bremaining\s+(?:work|items|tasks|parts|steps|pieces)\b/i,
-  /\bstill\s+(?:needs?|need\s+to|to\s+do|to\s+be\s+done|pending|outstanding)\b/i,
+  /\bstill\s+(?:needs?|need\s+to|to\s+do|to\s+be\s+done)\b/i,
+  // A decision, a question, a choice or a call "still pending" or "still
+  // open" is the owner's, not work the agent left: "That decision is still
+  // pending from the owner", "the rounding question in the notes is still
+  // open", "the badge is still open: whether it stays has not been decided"
+  // (2026-11-13 replay: 6 of 44 readings). Read in the sentence around it.
+  /(?<!\b(?:questions?|decisions?|choices?|call)\b[^.!?\n]{0,60})\bstill\s+(?:pending|outstanding)\b(?![^.!?\n]{0,80}\b(?:your\s+(?:decision|call|choice)|for\s+you|the\s+owner|to\s+decide|(?:not\s+been\s+)?decided)\b)/i,
   // Not explanations or hypotheses "still open": that is their epistemic
   // status, as "sin probar" below ("Other explanations still open: another
   // change in the same window"). Only "open": "the cause still needs a fix"
-  // is work left.
-  /(?<!\b(?:explanations?|hypothes[ie]s|possibilit(?:y|ies)|causes?|rivals?)(?:\s+(?:are|is|remain))?\s+)\bstill\s+open\b/i,
+  // is work left. Nor the owner's decisions, as above.
+  /(?<!\b(?:explanations?|hypothes[ie]s|possibilit(?:y|ies)|causes?|rivals?)(?:\s+(?:are|is|remain))?\s+)(?<!\b(?:questions?|decisions?|choices?|call)\b[^.!?\n]{0,60})\bstill\s+open\b(?![^.!?\n]{0,80}\b(?:your\s+(?:decision|call|choice)|for\s+you|the\s+owner|to\s+decide|(?:not\s+been\s+)?decided)\b)/i,
   /\bcan\s+(?:be|get)\s+(?:added|done|handled|addressed|implemented|wired|finished|completed)\s+(?:later|separately|afterwards|in\s+a)\b/i,
   /\b(?:would|will)\s+(?:need|require)\s+(?:a\s+|further\s+|more\s+|additional\s+)?(?:separate|follow[- ]?up|additional|deeper|further)\s+(?:work|pass|change|PR|effort|investigation|task)\b/i,
 
