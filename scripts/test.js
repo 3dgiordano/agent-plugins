@@ -577,6 +577,17 @@ test('epistemic (claude): a non-zero exit counts as a failure when it is one - e
   assert.equal(m('PostToolUseFailure'), m('PostToolUse'), 'both events watch the same tools');
 });
 
+test('epistemic (claude): a PowerShell cmdlet error that exits 0 draws the nudge; native stderr PowerShell wraps does not', (t) => {
+  const run = (out) => {
+    const sid = uid('epips');
+    t.after(() => cleanupTemp(`epimon_claude_${sid}`));
+    return hook(EPI, 'hooks/epi-observe.js', { session_id: sid, cwd: os.tmpdir(), hook_event_name: 'PostToolUse', tool_name: 'PowerShell', tool_input: { command: 'Set-Location src; npm test' }, tool_response: { stdout: '', stderr: out, interrupted: false } }).out;
+  };
+  assert.match(run("Set-Location : Cannot find path 'C:\\work\\src' because it does not exist.\n    + CategoryInfo          : ObjectNotFound: (C:\\work\\src:String) [Set-Location], ItemNotFoundException"), /observation/);
+  assert.match(run("mvn : The term 'mvn' is not recognized as the name of a cmdlet, function, script file, or operable program."), /observation/);
+  assert.equal(run('cargo :    Compiling demo v0.1.0\ncargo :     Finished dev [unoptimized] target(s)'), '', 'cargo writing progress to stderr is not a failure');
+});
+
 test('epistemic (claude): a command that only reads and finds a path absent made an observation, not a failed attempt', (t) => {
   const run = (event, command, text) => {
     const sid = uid('epiabsent');

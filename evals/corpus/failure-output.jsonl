@@ -116,3 +116,10 @@
 {"text":"Lint finished. errors: 0, warnings: 2","expect":"miss","why":"a count of zero errors"}
 {"text":"{ \"status\": \"ok\", \"error\": null }","expect":"miss","why":"a null error field in a JSON reply"}
 {"text":"error: null","expect":"miss","why":"a null error value printed at a line start"}
+{"text":"Set-Location : Cannot find path 'C:\\work\\src' because it does not exist.","expect":"hit","why":"a PowerShell 5.1 cmdlet error record; the command exits 0"}
+{"text":"Set-Location: Cannot find path 'C:\\work\\src' because it does not exist.","expect":"hit","why":"the same record as PowerShell 7 writes it"}
+{"text":"mvn : The term 'mvn' is not recognized as the name of a cmdlet, function, script file, or operable program.","expect":"hit","why":"a command PowerShell cannot find"}
+{"text":"    + CategoryInfo          : ObjectNotFound: (C:\\work\\src:String) [Set-Location], ItemNotFoundException","expect":"hit","why":"an error record's detail line"}
+{"text":"cargo :    Compiling demo v0.1.0 (C:\\work\\demo)","expect":"miss","why":"native stderr wrapped by Windows PowerShell, not a failure"}
+{"text":"Content-Type: text/html; charset=utf-8","expect":"miss","why":"an HTTP header, not a cmdlet"}
+{"text":"Get-Help: shows the help for a cmdlet","expect":"miss","why":"a help line: the message does not open with a capital"}

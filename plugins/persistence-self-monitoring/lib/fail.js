@@ -50,6 +50,15 @@ const FAIL_LINE_RES = [
   /(?<![{,]\s*)\b(?:error|errors|ERROR)(?:\s+TS\d+)?:\s+(?!(?:0|null|none|nil|false|undefined|\[\]|\{\})(?![\w.]))\S/,
   /\bAssertionError\b|\bassert(?:ion)? failed\b/i,
   /\bcommand not found\b|\bno such file or directory\b|\bpermission denied\b/i,
+  // PowerShell: a cmdlet's error record, which leaves the exit code at 0 -
+  // "Set-Location : Cannot find path" (5.1), "Set-Location: Cannot find path"
+  // (7). The verb is one of PowerShell's, so an HTTP header (Content-Type:,
+  // Cache-Control:) or native stderr wrapped as "cargo : Compiling" is not one,
+  // and the message opens with a capital as PowerShell writes it - a help line
+  // ("Get-Help: shows help") usually does not.
+  /^\s*(?:Add|Clear|Close|Compare|Compress|Connect|Convert|ConvertFrom|ConvertTo|Copy|Disable|Disconnect|Enable|Enter|Exit|Expand|Export|Find|ForEach|Format|Get|Import|Install|Invoke|Join|Measure|Move|New|Out|Pop|Push|Read|Register|Remove|Rename|Resolve|Restart|Resume|Save|Select|Send|Set|Sort|Split|Start|Stop|Test|Uninstall|Unregister|Update|Wait|Where|Write)-[A-Z][A-Za-z]+\s?:\s+[A-Z'"]/,
+  // ...the same for a command PowerShell cannot find, and the record's detail lines.
+  /\bis not recognized as the name of a cmdlet\b|^\s*\+\s*(?:CategoryInfo|FullyQualifiedErrorId)\s*:/,
 ];
 
 // What the host hands us: a string, or an object whose stdout/stderr carry the
