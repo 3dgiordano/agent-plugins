@@ -144,8 +144,8 @@ the agent is told why and keeps working. By default only two do, each for a
 close the agent itself contradicts: `handoff-self-monitoring`'s (a `blocked`
 close, or a `needs-decision` close with nothing written, in a turn whose
 search found nothing) and `hygiene-self-monitoring`'s (a `[HYGIENE CHECK]`
-whose Outside names a change its Decision keeps, or whose Decision puts back
-or offers what the code still has). On any finding of their kind, only when
+whose Outside names a change its Decision keeps, while the edit record shows
+a public function changed that Request names does not name). On any finding of their kind, only when
 set: `epistemic-self-monitoring`'s closure gate (`EPIMON_STRICT`),
 `termination-self-monitoring`'s termination gate (`TERMMON_STRICT`),
 `handoff-self-monitoring`'s handoff gate (`HANDMON_STRICT`),

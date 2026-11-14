@@ -360,8 +360,8 @@ here is exactly what they are:
   a close the agent itself contradicts, because in a one-turn task the
   finding would otherwise wait for a next prompt that never comes:
   handoff's, a close that stops on a search that found nothing, and
-  hygiene's, a block that keeps what its own Outside names or says it put
-  back what the code still has. Five opt-in settings hold a close on any
+  hygiene's, a block that keeps what its own Outside names while the edit
+  record shows a public function changed that the request does not name. Five opt-in settings hold a close on any
   finding of their kind — `EPIMON_STRICT` (an incomplete closure block),
   `TERMMON_STRICT` (a state-shaped reason to stop with no checkable one),
   `HANDMON_STRICT` (a decision named with no handoff), `ASPMON_STRICT` (a

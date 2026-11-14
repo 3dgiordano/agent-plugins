@@ -25,9 +25,12 @@ const FIELDS = {
   outside: /^outside$/i,
   decision: /^decision$/i,
 };
-// "none" alone, or "none" and then a gloss: "none (x and y are unchanged)",
-// "none - z is offered above, not made".
-const NONE = /^(?:(?:none|nothing|n\/a|ninguno|ninguna|nada)(?:\s*$|\s*[(;:,.—–]|\s+-\s)|[-—]\s*$)/i;
+// "none" as the first word, and then whatever gloss: "none (x and y are
+// unchanged)", "none - z is offered above, not made", "none in the code. z is
+// offered". Not when the gloss carves an exception out of it ("none except
+// z", "nothing but z"): that names z. "nonetheless" is not "none".
+const NONE_WORD = /^(?:none|nothing|n\/a|ninguno|ninguna|nada)(?![\w/])/i;
+const EXCEPT = /^[^.;]*?\b(?:except|but|besides|apart from|other than|save for|excepto|salvo|menos|aparte de|sino)\b/i;
 
 function parse(text) {
   if (typeof text !== 'string') return null;
@@ -47,7 +50,10 @@ function parse(text) {
 }
 
 const clean = (s) => String(s || '').replace(/[`*_]/g, '').trim();
-const isNone = (s) => NONE.test(clean(s)) || clean(s) === '';
+const isNone = (s) => {
+  const c = clean(s);
+  return c === '' || /^[-—]\s*$/.test(c) || (NONE_WORD.test(c) && !EXCEPT.test(c));
+};
 const decisionOf = (s) => (clean(s).match(/^(keep|revert-extra|ask-owner)\b/i) || [])[1];
 
 function named(group, requestText) {
@@ -85,8 +91,7 @@ function scan(text, reached) {
   }
   const decision = decisionOf(b.decision);
   // The block's own contradictions: it names a change outside the request and
-  // keeps it, or says it put back or offered what the code still has. The
-  // Stop holds these in either mode (hooks/hyg-stop.js).
+  // keeps it, or says it put back or offered what the code still has.
   const kept = !isNone(b.outside) && Boolean(decision) && decision.toLowerCase() === 'keep';
   if (kept) {
     violations.push('Outside names a change and the Decision is keep - if it is outside the request, it goes back as it was (revert-extra) or to the owner (ask-owner); if the request needs it, show it by a run - a fix that changes only what the request names fails the request\'s own example - and then it moves to Request names');
@@ -101,7 +106,13 @@ function scan(text, reached) {
   if (unreverted) {
     violations.push(`the Decision is ${decision.toLowerCase()}, while ${count} still changed and not in Request names (${where(unnamed)}) - put back means the code is as it was, and ask-owner puts it back too; if the request needs a change, show it by a run - a fix that changes only what the request names fails the request's own example - and then it moves to Request names`);
   }
-  return { block: true, decision: decision || null, kept, contradicts: kept || unreverted, violations };
+  // What the Stop holds in either mode (hooks/hyg-stop.js): a kept Outside the
+  // record bears out - a public function changed that Request names does not
+  // name. Read off the record, not the wording, so a loose gloss of "none"
+  // over a clean record stays a note. A put-back the record still shows is a
+  // note too: the record spans the session, so a function an earlier request
+  // changed, or one put back from the shell, is still in it.
+  return { block: true, decision: decision || null, kept, contradicts: kept && unnamed.length > 0, violations };
 }
 
 module.exports = { parse, scan };

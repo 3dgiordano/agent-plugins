@@ -6,7 +6,7 @@ Keep a change to what the request names. A fix can keep the request's own check 
 
 It answers *"is the size and the kind of this change still the request's - or does it reach public behaviour the request does not name?"*
 
-**Never blocking.** Findings become a one-line retrospective on the next prompt; `HYGMON_STRICT=1` turns the Stop into a gate that holds a close once. One hold is on in either mode: a block that contradicts itself - its Outside names a change and its Decision keeps it, or its Decision puts back or offers what the code still has - holds the close once, and the agent is told why and keeps working.
+**Never blocking.** Findings become a one-line retrospective on the next prompt; `HYGMON_STRICT=1` turns the Stop into a gate that holds a close once. One hold is on in either mode: a block whose Outside names a change and whose Decision keeps it, while the edit record shows a public function changed that Request names does not name, holds the close once, and the agent is told why and keeps working. The hold reads the record, not the wording: a loose gloss of "none" over a clean record is a note at most. A put-back the record still shows is a note too, since the record spans the session.
 
 ## Why it works: the reach is recorded, not remembered
 
@@ -38,7 +38,7 @@ A finding carries the path, the lines and the count - never a function's name, n
 
 ## The gate - non-blocking by default, strict on request
 
-**Default:** findings go to the opt-in log and into the next prompt as one line (Claude Code, Codex). The turn ends normally - except for the block contradicting itself - Outside named and the Decision `keep`, or a `revert-extra` or `ask-owner` while a public function the request does not name is still changed - which blocks once as the strict gate does: the block against its own words or against the code, so it has few false alarms, and parked for the next prompt it never reached a one-turn task. The finding offers the way out of a wrong label too: what the request needs is not outside, and moves to Request names with the words of the request that need it. The agent may keep its close on the next stop. The user sees one notice line (`systemMessage`); `HYGMON_NOTICE=0` turns that off.
+**Default:** findings go to the opt-in log and into the next prompt as one line (Claude Code, Codex). The turn ends normally - except for an Outside named with the Decision `keep` while the edit record shows a public function changed that Request names does not name, which holds the close once as the strict gate does: the block's words and the record agree on a kept change outside the request, so it has few false alarms, and parked for the next prompt it never reached a one-turn task. The hold reads the record, not the wording, so a loose gloss of "none" over a clean record is not held. A `revert-extra` or `ask-owner` while the record still shows the function changed is a note, not a hold: the record spans the session, so a change an earlier request made, or one put back from the shell, is still in it. The finding offers the way out of a wrong label too: what the request needs is not outside, and moves to Request names with the words of the request that need it. The agent may keep its close on the next stop. The user sees one notice line (`systemMessage`); `HYGMON_NOTICE=0` turns that off.
 
 **Strict** (`HYGMON_STRICT=1`): the gate blocks once. Claude Code exits 2. Cursor returns a `followup_message` once (`loop_limit: 1`).
 
@@ -55,7 +55,7 @@ And one where it stays quiet: "What is the difference between `module.exports` a
 ## Troubleshooting
 
 - **Nothing happens at all.** The hooks are Node.js scripts and need Node 18 or later on the `PATH` of the shell the host starts (`node --version`). In Claude chat only the skill loads; the hooks run in Claude Code, Cowork on the desktop, and Cursor.
-- **A close was held once.** By default the only close held is a `[HYGIENE CHECK]` that contradicts its own words or the code; with `HYGMON_STRICT=1` any finding holds the close once. See *The gate*.
+- **A close was held once.** By default the only close held is a `[HYGIENE CHECK]` that keeps what its Outside names while the edit record shows a public function changed that Request names does not name; with `HYGMON_STRICT=1` any finding holds the close once. See *The gate*.
 - **Too many notice lines.** `HYGMON_NOTICE=0` turns off the one line the user sees; what the agent is told does not change.
 - **Seeing what the hooks decided.** `HYGMON_LOG=1` writes `.claude/logs/hygiene-self-monitoring.jsonl` (`.cursor/logs/` on Cursor) in the project: local, size-capped, deleted by removing the file. See *Debug log* below.
 - **Something else.** Open an issue at https://github.com/3dgiordano/agent-plugins/issues with the host, the plugin version and the log lines; leave out conversation text.

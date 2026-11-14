@@ -5373,6 +5373,17 @@ test('hygiene: the close is read against what the edits reached - no block, Outs
     assert.doesNotMatch(still[0], /append|Headers/);
   }
   assert.deepEqual(scan(block('get and has', 'get, has', 'none', 'keep'), reached.slice(0, 2)).violations, []);
+  // What the Stop holds by default: a kept Outside the record bears out, never the wording alone.
+  assert.equal(scan(block('`get()` and `has()`', 'get, has, append', 'append now folds casing', 'keep'), reached).contradicts, true, 'kept, and append changed unnamed: held');
+  assert.equal(scan(block('get, has, append', 'get, has, append', 'append now folds casing', 'keep'), reached).contradicts, false, 'kept in words, every changed function named: a note');
+  assert.equal(scan(block('get and has', 'get, has, append', 'append folds casing', 'ask-owner'), reached).contradicts, false, 'offered while the record still shows it: a note');
+  // Glosses of "none" read off stored closes the stop held (bench runs, October 2026), and the exception that names something.
+  for (const o of ['none for the code. `set()`, `append()` and `delete()` are untouched and still case-sensitive.', 'none in the code. Not changed and offered as an option: `set()` case-insensitivity', 'nada en el código', 'Nothing beyond the request']) {
+    assert.deepEqual(scan(block('get and has', 'get, has', o, 'keep'), reached.slice(0, 2)).violations, [], o);
+  }
+  for (const o of ['none except append, which folds casing now', 'nothing but append', 'nonetheless append folds casing']) {
+    assert.equal(scan(block('get and has', 'get, has', o, 'keep'), reached.slice(0, 2)).kept, true, o);
+  }
   // "none" with a gloss is still none (Opus 5.5 on Claude Code, 2026-10-02; read as a kept Outside before this).
   assert.deepEqual(scan(block('get and has', 'get, has', 'none (`append`, `set` are unchanged; the fold is offered above, not made)', 'keep'), reached.slice(0, 2)).violations, []);
   assert.deepEqual(scan(block('get and has', 'get, has', 'none — `entries()` and `raw()` behave as before', 'keep'), reached.slice(0, 2)).violations, []);
@@ -5429,11 +5440,19 @@ test('hygiene (claude): session start takes the baseline, an edit that reaches t
   assert.equal(held.code, 2, 'default mode');
   assert.match(held.err, /^Hygiene gate: Outside names a change and the Decision is keep/);
   assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', stop_hook_active: true, last_assistant_message: keptClose })).code, 0, 'once');
-  // ask-owner while delete() still folds case: the other contradiction, held once too.
-  const offered = hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: keptClose.replace('Decision: keep', 'Decision: ask-owner') }));
-  assert.equal(offered.code, 2, 'put back or offered while the code still has it');
-  assert.match(offered.err, /the Decision is ask-owner, while 1 public function this session changed is still changed and not in Request names \(index\.js line \d+\) - put back means the code is as it was, and ask-owner puts it back too/);
-  assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', stop_hook_active: true, last_assistant_message: keptClose.replace('Decision: keep', 'Decision: ask-owner') })).code, 0, 'once');
+  // ask-owner while the record still shows delete() changed: a note by default - the record spans the session, so an
+  // earlier request's change or a put-back from the shell is still in it - and held once only in strict mode.
+  const offeredClose = keptClose.replace('Decision: keep', 'Decision: ask-owner');
+  const offered = hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: offeredClose }));
+  assert.equal(offered.code, 0, 'default: not held');
+  assert.match(JSON.parse(offered.out).systemMessage, /the Decision is ask-owner, while 1 public function this session changed is still changed/);
+  const offeredStrict = hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: offeredClose }), { HYGMON_STRICT: '1' });
+  assert.equal(offeredStrict.code, 2, 'strict: held');
+  assert.match(offeredStrict.err, /the Decision is ask-owner, while 1 public function this session changed is still changed and not in Request names \(index\.js line \d+\) - put back means the code is as it was, and ask-owner puts it back too/);
+  assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', stop_hook_active: true, last_assistant_message: offeredClose }), { HYGMON_STRICT: '1' }).code, 0, 'once');
+  // Outside named and kept, while the record shows every changed function named: a note, not a hold.
+  const namedKept = keptClose.replace('- Request names: has()', '- Request names: has() and delete()');
+  assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: namedKept })).code, 0, 'the record does not bear the kept Outside out: not held');
   assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: close })).code, 0, 'Outside none still waits for the next prompt by default');
   assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: keptClose.replace('Decision: keep', 'Decision: ask-owner').replace('- Request names: has()', '- Request names: has() and delete()') })).code, 0, 'offered, and the request names it: nothing to hold');
   assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'SubagentStop', last_assistant_message: keptClose })).code, 0, 'a subagent is never held');

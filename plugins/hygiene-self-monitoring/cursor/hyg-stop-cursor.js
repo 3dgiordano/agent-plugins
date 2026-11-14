@@ -5,7 +5,8 @@
  * Default: does nothing. The findings stay in the log. Cursor has no
  * non-blocking per-prompt injection point for the retrospective. One finding
  * is submitted once in this mode too: the block contradicting itself
- * (Outside named and kept, or put back while the code still has it).
+ * (Outside named and kept, while the record shows a public function changed
+ * that Request names does not name).
  *
  * Strict (HYGMON_STRICT): returns a followup_message once (loop_count === 0,
  * loop_limit 1), so the agent accounts for what its edits reached. Fails
