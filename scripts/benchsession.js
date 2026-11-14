@@ -150,8 +150,10 @@ function startSession(root, agents) {
     benchmark: benchmarkVersion(root),
     runs: suite.runs,
     plugins: pluginVersions(root),
-    // What the agent meets, per plugin: a version does not move on every change (scripts/pluginsource.js).
-    code: codeOf(root),
+    // What the agent meets, per plugin: a version does not move on every change,
+    // and moves on changes the agent never meets (scripts/pluginsource.js).
+    code: codeOf(root, 'agent'),
+    codeScope: 'agent',
     agents: Object.assign({}, agents || {}),
     models: suite.models,
     slots: {},
@@ -172,9 +174,12 @@ function markAll(session, keyPrefix, reason) {
   }
 }
 
-function codeOf(root) {
+// scope 'agent': what the agent receives (pluginsource.js agentFingerprint), the
+// rule since 2026-11-14. 'full': every file but the README and the evals, the
+// rule a session started before then keeps.
+function codeOf(root, scope) {
   const out = {};
-  for (const [name, p] of Object.entries(require('./pluginsource.js').fingerprints(root))) out[name] = p.sha256;
+  for (const [name, p] of Object.entries(require('./pluginsource.js').fingerprints(root))) out[name] = scope === 'full' ? p.sha256 : p.agent;
   return out;
 }
 
@@ -195,6 +200,7 @@ function refreshDrift(root, agentsNow) {
   const session = readCurrent(root);
   if (!session || session.status !== 'open') return { session, changes: [] };
   const changes = [];
+  const scope = session.codeScope || 'full';
   const nowBench = benchmarkVersion(root);
   if (session.benchmark !== nowBench) {
     const reason = `benchmark ${session.benchmark} -> ${nowBench}`;
@@ -213,15 +219,18 @@ function refreshDrift(root, agentsNow) {
     changes.push({ scope: 'plugin', id: name, was, now, reason });
     if (now == null) delete session.plugins[name];
     else session.plugins[name] = now;
-    invalidatePlugin(session, cases, name, reason);
+    // A version is recorded; what voids a plugin's runs is a change to what the
+    // agent receives, checked below - a version can move on a manifest change
+    // alone. A session from before this rule keeps it: its version voids.
+    if (scope === 'full' || now == null) invalidatePlugin(session, cases, name, reason);
   }
   // The code under the same version: a change between two releases keeps the number.
   // A session from before this field takes today's code as its start.
-  const nowCode = codeOf(root);
+  const nowCode = codeOf(root, scope);
   if (session.code) {
     for (const [name, sha] of Object.entries(nowCode)) {
       const was = session.code[name] || null;
-      if (!was || was === sha || changes.some((c) => c.scope === 'plugin' && c.id === name)) continue;
+      if (!was || was === sha || (scope === 'full' && changes.some((c) => c.scope === 'plugin' && c.id === name))) continue;
       const reason = `${name} code changed under ${nowPlugins[name]} (${was.slice(0, 7)} -> ${sha.slice(0, 7)})`;
       changes.push({ scope: 'code', id: name, was, now: sha, reason });
       invalidatePlugin(session, cases, name, reason);

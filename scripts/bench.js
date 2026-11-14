@@ -19,8 +19,10 @@
  *
  * --start pins the benchmark version, the plugin versions, and the agent
  * version it can see. Later stages write into that session. A re-run of a
- * model replaces that model. A version change invalidates the part that
- * changed and that part has to be run again before --finish.
+ * model replaces that model. A change to what the agent receives (a plugin's
+ * hooks, lib, Cursor adapter or skill), the benchmark, a model's suite entry or
+ * an agent version invalidates the part that changed, and that part has to be
+ * run again before --finish. A plugin's version is recorded, not decisive.
  *
  * A stage runs the canonical cases, one per plugin (bench/benchmark.json
  * "cases"), and a slot is complete when it has them. `-- <filter>` runs the

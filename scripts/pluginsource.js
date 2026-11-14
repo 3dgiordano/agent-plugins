@@ -51,6 +51,26 @@ function fingerprint(dir) {
   return h.digest('hex');
 }
 
+/*
+ * What the agent receives: the hooks and their libraries, the Cursor adapter,
+ * the skill. Not the manifests (a version, a description, a listing field),
+ * the icon, the README or the evals: a change there changes nothing a run
+ * measured, and a bench session is voided only by a change here
+ * (scripts/benchsession.js refreshDrift).
+ */
+const AGENT_PARTS = new Set(['hooks', 'lib', 'cursor', 'skills']);
+function agentFingerprint(dir) {
+  if (!dir || !fs.existsSync(dir)) return null;
+  const h = crypto.createHash('sha256');
+  for (const rel of files(dir).filter((f) => AGENT_PARTS.has(f.split('/')[0])).sort()) {
+    let buf = fs.readFileSync(path.join(dir, rel));
+    if (TEXT.test(rel)) buf = Buffer.from(buf.toString('utf8').replace(/\r\n/g, '\n'));
+    h.update(`${rel}\0${buf.length}\0`);
+    h.update(buf);
+  }
+  return h.digest('hex');
+}
+
 function versionOf(dir) {
   for (const m of ['.claude-plugin/plugin.json', '.cursor-plugin/plugin.json', '.codex-plugin/plugin.json', '.plugin/plugin.json']) {
     try { return JSON.parse(fs.readFileSync(path.join(dir, m), 'utf8')).version || null; } catch (_) {}
@@ -64,7 +84,7 @@ function fingerprints(root) {
   for (const name of fs.readdirSync(dir).sort()) {
     const p = path.join(dir, name);
     if (!name.endsWith('-self-monitoring') || !fs.statSync(p).isDirectory()) continue;
-    out[name] = { version: versionOf(p), sha256: fingerprint(p) };
+    out[name] = { version: versionOf(p), sha256: fingerprint(p), agent: agentFingerprint(p) };
   }
   return out;
 }
@@ -133,4 +153,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { fingerprint, fingerprints, source, versionOf, dirtyPlugins, unstepped, lastTag, SKIP };
+module.exports = { fingerprint, agentFingerprint, AGENT_PARTS, fingerprints, source, versionOf, dirtyPlugins, unstepped, lastTag, SKIP };
