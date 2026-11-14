@@ -10,7 +10,7 @@ Short answers to the questions people ask first, and to the assumptions that are
 
 ### Is this a guardrail, a sandbox or a security tool?
 
-**No.** The plugins do not stop an agent from doing anything. They never block by default (three have an opt-in gate, below; two default stops ask once for a close the agent contradicts - handoff's, a close that stops on a search that found nothing, and hygiene's, a block that keeps what its own Outside names or says it put back what the code still has - and the agent may keep its close), they do not restrict commands, files or network access, and they do not protect your machine. To limit what an agent can do, use your host's permission settings or real isolation: a container, a VM, a separate user.
+**No.** The plugins do not stop an agent from doing anything. They never block (five have an opt-in strict setting, below; two default holds ask once for a close the agent contradicts - handoff's, a close that stops on a search that found nothing, and hygiene's, a block that keeps what its own Outside names or says it put back what the code still has - and the agent may keep its close), they do not restrict commands, files or network access, and they do not protect your machine. To limit what an agent can do, use your host's permission settings or real isolation: a container, a VM, a separate user.
 
 The repository's bench does fence the agent it tests: its shell admits only `node`, and that `node` runs under Node's permission model, confined to the run's workspace, with what it refuses recorded. The agent's other tools are audited afterwards, and a run that touched anything outside its workspace is dropped. That is the **test harness**, there to keep measurements honest ([bench/GUARDS.md](../bench/GUARDS.md)). None of it is installed with a plugin.
 
@@ -96,7 +96,7 @@ A little, and it is measured. On Claude Code, in benchmark 1.2.0, one plugin mad
 
 ### Can they block my agent?
 
-Only if you ask. Five plugins have an opt-in strict gate (`EPIMON_STRICT`, `TERMMON_STRICT`, `HANDMON_STRICT`, `ASPMON_STRICT`, `HYGMON_STRICT`), and each blocks once, never in a loop. Any error inside a hook lets the agent continue.
+No. No hook stops the agent from working, and any error inside a hook lets it continue. What a hook can do is hold a close once and tell the agent why, so it keeps working. Handoff and hygiene do that by default for a close the agent itself contradicts (README, "Never blocking"), and five plugins have an opt-in strict setting (`EPIMON_STRICT`, `TERMMON_STRICT`, `HANDMON_STRICT`, `ASPMON_STRICT`, `HYGMON_STRICT`) that holds a close on any finding of its kind, each once, never in a loop.
 
 ### Can I turn off the notices?
 

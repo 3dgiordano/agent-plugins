@@ -19,10 +19,10 @@ It answers *"can the reader act on what I wrote?"* — the transmission side of
 what I concluded true?"*. Knowing and having transmitted are two functions;
 this one covers the second.
 
-**Non-blocking by default, with one exception.** Findings become a one-line
-retrospective on the next prompt; `HANDMON_STRICT=1` turns the Stop into a
-gate that fires once. The exception: a `blocked` close in a turn whose search
-found nothing blocks once in either mode.
+**Never blocking.** Findings become a one-line retrospective on the next
+prompt; `HANDMON_STRICT=1` turns the Stop into a gate that holds a close once.
+One hold is on in either mode: a `blocked` close in a turn whose search found
+nothing is held once, and the agent is told why and keeps working.
 
 ## Why it works: a handoff protocol, not "explain better"
 

@@ -34,7 +34,7 @@ request?* — in three parts:
   one of which is always the honest way out — *blocked*, *report to the
   user*, *cannot be done as asked, because X*.
 
-They never block by default, have no dependencies, make no network calls, and
+They never block the agent, have no dependencies, make no network calls, and
 send nothing anywhere.
 
 | It is | It is not |
@@ -353,18 +353,21 @@ here is exactly what they are:
   changed in three decisions. No hook writes any
   of them. What a hook
   reads never becomes what it says: [SECURITY.md](SECURITY.md).
-- **Never blocking by default, with two exceptions.** Every hook fails silent: an error in a hook
-  lets the prompt, tool call or stop proceed. The exceptions stop a close the
-  agent itself contradicts, once, because the finding is otherwise held for a
-  next prompt a one-turn task never has: handoff's, a close that stops on a
-  search that found nothing, and hygiene's, a block that keeps what its own
-  Outside names or says it put back what the code still has. Five opt-in gates exist —
-  `EPIMON_STRICT` (an incomplete closure block), `TERMMON_STRICT` (a
-  state-shaped reason to stop with no checkable one), `HANDMON_STRICT` (a
-  decision named with no handoff), `ASPMON_STRICT` (a close after a change
-  nobody reviewed) and `HYGMON_STRICT` (a change that reaches what the
-  request does not name) — and each blocks once, never in a loop. The other
-  five plugins have no blocking mode at all.
+- **Never blocking.** Every hook fails silent: an error in a hook lets the
+  prompt, tool call or stop proceed, and no hook stops the agent from
+  working. What a hook can do at the end of a turn is hold the close once:
+  the agent is told why and keeps working. Two holds are on by default, for
+  a close the agent itself contradicts, because in a one-turn task the
+  finding would otherwise wait for a next prompt that never comes:
+  handoff's, a close that stops on a search that found nothing, and
+  hygiene's, a block that keeps what its own Outside names or says it put
+  back what the code still has. Five opt-in settings hold a close on any
+  finding of their kind — `EPIMON_STRICT` (an incomplete closure block),
+  `TERMMON_STRICT` (a state-shaped reason to stop with no checkable one),
+  `HANDMON_STRICT` (a decision named with no handoff), `ASPMON_STRICT` (a
+  close after a change nobody reviewed) and `HYGMON_STRICT` (a change that
+  reaches what the request does not name) — each once, never in a loop. The
+  other five plugins never hold a close.
 - **Visible when it finds something.** A finding - a close without its
   block, a counter over its threshold, open items in the ledger - also shows
   you one line in the transcript (Claude Code and Codex; Cursor has no field
@@ -579,7 +582,7 @@ CITATION.cff                      # how to cite the project
 Proposals, bug reports and pull requests are welcome, and so are cases,
 corpus lines and reviews from people who work on agents or evaluation. What
 fits the collection (one function per plugin, anchored to an artifact or an
-objective count, never blocking by default, host-neutral skill, named for what
+objective count, never blocking, host-neutral skill, named for what
 it monitors), how to add or change a plugin, how to contribute to the bench,
 and how releases are cut are all in [CONTRIBUTING.md](CONTRIBUTING.md).
 Changes are tracked in [CHANGELOG.md](CHANGELOG.md).

@@ -17,9 +17,11 @@ five rules the existing plugins follow:
    artifact (the plan, the docs, the code) or an objective count from a hook
    (edits to the same file, failed runs, tool calls). "Reflect harder" is not
    a mechanism.
-3. **Never blocking by default.** Hooks fail silent; an error lets the prompt,
-   tool call or stop proceed. A blocking mode may exist only as an explicit
-   opt-in, and it must fire at most once (no loops).
+3. **Never blocking.** Hooks fail silent; an error lets the prompt, tool call
+   or stop proceed, and no hook stops the agent from working. A hook may hold
+   a close, telling the agent why so it keeps working, at most once (no
+   loops): by default only for a close the agent itself contradicts,
+   otherwise only as an explicit opt-in.
 4. **The skill is the source of truth and is host-neutral.** Hooks only decide
    *when*; they never carry the protocol. Anything project-specific (drift
    patterns of a particular codebase, metrics of a particular domain) belongs

@@ -138,14 +138,21 @@ The eval scripts under `scripts/` are **not** hooks and are not covered by the
 list above — `scripts/cursor-eval.js` starts the Cursor Agent CLI on purpose.
 Nothing in CI runs them, and `scripts/test.js` fails if that ever changes.
 
-Five hooks can block: `epistemic-self-monitoring`'s closure gate (only when
-`EPIMON_STRICT` is set), `termination-self-monitoring`'s termination gate
-(only when `TERMMON_STRICT` is set), `handoff-self-monitoring`'s handoff
-gate (only when `HANDMON_STRICT` is set), `aspiration-self-monitoring`'s
-close gate (only when `ASPMON_STRICT` is set) and `hygiene-self-monitoring`'s
-close gate (only when `HYGMON_STRICT` is set). Each does so at most once per
-turn, and only by exit code / a documented host response — never by altering
-the agent's output. The other five plugins have no blocking mode.
+No hook stops the agent from working. Five Stop hooks can hold a close once:
+the hook answers with exit code 2 (or the host's documented response), and
+the agent is told why and keeps working. By default only two do, each for a
+close the agent itself contradicts: `handoff-self-monitoring`'s (a `blocked`
+close, or a `needs-decision` close with nothing written, in a turn whose
+search found nothing) and `hygiene-self-monitoring`'s (a `[HYGIENE CHECK]`
+whose Outside names a change its Decision keeps, or whose Decision puts back
+or offers what the code still has). On any finding of their kind, only when
+set: `epistemic-self-monitoring`'s closure gate (`EPIMON_STRICT`),
+`termination-self-monitoring`'s termination gate (`TERMMON_STRICT`),
+`handoff-self-monitoring`'s handoff gate (`HANDMON_STRICT`),
+`aspiration-self-monitoring`'s close gate (`ASPMON_STRICT`) and
+`hygiene-self-monitoring`'s close gate (`HYGMON_STRICT`). Each holds at most
+once per turn, and only by exit code / a documented host response — never by
+altering the agent's output. The other five plugins never hold a close.
 
 If you find any behaviour outside this list, treat it as a vulnerability and
 report it.
