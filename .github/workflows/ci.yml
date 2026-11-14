@@ -9,10 +9,17 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same branch or pull request cancels the run it makes stale.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: test (${{ matrix.os }}, node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
+    # The suite takes about five minutes and bench-check two; a hung job stops here.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -23,6 +30,9 @@ jobs:
         node: [18, 20, 22]
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The history and the tags: the version-step rule compares with the last release.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
@@ -30,6 +40,9 @@ jobs:
 
       - name: Versions in sync across manifests
         run: node scripts/version.js --check
+
+      - name: One version step per plugin since the last release
+        run: node scripts/pluginsource.js
 
       - name: Claude plugin directory pre-submission checks (docs/DIRECTORY.md)
         run: node scripts/directory-check.js
@@ -45,3 +58,9 @@ jobs:
 
       - name: Host parity (Claude Code + Cursor adapters)
         run: node scripts/hosts.js --check
+
+      # The graders behind every published bench number, against their pass and
+      # fail fixtures. No agent, no network; once per operating system.
+      - name: Bench graders against their fixtures
+        if: matrix.node == 22
+        run: node scripts/bench-check.js

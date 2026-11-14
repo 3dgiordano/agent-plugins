@@ -256,8 +256,10 @@ function main() {
     for (const c of hostGap) seenHostGaps.add(`${cc.has(c) ? 'cursor' : 'claude'}|${c}`);
     const gapTag = hostGap.length ? `  (host gap: ${hostGap.join(', ')})` : '';
     if (!only.length) { console.log(`${line}  parity${gapTag}`); continue; }
+    // Each capability that differs needs its own reason: an ACCEPTED entry for a
+    // plugin declares the capabilities it names, not every other one too.
     const undeclared = only.filter((c) => !accepted || !(c in (accepted.capabilities || {})));
-    if (undeclared.length && !accepted) {
+    if (undeclared.length) {
       console.log(`${line}  UNDECLARED ASYMMETRY: ${undeclared.join(', ')}`);
       problems += 1;
     } else {

@@ -141,16 +141,52 @@ function lastTag(root) {
   return t ? t.trim() : null;
 }
 
+// The release a check compares with: the last tag before HEAD. On the commit a
+// release tag points at, the one before it - the tree equals its own tag, so
+// comparing with it checks nothing.
+function baseTag(root) {
+  const at = git(root, ['tag', '--points-at', 'HEAD']);
+  const t = git(root, ['describe', '--tags', '--abbrev=0', at && at.trim() ? 'HEAD^' : 'HEAD']);
+  return t ? t.trim() : null;
+}
+
+// One step from what shipped: x.y.(z+1), x.(y+1).0 or (x+1).0.0.
+function oneStep(from, to) {
+  const p = (v) => String(v || '').split('.').map(Number);
+  const [a, b, c] = p(from);
+  const [x, y, z] = p(to);
+  if ([a, b, c, x, y, z].some((n) => !Number.isInteger(n))) return false;
+  return (x === a && y === b && z === c + 1) || (x === a && y === b + 1 && z === 0) || (x === a + 1 && y === 0 && z === 0);
+}
+
+// The plugins whose version moved more than one step, or back, since the tag.
+function oversteps(root, tag) {
+  const out = [];
+  const dir = path.join(root, 'plugins');
+  for (const name of fs.readdirSync(dir).sort()) {
+    if (!name.endsWith('-self-monitoring')) continue;
+    let tagged;
+    try { tagged = JSON.parse(execFileSync('git', ['show', `${tag}:plugins/${name}/.claude-plugin/plugin.json`], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })).version; } catch (_) { continue; } // new since the tag
+    const now = versionOf(path.join(dir, name));
+    if (now !== tagged && !oneStep(tagged, now)) out.push({ name, from: tagged, to: now });
+  }
+  return out;
+}
+
 function main() {
   const root = path.resolve(__dirname, '..');
   const s = source(root);
   console.log(`commit ${s.commit ? s.commit.slice(0, 7) : '(no git)'}${s.dirty && s.dirty.length ? `   uncommitted in: ${s.dirty.join(', ')}` : ''}`);
   for (const [name, p] of Object.entries(s.plugins)) console.log(`${name.padEnd(30)} ${String(p.version).padEnd(8)} ${p.sha256.slice(0, 12)}`);
-  const tag = lastTag(root);
-  const owed = tag ? unstepped(root, tag) : [];
+  const tag = baseTag(root);
+  if (!tag) { console.log('no earlier release tag in this checkout: the version-step rule is not checked'); return; }
+  const owed = unstepped(root, tag);
   for (const u of owed) console.log(`OWES A VERSION STEP: ${u.name} changed ${u.files} file(s) since ${tag} and is still ${u.version}`);
-  if (owed.length) process.exitCode = 1;
+  const over = oversteps(root, tag);
+  for (const o of over) console.log(`MORE THAN ONE VERSION STEP: ${o.name} is ${o.to}, and ${tag} shipped ${o.from}`);
+  if (!owed.length && !over.length) console.log(`every plugin is at most one version step from ${tag}, and a step above it if its code changed`);
+  if (owed.length || over.length) process.exitCode = 1;
 }
 
 if (require.main === module) main();
-module.exports = { fingerprint, agentFingerprint, AGENT_PARTS, fingerprints, source, versionOf, dirtyPlugins, unstepped, lastTag, SKIP };
+module.exports = { fingerprint, agentFingerprint, AGENT_PARTS, fingerprints, source, versionOf, dirtyPlugins, unstepped, oversteps, oneStep, lastTag, baseTag, SKIP };

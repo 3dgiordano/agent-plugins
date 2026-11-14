@@ -195,7 +195,7 @@ or to a message.
 | Layer | Command | Needs |
 |-------|---------|-------|
 | Suite: structure, hook adapters, corpus, samples, host parity | `node scripts/test.js` | Node 18 or later. No agent, no network. The node-fence test is skipped on 18. |
-| Versions, fixtures | `node scripts/version.js --check`, `node scripts/bench-check.js` | Node 18 or later |
+| Versions, fixtures | `node scripts/version.js --check` (manifests and `CITATION.cff`), `node scripts/pluginsource.js` (one version step since the last release), `node scripts/bench-check.js` (every bench grader against its fixtures) - all three in CI | Node 18 or later; the version step needs the git history and tags |
 | Behavioural evals | `node scripts/cursor-eval.js`, `claude-eval.js`, `codex-eval.js` | The host's CLI, logged in. With `--isolate`, Cursor needs `CURSOR_API_KEY`. These spend model calls. |
 | Outcome bench | `node scripts/bench.js --host <cursor\|claude>` (`cursor-bench.js`, `claude-bench.js`) | The host's CLI, logged in. Cursor on Windows: run from PowerShell or cmd, not Git Bash, or no hook runs. **Node 20 or later on the runner** for the node fence (`--permission` from 22.13, `--experimental-permission` on 20). On 18 the agent's `node` runs unfenced, and `run.json` records `nodeGuard: false`. These spend model calls. |
 
@@ -378,7 +378,10 @@ release number that only says "which changelog is this". Cutting one:
 
 1. Bump the plugins that changed: `node scripts/version.js <name> X.Y.Z`.
 2. Move the *Unreleased* section of `CHANGELOG.md` under a new heading with
-   the repo version and date; list each plugin's version in it.
+   the repo version and date; list each plugin's version in it. Set the same
+   version and date in `CITATION.cff` (`version.js --check` fails until it
+   matches). Each plugin is at most one step above the last release, and a
+   step above it if its code changed (`node scripts/pluginsource.js`, in CI).
 3. Commit, tag (`git tag -a vX.Y.Z -m "agent-plugins X.Y.Z"`), push with tags.
 4. Create the GitHub Release from the tag; paste the changelog section as the
    notes. The release is the only tag: plugins are not tagged individually -
