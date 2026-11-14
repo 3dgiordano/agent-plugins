@@ -7,6 +7,23 @@ release.
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-11-14
+
+The plugins misfire less in real use, the docs say what was measured, and CI checks what the project says it checks. Epistemic sees a failed command on Claude Code and a PowerShell cmdlet error that exits 0; hygiene's record works at any project size, judges only a turn that edited code, and holds a close only when its edit record bears the block out; coverage, termination, aspiration, epistemic and integrity drop a set of readings that were wrong in practice; handoff's empty-search hold is narrower. The docs report benchmark 1.2.0 as the development set it is, the release states its direction in ROADMAP.md, and the bench session is closed as the record of release 0.20.0. Every plugin moves one step; no new plugin, block or field.
+
+| Plugin | Version |
+|--------|---------|
+| executive-self-monitoring | 1.11.1 |
+| epistemic-self-monitoring | 0.6.1 |
+| persistence-self-monitoring | 0.5.2 |
+| termination-self-monitoring | 0.5.1 |
+| coverage-self-monitoring | 0.7.2 |
+| handoff-self-monitoring | 0.8.1 |
+| progress-self-monitoring | 0.10.1 |
+| integrity-self-monitoring | 0.4.1 |
+| aspiration-self-monitoring | 0.4.1 |
+| hygiene-self-monitoring | 0.4.1 |
+
 ### Added
 
 - **Benchmark 1.2.0 is closed as the record of release 0.20.0** (owner, 2026-11-14). The session could not close: executive's Claude cells were voided by a code change after their runs, and every plugin's code has moved since, so a re-run would measure other code. `bench.js --not-scored` now also takes a case a change voided, with the reason observed; executive's three Claude cells are recorded so, and the session is closed. The README's figure is unchanged, byte for byte: a case recorded as not scored now leaves a run file's cases and its totals, so voided rows still in the file do not count (they did, for a moment, and the check against the published figure caught it). docs/EVIDENCE.md, the README and bench/README.md say the session is closed.
