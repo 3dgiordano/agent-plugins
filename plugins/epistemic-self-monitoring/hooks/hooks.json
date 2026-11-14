@@ -42,6 +42,17 @@
         ]
       }
     ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash|PowerShell|Monitor|BashOutput|TaskOutput|Execute",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-observe.js\""
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

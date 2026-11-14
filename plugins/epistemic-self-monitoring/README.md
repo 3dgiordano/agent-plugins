@@ -47,7 +47,7 @@ choosing your own.
 | Layer | Claude Code | Cursor |
 |-------|-------------|--------|
 | **Load** the discipline | `UserPromptSubmit`: first turn, then every 10th | `sessionStart` → `additional_context` |
-| **Observe** — expectation vs. observation nudge right after a shell result | `PostToolUse` (matcher `Bash\|PowerShell\|Monitor\|BashOutput\|TaskOutput`: every tool that returns a command's output) → `additionalContext`; on output that `lib/fail.js` classes as a failure — the same line rules as persistence, never a bare "error" or "failed" (rate-limited); after a claim the agent marked as a conjecture, the claim nudge instead (`lib/conjecture.js`) | `postToolUse` (self-filtered to shell tools) and `postToolUseFailure` → `additional_context`; a call Cursor reports as failed (`failure_type: error`) is a failure whatever its `error_message` reads - Cursor sends a failed call there, never to `postToolUse`; the claim nudge after a response that marked a conjecture |
+| **Observe** — expectation vs. observation nudge right after a shell result | `PostToolUse` and `PostToolUseFailure` (matcher `Bash\|PowerShell\|Monitor\|BashOutput\|TaskOutput`: every tool that returns a command's output) → `additionalContext`; on output that `lib/fail.js` classes as a failure — the same line rules as persistence, never a bare "error" or "failed" (rate-limited). A command that exits non-zero arrives only as `PostToolUseFailure`: exit 2 and above is a failure, exit 1 only with output that reads as one (grep, test and diff answer "no" with 1), an abort is not; after a claim the agent marked as a conjecture, the claim nudge instead (`lib/conjecture.js`) | `postToolUse` (self-filtered to shell tools) and `postToolUseFailure` → `additional_context`; a call Cursor reports as failed (`failure_type: error`) is a failure whatever its `error_message` reads - Cursor sends a failed call there, never to `postToolUse`; the claim nudge after a response that marked a conjecture |
 | **Close** — scan the final message for `[EPISTEMIC CLOSE]` blocks | `Stop` reads `last_assistant_message` | `afterAgentResponse` scans `text`, `stop` acts on it |
 
 Cadence constants sit at the top of each adapter (`EVERY_N_TURNS`,
@@ -207,7 +207,7 @@ Inspiration for the design, or evidence that the problem exists; none of these t
 .cursor-plugin/plugin.json         # Cursor manifest (skills: ./skills, hooks: ./cursor/hooks.json)
 assets/                            # plugin mark: SVG (Cursor marketplace logo; shown at the top of this README) and a 512 px PNG of it (Claude directory icon)
 skills/epistemic-self-monitoring/SKILL.md
-hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact), SubagentStart, UserPromptSubmit, PostToolUse(Bash|PowerShell|Monitor|BashOutput|TaskOutput), Stop, SubagentStop, SessionEnd
+hooks/hooks.json                   # Claude Code + Codex: SessionStart(resume|compact), SubagentStart, UserPromptSubmit, PostToolUse and PostToolUseFailure(Bash|PowerShell|Monitor|BashOutput|TaskOutput), Stop, SubagentStop, SessionEnd
 hooks/epi-prompt.js
 hooks/epi-subagent-start.js        # a subagent, which has no prompt of its own, gets the load at its start
 hooks/epi-observe.js

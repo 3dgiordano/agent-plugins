@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /*
- * Epistemic self-monitoring - Claude Code PostToolUse hook (matcher: the
- * tools whose result is a command's output, SHELL_TOOLS below).
+ * Epistemic self-monitoring - Claude Code PostToolUse and PostToolUseFailure
+ * hook (matcher: the tools whose result is a command's output, SHELL_TOOLS
+ * below).
  *
  * The moment right after an observation is where a first explanation forms.
  *
@@ -46,6 +47,24 @@ function outputOf(data) {
   return outputText(data.tool_output !== undefined ? data.tool_output : data.tool_response);
 }
 
+/*
+ * PostToolUseFailure (Claude Code): a command that ran and exited non-zero
+ * never reaches PostToolUse, which fires only for a call that succeeded. Its
+ * `error` opens with `Exit code N` for Bash and PowerShell; the rest is the
+ * command's output. Exit code 1 is also how a query answers "no": grep with no
+ * match, test, diff with a difference - so it counts as a failure only when
+ * the output looks like one; 2 and above always do. An abort (is_interrupt)
+ * is not the command's result.
+ */
+const EXIT_LINE = /^Exit code (\d+)\s*(?:\r?\n|$)/;
+function failureOf(data) {
+  if (data.is_interrupt) return null;
+  const text = typeof data.error === 'string' ? data.error : outputText(data.error);
+  const m = EXIT_LINE.exec(text);
+  const rest = m ? text.slice(m[0].length) : text;
+  return { text: rest, failed: (m && Number(m[1]) >= 2) || looksFailed(rest.slice(0, 4000)) };
+}
+
 function main(raw) {
   let data = {};
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
@@ -54,8 +73,11 @@ function main(raw) {
   // Each actor keeps its own cadence: a subagent's commands neither spend nor
   // fill the main agent's, and its nudge goes to the subagent that ran them.
   const actor = actorOf(data);
+  const event = data.hook_event_name === 'PostToolUseFailure' ? 'PostToolUseFailure' : 'PostToolUse';
+  const failure = event === 'PostToolUseFailure' ? failureOf(data) : null;
+  if (event === 'PostToolUseFailure' && !failure) return;
 
-  const failed = looksFailed(outputOf(data).slice(0, 4000));
+  const failed = failure ? Boolean(failure.failed) : looksFailed(outputOf(data).slice(0, 4000));
   const marked = conjecture.latestMarked(conjecture.transcriptOf(data, actor));
   let st;
   const fire = state.update(HOST, sid, (s) => {
@@ -73,10 +95,10 @@ function main(raw) {
     return f ? 'failure' : null;
   }, actor);
 
-  logEvent(cwdOf(data), { event: 'observe', session: sid, actor, shell: st.shell, failed: failed, emitted: !!fire, kind: fire || null });
+  logEvent(cwdOf(data), { event: 'observe', session: sid, actor, hook: event, shell: st.shell, failed: failed, emitted: !!fire, kind: fire || null });
   if (!fire) return;
 
-  process.stdout.write(context('PostToolUse', fire === 'claim' ? msg.CLAIM : msg.OBSERVE));
+  process.stdout.write(context(event, fire === 'claim' ? msg.CLAIM : msg.OBSERVE));
 }
 
 let buf = '';

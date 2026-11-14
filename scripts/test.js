@@ -437,11 +437,35 @@ test('epistemic (claude): strict mode blocks once with exit 2, never re-blocks, 
 test('epistemic (claude): the observe nudge comes on a failed command, rate-limited, and never on a command that went as planned', (t) => {
   const sid = uid('epi');
   t.after(() => cleanupTemp(`epimon_claude_${sid}`));
-  const obs = (out) => hook(EPI, 'hooks/epi-observe.js', { session_id: sid, cwd: os.tmpdir(), tool_name: 'Bash', tool_output: out });
-  assert.match(JSON.parse(obs('Exit code 1\nerror: boom').out).hookSpecificOutput.additionalContext, /observation/, 'first error fires');
-  assert.equal(obs('Exit code 1').out, '', 'second error is gap-limited');
-  for (let i = 3; i <= 12; i++) assert.equal(obs('ok').out, '', `command ${i} went as planned: nothing`);
-  assert.equal(JSON.parse(obs('Tests: 2 failed, 9 passed').out).hookSpecificOutput.hookEventName, 'PostToolUse', 'the next failure fires');
+  // A command that exits non-zero arrives as PostToolUseFailure, its stdout then stderr in `error` after an
+  // `Exit code N` line; one that exits 0 arrives as PostToolUse. Field for field as Claude Code 2.1.283 sent them
+  // (recorded 2026-11-14 with a dump hook; ids and paths replaced).
+  const failed = (error, extra) => hook(EPI, 'hooks/epi-observe.js', Object.assign({ session_id: sid, cwd: os.tmpdir(), prompt_id: 'p1', permission_mode: 'default', hook_event_name: 'PostToolUseFailure', tool_name: 'Bash', tool_input: { command: 'node -e "console.log(1); console.error(2); process.exit(3)"', description: 'Run Command 1' }, tool_use_id: 'toolu_01ABC', error, is_interrupt: false, duration_ms: 2550 }, extra || {}));
+  const ok = (out) => hook(EPI, 'hooks/epi-observe.js', { session_id: sid, cwd: os.tmpdir(), prompt_id: 'p1', permission_mode: 'default', hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command: 'node -e "console.log(4)"', description: 'Run Command 2' }, tool_response: { stdout: out, stderr: '', interrupted: false, isImage: false, noOutputExpected: false }, tool_use_id: 'toolu_01ABD', duration_ms: 334 });
+  const first = JSON.parse(failed('Exit code 3\n1\n2').out).hookSpecificOutput;
+  assert.match(first.additionalContext, /observation/, 'the recorded exit 3 fires');
+  assert.equal(first.hookEventName, 'PostToolUseFailure', 'answered under the event that called it');
+  assert.equal(failed('Exit code 1\nError: Cannot find module').out, '', 'second failure is gap-limited');
+  for (let i = 3; i <= 12; i++) assert.equal(ok('ok').out, '', `command ${i} went as planned: nothing`);
+  assert.equal(JSON.parse(ok('Tests: 2 failed, 9 passed').out).hookSpecificOutput.hookEventName, 'PostToolUse', 'failure output from a command that exited 0 fires too');
+});
+
+test('epistemic (claude): a non-zero exit counts as a failure when it is one - exit 1 with no failure output is a query answering no, an abort is not a result', (t) => {
+  const run = (error, extra) => {
+    const sid = uid('epifail');
+    t.after(() => cleanupTemp(`epimon_claude_${sid}`));
+    return hook(EPI, 'hooks/epi-observe.js', Object.assign({ session_id: sid, cwd: os.tmpdir(), hook_event_name: 'PostToolUseFailure', tool_name: 'Bash', tool_input: { command: 'x' }, tool_use_id: 'toolu_1', error, is_interrupt: false }, extra || {})).out;
+  };
+  assert.equal(run('Exit code 1'), '', 'grep with no match, test, diff: exit 1 and nothing that reads as a failure');
+  assert.equal(run('Exit code 1\nsrc/a.js\nsrc/b.js'), '', 'diff-style output is not a failure');
+  assert.match(run('Exit code 2'), /observation/, 'exit 2 and above: a failure');
+  assert.match(run('Exit code 1\nnpm ERR! code ELIFECYCLE'), /observation/, 'exit 1 with failure output: a failure');
+  assert.equal(run('Exit code 137\nKilled', { is_interrupt: true }), '', 'an abort is not the command\'s result');
+  assert.match(run('Exit code 1\nError: x', { tool_name: 'PowerShell' }), /observation/, 'PowerShell too');
+  assert.equal(run('Exit code 1\nError: x', { tool_name: 'Read' }), '', 'not a command\'s output');
+  const cfg = JSON.parse(fs.readFileSync(path.join(plugin(EPI), 'hooks/hooks.json'), 'utf8'));
+  const m = (ev) => cfg.hooks[ev].find((h) => /epi-observe/.test(h.hooks[0].command)).matcher;
+  assert.equal(m('PostToolUseFailure'), m('PostToolUse'), 'both events watch the same tools');
 });
 
 test('epistemic (claude): every tool that returns a command\'s output is observed - the host names the tool, not the shell', (t) => {
