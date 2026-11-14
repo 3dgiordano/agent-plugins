@@ -33,15 +33,17 @@ function main(raw) {
   let res = { kind: null };
   let due = 0;
   let groups = [];
+  let dropped = 0;
   state.update(HOST, sid, (st) => {
     res = signals.observe(st, cwd, data.tool_name, data.tool_input, baseOf);
+    dropped = st.dropped || 0;
     if (res.kind === 'edit') {
       due = signals.nudgeDue(st, res.grew);
       groups = signals.reachedAll(st);
     }
   }, actor);
   if (!res.kind) return;
-  logEvent(cwd, { event: 'observe', session: sid, actor, kind: res.kind, reached: groups.length, nudge: due > 0 });
+  logEvent(cwd, { event: 'observe', session: sid, actor, kind: res.kind, reached: groups.length, nudge: due > 0, dropped });
   if (due) process.stdout.write(context('PostToolUse', msg.nudge(due, msg.where(groups))));
 }
 

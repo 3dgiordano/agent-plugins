@@ -24,7 +24,18 @@ const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff|^
 const NOT_EDIT_RE = /todo|clipboard|memory/i;
 const READ_TOOL_RE = /^read$|read_file|readfile|view_file|open_file/i;
 
-const MAX_FILES = 48;
+/*
+ * The record is bounded so each hook's read and rewrite of the state stays
+ * small, at any project size: at most MAX_FILES files and RECORD_BYTES of
+ * stored surfaces. A file the session reads or edits always gets a slot: when
+ * the record is full, the least recently used file whose edits reached nothing
+ * gives up its own - a snapshot file the session never touched first. A file
+ * whose edits reached a public function is never given up: the close is read
+ * against it. Only when every slot holds such a file is a new one left out,
+ * and counted (`dropped`).
+ */
+const MAX_FILES = 200;
+const RECORD_BYTES = 256 * 1024;
 const SNAPSHOT_FILES = 200;
 const SNAPSHOT_DEPTH = 5;
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'out', 'coverage', 'vendor', '.next', '.cache', 'tmp']);
@@ -72,13 +83,56 @@ function files(st) {
   return st.files;
 }
 
-function remember(st, cwd, abs, text) {
+const sizeOf = (base) => { try { return JSON.stringify(base).length; } catch (_) { return RECORD_BYTES; } };
+const bytesOf = (f) => Object.values(f).reduce((n, e) => n + (e.sz || sizeOf(e.base)), 0);
+const tick = (st) => { st.tick = (st.tick || 0) + 1; return st.tick; };
+const reachedSomething = (e) => Array.isArray(e.reached) && e.reached.length > 0;
+
+// Free room for `need` bytes: false when only files that reached something are left.
+function makeRoom(f, need) {
+  let bytes = bytesOf(f);
+  while (Object.keys(f).length >= MAX_FILES || bytes + need > RECORD_BYTES) {
+    let victim = null;
+    for (const [k, e] of Object.entries(f)) {
+      if (reachedSomething(e)) continue;
+      const rank = [e.src === 'snap' ? 0 : 1, e.at || 0];
+      if (!victim || rank[0] < victim.rank[0] || (rank[0] === victim.rank[0] && rank[1] < victim.rank[1])) victim = { k, rank };
+    }
+    if (!victim) return false;
+    bytes -= f[victim.k].sz || sizeOf(f[victim.k].base);
+    delete f[victim.k];
+  }
+  return true;
+}
+
+// A new entry. The snapshot fills free room only; a file the session touches makes room.
+function add(st, f, k, rel, base, src) {
+  const sz = sizeOf(base);
+  if (sz > RECORD_BYTES) return false;
+  const room = src === 'snap'
+    ? Object.keys(f).length < MAX_FILES && bytesOf(f) + sz <= RECORD_BYTES
+    : makeRoom(f, sz);
+  if (!room) {
+    if (src !== 'snap') st.dropped = (st.dropped || 0) + 1;
+    return false;
+  }
+  f[k] = { rel, base, reached: [], sz, src, at: tick(st) };
+  return true;
+}
+
+// The session touched this file: it is the most recently used, and no longer a snapshot-only entry.
+function touch(st, entry) {
+  entry.at = tick(st);
+  entry.src = 'seen';
+}
+
+function remember(st, cwd, abs, text, src) {
   const f = files(st);
   const k = keyOf(relOf(cwd, abs));
-  if (f[k] || Object.keys(f).length >= MAX_FILES) return;
+  if (f[k]) { if (src !== 'snap') touch(st, f[k]); return; }
   const s = reach.surface(text);
   if (!s || s.exported.size === 0) return;
-  f[k] = { rel: relOf(cwd, abs), base: reach.pack(s), reached: [] };
+  add(st, f, k, relOf(cwd, abs), reach.pack(s), src || 'seen');
 }
 
 // The file as it was before an edit that names the text it replaced.
@@ -118,7 +172,7 @@ function snapshot(st, cwd) {
       } else if (e.isFile() && reach.isCode(e.name)) {
         seen += 1;
         const text = readText(p);
-        if (text !== null) remember(st, cwd, p, text);
+        if (text !== null) remember(st, cwd, p, text, 'snap');
       }
     }
   };
@@ -150,14 +204,15 @@ function observe(st, cwd, toolName, toolInput, baseOf) {
   const k = keyOf(relOf(cwd, abs));
   if (!f[k] && typeof baseOf === 'function') {
     const b = baseOf(k);
-    if (b && Object.keys(f).length < MAX_FILES) f[k] = { rel: relOf(cwd, abs), base: b, reached: [] };
+    if (b) add(st, f, k, relOf(cwd, abs), b, 'seen');
   }
   if (!f[k]) {
     const before = undo(text, toolInput);
-    if (before !== null) remember(st, cwd, abs, before);
+    if (before !== null) remember(st, cwd, abs, before, 'seen');
   }
   const entry = f[k];
   if (!entry) return { kind, file: relOf(cwd, abs) };
+  touch(st, entry);
   const groups = reach.reached(reach.unpack(entry.base), reach.surface(text));
   const before = entry.reached.length;
   entry.reached = groups.map((g) => ({ names: g.names.slice(0, 8), line: g.line, how: g.how }));
@@ -200,4 +255,4 @@ function nudgeDue(st, grew) {
   return n;
 }
 
-module.exports = { observe, snapshot, reachedAll, reachedWith, nudgeDue, kindOf, undo, MAX_NUDGES };
+module.exports = { observe, snapshot, reachedAll, reachedWith, nudgeDue, kindOf, undo, MAX_NUDGES, MAX_FILES, RECORD_BYTES };

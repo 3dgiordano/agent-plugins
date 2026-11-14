@@ -844,6 +844,23 @@ test('coverage signals: stub markers net of replaced text, per line, per turn; p
 });
 
 // The contract changed in 0.3.0 - see the note above the handoff test below.
+test('coverage: every sibling plugin\'s block, read off the skills, is a report and not a deferral', () => {
+  const S = require(path.join(plugin('coverage-self-monitoring'), 'lib/signals.js'));
+  const markers = new Set();
+  for (const name of fs.readdirSync(path.join(ROOT, 'plugins'))) {
+    if (name === 'coverage-self-monitoring') continue;
+    const skill = path.join(ROOT, 'plugins', name, 'skills', name, 'SKILL.md');
+    if (!fs.existsSync(skill)) continue;
+    for (const m of fs.readFileSync(skill, 'utf8').match(/^\[[A-Z][A-Z ]+\]$/gm) || []) markers.add(m);
+  }
+  assert.ok(markers.has('[HYGIENE CHECK]') && markers.has('[HANDOFF]') && markers.size >= 8, `markers read: ${[...markers].join(' ')}`);
+  const line = '- Outside: set - left for a follow-up';
+  assert.ok(S.scanClose(`Done.\n\n${line}\n`).deferrals.length > 0, 'the line alone reads as a deferral');
+  for (const m of markers) {
+    assert.deepEqual(S.scanClose(`Done.\n\n${m}\n- Field: x\n${line}\n`).deferrals, [], `${m} is read as a report`);
+  }
+});
+
 test('coverage: English and Spanish deferral lexicon, LOAD unchanged; Spanish acts are hits, their neighbours are not; Spanish values in an English-keyed block pass', () => {
   const S = require(path.join(plugin(COV), 'lib/signals.js'));
   const msg = require(path.join(plugin(COV), 'lib/messages.js'));
@@ -5416,6 +5433,42 @@ test('hygiene (claude): an edit without a read or a snapshot takes its baseline 
   fs.writeFileSync(path.join(dir, 'new.js'), before);
   S.observe(st, dir, 'Write', { file_path: 'new.js', content: before });
   assert.equal(S.reachedAll(st).length, 2);
+});
+
+test('hygiene: a full record makes room for the file the agent touches, never gives up a file that reached something, and stays under its byte budget', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hyg-cap-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const S = require(path.join(plugin(HYG), 'lib/signals.js'));
+  const src = (n, v) => `function f${n}() { return ${v}; }\nmodule.exports = { f${n} };\n`;
+  // More code files at the root than the record holds: the snapshot fills it.
+  for (let i = 0; i < S.MAX_FILES + 5; i++) fs.writeFileSync(path.join(dir, `m${String(i).padStart(3, '0')}.js`), src(i, 1));
+  const st = {};
+  assert.equal(S.snapshot(st, dir), S.MAX_FILES, 'the snapshot fills free room only');
+  const outside = fs.readdirSync(dir).find((f) => !st.files[f]);
+  assert.ok(outside, 'a file the snapshot left out');
+  // The agent reads it: it gets a slot, a snapshot file the agent never touched gives up its own.
+  S.observe(st, dir, 'Read', { file_path: outside });
+  assert.ok(st.files[outside], 'the file read is recorded');
+  assert.equal(Object.keys(st.files).length, S.MAX_FILES);
+  // Its edit is measured against that baseline.
+  const n = Number(outside.slice(1, 4));
+  fs.writeFileSync(path.join(dir, outside), src(n, 2));
+  S.observe(st, dir, 'Edit', { file_path: outside, old_string: 'return 1;', new_string: 'return 2;' });
+  assert.deepEqual(S.reachedAll(st).map((g) => g.file), [outside]);
+  // Every slot holds a file that reached something: a further file is left out and counted, nothing reached is lost.
+  const full = { files: {} };
+  for (let i = 0; i < S.MAX_FILES; i++) full.files[`r${i}.js`] = { rel: `r${i}.js`, base: { d: [], e: [], o: [], r: [] }, reached: [{ names: ['x'], line: 1, how: 'changed' }], sz: 30, src: 'seen', at: i };
+  S.observe(full, dir, 'Read', { file_path: outside });
+  assert.equal(full.files[outside], undefined);
+  assert.equal(full.dropped, 1);
+  assert.equal(S.reachedAll(full).length, S.MAX_FILES);
+  // The byte budget: two large entries nobody touched; the oldest gives up its slot first.
+  const big = { files: {
+    'a.js': { rel: 'a.js', base: { d: [], e: [], o: [], r: [] }, reached: [], sz: S.RECORD_BYTES / 2, src: 'seen', at: 1 },
+    'b.js': { rel: 'b.js', base: { d: [], e: [], o: [], r: [] }, reached: [], sz: S.RECORD_BYTES / 2, src: 'seen', at: 2 },
+  }, tick: 2 };
+  S.observe(big, dir, 'Read', { file_path: outside });
+  assert.ok(big.files[outside] && !big.files['a.js'] && big.files['b.js'], 'the least recently used gives up its slot');
 });
 
 test('hygiene (cursor): sessionStart loads and takes the workspace baseline, postToolUse adopts it and tells where, the stop gate is strict-only and once', (t) => {

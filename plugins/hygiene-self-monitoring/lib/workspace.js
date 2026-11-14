@@ -19,6 +19,7 @@ function adopt(st, baseline) {
   if (st.files && Object.keys(st.files).length) return;
   if (!baseline || !baseline.files || !(Date.now() - (baseline.taken || 0) < 24 * 60 * 60 * 1000)) return;
   st.files = JSON.parse(JSON.stringify(baseline.files));
+  st.tick = baseline.tick || 0;
 }
 
 module.exports = { workspaceId, adopt };

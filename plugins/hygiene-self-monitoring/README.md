@@ -6,7 +6,7 @@ Keep a change to what the request names. A fix can keep the request's own check 
 
 It answers *"is the size and the kind of this change still the request's - or does it reach public behaviour the request does not name?"*
 
-**Non-blocking by default, with one exception.** Findings become a one-line retrospective on the next prompt; `HYGMON_STRICT=1` turns the Stop into a gate that fires once. The exception: a block that contradicts itself - its Outside names a change and its Decision keeps it, or its Decision puts back or offers what the code still has - holds the close once in either mode.
+**Never blocking.** Findings become a one-line retrospective on the next prompt; `HYGMON_STRICT=1` turns the Stop into a gate that holds a close once. One hold is on in either mode: a block that contradicts itself - its Outside names a change and its Decision keeps it, or its Decision puts back or offers what the code still has - holds the close once, and the agent is told why and keeps working.
 
 ## Why it works: the reach is recorded, not remembered
 
@@ -63,6 +63,7 @@ And one where it stays quiet: "What is the difference between `module.exports` a
 ## What it does on your machine
 
 - **Reads:** the hook event's JSON; the code files near the project root at session start (at most 200, five levels deep, skipping `node_modules`, `.git`, `dist`, `build` and the like, each under 256 KB); a code file the agent reads or edits. JavaScript and TypeScript only.
+- **Keeps:** a baseline for at most 200 code files and 256 KB of stored surfaces. A file the agent reads or edits always gets a slot: when the record is full, the least recently used file whose edits reached nothing gives up its own, a start-of-session file the agent never touched first. A file whose edits reached a public function is never given up; only when every slot holds one is a further file left out, and counted (`dropped` in the debug log).
 - **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins/`, named `hygmon_…`, holding each file's public names, line numbers and a hash of each definition - never the code; kept for a resume and swept after seven days. Only with `HYGMON_LOG` set, the debug log below.
 - **Sends:** nothing. No network.
 
@@ -79,7 +80,7 @@ JSONL under `<project>/.claude/logs/hygiene-self-monitoring.jsonl` (Claude Code)
 |-------|--------|---------|
 | `session_start` | `source`, `files` | the baseline: how many code files had a public surface |
 | `prompt` | `turn`, `retrospective` | a parked finding carried forward |
-| `observe` | `kind` (`read` or `edit`), `reached`, `nudge` | a code file read or edited; how many public functions the session has reached |
+| `observe` | `kind` (`read` or `edit`), `reached`, `nudge`, `dropped` | a code file read or edited; how many public functions the session has reached; how many files the full record left out |
 | `stop` | `actor`, `block`, `decision`, `reached` (every actor's), `bySubagents`, `violations`, `strict`, `blocked` | the final message (Claude Code); on Cursor, the stop adapter's `status`, `violations`, `blocked` |
 | `response` | as `stop`, without `blocked` | Cursor's final message |
 | `subagent_stop` | as `stop`, on the subagent's own record | measured only: never blocks, never parks |
@@ -102,7 +103,7 @@ Five more cases pass unaided (30/30) and are kept as exercises. The hook has not
 
 - The reading is lexical, not a parse: definitions at the start of a line, brackets matched outside strings and regular expressions. A re-export from another file, code built at run time, or a definition indented at the top level is not seen - the hook stays silent rather than guess.
 - A changed function is not a changed behaviour: a refactor that keeps every result still counts as reaching. The block is where the agent says which of them change a result.
-- A file the session never read or saw at start has no baseline, so edits to it are not counted.
+- A file the session never read or saw at start has no baseline, so edits to it are not counted. A start-of-session file that gave up its slot is the same, unless the edit tool carries the text it replaced.
 - In Cursor's headless mode only the load and the edit record run; the close is read on Claude Code, Codex and Cursor's interactive agent.
 
 ## Layout

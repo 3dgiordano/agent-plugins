@@ -30,16 +30,18 @@ function main(raw) {
   let res = { kind: null };
   let due = 0;
   let groups = [];
+  let dropped = 0;
   state.update(HOST, cid, (st) => {
     adopt(st, baseline);
     res = signals.observe(st, cwd, data.tool_name, data.tool_input);
+    dropped = st.dropped || 0;
     if (res.kind === 'edit') {
       due = signals.nudgeDue(st, res.grew);
       groups = signals.reachedAll(st);
     }
   });
   if (!res.kind) return;
-  logEvent(cwd, { event: 'observe', host: 'cursor', conversation: cid, kind: res.kind, reached: groups.length, nudge: due > 0 });
+  logEvent(cwd, { event: 'observe', host: 'cursor', conversation: cid, kind: res.kind, reached: groups.length, nudge: due > 0, dropped });
   if (due) process.stdout.write(JSON.stringify({ additional_context: msg.nudge(due, msg.where(groups)) }));
 }
 
