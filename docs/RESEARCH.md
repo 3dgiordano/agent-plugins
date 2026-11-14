@@ -23,7 +23,7 @@ agent-plugins is software you can install and an open question you can test: **c
 - **Author bias.** The cases, graders and corpora are written by the plugins' author and designed to separate the arms. This is the largest threat, and outside cases are the remedy ([Contributing](#contributing)).
 - **Small samples.** n=3 per case and arm so far.
 - **Selection.** One canonical case per plugin; exercises that did not separate the arms are listed, not hidden.
-- **Ceilings and invalid cases.** Strong models pass several cases unaided, and one case (handoff on Claude Code) measures nothing; both are reported.
+- **Ceilings and invalid cases.** Strong models pass several cases unaided, and a case that measures nothing is reported as such (handoff on Claude Code did until benchmark 1.2.0, where it separates the arms after the plugin and its grader were revised on it); both are reported.
 - **Model and host dependence.** Effects differ by model (Grok vs Composer) and by host (which events the hooks can use).
 - **Visibility.** Claude Code redacts the model's reasoning, so evaluation talk there covers written text only. What shows only in the reasoning can be most of it: in MacDiarmid et al. (2025), 40-80% of the misaligned responses were misaligned in the reasoning and aligned in the final output.
 - **Self-attribution.** The block is the agent judging its own work in its own turn, the setting where monitors go easiest: a model rates an action as more correct and less risky when it produced it in a previous turn than when the same action arrives in a user turn (Khullar et al. 2026). The hook's fact, and the bench's judge, which reads a close in a fresh context, sit outside that bias; a `meets`, `verified` or `done` written in the block does not.
