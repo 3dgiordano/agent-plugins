@@ -128,6 +128,9 @@ function endOf(src, from) {
       if (depth <= 0 && c === '}' && braced) {
         let j = i + 1;
         while (j < src.length && /[ \t]/.test(src[j])) j += 1;
+        // An inline object type - `): { ok: boolean } {` or `): { a: T } =>` -
+        // closes before the body that follows it on the same line.
+        if (src[j] === '{' || src.startsWith('=>', j)) { i = j; depth = 0; continue; }
         if (src[j] === ';') j += 1;
         return j;
       }
@@ -176,6 +179,9 @@ function classMembers(defs, cls, src, start, end) {
   let m;
   while ((m = re.exec(src)) && m.index < end) {
     const name = m[1].replace(/^#/, '');
+    // The constructor is no public method, and a call in its body
+    // (`init(opts);`) is no member either: step over the whole body.
+    if (name === 'constructor') { re.lastIndex = Math.max(endOf(src, src.indexOf('(', m.index + m[0].length - 1)), re.lastIndex); continue; }
     if (KEYWORDS.has(name)) continue;
     const s = m.index;
     const e = endOf(src, src.indexOf('(', s + m[0].length - 1));

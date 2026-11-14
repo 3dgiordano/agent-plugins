@@ -17,17 +17,20 @@
 const { logEvent, enabled } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');
-const { cwdOf, actorOf } = require('../lib/host.js');
+const { cwdOf, actorOf, MAIN_ACTOR } = require('../lib/host.js');
 
 const HOST = 'claude';
 
 function main(raw) {
-  if (!enabled()) return; // nothing to do when not logging
   let data = {};
   try { data = JSON.parse(raw) || {}; } catch (_) { return; }
   const sid = data.session_id || 'nosession';
   const subagent = data.hook_event_name === 'SubagentStop';
   const actor = actorOf(data);
+  // A subagent that stopped: its record can go once the parent has folded it
+  // in (hooks/persist-observe.js), so the records do not pile up in a session.
+  if (subagent && actor !== MAIN_ACTOR) state.update(HOST, sid, (s) => { s.stopped = true; }, actor);
+  if (!enabled()) return; // nothing more to do when not logging
   const st = state.load(HOST, sid, actor);
   logEvent(cwdOf(data), Object.assign(subagent
     ? { event: 'subagent_turn', session: sid, actor, agent: data.agent_type || null }

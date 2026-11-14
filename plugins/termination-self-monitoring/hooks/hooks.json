@@ -6,7 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/term-session-start.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/term-session-start.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -16,7 +17,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/term-subagent-start.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/term-subagent-start.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -26,7 +28,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/term-prompt.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/term-prompt.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -36,7 +39,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/term-stop.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/term-stop.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -46,7 +50,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/term-session-end.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/term-session-end.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -56,7 +61,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/term-stop.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/term-stop.js\"",
+            "timeout": 20
           }
         ]
       }

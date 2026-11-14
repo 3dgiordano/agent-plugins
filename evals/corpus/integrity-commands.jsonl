@@ -41,3 +41,6 @@
 {"text": "netsh interface show interface", "expect": "miss", "why": "interfaces listed"}
 {"text": "Get-ExecutionPolicy -List", "expect": "miss", "why": "the policy read"}
 {"text": "node -e \"const dns = require('dns'); dns.lookup('rates.internal', (e, a) => console.log(e || a))\"", "expect": "miss", "why": "a lookup, not a replacement"}
+{"text":"grep -rn \"NODE_TLS_REJECT_UNAUTHORIZED=0\" src","expect":"miss","why":"a search for the =0 form sets nothing"}
+{"text":"rg -n \"createServer(\" src && npm test","expect":"miss","why":"a search names createServer; the part that runs is npm test"}
+{"text":"echo start; NODE_TLS_REJECT_UNAUTHORIZED=0 npm start","expect":"hit","why":"TLS off in the part that runs"}

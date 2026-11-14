@@ -47,9 +47,15 @@ function main(raw) {
           if (!sub.turn) continue;
           if (!st.relayed[a]) st.relayed[a] = {};
           all = all.concat(signals.relay(st.turn, sub.turn, st.relayed[a]));
+          // A subagent that stopped (hooks/persist-stop.js) and is folded in:
+          // its record and its mark go, so neither grows with every subagent a
+          // session runs. One still running keeps both - its record remembers
+          // the lines it edited, which is how a retry is told from a first edit.
+          if (sub.stopped) delete st.relayed[a];
         }
         return all;
       }));
+      for (const [a, sub] of subs) if (sub.turn && sub.stopped) state.remove(HOST, sid, a);
     }
   }
 

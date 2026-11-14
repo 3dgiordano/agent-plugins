@@ -5,7 +5,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/int-observe.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/int-observe.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -15,7 +16,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/int-stop.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/int-stop.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -25,7 +27,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/int-stop.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/int-stop.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -35,7 +38,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/int-session-end.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/int-session-end.js\"",
+            "timeout": 20
           }
         ]
       }

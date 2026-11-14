@@ -85,7 +85,7 @@ function sleep(ms) {
 function acquire(lock) {
   const deadline = Date.now() + LOCK_WAIT_MS;
   for (;;) {
-    try { fs.closeSync(fs.openSync(lock, 'wx')); return true; } catch (_) {}
+    try { fs.closeSync(fs.openSync(lock, 'wx')); return true; } catch (e) { if (!e || e.code !== 'EEXIST') return false; }
     try { if (Date.now() - fs.statSync(lock).mtimeMs > LOCK_STALE_MS) fs.unlinkSync(lock); } catch (_) {}
     if (Date.now() >= deadline) return false;
     sleep(LOCK_STEP_MS);
@@ -118,6 +118,12 @@ function pathOf(input, cwd) {
   return path.isAbsolute(p) ? p : (cwd ? path.join(cwd, p) : null);
 }
 
+// One document, one record: C:\p\PLAN.md, c:/p/plan.md and ./PLAN.md from c:\p are
+// the same file. The record keeps the path it was first named by (`p`) for
+// the message; a record from before the key (no `p`) is its own path.
+const keyOf = (p) => (process.platform === 'win32' ? path.resolve(p).toLowerCase() : path.resolve(p));
+const shown = (k, rec) => (rec && rec.p) || k;
+
 /*
  * A tool call: a read of a document records its mtime; the agent's own write
  * to one records the new mtime, so its own edit is never news.
@@ -128,11 +134,12 @@ function observe(host, sid, toolName, toolInput, cwd, actor) {
   if (!read && !WRITE_TOOL_RE.test(name)) return;
   const p = pathOf(toolInput, cwd);
   if (!p || !DOC_RE.test(p)) return;
+  const k = keyOf(p);
   update(host, sid, (st) => {
-    if (!read && !st.files[p]) return false; // a document it never read: nothing to compare later
+    if (!read && !st.files[k]) return false; // a document it never read: nothing to compare later
     const m = mtimeOf(p);
     if (m === null) return false;
-    st.files[p] = { mtimeMs: m, seenAt: Date.now() };
+    st.files[k] = { mtimeMs: m, seenAt: Date.now(), p: shown(p, st.files[k]) };
     return true;
   }, actor);
 }
@@ -146,11 +153,12 @@ function shellRan(host, sid, command, actor) {
   if (!text) return;
   update(host, sid, (st) => {
     let moved = false;
-    for (const [p, rec] of Object.entries(st.files)) {
+    for (const [k, rec] of Object.entries(st.files)) {
+      const p = shown(k, rec);
       if (!text.includes(path.basename(p).toLowerCase())) continue;
       const m = mtimeOf(p);
       if (m === null || m <= rec.mtimeMs) continue;
-      st.files[p] = { mtimeMs: m, seenAt: rec.seenAt };
+      st.files[k] = { mtimeMs: m, seenAt: rec.seenAt, p };
       moved = true;
     }
     return moved;
@@ -164,11 +172,12 @@ function shellRan(host, sid, command, actor) {
 function changed(host, sid, actor) {
   const out = [];
   update(host, sid, (st) => {
-    for (const [p, rec] of Object.entries(st.files)) {
+    for (const [k, rec] of Object.entries(st.files)) {
+      const p = shown(k, rec);
       const m = mtimeOf(p);
       if (m === null || m <= rec.mtimeMs) continue;
       out.push(p);
-      st.files[p] = { mtimeMs: m, seenAt: rec.seenAt };
+      st.files[k] = { mtimeMs: m, seenAt: rec.seenAt, p };
     }
     return out.length > 0;
   }, actor);
@@ -183,11 +192,12 @@ function changed(host, sid, actor) {
 function touched(host, sid, toolInput, cwd, actor) {
   const p = pathOf(toolInput, cwd);
   if (!p || !DOC_RE.test(p)) return;
+  const k = keyOf(p);
   update(host, sid, (st) => {
-    if (!st.files[p]) return false;
+    if (!st.files[k]) return false;
     const m = mtimeOf(p);
     if (m === null) return false;
-    st.files[p] = { mtimeMs: m, seenAt: st.files[p].seenAt };
+    st.files[k] = { mtimeMs: m, seenAt: st.files[k].seenAt, p: shown(p, st.files[k]) };
     return true;
   }, actor);
 }

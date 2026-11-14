@@ -113,3 +113,6 @@
 {"text":"# fail 16","expect":"hit","why":"2026-09-25 review, cycle 3: TAP summary"}
 {"text":"# tests 129\n# pass 129\n# fail 0\n# cancelled 0","expect":"miss","why":"2026-09-25 review, cycle 3: TAP green: fail 0"}
 {"text":"ok 12 - handles a not ok response from the server","expect":"miss","why":"2026-09-25 review, cycle 3: \"not ok\" inside a passing test name"}
+{"text":"Lint finished. errors: 0, warnings: 2","expect":"miss","why":"a count of zero errors"}
+{"text":"{ \"status\": \"ok\", \"error\": null }","expect":"miss","why":"a null error field in a JSON reply"}
+{"text":"error: null","expect":"miss","why":"a null error value printed at a line start"}

@@ -43,10 +43,11 @@ const FAIL_LINE_RES = [
   // Rust ("panic:" above is Go). Needs the location or the quoted message that
   // a real panic carries, so prose naming the phrase does not match.
   /\bpanicked\s+at\s+(?:['"]|[\w./\\-]+[:.]\d)/i,
-  /^\s*error(?:\[[A-Z0-9]+\])?(?:\s+TS\d+)?:/i,                        // "error: x", "error TS2345:", "error[E0308]:"
+  /^\s*error(?:\[[A-Z0-9]+\])?(?:\s+TS\d+)?:(?!\s*(?:0|null|none|nil|false|undefined|\[\]|\{\})(?![\w.]))/i,                        // "error: x", "error TS2345:", "error[E0308]:"
   // "gcc: error: expected ';'", "a.ts(3,5): error TS2345: x", "ERROR: build failed"
   // (mid-line, but needs the colon) - not an object key: `{ error: 'x' }`, `, error: true`
-  /(?<![{,]\s*)\b(?:error|errors|ERROR)(?:\s+TS\d+)?:\s+\S/,
+  // Nor a count or a value that says nothing failed: "errors: 0", "error: null".
+  /(?<![{,]\s*)\b(?:error|errors|ERROR)(?:\s+TS\d+)?:\s+(?!(?:0|null|none|nil|false|undefined|\[\]|\{\})(?![\w.]))\S/,
   /\bAssertionError\b|\bassert(?:ion)? failed\b/i,
   /\bcommand not found\b|\bno such file or directory\b|\bpermission denied\b/i,
 ];
@@ -58,7 +59,8 @@ function outputText(o) {
   if (typeof o === 'string') return o;
   if (o && typeof o === 'object') {
     const parts = [];
-    for (const k of ['stdout', 'stderr', 'output', 'result', 'content', 'text', 'error']) {
+    // stderr first: a long stdout must not push the error past the window below.
+    for (const k of ['stderr', 'stdout', 'output', 'result', 'content', 'text', 'error']) {
       if (typeof o[k] === 'string' && o[k]) parts.push(o[k]);
     }
     if (parts.length) return parts.join('\n');
@@ -109,4 +111,19 @@ function errorSignature(text) {
   return line.replace(/0x[0-9a-f]+/gi, '#').replace(/\d+/g, '#').replace(/([A-Za-z]:)?[\\/][^\s:'"]+/g, '<path>').trim().slice(0, 160);
 }
 
-module.exports = { outputText, failureLine, looksFailed, errorSignature };
+/*
+ * The part of an output the rules read: all of it up to WINDOW * 2 characters,
+ * else its head and its tail. A runner prints its failure summary last, and a
+ * long log in front of it - a build, a test run - pushed it out of a window
+ * that kept only the start.
+ */
+const WINDOW = 3000;
+function failureWindow(text) {
+  const t = typeof text === 'string' ? text : '';
+  if (t.length <= WINDOW * 2) return t;
+  const head = t.slice(0, WINDOW);
+  const tail = t.slice(-WINDOW);
+  return head.slice(0, head.lastIndexOf('\n') > 0 ? head.lastIndexOf('\n') : head.length) + '\n' + tail.slice(tail.indexOf('\n') + 1);
+}
+
+module.exports = { outputText, failureLine, looksFailed, errorSignature, failureWindow, WINDOW };

@@ -100,7 +100,7 @@ function sleep(ms) {
 function acquire(lock) {
   const deadline = Date.now() + LOCK_WAIT_MS;
   for (;;) {
-    try { fs.closeSync(fs.openSync(lock, 'wx')); return true; } catch (_) {}
+    try { fs.closeSync(fs.openSync(lock, 'wx')); return true; } catch (e) { if (!e || e.code !== 'EEXIST') return false; }
     try { if (Date.now() - fs.statSync(lock).mtimeMs > LOCK_STALE_MS) fs.unlinkSync(lock); } catch (_) {}
     if (Date.now() >= deadline) return false;
     sleep(LOCK_STEP_MS);

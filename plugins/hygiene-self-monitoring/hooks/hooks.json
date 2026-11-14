@@ -7,7 +7,8 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hyg-inject.js\"",
-            "additionalContextLimit": 4000
+            "additionalContextLimit": 4000,
+            "timeout": 20
           }
         ]
       }
@@ -18,7 +19,8 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hyg-inject.js\"",
-            "additionalContextLimit": 4000
+            "additionalContextLimit": 4000,
+            "timeout": 20
           }
         ]
       }
@@ -28,7 +30,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hyg-prompt.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hyg-prompt.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -38,7 +41,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hyg-observe.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hyg-observe.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -48,7 +52,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hyg-stop.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hyg-stop.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -58,7 +63,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hyg-stop.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hyg-stop.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -68,7 +74,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hyg-session-end.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hyg-session-end.js\"",
+            "timeout": 20
           }
         ]
       }

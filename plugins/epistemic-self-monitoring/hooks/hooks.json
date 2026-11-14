@@ -6,7 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-session-start.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-session-start.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -16,7 +17,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-subagent-start.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-subagent-start.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -26,7 +28,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-prompt.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-prompt.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -37,7 +40,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-observe.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-observe.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -48,7 +52,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-observe.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-observe.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -58,7 +63,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-stop.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-stop.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -68,7 +74,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-session-end.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-session-end.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -78,7 +85,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-stop.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/epi-stop.js\"",
+            "timeout": 20
           }
         ]
       }

@@ -5,7 +5,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/prog-session-start.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/prog-session-start.js\"",
+            "timeout": 20
           }
         ]
       },
@@ -15,7 +16,8 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/prog-inject.js\"",
-            "additionalContextLimit": 4000
+            "additionalContextLimit": 4000,
+            "timeout": 20
           }
         ]
       }
@@ -26,7 +28,8 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/prog-inject.js\"",
-            "additionalContextLimit": 4000
+            "additionalContextLimit": 4000,
+            "timeout": 20
           }
         ]
       }
@@ -36,7 +39,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/prog-prompt.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/prog-prompt.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -46,7 +50,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/prog-observe.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/prog-observe.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -56,7 +61,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/prog-stop.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/prog-stop.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -66,7 +72,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/prog-stop.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/prog-stop.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -76,7 +83,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/prog-session-end.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/prog-session-end.js\"",
+            "timeout": 20
           }
         ]
       }

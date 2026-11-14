@@ -35,19 +35,36 @@ function freshTurn() {
   return { tools: 0, edits: 0, ledgerEdited: false };
 }
 
+// A patch tool may carry its target only inside the patch text (`*** Update File: x`).
+const PATCH_FILE_RE = /^\*\*\* (?:Update|Add) File: (.+?)\s*$/m;
 function filePathOf(input) {
+  if (typeof input === 'string') { const p = input.match(PATCH_FILE_RE); return p ? p[1] : null; }
   if (!input || typeof input !== 'object') return null;
   for (const k of ['file_path', 'path', 'notebook_path', 'target_file', 'filePath', 'file']) {
     if (typeof input[k] === 'string' && input[k]) return input[k];
   }
+  for (const k of ['patch', 'input', 'command']) {
+    const p = typeof input[k] === 'string' ? input[k].match(PATCH_FILE_RE) : null;
+    if (p) return p[1];
+  }
   return null;
 }
+
+// An edit is an edit tool that names a file: a task list (TodoWrite), a
+// clipboard or a memory tool writes no file, and neither does a tool, an MCP
+// one included, that names none (aspiration's and hygiene's rule).
+const NOT_EDIT_RE = /todo|clipboard|memory/i;
+const LEDGER_WRITE_RE = /(?:>>?|\btee\s+(?:-a\s+)?|\bsed\s+-i\S*\s+(?:'[^']*'|"[^"]*"|\S+)\s+)\s*['"]?[^\s'"|;&]*\.agent[\\/]progress\.md\b/;
+const isEdit = (toolName, toolInput) => EDIT_TOOL_RE.test(String(toolName || '')) && !NOT_EDIT_RE.test(String(toolName || '')) && Boolean(filePathOf(toolInput));
 
 // Record one tool call into the turn. Returns nothing: this plugin never
 // nudges from an observe hook; the counters are read at the turn's close.
 function observe(turn, toolName, toolInput) {
   turn.tools += 1;
-  if (!EDIT_TOOL_RE.test(String(toolName || ''))) return;
+  // A shell command that writes the ledger (`>>`, `tee`, `sed -i`) wrote it too.
+  const cmd = toolInput && typeof toolInput.command === 'string' ? toolInput.command : '';
+  if (cmd && LEDGER_WRITE_RE.test(cmd)) turn.ledgerEdited = true;
+  if (!isEdit(toolName, toolInput)) return;
   turn.edits += 1;
   if (isLedgerPath(filePathOf(toolInput))) turn.ledgerEdited = true;
 }

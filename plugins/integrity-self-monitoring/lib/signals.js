@@ -31,13 +31,26 @@ const MAX_FILE_BYTES = 1024 * 1024;
 const MAX_RAISED = 32;
 const MAX_SEEN = 256;
 
+// A patch tool may carry its target only inside the patch text (`*** Update File: x`).
+const PATCH_FILE_RE = /^\*\*\* (?:Update|Add) File: (.+?)\s*$/m;
 function filePathOf(input) {
+  if (typeof input === 'string') { const p = input.match(PATCH_FILE_RE); return p ? p[1] : null; }
   if (!input || typeof input !== 'object') return null;
   for (const k of ['file_path', 'path', 'target_file', 'notebook_path', 'filePath', 'file']) {
     if (typeof input[k] === 'string' && input[k]) return input[k];
   }
+  for (const k of ['patch', 'input', 'command']) {
+    const p = typeof input[k] === 'string' ? input[k].match(PATCH_FILE_RE) : null;
+    if (p) return p[1];
+  }
   return null;
 }
+
+// An edit is an edit tool that names a file: a task list (TodoWrite), a
+// clipboard or a memory tool writes no file, and neither does a tool, an MCP
+// one included, that names none (aspiration's and hygiene's rule).
+const NOT_EDIT_RE = /todo|clipboard|memory/i;
+const isEdit = (toolName, toolInput) => EDIT_TOOL_RE.test(String(toolName || '')) && !NOT_EDIT_RE.test(String(toolName || '')) && Boolean(filePathOf(toolInput));
 
 // The file before the edit, when the host sent it (Claude Code, Codex).
 function before(response) {
@@ -125,7 +138,7 @@ function observe(st, toolName, toolInput, toolResponse, cwd, own, read) {
   if (!st.seen) Object.assign(st, freshSession());
   const name = String(toolName || '');
   let found = [];
-  if (EDIT_TOOL_RE.test(name)) found = codeSignals(toolInput, toolResponse, cwd, read);
+  if (isEdit(name, toolInput)) found = codeSignals(toolInput, toolResponse, cwd, read);
   else if (SHELL_TOOL_RE.test(name) && toolInput && typeof toolInput.command === 'string') {
     found = commands.marks(toolInput.command).map((m) => ({ kind: m.kind, what: m.what, measured: true }));
   }

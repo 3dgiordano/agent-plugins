@@ -50,3 +50,7 @@
 {"text": " * placeholder - fill in when the API settles", "expect": "hit", "why": "jsdoc continuation line"}
 {"text": "logger.warn('not implemented');", "expect": "miss", "why": "a runtime warning string, not a stub the agent left"}
 {"text": "const MARKER_RE = /TODO|FIXME/;", "expect": "miss", "gap": true, "why": "KNOWN FALSE POSITIVE: a regex literal holding the marker. Blanking regex spans is unsafe - /.../ is ambiguous with division - so this one is recorded rather than fixed. It is why editing this very file trips the hook"}
+{"text":"function merge(target, ...rest) { return Object.assign(target, ...rest); }","expect":"miss","why":"a JavaScript rest parameter and spread, not \"... rest of it\""}
+{"text":"        return NotImplemented","expect":"miss","why":"Python's binary-operator protocol, working code"}
+{"text":"#search::placeholder { color: #888; }","expect":"miss","why":"a CSS id selector with ::placeholder, not a # comment"}
+{"text":"x = NotImplemented  # stub until the parser lands","expect":"hit","why":"a bare NotImplemented assigned as a stand-in"}

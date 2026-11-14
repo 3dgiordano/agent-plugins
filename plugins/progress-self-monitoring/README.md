@@ -134,7 +134,10 @@ the worktree's `.git` file to the shared git directory (`commondir`) and
 takes its parent. The status and the load message name that path, so a
 session in a worktree reads and writes the file the others read. A
 submodule, a bare repository or a plain directory keeps its own. An agent
-in a sandboxed worktree may need permission to write outside it.
+in a sandboxed worktree may need permission to write outside it. A session
+started in a subdirectory reads the project's ledger: the hook walks up to
+the nearest directory with a ledger of its own (a package that keeps one),
+else to the repository's root, and the messages name that path.
 
 **A claim on the item a session is working.** One line indented under the
 item:

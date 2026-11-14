@@ -45,11 +45,33 @@ const MARKS = [
 ];
 
 // [{ kind, what }] for a shell command; empty when nothing reads as a change.
+// A search or a read names the form it looks for: `grep -rn "NODE_TLS_REJECT_UNAUTHORIZED=0" .`
+// sets nothing. Each part of a chained or piped command is read on its own,
+// and a part that starts with one of these is skipped.
+const READER = /^\s*(?:sudo\s+)?(?:grep|egrep|fgrep|rg|ag|ack|git\s+grep|findstr|Select-String|sls|cat|type|less|more|head|tail|Get-Content|gc|find|wc)\b/i;
+// The parts of a chained or piped command, split at ; && || | outside quotes.
+function partsOf(command) {
+  const out = [];
+  let cur = '';
+  let q = null;
+  for (let i = 0; i < command.length; i++) {
+    const ch = command[i];
+    if (q) { cur += ch; if (ch === q && command[i - 1] !== '\\') q = null; continue; }
+    if (ch === '"' || ch === "'" || ch === '`') { q = ch; cur += ch; continue; }
+    const two = command.slice(i, i + 2);
+    if (two === '&&' || two === '||') { out.push(cur); cur = ''; i += 1; continue; }
+    if (ch === ';' || ch === '|') { out.push(cur); cur = ''; continue; }
+    cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
 function marks(command) {
   if (typeof command !== 'string' || !command) return [];
+  const parts = partsOf(command).filter((p) => !READER.test(p));
   const out = [];
   for (const [kind, res] of MARKS) {
-    if (res.some((re) => re.test(command))) out.push({ kind, what: command.replace(/\s+/g, ' ').trim().slice(0, 120) });
+    if (res.some((re) => re.test(command) && parts.some((p) => re.test(p)))) out.push({ kind, what: command.replace(/\s+/g, ' ').trim().slice(0, 120) });
   }
   return out;
 }

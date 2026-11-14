@@ -23,7 +23,7 @@ const MIN_GAP_ON_ERROR = 3; // nudge on error output, but not more often than th
 const HOST = 'cursor';
 
 const SHELL_TOOL_RE = /shell|terminal|bash|command|exec/i;
-const { outputText, looksFailed } = require('../lib/fail.js');
+const { outputText, looksFailed, failureWindow } = require('../lib/fail.js');
 const { cwdOf } = require('../lib/host.js');
 
 function main(raw) {
@@ -36,7 +36,7 @@ function main(raw) {
   // tool_output (postToolUse fires only for a call that succeeded): the host's
   // word is the failure, whatever the message looks like. An interrupt is not one.
   const hostFailed = data.hook_event_name === 'postToolUseFailure' && !data.is_interrupt && (!data.failure_type || data.failure_type === 'error');
-  const failed = hostFailed || looksFailed(outputText(data.tool_output).slice(0, 4000));
+  const failed = hostFailed || looksFailed(failureWindow(outputText(data.tool_output)));
   let st;
   const fire = state.update(HOST, cid, (s) => {
     st = s;

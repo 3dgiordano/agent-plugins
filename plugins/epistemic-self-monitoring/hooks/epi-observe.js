@@ -35,7 +35,7 @@
 const { logEvent } = require('../lib/log.js');
 const state = require('../lib/state.js');
 const msg = require('../lib/messages.js');
-const { outputText, looksFailed, failureLine } = require('../lib/fail.js');
+const { outputText, looksFailed, failureLine, failureWindow } = require('../lib/fail.js');
 const conjecture = require('../lib/conjecture.js');
 const { cwdOf, context, actorOf } = require('../lib/host.js');
 
@@ -81,7 +81,7 @@ function failureOf(data) {
   const text = typeof data.error === 'string' ? data.error : outputText(data.error);
   const m = EXIT_LINE.exec(text);
   const rest = m ? text.slice(m[0].length) : text;
-  return { text: rest, failed: (m && Number(m[1]) >= 2) || looksFailed(rest.slice(0, 4000)) };
+  return { text: rest, failed: (m && Number(m[1]) >= 2) || looksFailed(failureWindow(rest)) };
 }
 
 function main(raw) {
@@ -96,7 +96,7 @@ function main(raw) {
   const failure = event === 'PostToolUseFailure' ? failureOf(data) : null;
   if (event === 'PostToolUseFailure' && !failure) return;
 
-  const text = failure ? failure.text.slice(0, 4000) : outputOf(data).slice(0, 4000);
+  const text = failureWindow(failure ? failure.text : outputOf(data));
   const failed = (failure ? Boolean(failure.failed) : looksFailed(text)) && !absenceOnly(data, text);
   const marked = conjecture.latestMarked(conjecture.transcriptOf(data, actor));
   let st;

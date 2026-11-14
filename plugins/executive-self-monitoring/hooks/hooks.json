@@ -6,7 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-session-start.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-session-start.js\"",
+            "timeout": 20
           }
         ]
       },
@@ -16,7 +17,8 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-inject.js\"",
-            "additionalContextLimit": 4000
+            "additionalContextLimit": 4000,
+            "timeout": 20
           }
         ]
       }
@@ -27,7 +29,8 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-inject.js\"",
-            "additionalContextLimit": 4000
+            "additionalContextLimit": 4000,
+            "timeout": 20
           }
         ]
       }
@@ -37,7 +40,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-monitor.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-monitor.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -48,7 +52,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-log-skill.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-log-skill.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -58,7 +63,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-session-end.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-session-end.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -69,7 +75,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-observe.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-observe.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -79,7 +86,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-subagent-stop.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-subagent-stop.js\"",
+            "timeout": 20
           }
         ]
       }
@@ -89,7 +97,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-stop.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/exec-stop.js\"",
+            "timeout": 20
           }
         ]
       }

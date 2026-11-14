@@ -240,6 +240,50 @@ test('droid: every hook in hooks/hooks.json survives a Droid payload, and a Stop
   }
 });
 
+test('an edit is an edit tool that names a file - a task list, a memory tool or a tool naming no file is not; a patch names its file in its text', () => {
+  const req = (name) => require(path.join(plugin(name), 'lib/signals.js'));
+  const patch = { input: '*** Begin Patch\n*** Update File: src/a.js\n@@\n-x\n+y\n*** End Patch' };
+  const cov = req('coverage-self-monitoring');
+  const c = cov.freshTurn();
+  cov.observe(c, 'TodoWrite', { todos: [{ content: 'TODO: wire it' }] });
+  cov.observe(c, 'mcp__notes__write_note', { text: 'TODO later' });
+  cov.observe(c, 'memory_write', { file_path: 'notes.md' });
+  assert.equal(c.edits, 0, 'coverage: no file named, no edit');
+  cov.observe(c, 'apply_patch', patch);
+  cov.observe(c, 'Edit', { file_path: 'a.js', old_string: 'a', new_string: 'b' });
+  assert.equal(c.edits, 2, 'coverage: a patch and an edit');
+  const prog = req('progress-self-monitoring');
+  const p = prog.freshTurn();
+  prog.observe(p, 'TodoWrite', { todos: [] });
+  assert.equal(p.edits, 0, 'progress: a task list is no file edit');
+  prog.observe(p, 'Bash', { command: 'cat .agent/progress.md' });
+  assert.ok(!p.ledgerEdited, 'progress: reading the ledger is not writing it');
+  prog.observe(p, 'Bash', { command: 'echo "- blocked: x" >> .agent/progress.md' });
+  assert.ok(p.ledgerEdited, 'progress: a shell append writes the ledger');
+  const per = req('persistence-self-monitoring');
+  const t = per.freshTurn();
+  for (let i = 0; i < 6; i++) per.observe(t, 'TodoWrite', { todos: [{ content: `step ${i}` }] });
+  assert.deepEqual(t.edits, {}, 'persistence: a task list counts toward no file');
+});
+
+test('executive: a document is one record whatever spelling of its path a tool uses - its own edit is no news, another\'s change is', async (t) => {
+  const R = require(path.join(plugin('executive-self-monitoring'), 'lib/reads.js'));
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'exe-keys-'));
+  const sid = uid('exekeys');
+  t.after(() => { fs.rmSync(d, { recursive: true, force: true }); cleanupTemp(`execmon_claude_${sid}`); });
+  const plan = path.join(d, 'PLAN.md');
+  fs.writeFileSync(plan, 'a');
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  R.observe('claude', sid, 'Read', { file_path: plan }, d);
+  await wait(30);
+  fs.writeFileSync(plan, 'b');
+  R.observe('claude', sid, 'Edit', { file_path: process.platform === 'win32' ? plan.split(path.sep).join('/').toLowerCase() : 'PLAN.md' }, d);
+  assert.deepEqual(R.changed('claude', sid), [], 'its own edit, under another spelling');
+  await wait(30);
+  fs.writeFileSync(plan, 'c');
+  assert.deepEqual(R.changed('claude', sid), [plan], 'a change by someone else, named as it was first read');
+});
+
 test('droid: Create, ApplyPatch and Execute count as the edit and shell tools they are', (t) => {
   const req = (name, rel) => require(path.join(plugin(name), rel));
   for (const name of ['progress-self-monitoring', 'integrity-self-monitoring']) {
@@ -662,6 +706,14 @@ test('failure detection (persistence + epistemic copies): green suites and code 
     for (const r of red) assert.equal(F.looksFailed(F.outputText(r)), true, `${p}: failure missed: ${JSON.stringify(r)}`);
     assert.equal(F.errorSignature('Tests: 5 passed, 0 failed'), null, `${p}: green summary is not an error signature`);
     assert.equal(F.errorSignature('Error: got 3 at C:\\tmp\\3\\x.js:30'), 'Error: got # at <path>:#');
+    // A count or a value that says nothing failed.
+    for (const g of ['errors: 0', 'error: null', 'error: false', 'error: 0 of 3 retries used']) assert.equal(F.looksFailed(g), false, `${p}: ${g}`);
+    // The window keeps the tail, where a runner prints its summary, and stderr comes first.
+    const long = 'ok\n'.repeat(5000) + 'FAIL src/a.test.js\n';
+    assert.equal(F.looksFailed(F.failureWindow(long)), true, `${p}: a failure at the end of a long log`);
+    assert.ok(F.failureWindow(long).length <= F.WINDOW * 2 + 1);
+    assert.equal(F.failureWindow('short'), 'short');
+    assert.equal(F.looksFailed(F.failureWindow(F.outputText({ stdout: 'line\n'.repeat(3000), stderr: 'error: boom' }))), true, `${p}: stderr after a long stdout`);
   }
   assert.equal(fs.readFileSync(path.join(plugin(PER), 'lib/fail.js'), 'utf8'), fs.readFileSync(path.join(plugin(EPI), 'lib/fail.js'), 'utf8'), 'the two copies must not diverge');
   assert.equal(fs.readFileSync(path.join(plugin(PER), 'lib/fail.js'), 'utf8'), fs.readFileSync(path.join(plugin('handoff-self-monitoring'), 'lib/fail.js'), 'utf8'), 'the handoff copy must not diverge either');
@@ -1867,6 +1919,22 @@ test('progress claims: from a linked worktree the ledger is the main checkout\'s
   assert.ok(msg.status(ins, null, Date.now()).includes(`This is a worktree: the ledger is the main checkout's, \`${ins.file}\``));
   assert.ok(msg.load(ins).includes('This is a worktree'));
   assert.ok(!msg.load(inspect(main)).includes('This is a worktree'));
+  // A session started in a subdirectory reads the project's ledger, named by its path; a package with a ledger of its own keeps it.
+  const deep = path.join(main, 'src', 'lib');
+  fs.mkdirSync(deep, { recursive: true });
+  assert.equal(path.resolve(ledgerRoot(deep)), path.resolve(main), 'up to the repository root');
+  const insDeep = inspect(deep);
+  assert.equal(insDeep.shared, false, 'not a worktree');
+  assert.equal(insDeep.above, true);
+  assert.equal(insDeep.open, 1);
+  assert.ok(msg.status(insDeep, null, Date.now()).includes(`The ledger is the project's, \`${insDeep.file}\``));
+  assert.ok(!msg.status(insDeep, null, Date.now()).includes('This is a worktree'));
+  const pkg = path.join(main, 'packages', 'a');
+  fs.mkdirSync(path.join(pkg, '.agent'), { recursive: true });
+  fs.writeFileSync(path.join(pkg, LEDGER), '## Open\n');
+  fs.mkdirSync(path.join(pkg, 'src'));
+  assert.equal(path.resolve(ledgerRoot(path.join(pkg, 'src'))), path.resolve(pkg), 'the nearest ledger, a package\'s own');
+  assert.equal(path.resolve(ledgerRoot(path.join(wt, 'docs'))), path.resolve(main), 'a worktree\'s subdirectory reads the main checkout\'s');
 });
 
 test('progress claims: live, dead past the grace and unreadable by state; check says the most urgent finding about the session\'s own, once', () => {
@@ -5377,6 +5445,14 @@ test('hygiene: the public surface a change reaches, read off the bench fixtures'
   assert.deepEqual([...es.exported.keys()].sort(), ['a', 'b', 'd']);
   const es2 = R.surface('export function a() { return 9; }\nexport const b = () => 2;\nfunction c() { return a(); }\nexport { c as d };\n');
   assert.deepEqual(R.reached(es, es2).map((g) => `${g.names.join('|')}:${g.how}`).sort(), ['a:changed', 'd:via']);
+  // A call in a constructor's body is no method of the class.
+  const cls = R.surface('class Store {\n  constructor(opts) {\n    init(opts);\n  }\n  get(k) { return k; }\n}\nmodule.exports = { Store };\n');
+  assert.deepEqual([...cls.defs.keys()].sort(), ['Store', 'Store#get']);
+  // An inline object return type closes before the body: a change in the body is still seen.
+  const ts1 = 'export function load(p: string): { ok: boolean; data: string } {\n  return { ok: true, data: read(p) };\n}\n';
+  assert.deepEqual(R.reached(R.surface(ts1), R.surface(ts1.replace('read(p)', 'read(p).trim()'))).map((g) => `${g.names.join('|')}:${g.how}`), ['load:changed']);
+  const arrow = 'export const load = (p: string): { ok: boolean } => {\n  return { ok: check(p) };\n};\n';
+  assert.deepEqual(R.reached(R.surface(arrow), R.surface(arrow.replace('check(p)', '!check(p)'))).map((g) => `${g.names.join('|')}:${g.how}`), ['load:changed']);
 });
 
 test('hygiene: the close is read against what the edits reached - no block, Outside kept, Outside none with a function not named', () => {
@@ -5928,6 +6004,18 @@ test('persistence: a subagent\'s retries join the parent\'s count when it hands 
   assert.match(back.text, /^\[persistence self-monitoring\] you have edited `src\/fix\.js` 4 times this turn, retrying after a failed run or on the same lines, your subagents' included\./, 're-delegating the same fix is the parent\'s loop too');
   assert.match(JSON.parse(back.out).systemMessage || '', /its subagents' included/);
   assert.equal(handBack().out, '', 'folded once');
+  // A subagent still running keeps its record: it remembers the lines it edited, so its next edit of them is a retry.
+  const S = require(path.join(plugin(PER), 'lib/state.js'));
+  assert.deepEqual(S.actors('claude', sid), ['agent-p1'], 'still running: its record stays');
+  edit(SUB);
+  handBack();
+  assert.equal(S.load('claude', sid).turn.edits['src/fix.js'], 5, 'one more retry, counted once');
+  // Once it stopped and is folded in, its record and its mark go: the bookkeeping does not grow with every subagent.
+  hook(PER, 'hooks/persist-stop.js', ev({ hook_event_name: 'SubagentStop', last_assistant_message: 'done' }, SUB));
+  handBack();
+  assert.deepEqual(S.actors('claude', sid), [], 'no subagent record left');
+  assert.deepEqual(S.load('claude', sid).relayed || {}, {}, 'no relay mark left');
+  assert.equal(S.load('claude', sid).turn.edits['src/fix.js'], 5, 'nothing counted twice');
 });
 
 test('integrity: a subagent\'s finding is said to the subagent, then to the parent once when it hands back, and the parent can answer it', (t) => {

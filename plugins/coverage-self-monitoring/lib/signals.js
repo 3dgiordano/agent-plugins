@@ -42,15 +42,21 @@ const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff|^
 const STUB_RES = [
   { re: /\b(?:TODO|FIXME|XXX|HACK)\b/ },
   { re: /\bnot\s+implemented\b/i },
-  { re: /\bNotImplemented(?:Error|Exception)?\b/ },
+  { re: /\bNotImplemented(?:Error|Exception)\b/ },
+  // Bare NotImplemented only where it is not returned: Python's binary-operator
+  // protocol (`return NotImplemented`) is working code.
+  { re: /(?<!\breturn\s+)\bNotImplemented\b(?!Error|Exception)/ },
   { re: /\bunimplemented!?\b/i },
   // Unlike TODO/FIXME/XXX/HACK, "placeholder" is an ordinary word in UI code -
   // a DOM attribute, a property, a prop name - so it only counts as a stub
   // when it appears in a COMMENT.
-  { re: /(?:\/\/|#|\/\*|^\s*\*|<!--)[^\n]*\bplaceholder\b/i },
+  // A comment's # opens a line or follows a space, and is not followed by a
+  // word: "#id::placeholder" is a CSS selector, not a comment.
+  { re: /(?:\/\/|(?:^|\s)#(?![\w-])|\/\*|^\s*\*|<!--)[^\n]*\bplaceholder\b/i },
   { re: /\b(?:rest|remainder)\s+of\s+(?:the\s+)?(?:code|file|implementation|logic|function|class)(?:\s+goes)?\s+here\b/i },
   { re: /(?:\/\/|#|\/\*)\s*\.\.\.\s*(?:\*\/)?\s*$/m },
-  { re: /\.\.\.\s*(?:rest|more|remaining|etc\.?)\b/i },
+  // A space after the dots: "...rest" with none is a JavaScript rest or spread.
+  { re: /\.\.\.\s+(?:rest|more|remaining|etc\.?)\b/i },
   { re: /throw\s+new\s+Error\(\s*['"`](?:TODO|not implemented|unimplemented|implement me)/i, raw: true },
   { re: /\bpass\s*#\s*(?:TODO|FIXME|stub|later|implement)/i, raw: true },
   { re: /\bimplement\s+(?:this|me)\s+later\b/i },
@@ -92,13 +98,26 @@ function countStubs(text) {
   return n;
 }
 
+// A patch tool may carry its target only inside the patch text (`*** Update File: x`).
+const PATCH_FILE_RE = /^\*\*\* (?:Update|Add) File: (.+?)\s*$/m;
 function filePathOf(input) {
+  if (typeof input === 'string') { const p = input.match(PATCH_FILE_RE); return p ? p[1] : null; }
   if (!input || typeof input !== 'object') return null;
   for (const k of ['file_path', 'path', 'notebook_path', 'target_file', 'filePath', 'file']) {
     if (typeof input[k] === 'string' && input[k]) return input[k];
   }
+  for (const k of ['patch', 'input', 'command']) {
+    const p = typeof input[k] === 'string' ? input[k].match(PATCH_FILE_RE) : null;
+    if (p) return p[1];
+  }
   return null;
 }
+
+// An edit is an edit tool that names a file: a task list (TodoWrite), a
+// clipboard or a memory tool writes no file, and neither does a tool, an MCP
+// one included, that names none (aspiration's and hygiene's rule).
+const NOT_EDIT_RE = /todo|clipboard|memory/i;
+const isEdit = (toolName, toolInput) => EDIT_TOOL_RE.test(String(toolName || '')) && !NOT_EDIT_RE.test(String(toolName || '')) && Boolean(filePathOf(toolInput));
 
 // Markers introduced by this call: those in what was written, minus those in
 // what it replaced - moving an existing TODO around is not a new deferral.
@@ -159,7 +178,7 @@ function newStubsIn(input, response) {
  */
 function observe(turn, toolName, toolInput, toolResponse) {
   turn.tools += 1;
-  if (!EDIT_TOOL_RE.test(String(toolName || ''))) return [];
+  if (!isEdit(toolName, toolInput)) return [];
   turn.edits = (turn.edits || 0) + 1;
   const n = newStubsIn(toolInput, toolResponse);
   if (!n) return [];

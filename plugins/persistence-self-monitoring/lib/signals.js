@@ -26,7 +26,7 @@ const REPEAT_FAILURES = 3;
 const TOOL_CALLS_STEP = 30;
 const MAX_KEYS = 64; // bound the per-turn maps so state can never grow unboundedly
 
-const { outputText, looksFailed, errorSignature } = require('./fail.js');
+const { outputText, looksFailed, errorSignature, failureWindow } = require('./fail.js');
 
 // Droid names the tool that writes a new file Create.
 const EDIT_TOOL_RE = /edit|write|notebook|patch|replace|create_file|apply_diff|^create$/i;
@@ -79,13 +79,26 @@ function crossed(count, threshold, firedMap, key) {
   return true;
 }
 
+// A patch tool may carry its target only inside the patch text (`*** Update File: x`).
+const PATCH_FILE_RE = /^\*\*\* (?:Update|Add) File: (.+?)\s*$/m;
 function filePathOf(input) {
+  if (typeof input === 'string') { const p = input.match(PATCH_FILE_RE); return p ? p[1] : null; }
   if (!input || typeof input !== 'object') return null;
   for (const k of ['file_path', 'path', 'notebook_path', 'target_file', 'filePath', 'file']) {
     if (typeof input[k] === 'string' && input[k]) return input[k];
   }
+  for (const k of ['patch', 'input', 'command']) {
+    const p = typeof input[k] === 'string' ? input[k].match(PATCH_FILE_RE) : null;
+    if (p) return p[1];
+  }
   return null;
 }
+
+// An edit is an edit tool that names a file: a task list (TodoWrite), a
+// clipboard or a memory tool writes no file, and neither does a tool, an MCP
+// one included, that names none (aspiration's and hygiene's rule).
+const NOT_EDIT_RE = /todo|clipboard|memory/i;
+const isEdit = (toolName, toolInput) => EDIT_TOOL_RE.test(String(toolName || '')) && !NOT_EDIT_RE.test(String(toolName || '')) && Boolean(filePathOf(toolInput));
 
 // The lines an edit replaces, when the tool says: Edit's old_string, each of MultiEdit's.
 function regionsOf(input) {
@@ -138,7 +151,7 @@ function observe(turn, toolName, toolInput, toolOutput, hostFailed) {
   turn.tools += 1;
   if (crossed(turn.tools, TOOL_CALLS_STEP, turn.fired, 'effort')) fired.push({ kind: 'effort', count: turn.tools });
 
-  if (EDIT_TOOL_RE.test(name)) {
+  if (isEdit(name, toolInput)) {
     const f = filePathOf(toolInput);
     for (let k = f ? attempts(turn, f, toolInput) : 0; k > 0; k--) {
       const n = bump(turn.edits, f);
@@ -147,7 +160,7 @@ function observe(turn, toolName, toolInput, toolOutput, hostFailed) {
   }
 
   if (SHELL_TOOL_RE.test(name)) {
-    const out = outputText(toolOutput).slice(0, 6000);
+    const out = failureWindow(outputText(toolOutput));
     if (hostFailed === true || looksFailed(out)) {
       if (typeof turn.fails === 'number') turn.fails += 1;
       if (Array.isArray(turn.failLog)) {

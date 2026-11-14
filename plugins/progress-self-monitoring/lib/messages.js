@@ -32,6 +32,7 @@ function load(ins) {
   let text = LOAD;
   if (ins && ins.absent) text = text.replace('before substantive work. ', `before substantive work. ${ABSENT}`);
   if (ins && ins.shared) text = text.replace('before substantive work. ', `before substantive work. ${sharedClause(ins)} `);
+  else if (ins && ins.above && ins.file) text = text.replace('before substantive work. ', `before substantive work. ${aboveClause(ins)} `);
   return text;
 }
 
@@ -42,7 +43,11 @@ function load(ins) {
  * `.agent/` is not where it is.
  */
 function name(ins) {
-  return ins && ins.shared && ins.file ? ins.file : LEDGER;
+  return ins && (ins.shared || ins.above) && ins.file ? ins.file : LEDGER;
+}
+// A session started in a subdirectory: the ledger is the project's, up the tree (ledger.js ledgerPlace).
+function aboveClause(ins) {
+  return `The ledger is the project's, \`${ins.file}\`, above this directory - read and write that file.`;
 }
 function sharedClause(ins) {
   return `This is a worktree: the ledger is the main checkout's, \`${ins.file}\` - read and write that file, and keep detail files next to it.`;
@@ -97,7 +102,7 @@ function foreignClause(ins) {
 // `mine` is this session's claim token (lib/claims.js token), null where the
 // host gives the hook no session id; `now` is for the claims' clocks.
 function status(ins, mine, now) {
-  const shared = ins.shared ? ` ${sharedClause(ins)}` : '';
+  const shared = ins.shared ? ` ${sharedClause(ins)}` : (ins.above && ins.file ? ` ${aboveClause(ins)}` : '');
   if (!pending(ins)) {
     // "Nothing to do", then why: the agent need not open the file to find out.
     const head = `[progress self-monitoring] Nothing to do in \`${name(ins)}\`: ${NOTHING}`;

@@ -149,13 +149,23 @@ function serviceCall(src) {
 const RETURNS_VALUE = /\breturn\s+(?!;|\}|undefined\b|null\b|void\b|false\b|true\b|Promise\.reject\b|res\.|reply\.|response\.status\b|next\s*\(|(?:await\s+)?(?:this\.)?[\w$]*[Rr]etr(?:y|ies)[\w$]*\s*\()[^\s;}]/;
 // What `.catch(() => X)` may answer with and still be no answer: a log, the
 // error handed on, "nothing".
-const CATCH_ANSWERS_NOTHING = /^\s*(?:\{|throw\b|Promise\.reject\b|null\b|undefined\b|void\b|false\b|true\b|console\.|log(?:ger)?\.|next\s*\(|reject\s*\(|done\s*\(|cb\s*\(|callback\s*\(|res\.|reply\.|process\.exit\b|\(\s*\)|\[\s*\]\s*\))/;
+const CATCH_ANSWERS_NOTHING = /^\s*(?:\{|throw\b|Promise\.reject\b|null\b|undefined\b|void\b|false\b|true\b|console\.|log(?:ger)?\.|next\s*\(|reject\s*\(|done\s*\(|cb\s*\(|callback\s*\(|res\.|reply\.|process\.exit\b|\(\s*\)|\[\s*\]\s*\)|\(\s*\{\s*\}\s*\)\s*\))/;
 
 const CURRENCY = 'USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD|CNY|HKD|SGD|SEK|NOK|DKK|PLN|CZK|HUF|RON|BGN|TRY|RUB|INR|BRL|MXN|ARS|CLP|COP|PEN|UYU|ZAR|KRW|TWD|THB|IDR|MYR|PHP|VND|ILS|AED|SAR|EGP|NGN|KES';
 const RATE_PAIR = `['"]?\\b(?:${CURRENCY})\\b['"]?\\s*:\\s*-?\\d+(?:\\.\\d+)?`;
 const TABLE = new RegExp(`\\{[^{}]*${RATE_PAIR}[^{}]*${RATE_PAIR}`);
 
-const CREDENTIAL = /(?:key|token|secret|credential|password|passwd|auth)/i;
+// A credential is a word of the identifier - apiKey, API_KEY, authToken,
+// headers['x-api-key'] - not any substring of it: keyboard, author, monkey.
+const CREDENTIAL_WORDS = new Set(['key', 'keys', 'apikey', 'token', 'tokens', 'secret', 'secrets', 'credential', 'credentials', 'password', 'passwd', 'auth', 'oauth', 'bearer']);
+const CREDENTIAL = {
+  test(name) {
+    return String(name || '')
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .split(/[^A-Za-z0-9]+/)
+      .some((w) => CREDENTIAL_WORDS.has(w.toLowerCase()));
+  },
+};
 // Hosts that name a format or a document, not a service the code reads data from.
 const NOT_A_SERVICE_HOST = /(?:^|\.)(?:w3\.org|json-schema\.org|schemas?\.[\w.-]+|xmlns\.com|purl\.org|ogp\.me|schema\.org|github\.com|githubusercontent\.com|npmjs\.(?:com|org)|developer\.mozilla\.org|example\.(?:com|org|net))$/i;
 
@@ -275,7 +285,10 @@ function scan(src) {
     else be = Math.min(c.length, after + 160, ...[c.indexOf(';', after), c.indexOf('\n', after)].filter((x) => x > -1).map((x) => x + 1));
     const body = c.slice(bs, be);
     if (/\bthrow\b|\breject\s*\(/.test(body)) continue;
+    // An answer that says the credential is missing - a 401 or 403, an error-shaped value - reports the failure.
+    if (/\b40[13]\b|\bunauthori[sz]ed\b|\bforbidden\b/i.test(body)) continue;
     const r = body.match(RETURNS_VALUE);
+    if (r && ERROR_SHAPED.test(body.slice(r.index + r[0].length - 1))) continue;
     if (r) add('missing key', m.index, bs + r.index + r[0].length, src.slice(m.index, Math.min(src.length, bs + r.index + 60)).split('\n').slice(0, 2).join(' '));
   }
 

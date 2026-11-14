@@ -163,29 +163,59 @@ function openItems(text) {
 }
 
 /*
- * The directory whose `.agent/` holds the ledger: the main checkout of the
- * repository, when `cwd` is a linked worktree; `cwd` otherwise. A worktree's
- * `.git` is a file - `gitdir: <main>/.git/worktrees/<name>` - and that
- * directory's `commondir` names the shared `.git`, whose parent is the main
- * checkout. Read from the files, not by running git: a hook does not spawn
- * processes. A submodule (no commondir), a bare repository (no checkout) or
- * anything unreadable keeps `cwd`.
+ * The directory whose `.agent/` holds the ledger. From `cwd` up: the nearest
+ * directory that has a ledger of its own (a package that keeps one), else the
+ * repository's root - the first directory up that has a `.git` - else `cwd`
+ * when no repository is found within MAX_UP levels. A session started in a
+ * subdirectory reads the project's ledger, not an absent one of its own.
+ *
+ * At the repository's root, the main checkout when it is a linked worktree:
+ * a worktree's `.git` is a file - `gitdir: <main>/.git/worktrees/<name>` -
+ * and that directory's `commondir` names the shared `.git`, whose parent is
+ * the main checkout. Read from the files, not by running git: a hook does not
+ * spawn processes. A submodule (no commondir), a bare repository (no
+ * checkout) or anything unreadable keeps the directory found.
  */
-function ledgerRoot(cwd) {
-  if (!cwd) return null;
+const MAX_UP = 12;
+const exists = (p) => { try { fs.statSync(p); return true; } catch (_) { return false; } };
+
+function mainCheckout(dir) {
   try {
-    const dotgit = path.join(cwd, '.git');
-    if (!fs.statSync(dotgit).isFile()) return cwd;
+    const dotgit = path.join(dir, '.git');
+    if (!fs.statSync(dotgit).isFile()) return dir;
     const m = fs.readFileSync(dotgit, 'utf8').match(/^gitdir:[ \t]*(.+?)[ \t]*$/m);
-    if (!m) return cwd;
-    const gitdir = path.resolve(cwd, m[1]);
+    if (!m) return dir;
+    const gitdir = path.resolve(dir, m[1]);
     const common = path.resolve(gitdir, fs.readFileSync(path.join(gitdir, 'commondir'), 'utf8').trim());
-    if (path.basename(common) !== '.git') return cwd;
+    if (path.basename(common) !== '.git') return dir;
     const main = path.dirname(common);
-    return fs.statSync(main).isDirectory() ? main : cwd;
+    return fs.statSync(main).isDirectory() ? main : dir;
   } catch (_) {
-    return cwd;
+    return dir;
   }
+}
+
+// { root, worktree }: where the ledger is, and whether it is there because cwd is a linked worktree.
+function ledgerPlace(cwd) {
+  if (!cwd) return null;
+  let dir = path.resolve(cwd);
+  for (let i = 0; i <= MAX_UP; i++) {
+    // The repository's root first: a linked worktree reads the main checkout's ledger, as before.
+    if (exists(path.join(dir, '.git'))) {
+      const main = mainCheckout(dir);
+      return { root: main, worktree: path.resolve(main) !== dir };
+    }
+    if (exists(path.join(dir, LEDGER))) return { root: dir, worktree: false };
+    const up = path.dirname(dir);
+    if (up === dir) break;
+    dir = up;
+  }
+  return { root: cwd, worktree: false };
+}
+
+function ledgerRoot(cwd) {
+  const p = ledgerPlace(cwd);
+  return p ? p.root : null;
 }
 
 function ledgerPath(cwd) {
@@ -224,11 +254,14 @@ function ledgerPath(cwd) {
  */
 function inspect(cwd, now) {
   const out = { exists: false, absent: false, open: 0, blocked: 0, returned: 0, next: false, foreign: 0, foreignLines: [], long: 0, longLines: [], claims: [], lines: 0, bytes: 0, mtimeMs: null, ageMs: null, fresh: false, bloated: [], file: null, shared: false };
-  const root = ledgerRoot(cwd);
-  if (!root) return out;
+  const place = ledgerPlace(cwd);
+  if (!place) return out;
+  const root = place.root;
   const file = path.join(root, LEDGER);
   out.file = file;
-  out.shared = path.resolve(root) !== path.resolve(cwd);
+  out.shared = place.worktree;
+  // The project's ledger, found above a subdirectory the session started in.
+  out.above = !place.worktree && path.resolve(root) !== path.resolve(cwd);
   let st;
   try { st = fs.statSync(file); } catch (e) { out.absent = !!(e && e.code === 'ENOENT'); return out; }
   if (!st.isFile()) return out;
