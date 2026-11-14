@@ -160,16 +160,15 @@ Protocol").
 When a turn ends on "This is done." right after a change nobody reviewed, the next prompt opens with:
 
 ```
-[aspiration self-monitoring] Your previous turn closed on a result it called
-good enough: 1 edited file not reviewed since the last change - read, view,
-run or render it the way the project documents - one refused command says that
-command is not allowed, not that nothing runs; a completion claim ("This is
-done") with no [ASPIRATION CHECK] block. Review the result the way it will be
-used, then write the [ASPIRATION CHECK] as a markdown list - Criterion,
-Reviewed, Found, Remainder (meets | defect | unverified | blocked). Stop when
-the review finds the criterion met, or say what blocks the review. If you do
-not know what these markers ask for, load the aspiration-self-monitoring skill
-("Core Protocol").
+[aspiration self-monitoring] Your previous turn: 1 edited file not reviewed
+since the last change - read, view, run or render it the way the project
+documents - one refused command says that command is not allowed, not that
+nothing runs; a completion claim ("This is done") with no [ASPIRATION CHECK]
+block. Review the result the way it will be used, then write the [ASPIRATION
+CHECK] as a markdown list - Criterion, Reviewed, Found, Remainder (meets |
+defect | unverified | blocked). Stop when the review finds the criterion met,
+or say what blocks the review. If you do not know what these markers ask for,
+load the aspiration-self-monitoring skill ("Core Protocol").
 ```
 
 Three `TODO`s into a turn:

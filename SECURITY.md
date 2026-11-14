@@ -142,8 +142,8 @@ No hook stops the agent from working. Five Stop hooks can hold a close once:
 the hook answers with exit code 2 (or the host's documented response), and
 the agent is told why and keeps working. By default only two do, each for a
 close the agent itself contradicts: `handoff-self-monitoring`'s (a `blocked`
-close, or a `needs-decision` close with nothing written, in a turn whose
-search found nothing) and `hygiene-self-monitoring`'s (a `[HYGIENE CHECK]`
+or `needs-decision` close in a turn whose search found nothing and that
+wrote nothing) and `hygiene-self-monitoring`'s (a `[HYGIENE CHECK]`
 whose Outside names a change its Decision keeps, while the edit record shows
 a public function changed that Request names does not name). On any finding of their kind, only when
 set: `epistemic-self-monitoring`'s closure gate (`EPIMON_STRICT`),

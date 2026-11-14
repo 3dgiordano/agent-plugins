@@ -72,7 +72,11 @@ function lsFoundNothing(cmd, response) {
   if (!runsLs.length) return false;
   const out = response && typeof response === 'object' && typeof response.stdout === 'string' ? response.stdout : outputText(response);
   const lines = String(out).split(/\r?\n/);
-  if (segs.length === 1) return lines.filter((l) => l.trim()).every((l) => /^total \d+$/.test(l.trim()) || /\s\.{1,2}$/.test(l));
+  // Output that is not there - sent to a file (`ls > files.txt`), or an error
+  // sent away (`ls nope 2>/dev/null`) - shows no empty folder: every line of
+  // nothing is a dot line only by vacuous truth.
+  const listed = lines.filter((l) => l.trim());
+  if (segs.length === 1) return listed.length > 0 && listed.every((l) => /^total \d+$/.test(l.trim()) || /\s\.{1,2}$/.test(l));
   for (let i = 0; i + 2 < lines.length; i++) {
     if (!/^total \d+$/.test(lines[i].trim()) || !/\s\.$/.test(lines[i + 1]) || !/\s\.\.$/.test(lines[i + 2])) continue;
     const next = lines[i + 3];

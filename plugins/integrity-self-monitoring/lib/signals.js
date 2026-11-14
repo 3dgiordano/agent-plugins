@@ -149,7 +149,9 @@ function observe(st, toolName, toolInput, toolResponse, cwd, own, read) {
   for (const s of found) {
     // a command mark is said once per kind; a code shape once per file and text
     const k = s.file ? keyOf(s) : `|${s.kind}|`;
-    if (st.seen[k]) continue;
+    // A command mark said once still goes to the log each time it recurs, so
+    // a count of system changes on real sessions is not capped at one per kind.
+    if (st.seen[k]) { if (!s.file) logged.push(Object.assign({ repeat: true }, s)); continue; }
     if (Object.keys(st.seen).length < MAX_SEEN) st.seen[k] = 1;
     if (s.measured && !(st.disputed || []).includes(k)) said.push(s);
     else logged.push(s);

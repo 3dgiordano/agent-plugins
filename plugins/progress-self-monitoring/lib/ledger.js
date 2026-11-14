@@ -91,6 +91,21 @@ const MAX_FOREIGN_LINES = 5; // line numbers kept for the message; the count is 
 const CLAIM_RE = new RegExp('^[ \\t]*[-*+][ \\t]+' + EM + 'claim' + EM + '[ \\t]*:[ \\t]*([^\\s,;]+)', 'i');
 const UNTIL_RE = /\buntil[ \t]*:?[ \t]*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2}))(?![\w:])/i;
 
+// A claim holds its item at most this long past its last renewal (`alive`, else
+// `since`): an `until` set days ahead does not keep an item from every other
+// session. Renewing moves both.
+const MAX_HOLD_MS = 24 * 60 * 60 * 1000;
+const STAMP = '(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(?::\\d{2}(?:\\.\\d+)?)?(?:Z|[+-]\\d{2}:?\\d{2}))(?![\\w:])';
+const ALIVE_RE = new RegExp('\\balive[ \\t]*:?[ \\t]*' + STAMP, 'i');
+const SINCE_RE = new RegExp('\\bsince[ \\t]*:?[ \\t]*' + STAMP, 'i');
+function cappedUntil(line) {
+  const until = untilOf(line);
+  if (until === null) return null;
+  const m = line.match(ALIVE_RE) || line.match(SINCE_RE);
+  const from = m ? Date.parse(m[1]) : NaN;
+  return Number.isFinite(from) ? Math.min(until, from + MAX_HOLD_MS) : until;
+}
+
 function untilOf(line) {
   const m = line.match(UNTIL_RE);
   if (!m) return null;
@@ -136,7 +151,7 @@ function census(text) {
     let m;
     if (inOpen && (m = line.match(ITEM_RE))) { out[m[1].toLowerCase()] += 1; item = i + 1; long(i); continue; }
     if (inOpen && item && (m = line.match(CLAIM_RE))) {
-      out.claims.push({ line: i + 1, item, token: m[1].toLowerCase(), until: untilOf(line) });
+      out.claims.push({ line: i + 1, item, token: m[1].toLowerCase(), until: cappedUntil(line) });
       long(i);
       continue;
     }

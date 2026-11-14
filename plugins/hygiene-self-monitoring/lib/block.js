@@ -115,4 +115,4 @@ function scan(text, reached) {
   return { block: true, decision: decision || null, kept, contradicts: kept && unnamed.length > 0, violations };
 }
 
-module.exports = { parse, scan };
+module.exports = { parse, scan, named };

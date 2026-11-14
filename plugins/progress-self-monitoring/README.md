@@ -158,8 +158,9 @@ impossible:
    claims.
 2. After writing its claim it re-reads: the item is its own only if its line
    is the item's one live claim. Any other, and it removes its own and picks
-   another item. Two that write together may both back off; neither ends up
-   holding the item twice.
+   another item. Two that write together may both back off. Each re-read is
+   what keeps two sessions from going on with one item: the protocol, not a
+   lock - see what it cannot do, below.
 3. It re-reads its line before its first change to the work, and before each
    write after a pause: gone or replaced, it stops.
 4. It renews its line (`alive`, `until`, `step`) as the work moves, and sets
@@ -182,7 +183,12 @@ Each says once that the claim runs out soon, ran out, is gone, or is not
 alone on its item. Cursor has no injection point after `sessionStart`: there
 the claims are counted in the status and the agent picks its own token.
 
-What the protocol cannot do: an edit tool that rewrites the whole file
+What the protocol cannot do: hold an item by itself. On Claude Code's main
+agent the hook tells a session whose claim lost on its next tool call; during
+delegated work, and on Cursor, two sessions can both hold an item until one
+re-reads its line. A claim's `until` counts for at most 24 hours past its
+last renewal (`alive`, else `since`), so a claim set days ahead does not hold
+an item from everyone. And an edit tool that rewrites the whole file
 erases the lines other sessions wrote since it read; Claude Code's Edit
 refuses a file changed since it was read, and Codex's patch fails on a
 context that no longer matches, but other tools may not. The re-read before

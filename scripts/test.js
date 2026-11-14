@@ -266,6 +266,22 @@ test('an edit is an edit tool that names a file - a task list, a memory tool or 
   assert.deepEqual(t.edits, {}, 'persistence: a task list counts toward no file');
 });
 
+test('progress: a claim holds its item at most 24 hours past its last renewal; integrity logs a recurring command mark as a repeat', () => {
+  const L = require(path.join(plugin(PRO), 'lib/ledger.js'));
+  const text = '## Open\n- returned: x\n  - claim: abcd1234 since 2026-11-14T00:00:00Z alive 2026-11-14T01:00:00Z until 2026-11-20T00:00:00Z at main - step: s\n' +
+    '- returned: y\n  - claim: ef567890 since 2026-11-14T00:00:00Z until 2026-11-14T02:00:00Z at main - step: s\n';
+  const [far, near] = L.census(text).claims;
+  assert.equal(new Date(far.until).toISOString(), '2026-11-15T01:00:00.000Z', 'until days ahead counts 24 h past alive');
+  assert.equal(new Date(near.until).toISOString(), '2026-11-14T02:00:00.000Z', 'an until within the cap is kept');
+  const I = require(path.join(plugin('integrity-self-monitoring'), 'lib/signals.js'));
+  const st = {};
+  const run = (c) => I.observe(st, 'Bash', { command: c }, '', os.tmpdir(), [], () => null);
+  assert.equal(run('NODE_TLS_REJECT_UNAUTHORIZED=0 node a.js').said.length, 1, 'said once');
+  const again = run('NODE_TLS_REJECT_UNAUTHORIZED=0 node b.js');
+  assert.equal(again.said.length, 0, 'not said again');
+  assert.deepEqual(again.logged.map((l) => [l.kind, l.repeat]), [['changes the system', true]], 'logged as a repeat');
+});
+
 test('executive: a document is one record whatever spelling of its path a tool uses - its own edit is no news, another\'s change is', async (t) => {
   const R = require(path.join(plugin('executive-self-monitoring'), 'lib/reads.js'));
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'exe-keys-'));
@@ -1418,6 +1434,8 @@ test('handoff signals: a search that found nothing fires once per turn, a search
   assert.deepEqual(ls('ls -la "/c/x"', 'total 0\ndrwxr-xr-x 1 u g 0 Oct 23 23:49 .\ndrwxr-xr-x 1 u g 0 Oct 23 23:50 ..'), [{ kind: 'empty', label: 'ls' }]);
   assert.deepEqual(ls('ls -la', 'total 4\n-rw-r--r-- 1 u g 3 Oct 23 23:49 notes.md'), [], 'a file listed');
   assert.deepEqual(ls('ls && cat x', ''), [], 'an empty ls output in a longer command says nothing about the folder');
+  assert.deepEqual(ls('ls > files.txt', ''), [], 'output sent to a file shows no empty folder');
+  assert.deepEqual(ls('ls nope 2>/dev/null', ''), [], 'an error sent away shows no empty folder');
   const emptyListing = 'total 1536\ndrwxr-xr-x 1 u g 0 Oct 24 11:53 .\ndrwxr-xr-x 1 u g 0 Oct 24 11:54 ..\n';
   assert.deepEqual(ls('ls -la "/c/x" && find "/c/x" -maxdepth 3 | head', emptyListing + '/c/x\n'), [{ kind: 'empty', label: 'ls' }], 'an empty long listing among other output');
   assert.deepEqual(ls('cd "/c/x" && pwd && ls -la && echo ---', '/tmp/x\n' + emptyListing + '---\n'), [{ kind: 'empty', label: 'ls' }]);
@@ -1433,7 +1451,8 @@ test('handoff signals: a search that found nothing fires once per turn, a search
   assert.equal(closedStatus(null, '- Status: needs-decision\n- Next: x'), 'needs-decision', 'the fields without the marker');
   assert.equal(stopOnNothing({ status: 'needs-decision', blocks: 1 }, '', { empty: true, wrote: false }), 'asked');
   assert.equal(stopOnNothing({ status: 'needs-decision', blocks: 1 }, '', { empty: true, wrote: true }), null);
-  assert.equal(stopOnNothing({ status: 'blocked', blocks: 1 }, '', { empty: true, wrote: true }), 'blocked', 'blocked on nothing stays a finding after a write');
+  assert.equal(stopOnNothing({ status: 'blocked', blocks: 1 }, '', { empty: true, wrote: true }), null, 'a turn that wrote something made progress past the empty search: not held');
+  assert.equal(stopOnNothing({ status: 'blocked', blocks: 1 }, '', { empty: true, wrote: false }), 'blocked', 'blocked on nothing, nothing written: held');
   assert.equal(stopOnNothing({ status: 'done', blocks: 1 }, '', { empty: true, wrote: false }), null);
   assert.equal(stopOnNothing({ status: 'blocked', blocks: 1 }, '', { empty: false }), null);
 });
@@ -5547,6 +5566,10 @@ test('hygiene (claude): session start takes the baseline, an edit that reaches t
   assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: close.replace('- Request names: has()', '- Request names: has() and delete()') }), { HYGMON_STRICT: '1' }).code, 0);
   // A subagent close is measured only.
   assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'SubagentStop', last_assistant_message: 'done' }), { HYGMON_STRICT: '1' }).code, 0);
+  // A turn that edited no code is not judged on what earlier turns changed: the prompts above opened a new turn.
+  assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: close }), { HYGMON_STRICT: '1' }).code, 0, 'no edit this turn: not judged, even in strict mode');
+  // An edit opens the turn again.
+  hook(HYG, 'hooks/hyg-observe.js', ev({ tool_name: 'Edit', tool_input: { file_path: 'index.js' } }));
   // The block's own contradiction - Outside named, Decision keep - holds the close once by default.
   const keptClose = '[HYGIENE CHECK]\n- Request names: has()\n- Change reaches: has, delete\n- Outside: delete() now folds case too\n- Decision: keep';
   const held = hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: keptClose }));
@@ -5569,6 +5592,41 @@ test('hygiene (claude): session start takes the baseline, an edit that reaches t
   assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: close })).code, 0, 'Outside none still waits for the next prompt by default');
   assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: keptClose.replace('Decision: keep', 'Decision: ask-owner').replace('- Request names: has()', '- Request names: has() and delete()') })).code, 0, 'offered, and the request names it: nothing to hold');
   assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'SubagentStop', last_assistant_message: keptClose })).code, 0, 'a subagent is never held');
+  // The close that named has() and delete() in Request names settled both: a later close in an edited turn is not asked about them again...
+  hook(HYG, 'hooks/hyg-prompt.js', ev({ prompt: 'next' }));
+  fs.writeFileSync(path.join(dir, 'README.md'), 'docs');
+  hook(HYG, 'hooks/hyg-observe.js', ev({ tool_name: 'Edit', tool_input: { file_path: 'index.js', old_string: 'q', new_string: 'q' } }));
+  const st = require(path.join(plugin(HYG), 'lib/state.js'));
+  const S0 = st.load('claude', sid);
+  assert.ok(S0.settled && Object.keys(S0.settled).length >= 2, 'settled by the close that named them');
+  // ...until the file is edited again: the edit above came after the settlement, so the record is judged again.
+  assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: close }), { HYGMON_STRICT: '1' }).code, 2, 'edited again after it was settled: judged again');
+});
+
+test('hygiene (claude): what a close named in Request names is settled - a later turn that edits another file is not asked about it again', (t) => {
+  const sid = uid('hyg-settle');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hyg-settle-'));
+  t.after(() => { cleanupTemp(`hygmon_claude_${sid}`); fs.rmSync(dir, { recursive: true, force: true }); });
+  const a = 'function f() { return 1; }\nfunction g() { return 2; }\nmodule.exports = { f, g };\n';
+  const b = 'function h() { return 3; }\nmodule.exports = { h };\n';
+  fs.writeFileSync(path.join(dir, 'a.js'), a);
+  fs.writeFileSync(path.join(dir, 'b.js'), b);
+  const ev = (x) => Object.assign({ session_id: sid, cwd: dir }, x);
+  const strict = { HYGMON_STRICT: '1' };
+  hook(HYG, 'hooks/hyg-inject.js', ev({ hook_event_name: 'SessionStart', source: 'startup' }));
+  hook(HYG, 'hooks/hyg-prompt.js', ev({ prompt: 'fix f and g' }));
+  fs.writeFileSync(path.join(dir, 'a.js'), a.replace('return 1;', 'return 10;').replace('return 2;', 'return 20;'));
+  hook(HYG, 'hooks/hyg-observe.js', ev({ tool_name: 'Edit', tool_input: { file_path: 'a.js', old_string: 'x', new_string: 'y' } }));
+  assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: '[HYGIENE CHECK]\n- Request names: f and g\n- Change reaches: f, g\n- Outside: none\n- Decision: keep' }), strict).code, 0, 'accounted for');
+  // The next request touches b.js only.
+  hook(HYG, 'hooks/hyg-prompt.js', ev({ prompt: 'now fix h' }));
+  fs.writeFileSync(path.join(dir, 'b.js'), b.replace('return 3;', 'return 30;'));
+  hook(HYG, 'hooks/hyg-observe.js', ev({ tool_name: 'Edit', tool_input: { file_path: 'b.js', old_string: 'x', new_string: 'y' } }));
+  const close = '[HYGIENE CHECK]\n- Request names: h\n- Change reaches: h\n- Outside: none\n- Decision: keep';
+  assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: close }), strict).code, 0, 'f and g were settled by the earlier close');
+  // A turn with no edit is not judged at all.
+  hook(HYG, 'hooks/hyg-prompt.js', ev({ prompt: 'thanks, what changed?' }));
+  assert.equal(hook(HYG, 'hooks/hyg-stop.js', ev({ hook_event_name: 'Stop', last_assistant_message: 'Only h.' }), strict).code, 0, 'no edit this turn');
 });
 
 test('hygiene (claude): an edit without a read or a snapshot takes its baseline from the text it replaced', (t) => {

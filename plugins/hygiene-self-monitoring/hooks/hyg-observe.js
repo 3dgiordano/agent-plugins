@@ -28,14 +28,16 @@ function main(raw) {
   // A subagent's tool call goes to its own record, measured against the
   // session's snapshot (the main agent's), and its nudge to the subagent.
   const actor = actorOf(data);
-  const sessionFiles = actor === MAIN_ACTOR ? null : (state.load(HOST, sid).files || {});
+  const session = actor === MAIN_ACTOR ? null : state.load(HOST, sid);
+  const sessionFiles = session ? (session.files || {}) : null;
+  const mainTurn = session ? (session.turns || 0) : undefined;
   const baseOf = sessionFiles ? (k) => sessionFiles[k] && sessionFiles[k].base : undefined;
   let res = { kind: null };
   let due = 0;
   let groups = [];
   let dropped = 0;
   state.update(HOST, sid, (st) => {
-    res = signals.observe(st, cwd, data.tool_name, data.tool_input, baseOf);
+    res = signals.observe(st, cwd, data.tool_name, data.tool_input, baseOf, mainTurn);
     dropped = st.dropped || 0;
     if (res.kind === 'edit') {
       due = signals.nudgeDue(st, res.grew);

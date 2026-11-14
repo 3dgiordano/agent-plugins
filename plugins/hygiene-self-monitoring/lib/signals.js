@@ -189,7 +189,12 @@ function snapshot(st, cwd) {
  * edits the session's files, so its reach is measured against the snapshot
  * the main agent took when the session started.
  */
-function observe(st, cwd, toolName, toolInput, baseOf) {
+/*
+ * `turn`: the main agent's turn number (its prompt count). A subagent's
+ * record is stamped with the main agent's turn, so the main agent's stop can
+ * tell whether anything was edited in this turn by any actor.
+ */
+function observe(st, cwd, toolName, toolInput, baseOf, turn) {
   const kind = kindOf(toolName, toolInput);
   if (!kind) return { kind: null };
   const file = filePathOf(toolInput);
@@ -213,6 +218,10 @@ function observe(st, cwd, toolName, toolInput, baseOf) {
   const entry = f[k];
   if (!entry) return { kind, file: relOf(cwd, abs) };
   touch(st, entry);
+  // When the file was last edited, and in which turn: a function a close
+  // settled stays settled until its file is edited again (hooks/hyg-stop.js).
+  entry.editedAt = Date.now();
+  st.lastEditTurn = typeof turn === 'number' ? turn : (st.turns || 0);
   const groups = reach.reached(reach.unpack(entry.base), reach.surface(text));
   const before = entry.reached.length;
   entry.reached = groups.map((g) => ({ names: g.names.slice(0, 8), line: g.line, how: g.how }));
@@ -222,7 +231,7 @@ function observe(st, cwd, toolName, toolInput, baseOf) {
 // Every public function the session's edits reached, file by file.
 function reachedAll(st) {
   const out = [];
-  for (const e of Object.values(files(st))) for (const g of e.reached || []) out.push(Object.assign({ file: e.rel }, g));
+  for (const e of Object.values(files(st))) for (const g of e.reached || []) out.push(Object.assign({ file: e.rel, at: e.editedAt || 0 }, g));
   return out;
 }
 

@@ -396,7 +396,9 @@ function closedStatus(res, text) {
 function stopOnNothing(res, text, fired) {
   if (!fired || !fired.empty) return null;
   const status = closedStatus(res, text);
-  if (status === 'blocked') return 'blocked';
+  // A turn that wrote something made progress past the empty search: its
+  // blocked close is the agent's account of what is left, not a stop on the gap.
+  if (status === 'blocked' && !fired.wrote) return 'blocked';
   if (status === 'needs-decision' && !fired.wrote) return 'asked';
   return null;
 }

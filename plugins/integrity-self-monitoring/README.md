@@ -98,7 +98,9 @@ is not one.
 a path outside the project that a read, a search or a command names.
 
 Each finding is said **once per session** — the same shape in the same file,
-the same kind of command.
+the same kind of command. A command mark that recurs is still written to the
+debug log each time, marked `repeat: true`, so a count of system changes in
+real sessions is not capped at one per kind.
 
 ### Measured
 

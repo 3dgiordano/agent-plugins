@@ -93,7 +93,9 @@ first of them, once per turn.
 A second signal, also once per turn, is a search that found nothing: a Glob
 or Grep with no match (a "No files found" answer on hosts that reply in
 text), or an `ls` that lists only the folder and its parent - alone, or a
-long listing that ends there among a longer command's output. It is
+long listing that ends there among a longer command's output. An `ls` that
+printed nothing - its output sent to a file, its error sent away - shows no
+empty folder. It is
 where a turn decides between making the work with that gap named and
 stopping on it, so the nudge says that what was not found is a gap, not a
 limit, and what `blocked` is for. The nudge names the tool, never what was
@@ -119,9 +121,9 @@ rules are:
   under `Options`, one choice per line; a `|` / `vs` line is still accepted)
   and a `Default` (own line, or trailing on `Options`)
 - `blocked` needs `Blocked-by`
-- `blocked` in a turn whose search found nothing is a finding: the limit may
-  be only that gap. So is `needs-decision` in such a turn when no file tool
-  wrote anything: a close that hands back whether to make the work instead of
+- `blocked` in a turn whose search found nothing and no file tool wrote
+  anything is a finding: the limit may be only that gap. So is
+  `needs-decision` in such a turn: a close that hands back whether to make the work instead of
   making it. Both are read off the turn's own signals, not the block's words,
   and a close with the fields and no marker is read by its own Status line;
   an agent whose request names what was not found keeps `blocked` on its
@@ -163,7 +165,7 @@ prompt, a tool call or a stop.
 **Default mode (non-blocking):** findings are written to the opt-in log and
 carried into the next prompt as a one-line retrospective (Claude Code). The
 turn ends normally - except for one finding, a close that stops on a search
-that found nothing (`blocked`, or `needs-decision` with nothing written),
+that found nothing, with nothing written in the turn (`blocked` or `needs-decision`),
 which blocks as the strict gate does. Held for the next prompt, it never
 reached a one-turn task, and there the close was the work not delivered.
 On Claude Code a held `blocked` whose continuation hands the work back as a
@@ -262,7 +264,7 @@ And one where it stays quiet: "What does `-p` do in `curl`?" - a question answer
 ## Troubleshooting
 
 - **Nothing happens at all.** The hooks are Node.js scripts and need Node 18 or later on the `PATH` of the shell the host starts (`node --version`). In Claude chat only the skill loads; the hooks run in Claude Code, Cowork on the desktop, and Cursor.
-- **A close was held once.** By default the only close held is one that stops on a search that found nothing (`blocked`, or `needs-decision` with nothing written); with `HANDMON_STRICT=1` any handoff finding holds the close once. See *The handoff gate*.
+- **A close was held once.** By default the only close held is one that stops on a search that found nothing, with nothing written in the turn (`blocked` or `needs-decision`); with `HANDMON_STRICT=1` any handoff finding holds the close once. See *The handoff gate*.
 - **Too many notice lines.** `HANDMON_NOTICE=0` turns off the one line the user sees; what the agent is told does not change.
 - **Seeing what the hooks decided.** `HANDMON_LOG=1` writes `.claude/logs/handoff-self-monitoring.jsonl` (`.cursor/logs/` on Cursor) in the project: local, size-capped, deleted by removing the file. See *Debug log* below.
 - **Something else.** Open an issue at https://github.com/3dgiordano/agent-plugins/issues with the host, the plugin version and the log lines; leave out conversation text.
