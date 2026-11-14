@@ -618,11 +618,12 @@ function renderCaseMatrix(records, heading) {
   const notes = [];
   const notScored = [];
   const markOf = new Map();
+  // Notes are numbered: a case with two host notes reads "6,7", not thirteen asterisks run together.
   for (const [caseId] of PLUGINS) {
     for (const [family, note] of Object.entries(HOST_NOTES[caseId] || {})) {
       if (!families.has(family) || !note || !note.text) continue;
-      notes.push(Object.assign({ caseId, family, mark: '*'.repeat(notes.length + 1) }, note));
-      markOf.set(caseId, (markOf.get(caseId) || '') + '*'.repeat(notes.length));
+      notes.push(Object.assign({ caseId, family, mark: String(notes.length + 1) }, note));
+      markOf.set(caseId, (markOf.has(caseId) ? `${markOf.get(caseId)},` : '') + String(notes.length));
     }
   }
   const rows = PLUGINS.map(([caseId, label]) => {

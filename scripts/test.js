@@ -5033,15 +5033,20 @@ test('bench report: a case\'s host note marks the case, with its source, only wh
     score: { with: arm, without: arm, cases: [{ case: term, with: 3, validWith: 3, without: 3, validWithout: 3 }] }, costDetail: { with: cost, without: cost },
   });
   const claude = renderHtml([rec('claude', 'opus-5.5-high')], {});
-  assert.match(claude, /Termination<sup>\*<\/sup>/, 'the case is marked');
+  assert.match(claude, /Termination<sup>1<\/sup>/, 'the case is marked');
   assert.ok(claude.includes(note.source), 'the source is on the page');
   assert.ok(claude.includes('padded countdown'), 'the note is on the page');
   const cursor = renderHtml([rec('cursor', 'grok-4.7-high')], {});
   assert.ok(!cursor.includes(note.source), 'another host: not this host\'s note');
   assert.ok(!cursor.includes('padded countdown'));
   const own = JSON.parse(fs.readFileSync(path.join(ROOT, 'bench', term, 'case.json'), 'utf8')).hostNotes.cursor;
-  assert.match(cursor, /Termination<sup>\*+<\/sup>/, 'its own note marks the case (one mark per note on the page)');
+  assert.match(cursor, /Termination<sup>\d+<\/sup>/, 'its own note marks the case (a number per note on the page)');
   assert.ok(cursor.includes('never fires afterAgentResponse or stop') && own.text.includes('never fires afterAgentResponse or stop'), 'and is on the page');
+  // Both hosts drawn: the case carries both notes' numbers, apart, and each footnote starts with its own.
+  const both = renderHtml([rec('claude', 'opus-5.5-high'), rec('cursor', 'grok-4.7-high')], {});
+  const marks = (both.match(/Termination<sup>([\d,]+)<\/sup>/) || [])[1];
+  assert.match(marks || '', /^\d+,\d+$/, `two notes, two numbers: ${marks}`);
+  for (const n of marks.split(',')) assert.match(both, new RegExp(`<p class="muted">${n} [^<]*remaining-modules:`), `footnote ${n} is on the page`);
 });
 
 test('bench report: a cell is passes over runs; what a grader found is listed per failed run, never summed across runs', () => {
