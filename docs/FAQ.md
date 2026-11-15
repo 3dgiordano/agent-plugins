@@ -65,11 +65,13 @@ Short, structured blocks in the agent's replies that tell you, at the moments th
 
 The blocks follow a fixed format with English field names, so a person, a reviewer or another agent reads them the same way every time. The fields of each block are in [HOW-IT-WORKS.md](HOW-IT-WORKS.md#the-block-where-a-decision-becomes-visible).
 
-### Which plugin should I start with?
+### Which plugins should I install?
 
-Pick by the problem you see most:
+All ten: each watches a different moment of the same long piece of work, and the whole set is the recommended setup. All ten together have not been measured yet; the bench runs one plugin at a time, and the all-ten measurement is the next one planned. If one brings nothing to your project, turn it off there with its variable or uninstall it (README, "Turn a plugin off").
 
-| If your agent... | Try |
+Which one answers which problem - to read where a reminder comes from, or to start with fewer:
+
+| If your agent... | Plugin |
 | --- | --- |
 | keeps retrying the same fix | persistence |
 | stops early with "running out of context" or "let's continue later" | termination |
@@ -82,7 +84,7 @@ Pick by the problem you see most:
 | loses track of open work between sessions | progress |
 | ships mocks or fallbacks that look like real results | integrity |
 
-They install independently; add more later.
+They install independently, so leaving one out or adding it later changes nothing for the others.
 
 ## Practical questions
 

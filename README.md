@@ -38,11 +38,32 @@ request?* — in three parts:
 They never block the agent, have no dependencies, make no network calls, and
 send nothing anywhere.
 
+**Who it is for.** Anyone who hands a coding agent long work: a task that
+runs for hours, gives parts to subagents, goes through a context
+compaction, or carries over to the next session. That is where an agent
+loses the plan, the open parts and what it actually checked, and the
+plugins are scaffolding for exactly that: on Claude Code a subagent gets
+each skill's text, or a line asking it to load the skill, when it starts,
+and so does the main agent after a compaction. A question
+answered in one short turn gets little from them. The bench measures short,
+single-session cases so far; long work with subagents and compaction is
+not in it yet.
+
+**Install all ten.** Each one watches a different moment of the same work,
+and the recommended setup is the whole set. All ten together have not been
+measured yet: the bench runs one plugin at a time, and the all-ten
+measurement is the next one planned. On Claude Code with all ten, a session start runs 14
+hooks, each prompt 9 and each tool call 7 to 9, every one a short Node
+process; six of them put their skill text in context at the start of a
+session ([FAQ](docs/FAQ.md#will-they-slow-the-agent-down-or-fill-its-context)).
+If one brings nothing to your project, turn it off there with one variable
+or uninstall it ([Turn a plugin off](#turn-a-plugin-off)).
+
 | It is | It is not |
 | --- | --- |
 | A reminder at the right moment, with the fact that triggered it | A guardrail, a sandbox or a security tool: by default it restricts nothing |
 | A fixed answer format that you, a reviewer or another agent can read | A judge of the agent's work, or a monitor that reports to anyone |
-| Plain Node hooks and a skill per plugin; install only the ones you want | A framework, or a replacement for your agent, your prompts or your review |
+| Plain Node hooks and a skill per plugin; any one can be turned off or left out | A framework, or a replacement for your agent, your prompts or your review |
 | Simple triggers, tested against real sessions | A way to make the model smarter: same model, more explicit decisions |
 
 <p align="center">
@@ -271,11 +292,14 @@ the claim with its evidence, its falsifier and its scope — so you can tell
 
 </details>
 
-## Which one first?
+## Which one catches what
 
-Pick by the problem you see most. They install independently; add more later.
+The recommended setup is all ten (Quick start, below). This table says which
+plugin answers which problem: where a reminder comes from, which one to keep
+if you turn others off, or where to start if you would rather add them one
+at a time.
 
-| If your agent... | Try |
+| If your agent... | Plugin |
 | --- | --- |
 | keeps retrying the same fix | [persistence](plugins/persistence-self-monitoring/) |
 | stops early with "running out of context" or "let's continue later" | [termination](plugins/termination-self-monitoring/) |
@@ -290,37 +314,46 @@ Pick by the problem you see most. They install independently; add more later.
 
 ## Quick start
 
-Pick your host. It is the same plugin folder on each; only the install
-command differs.
+Pick your host and install all ten. It is the same plugin folder on each;
+only the install command differs.
 
 **Claude Code**
 
 ```
 claude plugin marketplace add 3dgiordano/agent-plugins#stable
+claude plugin install executive-self-monitoring@3dgiordano-agent-plugins
+claude plugin install epistemic-self-monitoring@3dgiordano-agent-plugins
 claude plugin install persistence-self-monitoring@3dgiordano-agent-plugins
+claude plugin install termination-self-monitoring@3dgiordano-agent-plugins
+claude plugin install aspiration-self-monitoring@3dgiordano-agent-plugins
+claude plugin install coverage-self-monitoring@3dgiordano-agent-plugins
+claude plugin install handoff-self-monitoring@3dgiordano-agent-plugins
+claude plugin install progress-self-monitoring@3dgiordano-agent-plugins
+claude plugin install integrity-self-monitoring@3dgiordano-agent-plugins
+claude plugin install hygiene-self-monitoring@3dgiordano-agent-plugins
 ```
 
-**Codex**
+**Codex** — add the marketplace, then the same ten with `codex plugin add`
+([Codex](#codex) has the list), and run `/hooks` once in a `codex` session
+to trust their hooks.
 
 ```
 codex plugin marketplace add 3dgiordano/agent-plugins@stable
-codex plugin add persistence-self-monitoring@3dgiordano-agent-plugins
 ```
 
-then `/hooks` once in a `codex` session to trust the plugin's hooks.
-
 **Cursor** — Dashboard → Plugins → Add Marketplace → *Import from Repo*,
-`3dgiordano/agent-plugins`, then install from Customize → Plugins.
+`3dgiordano/agent-plugins`, then install the ten from Customize → Plugins.
 
-**Factory Droid** (built from its documentation; not run on Droid yet)
+**Factory Droid** (built from its documentation; not run on Droid yet) —
+add the marketplace, then the ten with `droid plugin install`
+([Factory Droid](#factory-droid) has the list).
 
 ```
 droid plugin marketplace add 3dgiordano/agent-plugins
-droid plugin install persistence-self-monitoring@agent-plugins
 ```
 
-Swap in any of the other nine, or install all ten: [Install](#install) has
-the full lists and the per-host notes.
+To leave one out, skip its line; to turn one off later for a single
+project, see [Turn a plugin off](#turn-a-plugin-off).
 
 ## Plugins
 
