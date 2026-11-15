@@ -726,7 +726,7 @@ plugins/<name>/
   hooks/                          # Claude Code + Codex (+ Droid) hook adapter
   cursor/                         # Cursor hook adapter
   lib/                            # code shared by the adapters
-docs/                             # how it works, evidence, research, FAQ
+docs/                             # how it works, evidence, research, FAQ, lexicon
 bench/                            # the outcome bench: cases, graders, guards, reports
 evals/                            # eval suites per plugin (suites/), detector corpora, the behavioural-eval protocol
 scripts/                          # the test runner, the bench and eval runners, audit, report

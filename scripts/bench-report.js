@@ -1111,6 +1111,8 @@ function loadDir(dir) {
   if (!record.score || !record.costDetail) throw new Error(`${file} has no score yet`);
   // A skill-variant run measures a text that has not shipped: never drawn as the plugin's result.
   if (record.skillVariant) throw new Error(`${file} ran the skill variant "${record.skillVariant.name}" of ${record.skillVariant.plugin}: an experiment, not a plugin result`);
+  // An all-ten run loads the whole collection in its WITH arm: never drawn as one plugin's result.
+  if (record.allTen) throw new Error(`${file} loaded all ten plugins in its WITH arm: the all-ten measurement, not one plugin's result`);
   record.audit = auditOf(dir);
   record._dir = dir;
   return record;

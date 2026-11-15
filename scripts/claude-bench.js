@@ -18,6 +18,9 @@
  *   --placebo      the WITH arm loads the plugin's placebo (scripts/placebo.js): the same
  *                  hooks at the same moments, every message and the skill neutral text of
  *                  the same length. A session of its own, against the without arm
+ *   --all-ten      the WITH arm loads all ten plugins, each from its own clean copy,
+ *                  as a user who installs the whole set gets them; the case says only
+ *                  which cases run. A session of its own, against the without arm
  *   --timeout-min  per-invocation ceiling; default from the suite row, else 15
  *   --idle-min     stop an invocation that has written nothing for this long
  *   --no-node-guard  let the agent's `node` run unfenced (evallib nodeGuard)
@@ -267,12 +270,18 @@ function loadedProblems(stdout, expect) {
       for (const p of ours) problems.push(`${p.name} loaded in the arm without the plugin`);
       continue;
     }
-    for (const p of ours) if (p.name !== expect.plugin) problems.push(`${p.name} loaded beside ${expect.plugin}`);
-    const mine = ours.filter((p) => p.name === expect.plugin);
-    if (!mine.length) problems.push(`${expect.plugin} not loaded in the arm with the plugin`);
-    for (const p of mine) {
-      if (expect.dir && norm(p.path) !== norm(expect.dir)) problems.push(`${expect.plugin} loaded from ${p.path}, not ${expect.dir}`);
-      if (expect.version && p.version && p.version !== expect.version) problems.push(`${expect.plugin} ${p.version} loaded, the repo has ${expect.version}`);
+    // The WITH arm's set: the one under test, or every plugin of an --all-ten arm.
+    const want = expect.set || [{ name: expect.plugin, dir: expect.dir, version: expect.version }];
+    const names = new Set(want.map((w) => w.name));
+    for (const p of ours) if (!names.has(p.name)) problems.push(`${p.name} loaded beside ${expect.set ? 'the ten' : expect.plugin}`);
+    for (const w of want) {
+      const mine = ours.filter((p) => p.name === w.name);
+      if (!mine.length) problems.push(`${w.name} not loaded in the arm with the plugin`);
+      if (mine.length > 1) problems.push(`${w.name} loaded ${mine.length} times`);
+      for (const p of mine) {
+        if (w.dir && norm(p.path) !== norm(w.dir)) problems.push(`${w.name} loaded from ${p.path}, not ${w.dir}`);
+        if (w.version && p.version && p.version !== w.version) problems.push(`${w.name} ${p.version} loaded, the repo has ${w.version}`);
+      }
     }
   }
   return inits ? [...new Set(problems)] : [];
@@ -343,9 +352,24 @@ function placeboCopy(name) {
   placeboCopies.set(name, dir);
   return dir;
 }
+// --all-ten: the WITH arm loads every plugin of the collection, not the case's one.
+let allTen = false;
+function collection() {
+  return fs.readdirSync(path.join(ROOT, 'plugins')).filter((n) => /-self-monitoring$/.test(n) && fs.existsSync(path.join(ROOT, 'plugins', n, '.claude-plugin', 'plugin.json'))).sort();
+}
 // The plugin the WITH arm loads.
 function armPlugin(c) {
   return placebo ? placeboCopy(c.plugin) : pluginCopy(c.plugin, skillVariant && skillVariant.file);
+}
+// Every plugin directory the WITH arm loads: the case's one, or the ten.
+function armPlugins(c) {
+  return allTen ? collection().map((n) => pluginCopy(n)) : [armPlugin(c)];
+}
+// What the CLI must report loaded in the WITH arm (loadedProblems expect.set), or null for one plugin.
+function armSet(c) {
+  if (!allTen) return null;
+  const versionOf = require('./pluginsource.js').versionOf;
+  return collection().map((n) => ({ name: n, dir: pluginCopy(n), version: versionOf(path.join(ROOT, 'plugins', n)) }));
 }
 // The folder Claude Code keeps a session's transcript and tool results in:
 // ~/.claude/projects/<the working directory, every other character a dash>.
@@ -510,7 +534,7 @@ function argsFor(c, withPlugin, model, settings) {
   a.push('--thinking-display', 'summarized', '--forward-subagent-text');
   if (model) a.push('--model', model.cli.model);
   if (model && model.cli.effort) a.push('--effort', model.cli.effort);
-  if (withPlugin) a.push('--plugin-dir', armPlugin(c));
+  if (withPlugin) for (const d of armPlugins(c)) a.push('--plugin-dir', d);
   a.push('--plugin-dir', claudeWitness().dir);
   return a; // the prompt goes on stdin
 }
@@ -894,8 +918,9 @@ function main() {
   const guard = guardArg ? (guardArg === 'none' ? 'none' : path.relative(ROOT, path.resolve(guardArg)).split(path.sep).join('/')) : 'per case';
   const variantName = val('--skill-variant', null);
   placebo = has('--placebo');
-  if (placebo && variantName) {
-    console.error('--placebo and --skill-variant both replace what the WITH arm loads: one at a time');
+  allTen = has('--all-ten');
+  if ([placebo, !!variantName, allTen].filter(Boolean).length > 1) {
+    console.error('--placebo, --skill-variant and --all-ten each replace what the WITH arm loads: one at a time');
     process.exitCode = 1;
     return;
   }
@@ -926,7 +951,7 @@ function main() {
     const bin = cli ? cli.bin : 'claude';
     for (const c of found) {
       for (const withPlugin of [true, false]) {
-        console.log(`${withPlugin ? (placebo ? 'placebo' : 'with   ') : 'without'}  ${quote(bin)} ${argsFor(c, withPlugin, model, '<settings file>').map(quote).join(' ')}   < bench/${c.plugin}/${c.id}/prompt.md`);
+        console.log(`${withPlugin ? (placebo ? 'placebo' : allTen ? 'all-ten' : 'with   ') : 'without'}  ${quote(bin)} ${argsFor(c, withPlugin, model, '<settings file>').map(quote).join(' ')}   < bench/${c.plugin}/${c.id}/prompt.md`);
       }
     }
     // A run of a case with turns/ or sessions/ is one CLI call per message.
@@ -948,7 +973,7 @@ function main() {
   }
 
   const resultsRoot = path.resolve(ROOT, 'bench', 'results');
-  const outDir = path.resolve(val('--out', '') || path.join(resultsRoot, `claude-${model.id}${placebo ? '-placebo' : ''}-${new Date().toISOString().replace(/[:.]/g, '-')}`));
+  const outDir = path.resolve(val('--out', '') || path.join(resultsRoot, `claude-${model.id}${placebo ? '-placebo' : ''}${allTen ? '-allten' : ''}-${new Date().toISOString().replace(/[:.]/g, '-')}`));
   const outRel = path.relative(resultsRoot, outDir);
   if (outRel.startsWith('..') || path.isAbsolute(outRel)) {
     console.error('--out must stay under bench/results');
@@ -1004,6 +1029,8 @@ function main() {
     skillVariant: skillVariant ? { plugin: skillVariant.plugin, name: skillVariant.name, sha256: skillVariant.sha256 } : null,
     // The WITH arm of this session is the placebo, not the plugin (bench/studies/placebo/DESIGN.md).
     placebo: placebo ? { sha256: require('./placebo.js').placeboHash() } : null,
+    // The WITH arm of this session loads all ten plugins; the case names which cases ran, not what loaded.
+    allTen: allTen ? { plugins: collection() } : null,
     tier: model.tier,
     modelLine: model.line,
     reasoningLevel: model.reasoning,
@@ -1022,6 +1049,7 @@ function main() {
   console.log(`model ${model.line} · ${model.reasoning}: --model ${model.cli.model} --effort ${model.cli.effort}`);
   console.log('outcome bench - the workspace is the score. "hooks ran" says whether the witness SessionStart fired in each arm.\n');
   if (placebo) console.log('the WITH arm of this session is the placebo: the plugin\'s hooks, its messages and skill as neutral text of the same length (scripts/placebo.js)\n');
+  if (allTen) console.log(`the WITH arm of this session loads all ten plugins (${collection().join(', ')}); each case still names the plugin whose cases it is\n`);
 
   for (const c of found) {
     if (stopped) break;
@@ -1070,10 +1098,10 @@ function main() {
       const own = runFor(c);
       // No HOME in it: the misread trace goes to a file of this invocation's own.
       const trace = misreadTrace(own.env);
-      const plug = withPlugin ? path.dirname(armPlugin(c)) : null;
+      const plug = withPlugin ? armPlugins(c).map((d) => path.dirname(d)) : [];
       // The run's own temp (its TEMP) is where a /tmp path that is not the
       // workspace goes (scripts/tmp-paths.js): node may write there too.
-      const nodeFence = fence ? nodeGuard(ws, [plug, claudeWitness().dir], [own.env.TEMP]) : null;
+      const nodeFence = fence ? nodeGuard(ws, [...plug, claudeWitness().dir], [own.env.TEMP]) : null;
       const env = childEnv(Object.assign({}, own.env, trace.env, pluginEnv, nodeFence ? nodeFence.env : {}));
       seed(ws, c);
       const limits = { timeout: timeoutMin * 60 * 1000, idle: idleMin * 60 * 1000 };
@@ -1128,10 +1156,10 @@ function main() {
       if (parsed.quota) lastQuota = parsed.quota;
       const raw = streams.join('\n');
       const shaped = streams.map(cursorShape).join('\n');
-      const roots = [ws, own.dir, plug, claudeWitness().dir, nodeFence ? nodeFence.dir : null, session];
+      const roots = [ws, own.dir, ...plug, claudeWitness().dir, nodeFence ? nodeFence.dir : null, session];
       const audit = auditStream(shaped, roots, ROOT, ws);
       // The CLI's own list of what it loaded: a run with another copy of ours, or none where one belongs, measured something else.
-      for (const p of loadedProblems(raw, { plugin: c.plugin, withPlugin, dir: withPlugin ? armPlugin(c) : null, version: require('./pluginsource.js').versionOf(path.join(ROOT, 'plugins', c.plugin)) })) audit.contaminated.push(`plugin: ${p}`);
+      for (const p of loadedProblems(raw, { plugin: c.plugin, withPlugin, set: withPlugin ? armSet(c) : null, dir: withPlugin && !allTen ? armPlugin(c) : null, version: require('./pluginsource.js').versionOf(path.join(ROOT, 'plugins', c.plugin)) })) audit.contaminated.push(`plugin: ${p}`);
       const hooked = claudeWitness().fired(ws);
       if (hooked) hooksRan[arm] += 1;
       if (parsed.modelReported) reported.add(parsed.modelReported);

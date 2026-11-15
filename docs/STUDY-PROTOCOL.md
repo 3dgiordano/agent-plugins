@@ -30,10 +30,12 @@ A deviation (a dead host, a CLI that updated itself, a grader defect) goes in `D
 ## 3. Confirmatory cases
 
 - **Written before any run on the study's models**, from a source outside the bench's own failures: a public failure report (named in `case.json` `source`), a failure observed in a real session, or a task specification written by someone who has not seen the plugin's runs. Not by iterating a prompt until the unaided model fails.
+- **Far from the development cases.** A confirmatory case tests the same failure as the plugin's development cases, in a task that is not a variant of any of them: not the same task with other names, not a sibling of the same defect in the same code shape (the executive exercises marked "held out" in [bench/README.md](../bench/README.md) were such siblings). The pre-registration names, for each confirmatory case, the development case closest to it and what differs. Data matched closely to an evaluation can move that evaluation without moving a held-out one (Anthropic 2026, "Teaching Claude why", [RESEARCH.md](RESEARCH.md#related-work)).
 - **Written by someone other than the plugin's author** where possible. When it is the author, the report says so.
 - **Every confirmatory case is reported.** A case that turns out not to separate the arms stays in the denominator; that is a result.
 - **The case states what correct is** in terms of what the user asked for, before any run: the test, the file, the property of the reply. The README's rules still hold (bench/README.md, "How a case is written").
 - **Custody of a held-out case.** Its author delivers it to the maintainer privately, as an archive, never as an issue or a pull request. Only the archive's SHA-256 and the plugin fingerprints the study runs (`node scripts/pluginsource.js` prints them) go into the pre-registration. The archive is opened, run and committed to the repository only after those fingerprints are frozen, so no plugin is revised with the case in view; until then the plugins' author does not read it. The report gives the hash, so a reader can check that the committed case is the one registered.
+- **Held out once.** A committed case is public, and a model trained after that may have seen it. A case is confirmatory only for models whose training cutoff precedes the date the case was first published; a later study on a newer model writes new cases, and a case it reuses is reported as exploratory.
 
 ## 4. Graders
 
@@ -94,6 +96,7 @@ All pre-registered cases and arms; exclusions per arm; the estimate with its int
 | LLM judges, two families | `scripts/claude-judge.js` (`--restricted --tools ""`) and `scripts/cursor-judge.js` (scratch HOME, `--mode ask`), one prompt (`scripts/judgelib.js`); a panel, its agreement and an adjudication sheet in `blind-labels.js --agree / --adjudicate`; a self-test the drivers require before a judge applies a criterion (`scripts/judge-selftest.js`, evals/judge-selftest/README.md). Not yet validated against labels |
 | Pre-registration | the first one: `bench/studies/pilot-handoff-judges/PREREG.md` (a pilot of the instrument) |
 | Placebo arm | first measurement, small (2026-10-19, `claude-bench.js --placebo`; bench/studies/placebo) |
+| All-ten arm | in both outcome-bench drivers, not run yet (2026-11-15, `claude-bench.js --all-ten`, `cursor-bench.js --all-ten`): the WITH arm loads every plugin, each from its own clean copy, and the case says only which cases run; `run.json` records `allTen`, a Claude run is voided unless the CLI lists each of the ten once, from its copy, at the repo's version, and `bench-report.js` refuses the session as one plugin's result. Measured statically before any run: about 52,600 characters of skill text at session start, about 16k to 21k tokens with the load lines and descriptions |
 | Development set | benchmark 1.2.0 (2026-10-23 to 2026-10-26, release 0.20.0): plugins and graders were revised on its cases during the session, so its cases cannot serve as confirmatory ones (EVIDENCE.md) |
 | Confirmatory cases, interleaving in the eval, archive | not started |
 

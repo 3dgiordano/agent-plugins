@@ -296,7 +296,8 @@ function pluginCopy(name, variant) {
 }
 
 // variant: a SKILL.md the WITH arm loads in place of the plugin's own (pluginCopy).
-function argsFor(c, withPlugin, model, workspace, outputFormat, variant) {
+// set: the plugins the WITH arm loads in place of the case's one (cursor-bench --all-ten).
+function argsFor(c, withPlugin, model, workspace, outputFormat, variant, set) {
   /*
    * --mode takes only `plan` and `ask`; omitting it IS agent mode, which is
    * what a case that asks the agent to DO the work needs - the failure it
@@ -318,7 +319,7 @@ function argsFor(c, withPlugin, model, workspace, outputFormat, variant) {
   if (process.platform === 'darwin' || process.platform === 'linux') a.push('--sandbox', 'enabled');
   if (c.intent !== 'work') a.push('--mode', 'ask');
   if (model) a.push('--model', model);
-  if (withPlugin) a.push('--plugin-dir', pluginCopy(c.plugin, variant));
+  if (withPlugin) for (const n of set || [c.plugin]) a.push('--plugin-dir', pluginCopy(n, n === c.plugin ? variant : undefined));
   // Both arms: records whether this invocation ran hooks at all (evallib.js).
   a.push('--plugin-dir', hookWitness().dir);
   return a; // the prompt is NOT here - it goes on stdin, see run()

@@ -12,6 +12,8 @@ already happened four times — a truncated prompt, a shared workspace leaking
 one arm into the other, a permission mode that made the case unmeasurable, a
 scanner that did not recognise its own block.
 
+The words shared with the outcome bench - case, arm, run, leak check, quiet case - are defined in [docs/LEXICON.md](../docs/LEXICON.md).
+
 ## Where the cases live
 
 Each plugin's cases are in `evals/suites/<plugin>/<case>/` (a `prompt.md`,

@@ -22,6 +22,8 @@
  *   --idle-min    stop an invocation that has written nothing for this long; default
  *                 from the suite row (idleMin), else none. A run cut this way is dead,
  *                 and a stall (a finished thinking block, then nothing) is named as one.
+ *   --all-ten     the WITH arm loads all ten plugins, each from its own clean copy, as a
+ *                 user who installs the whole set gets them. A session of its own
  *   --skill-variant <n>  the WITH arm loads evals/variants/<plugin>/<n>.md in
  *                 place of the plugin's SKILL.md, as scripts/claude-bench.js does.
  *                 Recorded in run.json; one plugin's cases only; a variant run is
@@ -397,6 +399,16 @@ function main() {
     skillVariant = { plugin: plugins[0], name: variantName, file, sha256: require('crypto').createHash('sha256').update(fs.readFileSync(file)).digest('hex') };
   }
   const variantFile = skillVariant ? skillVariant.file : undefined;
+  // --all-ten: every plugin of the collection in the WITH arm, not the case's one.
+  const allTen = has('--all-ten') ? fs.readdirSync(path.join(ROOT, 'plugins')).filter((n) => /-self-monitoring$/.test(n) && fs.existsSync(path.join(ROOT, 'plugins', n, '.cursor-plugin', 'plugin.json'))).sort() : null;
+  if (allTen && skillVariant) {
+    console.error('--skill-variant and --all-ten each replace what the WITH arm loads: one at a time');
+    process.exitCode = 1;
+    return;
+  }
+  const armNames = (c) => allTen || [c.plugin];
+  // The parent of every plugin copy the WITH arm loads: roots of the run for the audit and the fence.
+  const armRoots = (c, withPlugin) => (withPlugin ? armNames(c).map((n) => path.dirname(pluginCopy(n, n === c.plugin ? variantFile : undefined))) : []);
   if (!found.length) {
     console.error(filter ? `no bench cases match "${filter}"` : 'no bench cases found');
     process.exitCode = 1;
@@ -417,8 +429,8 @@ function main() {
     const ws = '<scratch workspace>';
     for (const c of found) {
       for (const withPlugin of [true, false]) {
-        const a = argsFor(c, withPlugin, model, ws, 'stream-json', variantFile);
-        console.log(`${withPlugin ? 'with   ' : 'without'}  ${quote(bin)} ${a.map(quote).join(' ')}   < bench/${c.plugin}/${c.id}/prompt.md`);
+        const a = argsFor(c, withPlugin, model, ws, 'stream-json', variantFile, allTen);
+        console.log(`${withPlugin ? (allTen ? 'all-ten' : 'with   ') : 'without'}  ${quote(bin)} ${a.map(quote).join(' ')}   < bench/${c.plugin}/${c.id}/prompt.md`);
       }
     }
     // A run of a case with turns/ or sessions/ is one CLI call per message.
@@ -470,7 +482,7 @@ function main() {
 
   const resultsRoot = path.resolve(ROOT, 'bench', 'results');
   const requestedOut = val('--out', '');
-  const outDir = path.resolve(requestedOut || path.join(resultsRoot, `cursor-${new Date().toISOString().replace(/[:.]/g, '-')}`));
+  const outDir = path.resolve(requestedOut || path.join(resultsRoot, `cursor-${allTen ? 'allten-' : ''}${new Date().toISOString().replace(/[:.]/g, '-')}`));
   const outRel = path.relative(resultsRoot, outDir);
   if (outRel.startsWith('..') || path.isAbsolute(outRel)) {
     console.error('--out must stay under bench/results');
@@ -506,6 +518,8 @@ function main() {
     pluginSource: require('./pluginsource.js').source(ROOT),
     model: modelId,
     guard,
+    // The WITH arm of this session loads all ten plugins; the case names which cases ran, not what loaded.
+    allTen: allTen ? { plugins: allTen } : null,
     skillVariant: skillVariant ? { plugin: skillVariant.plugin, name: skillVariant.name, sha256: skillVariant.sha256 } : null,
     guards: Object.fromEntries(found.map((c) => [`${c.plugin}/${c.id}`, c.guardFile])),
     reasoning: 'The requested id is `model`. The name the CLI reports, including the effort, is collected from each stream init event into `modelReported`.',
@@ -560,8 +574,8 @@ function main() {
   // (the copy was taken earlier) is caught by its fingerprint, and a plugin
   // that reached the scratch HOME by another way is caught there.
   const { fingerprint } = require('./pluginsource.js');
-  const codeAtStart = new Map(found.map((c) => [c.plugin, fingerprint(path.join(ROOT, 'plugins', c.plugin))]));
-  const loadedProblems = (c, withPlugin, home) => cursorLoadedProblems(c.plugin, withPlugin, home, codeAtStart.get(c.plugin));
+  const codeAtStart = new Map([...new Set(found.flatMap(armNames))].map((n) => [n, fingerprint(path.join(ROOT, 'plugins', n))]));
+  const loadedProblems = (c, withPlugin, home) => armNames(c).flatMap((n, k) => cursorLoadedProblems(n, withPlugin, k === 0 ? home : null, codeAtStart.get(n)));
   // On Windows a fenced run starts the CLI without its shim, so its shell can
   // be given a PATHEXT that puts the fence first (evallib fenceFirstEnv).
   const direct = fence ? directLaunch(cli.bin) : null;
@@ -609,11 +623,11 @@ function main() {
       const trace = misreadTrace(runEnv);
       Object.assign(runEnv, trace.env);
       // hooks run unfenced from their own directories: the plugin copy and the witness
-      const guard = fence ? nodeGuard(ws, [withPlugin ? path.dirname(pluginCopy(c.plugin, variantFile)) : null, hookWitness().dir]) : null;
+      const guard = fence ? nodeGuard(ws, [...armRoots(c, withPlugin), hookWitness().dir]) : null;
       if (guard) Object.assign(runEnv, guard.env);
       seed(ws, c);
       const limits = { timeout: timeoutMin * 60 * 1000, maxBuffer: 50 * 1024 * 1024, idle: idleMin * 60 * 1000 };
-      const args = argsFor(c, withPlugin, model, ws, 'stream-json', variantFile);
+      const args = argsFor(c, withPlugin, model, ws, 'stream-json', variantFile, allTen);
       const r = agentRun(args, runEnv, c.prompt, cliCwd, limits);
       let parsed = parseAgent(r.stdout);
       let turnStreams = [String(r.stdout || '')];
@@ -658,7 +672,7 @@ function main() {
         if (parts.length < c.sessions.length) parsed.error = true;
         r.stdout = streams.join('\n');
       }
-      const audit = auditStream(r.stdout, [ws, cliCwd, runEnv.HOME, withPlugin ? path.dirname(pluginCopy(c.plugin, variantFile)) : null, hookWitness().dir, guard ? guard.dir : null], ROOT, ws);
+      const audit = auditStream(r.stdout, [ws, cliCwd, runEnv.HOME, ...armRoots(c, withPlugin), hookWitness().dir, guard ? guard.dir : null], ROOT, ws);
       for (const p of loadedProblems(c, withPlugin, runEnv.HOME)) audit.contaminated.push(p);
       const hooked = hookWitness().fired(ws);
       if (hooked) hooksRan[arm] += 1;
@@ -679,7 +693,7 @@ function main() {
         outside: audit.outside,
         contaminated: audit.contaminated,
         suspect: audit.suspect,
-        roots: [ws, cliCwd, runEnv.HOME, withPlugin ? path.dirname(pluginCopy(c.plugin, variantFile)) : null, hookWitness().dir, guard ? guard.dir : null].filter(Boolean),
+        roots: [ws, cliCwd, runEnv.HOME, ...armRoots(c, withPlugin), hookWitness().dir, guard ? guard.dir : null].filter(Boolean),
         aware: audit.aware,
       }, null, 2));
       if (audit.suspect.length) console.log(`  suspect ${arm} run ${i + 1}: ${[...new Set(audit.suspect.map((s) => s.kind))].join(', ')}`);
