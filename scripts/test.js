@@ -4718,7 +4718,8 @@ test('bench: `node --test` runs inside the node fence - its runner stays in one 
   delete env.NODE_TEST_CONTEXT;
   const r = spawnSync(shell, ['-c', 'node --test'], { cwd: ws, env, encoding: 'utf8' });
   assert.equal(r.status, 0, (r.stdout + r.stderr).slice(0, 300));
-  assert.match(r.stdout, /# pass 1/);
+  // TAP up to Node 22; from Node 24 the spec report, "ℹ pass 1", when not on a terminal.
+  assert.match(r.stdout, /^(?:#|ℹ) pass 1\b/m);
   assert.doesNotMatch(r.stdout + r.stderr, /ERR_ACCESS_DENIED/);
 });
 

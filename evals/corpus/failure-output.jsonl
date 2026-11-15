@@ -123,3 +123,7 @@
 {"text":"cargo :    Compiling demo v0.1.0 (C:\\work\\demo)","expect":"miss","why":"native stderr wrapped by Windows PowerShell, not a failure"}
 {"text":"Content-Type: text/html; charset=utf-8","expect":"miss","why":"an HTTP header, not a cmdlet"}
 {"text":"Get-Help: shows the help for a cmdlet","expect":"miss","why":"a help line: the message does not open with a capital"}
+{"text":"ℹ fail 1","expect":"hit","why":"node --test summary, spec report (Node 24+ when not on a terminal)"}
+{"text":"✖ failing tests:","expect":"hit","why":"node --test spec report heading over the failures (Node 24+)"}
+{"text":"ℹ fail 0","expect":"miss","why":"node --test spec summary of a green run"}
+{"text":"ℹ pass 12","expect":"miss","why":"node --test spec summary: a pass count"}

@@ -9,6 +9,10 @@ release.
 
 Every plugin rises one patch step: aspiration 0.4.2, coverage 0.7.3, epistemic 0.6.2, executive 1.11.2, handoff 0.8.2, hygiene 0.4.2, integrity 0.4.2, persistence 0.5.3, progress 0.10.2, termination 0.5.2.
 
+### Fixed
+
+- **A failed `node --test` reads as a failure on Node 24 and later (epistemic, persistence, handoff).** From Node 24 the test runner prints its spec report when its output is not a terminal, as it is under an agent: the summary says `ℹ fail 1` where TAP said `# fail 1`, and the failures sit under `✖ failing tests:`. The shared `lib/fail.js` knew only the TAP form, so a red run whose failure had no `Error` line read as green - persistence did not count the attempt, epistemic did not nudge, handoff took the check as passed. Both lines read as failures now; `ℹ fail 0` and `ℹ pass 12` stay quiet. Four corpus lines added; the three copies stay identical. Found by the first CI run on Node 24 and 26, where the bench test that runs `node --test` inside the node fence expected the TAP summary.
+
 ### Security
 
 - **The state directory is the user's own.** On Linux and macOS it is `<temp>/3dgiordano-agent-plugins-<uid>/`, created `0700`, and used only while it is a real directory (not a link) owned by that user with no access for group or others. Before, every user of a shared `/tmp` used one directory created with default permissions: another user could read the state files, and one who created the directory first could plant text the hooks would repeat to the model. A directory that fails the check is neither read nor written; the hooks run without state and say nothing. Windows keeps `%TEMP%\3dgiordano-agent-plugins\`, its temp dir being the user's already. One file, `lib/statedir.js`, the same in every plugin, is the only place the path is built; a test keeps the copies identical and checks that no other file builds a temp path. On Linux and macOS the old shared directory is no longer swept by the hooks: the system's temp cleanup or a reboot removes it, or delete it by hand.

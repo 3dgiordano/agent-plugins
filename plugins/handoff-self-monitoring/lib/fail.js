@@ -26,6 +26,10 @@ const FAIL_LINE_RES = [
   // red node --test runs were called "passed" by handoff's pre-close.
   /^\s*not ok\s+\d+\b/,
   /^#\s+fail\s+[1-9]\d*\b/,
+  // From Node 24, node --test prints its spec report when not on a terminal:
+  // the summary "ℹ fail 1" and the heading "✖ failing tests:".
+  /^ℹ\s+fail\s+[1-9]\d*\b/,
+  /^✖\s+failing tests:/,
   /^\s*(?:npm\s+)?ERR!/,                                               // npm
   /^\s*make(?:\[\d+\])?:\s+\*\*\*/,                                    // "make: *** [all] Error 2"
   // pytest "FAILED test_x", Jest/Go "FAIL src/x" - not a grader rubric's "FAIL if ..."
