@@ -303,7 +303,7 @@ claude plugin install persistence-self-monitoring@3dgiordano-agent-plugins
 **Codex**
 
 ```
-codex plugin marketplace add 3dgiordano/agent-plugins
+codex plugin marketplace add 3dgiordano/agent-plugins@stable
 codex plugin add persistence-self-monitoring@3dgiordano-agent-plugins
 ```
 
@@ -497,7 +497,7 @@ skips a plugin's hooks until they are reviewed, and remembers the review per
 hook definition — a plugin update that changes a hook asks again.
 
 ```
-codex plugin marketplace add 3dgiordano/agent-plugins
+codex plugin marketplace add 3dgiordano/agent-plugins@stable
 codex plugin add executive-self-monitoring@3dgiordano-agent-plugins
 codex plugin add epistemic-self-monitoring@3dgiordano-agent-plugins
 codex plugin add persistence-self-monitoring@3dgiordano-agent-plugins
@@ -592,8 +592,9 @@ On Claude Code:
   marketplace update does not move a tag.
 - **Change the branch or tag, or roll back.** Claude Code has no command
   to change a marketplace's ref or to install an older version. Remove the
-  marketplace, which uninstalls every plugin installed from it, add it again
-  at the tag or branch you want, and install the plugins again:
+  marketplace, which uninstalls every plugin installed from it (with their
+  saved options and data), add it again at the tag or branch you want, and
+  install the plugins again:
 
   ```
   claude plugin marketplace remove 3dgiordano-agent-plugins
@@ -609,9 +610,33 @@ On Claude Code:
   Code keeps its copy under
   `~/.claude/plugins/cache/3dgiordano-agent-plugins/<plugin>/<version>/`.
 
-Codex, Cursor and Droid install from `main` for now: whether they accept a
-branch or tag when the marketplace is added has not been checked. The
-fingerprint check works the same on their copies.
+On Codex the ref goes after `@` (or in `--ref`):
+
+- **Update.** `codex plugin marketplace upgrade 3dgiordano-agent-plugins`
+  moves the marketplace to the latest release on `stable` and updates the
+  installed plugins with it. A plugin whose hooks changed asks for `/hooks`
+  review again.
+- **Pin a release.** `codex plugin marketplace add 3dgiordano/agent-plugins@v0.22.0`.
+  An upgrade does not move a tag.
+- **Change the branch or tag, or roll back.** Codex refuses to add the
+  marketplace again from another ref while it is registered. Remove it, add
+  it at the ref you want, and add the plugins again:
+
+  ```
+  codex plugin marketplace remove 3dgiordano-agent-plugins
+  codex plugin marketplace add 3dgiordano/agent-plugins@v0.21.0
+  codex plugin add executive-self-monitoring@3dgiordano-agent-plugins
+  ```
+
+- **Check which code you have.** The same `pluginsource.js` check, on
+  `~/.codex/plugins/cache/3dgiordano-agent-plugins/<plugin>/<version>/`.
+
+Cursor and Droid install from `main` for now. Cursor's import takes a
+repository URL and documents no branch or tag; it follows the branch the
+marketplace tracks. Factory documents `#<ref>` for Droid, and that a
+pinned marketplace is registered with the pin in its name, so `#stable`
+would make the plugin ids `<plugin>@agent-plugins@stable`; neither host
+has been run with a ref.
 
 ### Turn a plugin off
 
