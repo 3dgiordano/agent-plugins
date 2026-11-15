@@ -296,7 +296,7 @@ command differs.
 **Claude Code**
 
 ```
-claude plugin marketplace add 3dgiordano/agent-plugins
+claude plugin marketplace add 3dgiordano/agent-plugins#stable
 claude plugin install persistence-self-monitoring@3dgiordano-agent-plugins
 ```
 
@@ -443,9 +443,11 @@ What this repository's own test pipeline, evals and bench need is in
 
 Register this repo as a marketplace, then install the plugin from it. Works
 from the `claude plugin` CLI or the interactive `/plugin` command in a session.
+`#stable` is the branch that moves only when a release is cut
+([Update, pin or roll back](#update-pin-or-roll-back)).
 
 ```
-claude plugin marketplace add 3dgiordano/agent-plugins
+claude plugin marketplace add 3dgiordano/agent-plugins#stable
 claude plugin install executive-self-monitoring@3dgiordano-agent-plugins
 claude plugin install epistemic-self-monitoring@3dgiordano-agent-plugins
 claude plugin install persistence-self-monitoring@3dgiordano-agent-plugins
@@ -459,7 +461,7 @@ claude plugin install hygiene-self-monitoring@3dgiordano-agent-plugins
 ```
 
 ```
-/plugin marketplace add 3dgiordano/agent-plugins
+/plugin marketplace add 3dgiordano/agent-plugins#stable
 /plugin install executive-self-monitoring@3dgiordano-agent-plugins
 /plugin install epistemic-self-monitoring@3dgiordano-agent-plugins
 /plugin install persistence-self-monitoring@3dgiordano-agent-plugins
@@ -563,6 +565,54 @@ run them. What follows from those references:
 - Droid documents no `systemMessage`, so the one-line notice to you may not
   show.
 
+### Update, pin or roll back
+
+A release is a tag (`v0.22.0`) and a GitHub Release that lists each
+plugin's version and fingerprint. The `stable` branch is moved to each
+release tag and to nothing else. `main` carries the work between releases:
+a plugin there can hold unfinished changes under the version number of the
+next release, and since the number does not change again before the
+release, the later fixes under it never reach a copy installed from `main`.
+
+On Claude Code:
+
+- **Update.** Claude Code does not update this marketplace by itself
+  unless you turn it on: `/plugin` → **Marketplaces** → this marketplace →
+  **Enable auto-update**. By hand:
+
+  ```
+  claude plugin marketplace update 3dgiordano-agent-plugins
+  claude plugin update executive-self-monitoring@3dgiordano-agent-plugins
+  ```
+
+  An update is picked up when the plugin's version changes, so a plugin
+  that did not change in a release stays as it is.
+- **Pin a release.** Add the marketplace at its tag instead of `#stable`:
+  `claude plugin marketplace add 3dgiordano/agent-plugins#v0.22.0`. A
+  marketplace update does not move a tag.
+- **Change the branch or tag, or roll back.** Claude Code has no command
+  to change a marketplace's ref or to install an older version. Remove the
+  marketplace, which uninstalls every plugin installed from it, add it again
+  at the tag or branch you want, and install the plugins again:
+
+  ```
+  claude plugin marketplace remove 3dgiordano-agent-plugins
+  claude plugin marketplace add 3dgiordano/agent-plugins#v0.21.0
+  claude plugin install executive-self-monitoring@3dgiordano-agent-plugins
+  ```
+
+  This is also the way onto `#stable` for an install made before it
+  existed, which follows `main`.
+- **Check which code you have.** From a checkout of this repository,
+  `node scripts/pluginsource.js <folder>` prints a plugin folder's
+  fingerprint and version, to hold against the table in the Release. Claude
+  Code keeps its copy under
+  `~/.claude/plugins/cache/3dgiordano-agent-plugins/<plugin>/<version>/`.
+
+Codex, Cursor and Droid install from `main` for now: whether they accept a
+branch or tag when the marketplace is added has not been checked. The
+fingerprint check works the same on their copies.
+
 ### Turn a plugin off
 
 - **For one project, or for a while:** set the plugin's off variable and
@@ -644,7 +694,7 @@ node scripts/test.js            # structure checks + every hook adapter driven a
 node scripts/version.js --check # each plugin's four manifests agree on the version
 node scripts/calibrate.js <dir> # what-if nudge rates from the opt-in logs of real sessions
 node scripts/behaviour.js <dir> # partial metric and behaviour measures of stored bench runs
-node scripts/pluginsource.js    # each plugin's version, code fingerprint and uncommitted state
+node scripts/pluginsource.js    # each plugin's version, code fingerprint and uncommitted state; --release for the notes' table, <folder> for one copy
 node scripts/installs.js        # this machine's installed copies against the repo; --sync to update them
 ```
 

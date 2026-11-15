@@ -414,10 +414,19 @@ release number that only says "which changelog is this". Cutting one:
    version and date in `CITATION.cff` (`version.js --check` fails until it
    matches). Each plugin is at most one step above the last release, and a
    step above it if its code changed (`node scripts/pluginsource.js`, in CI).
-3. Commit, tag (`git tag -a vX.Y.Z -m "agent-plugins X.Y.Z"`), push with tags.
-4. Create the GitHub Release from the tag; paste the changelog section as the
-   notes. The release is the only tag: plugins are not tagged individually -
-   the release lists which plugin versions it ships.
+3. Commit, tag with an annotated tag (`git tag -a vX.Y.Z -m "agent-plugins X.Y.Z"`,
+   or `-s` to sign it), push with tags.
+4. Once CI is green on the tag, move `stable` to it:
+   `git push origin "vX.Y.Z^{commit}:refs/heads/stable"`. Users who added the
+   marketplace at `#stable` (README, *Update, pin or roll back*) get the
+   release on their next marketplace update, and nothing between releases.
+   `stable` only ever moves forward to a release tag: no commits are made on
+   it, and no pull request targets it.
+5. Create the GitHub Release from the tag; paste the changelog section as the
+   notes, then the fingerprint table from `node scripts/pluginsource.js --release`
+   (run on the tagged commit). The release is the only tag: plugins are not
+   tagged individually - the release lists which plugin versions it ships, and
+   the fingerprints let a user check an installed copy against it.
 
 Repo versioning: *minor* when a plugin gains capability or a new one lands,
 *patch* for fixes; 1.0 when the default thresholds and gates have been tuned

@@ -6794,6 +6794,17 @@ test('plugin source: the fingerprint is what the agent meets, so a run, a sessio
   assert.equal(S.fingerprints(root)['demo-self-monitoring'].version, '0.1.0');
   const real = S.source(ROOT);
   assert.ok(/^[0-9a-f]{40}$/.test(real.commit) && Array.isArray(real.dirty) && Object.keys(real.plugins).length >= 10, 'the repo: commit, uncommitted plugins, a fingerprint each');
+  // The release notes' table, and the one-folder check a user runs on an installed copy against it.
+  const table = S.releaseTable(root).split('\n');
+  assert.equal(table[0], '| Plugin | Version | Fingerprint (sha256) |');
+  assert.equal(table[2], `| demo-self-monitoring | 0.1.0 | \`${S.fingerprint(p)}\` |`);
+  const copy = path.join(root, 'copy');
+  fs.cpSync(p, copy, { recursive: true });
+  fs.writeFileSync(path.join(copy, 'README.md'), 'an installed copy');
+  const out = spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'pluginsource.js'), copy], { encoding: 'utf8' }).stdout;
+  assert.equal(out.trim(), `${S.fingerprint(p)}  0.1.0`, 'a copy of the same code prints the table\'s fingerprint and version');
+  const missing = spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'pluginsource.js'), path.join(root, 'nope')], { encoding: 'utf8' });
+  assert.equal(missing.status, 1, 'no folder is a failure, not an empty fingerprint');
 });
 
 test('bench session: a code change under the same version invalidates that plugin\'s results; a session from before records the code without invalidating', (t) => {

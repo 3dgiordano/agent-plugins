@@ -11,6 +11,8 @@
  * It also changes when a file is added or removed.
  *
  *   node scripts/pluginsource.js            print each plugin's version, fingerprint and uncommitted state
+ *   node scripts/pluginsource.js --release  the Plugin / Version / Fingerprint table for a release's notes
+ *   node scripts/pluginsource.js <dir>      the fingerprint and version of one plugin folder, such as an installed copy
  *
  * fingerprint(dir)      the sha256 of one plugin directory (the repo's, or a copy)
  * fingerprints(root)    { name: { version, sha256 } } for every plugin in the repo
@@ -173,8 +175,23 @@ function oversteps(root, tag) {
   return out;
 }
 
+// The table a release's notes carry; a user holds an installed copy against it (README, "Update, pin or roll back").
+function releaseTable(root) {
+  const rows = Object.entries(fingerprints(root)).map(([name, p]) => `| ${name} | ${p.version} | \`${p.sha256}\` |`);
+  return ['| Plugin | Version | Fingerprint (sha256) |', '|--------|---------|----------------------|'].concat(rows).join('\n');
+}
+
 function main() {
   const root = path.resolve(__dirname, '..');
+  const arg = process.argv[2];
+  if (arg === '--release') { console.log(releaseTable(root)); return; }
+  if (arg) {
+    const dir = path.resolve(arg);
+    const sum = fingerprint(dir);
+    if (!sum) { console.error(`no folder at ${arg}`); process.exitCode = 1; return; }
+    console.log(`${sum}  ${versionOf(dir) || '(no manifest version)'}`);
+    return;
+  }
   const s = source(root);
   console.log(`commit ${s.commit ? s.commit.slice(0, 7) : '(no git)'}${s.dirty && s.dirty.length ? `   uncommitted in: ${s.dirty.join(', ')}` : ''}`);
   for (const [name, p] of Object.entries(s.plugins)) console.log(`${name.padEnd(30)} ${String(p.version).padEnd(8)} ${p.sha256.slice(0, 12)}`);
@@ -189,4 +206,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { fingerprint, agentFingerprint, AGENT_PARTS, fingerprints, source, versionOf, dirtyPlugins, unstepped, oversteps, oneStep, lastTag, baseTag, SKIP };
+module.exports = { fingerprint, agentFingerprint, AGENT_PARTS, fingerprints, releaseTable, source, versionOf, dirtyPlugins, unstepped, oversteps, oneStep, lastTag, baseTag, SKIP };

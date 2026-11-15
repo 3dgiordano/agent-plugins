@@ -7,6 +7,11 @@ release.
 
 ## [Unreleased]
 
+### Added
+
+- **A release channel: the `stable` branch.** It moves to each release tag and to nothing else, and the README's Claude Code install adds the marketplace at `#stable`. An install from `main` could pick up a plugin mid-cycle, with unfinished changes under the number of the next release, and then never receive the later fixes made under that number. The README has a new *Update, pin or roll back* section: how to update by hand or turn on auto-update, how to pin a release tag, and how to move to another tag or roll back. Claude Code has no command for either of those, so the route is to remove the marketplace (which uninstalls its plugins), add it at the tag and install again. Codex, Cursor and Droid still install from `main`: whether they accept a branch or tag has not been checked. CONTRIBUTING's release steps now move `stable` once CI is green on the tag.
+- **Fingerprints in each release's notes.** `node scripts/pluginsource.js --release` prints the Plugin / Version / Fingerprint table for the notes. `node scripts/pluginsource.js <folder>` prints one folder's fingerprint and version, so an installed copy can be checked against that table.
+
 ## [0.22.0] — 2026-11-15
 
 A release about trust in what is installed. On a shared machine each user's state is now their own; executive no longer looks at a network path a cloned ledger names; a file name in a hook line is kept to a name; and a crafted file no longer stalls hygiene's parser. Every plugin can be turned off for a project with one variable, carries its licence in its own folder, and no longer ships its eval suites to users. Node 22 is the recommended minimum, CI tests Node 18 to 26, and a failed `node --test` on Node 24 or later reads as a failure. Contributions have written terms and issue forms. Every plugin moves one step; no new plugin, block or field.
