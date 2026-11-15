@@ -27,7 +27,7 @@ results said on every turn tells the agent, on every turn, that its results
 are in question; that is a cue about the setting, not about the work. So the
 rule arrives with the first finding and only then.
 
-## Why it works: the route is visible before the close
+## Design rationale: the route is visible before the close
 
 Every model this collection measured, given a task that could not be done
 honestly, slid from the work to a result that only looked done and then
@@ -202,6 +202,8 @@ Prompts where a service, a key or a passing test may not be reachable as asked:
 And one where it stays quiet: writing `formatWeight(kg)` that formats a number and throws on bad input - nothing is missing, so nothing is said.
 
 ## What it does on your machine
+
+**Turning it off.** With `INTMON_OFF=1` every hook of this plugin returns on its first line: nothing is read, written or said (`lib/off.js`). For one project on Claude Code, put it in the `env` block of the project's `.claude/settings.json` - or use the host's own switch, `"enabledPlugins": { "integrity-self-monitoring@3dgiordano-agent-plugins": false }` in the same file; elsewhere, set it in the environment the host is started from. `INTMON_NOTICE=0` is not the same thing: it hides only the line you see, and the agent still gets its reminders.
 
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 

@@ -92,9 +92,17 @@ questions — so the design is agreed before code is written.
    hooks/hooks.json + *.js         # Claude Code + Codex adapter
    cursor/hooks.json + *.js        # Cursor adapter
    lib/                            # host-neutral logic; keep the counters/parsers here, testable in isolation
+   lib/statedir.js                 # the state directory - a copy of the others', unchanged
+   lib/off.js                      # the off switch - a copy with the plugin's own <PREFIX>_OFF
    assets/logo.svg                 # an open-loop mark like the others (see assets/README.md)
-   README.md                       # what it does, why it works, host table, log events, layout
+   README.md                       # what it does, design rationale, host table, log events, layout
+   LICENSE, NOTICE                 # the repository's LICENSE, and a NOTICE naming the plugin
    ```
+
+   Every hook script opens, right after `'use strict';`, with the off switch
+   line the others carry (`if (require('../lib/off.js').off()) ...`), and
+   builds no temp path of its own; a plugin whose messages name paths shows
+   them through a copy of `lib/shown.js`. `scripts/test.js` checks all three.
 
    The portable manifest lives under `.plugin/` because Codex (0.155) loads a
    root `plugin.json` through its Agent Plugins loader, which has no hooks
@@ -360,6 +368,30 @@ factors, these help most:
 
 Evidence pages are dated: a change to a published number updates
 `docs/EVIDENCE.md` with the date, the versions and the sample size.
+
+Each of these has an issue form: *Bench case*, *Corpus line*, *False alarm or
+missed reminder*, *Host verification*.
+
+## Licence and credit
+
+- **Licence.** What you submit for inclusion - code, a case, a corpus line, a
+  run, a review - is under the repository's licence, Apache-2.0, as its
+  section 5 says ([LICENSE](LICENSE)). There is no separate agreement to sign.
+- **Origin.** Submit only what you have the right to: your own work, or work
+  whose licence allows it, said where it came from. The pull request
+  template and the issue forms carry one checkbox for this.
+- **Credit.** Say in the pull request or the issue how you want to be
+  credited - your name or handle, or none - and the CHANGELOG entry follows
+  it. Work that grew from an outside proposal is credited as its author
+  chooses.
+- **Private material.** A transcript, a log or a corpus line comes from
+  someone's session. Paraphrase it, and remove names, e-mail addresses,
+  secrets, client or proprietary code and paths that carry a user name
+  before you paste it. What cannot be scrubbed is not taken.
+- **Held-out cases** are not pasted into an issue or a pull request: they go
+  to the maintainer privately, as [docs/STUDY-PROTOCOL.md](docs/STUDY-PROTOCOL.md)
+  section 3 describes, so the plugins' author does not read them before the
+  study's fingerprints are frozen.
 
 ## Pull requests
 

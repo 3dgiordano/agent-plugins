@@ -8,7 +8,7 @@ It answers *"is the size and the kind of this change still the request's - or do
 
 **Never blocking.** Findings become a one-line retrospective on the next prompt; `HYGMON_STRICT=1` turns the Stop into a gate that holds a close once. One hold is on in either mode: a block whose Outside names a change and whose Decision keeps it, while the edit record shows a public function changed that Request names does not name, holds the close once, and the agent is told why and keeps working. The hold reads the record, not the wording: a loose gloss of "none" over a clean record is a note at most. A put-back the record still shows is a note too, since the record spans the session.
 
-## Why it works: the reach is recorded, not remembered
+## Design rationale: the reach is recorded, not remembered
 
 The request's check - the issue's example, the failing test, the gate a plan quotes - tests what the request names. A change that keeps it green and alters another public function passes every check the agent has, and the executive plugin's `[PLAN CHECK]` says `Drift: none` of it: measured, a run that changed three methods the issue did not name wrote exactly that.
 
@@ -61,6 +61,8 @@ And one where it stays quiet: "What is the difference between `module.exports` a
 - **Something else.** Open an issue at https://github.com/3dgiordano/agent-plugins/issues with the host, the plugin version and the log lines; leave out conversation text.
 
 ## What it does on your machine
+
+**Turning it off.** With `HYGMON_OFF=1` every hook of this plugin returns on its first line: nothing is read, written or said (`lib/off.js`). For one project on Claude Code, put it in the `env` block of the project's `.claude/settings.json` - or use the host's own switch, `"enabledPlugins": { "hygiene-self-monitoring@3dgiordano-agent-plugins": false }` in the same file; elsewhere, set it in the environment the host is started from. `HYGMON_NOTICE=0` is not the same thing: it hides only the line you see, and the agent still gets its reminders.
 
 - **Reads:** the hook event's JSON; the code files near the project root at session start (at most 200, five levels deep, skipping `node_modules`, `.git`, `dist`, `build` and the like, each under 256 KB); a code file the agent reads or edits. JavaScript and TypeScript only.
 - **Keeps:** a baseline for at most 200 code files and 256 KB of stored surfaces. A file the agent reads or edits always gets a slot: when the record is full, the least recently used file whose edits reached nothing gives up its own, a start-of-session file the agent never touched first. A file whose edits reached a public function is never given up; only when every slot holds one is a further file left out, and counted (`dropped` in the debug log).

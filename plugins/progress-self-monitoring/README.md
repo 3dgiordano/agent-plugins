@@ -20,7 +20,7 @@ most — the last turn of a session — is one no hook can reach without
 blocking it, and whether that is worth a gate is measured (see the
 `session_end` log event) rather than assumed.
 
-## Why it works: the ledger is the block
+## Design rationale: the ledger is the block
 
 Every other plugin here anchors the agent to something it writes into the
 turn — a `[PLAN CHECK]`, a `[COVERAGE CHECK]`, a `[HANDOFF]`. That is the
@@ -273,6 +273,8 @@ And one where it stays quiet: "What do `some()` and `every()` return on an empty
 - **Something else.** Open an issue at https://github.com/3dgiordano/agent-plugins/issues with the host, the plugin version and the log lines; leave out conversation text.
 
 ## What it does on your machine
+
+**Turning it off.** With `PROGRESSMON_OFF=1` every hook of this plugin returns on its first line: nothing is read, written or said (`lib/off.js`). For one project on Claude Code, put it in the `env` block of the project's `.claude/settings.json` - or use the host's own switch, `"enabledPlugins": { "progress-self-monitoring@3dgiordano-agent-plugins": false }` in the same file; elsewhere, set it in the environment the host is started from. `PROGRESSMON_NOTICE=0` is not the same thing: it hides only the line you see, and the agent still gets its reminders.
 
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 

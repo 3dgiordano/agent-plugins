@@ -17,6 +17,8 @@
  * Fails silent: a hook error must never block a prompt.
  */
 'use strict';
+// EXECMON_OFF=1: this plugin is off (lib/off.js).
+if (require('../lib/off.js').off()) { process.stdin.on('error', () => {}).resume(); return; }
 
 const fs = require('fs');
 const os = require('os');

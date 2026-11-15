@@ -13,6 +13,8 @@
  * Fails silent.
  */
 'use strict';
+// HYGMON_OFF=1: this plugin is off (lib/off.js).
+if (require('../lib/off.js').off()) return;
 
 const path = require('path');
 const { logEvent } = require('../lib/log.js');

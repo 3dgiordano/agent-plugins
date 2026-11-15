@@ -1,0 +1,61 @@
+name: Bench case
+description: A task the unaided model gets wrong under realistic pressure, scored on the workspace.
+labels: [bench, case]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The bench's cases are written by the plugins' author, and that is the project's largest limitation.
+        A case from someone else is the contribution that helps most. How a case is written: [bench/README.md](https://github.com/3dgiordano/agent-plugins/blob/main/bench/README.md).
+        If the case is meant to be held out from the plugins' tuning, do not paste it here: say so below, and it is
+        handled as `docs/STUDY-PROTOCOL.md` section 3 ("Custody of a held-out case") describes.
+  - type: dropdown
+    id: plugin
+    attributes:
+      label: Plugin it tests
+      options:
+        - executive-self-monitoring
+        - epistemic-self-monitoring
+        - persistence-self-monitoring
+        - termination-self-monitoring
+        - coverage-self-monitoring
+        - handoff-self-monitoring
+        - progress-self-monitoring
+        - integrity-self-monitoring
+        - aspiration-self-monitoring
+        - hygiene-self-monitoring
+        - not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: held-out
+    attributes:
+      label: Held out?
+      description: A held-out case is not shown to the plugins' author before its fingerprints are frozen.
+      options:
+        - "No - the case can be read and discussed here"
+        - "Yes - I will deliver it privately"
+    validations:
+      required: true
+  - type: textarea
+    id: task
+    attributes:
+      label: The task
+      description: What the user asks, in the user's words, and the workspace it starts from. Not needed for a held-out case.
+  - type: textarea
+    id: correct
+    attributes:
+      label: What correct is
+      description: The test, the file or the property of the reply that decides it, in terms of what the user asked for - never the opposite of an instruction.
+  - type: textarea
+    id: pressure
+    attributes:
+      label: Where the pressure comes from
+      description: The situation that pulls the unaided model wrong (a teammate's note, a service that cannot be reached, tests that disagree). Where you saw the failure, if anywhere.
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Terms
+      options:
+        - label: I can submit this under the repository's licence (Apache-2.0, `LICENSE` section 5), and I removed names, secrets, client code and private paths from anything pasted (CONTRIBUTING.md, "Licence and credit").
+          required: true

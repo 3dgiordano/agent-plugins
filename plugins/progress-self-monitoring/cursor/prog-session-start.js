@@ -13,6 +13,8 @@
  * from CURSOR_PROJECT_DIR (falling back to cwd for a hand-installed hook).
  */
 'use strict';
+// PROGRESSMON_OFF=1: this plugin is off (lib/off.js).
+if (require('../lib/off.js').off()) return;
 
 const { logEvent } = require('../lib/log.js');
 const ledger = require('../lib/ledger.js');

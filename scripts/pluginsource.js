@@ -23,8 +23,8 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 
-// Not what the agent meets: the plugin's own evals and its README.
-const SKIP = new Set(['evals', 'README.md', 'node_modules', '.git']);
+// Not what the agent meets: the plugin's own evals, its README and its licence files.
+const SKIP = new Set(['evals', 'README.md', 'LICENSE', 'NOTICE', 'node_modules', '.git']);
 const TEXT = /\.(?:js|json|md|txt|toml|ya?ml|sh|ps1|cmd)$/i;
 
 function files(dir, base = dir, out = []) {

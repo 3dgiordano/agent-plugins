@@ -560,6 +560,38 @@ run them. What follows from those references:
 - Droid documents no `systemMessage`, so the one-line notice to you may not
   show.
 
+### Turn a plugin off
+
+- **For one project, or for a while:** set the plugin's off variable and
+  every hook of that plugin returns on its first line - nothing read,
+  written or said. On Claude Code put it in the `env` block of the
+  project's `.claude/settings.json`; elsewhere, in the environment the host
+  is started from.
+
+  | Plugin | Variable |
+  | --- | --- |
+  | aspiration | `ASPMON_OFF=1` |
+  | coverage | `COVMON_OFF=1` |
+  | epistemic | `EPIMON_OFF=1` |
+  | executive | `EXECMON_OFF=1` |
+  | handoff | `HANDMON_OFF=1` |
+  | hygiene | `HYGMON_OFF=1` |
+  | integrity | `INTMON_OFF=1` |
+  | persistence | `PERSISTMON_OFF=1` |
+  | progress | `PROGRESSMON_OFF=1` |
+  | termination | `TERMMON_OFF=1` |
+
+  Claude Code also has its own switch for a project:
+  `"enabledPlugins": { "<plugin>@3dgiordano-agent-plugins": false }` in
+  `.claude/settings.json`.
+- **Only the line you see:** `*_NOTICE=0` hides the one-line notice; the
+  agent still gets its reminders.
+- **For good:** uninstall from the host's plugin manager (`/plugin` on
+  Claude Code, Customize → Plugins on Cursor, the `plugin` command on Codex
+  and Droid). With no hook left to sweep it, the state directory stays
+  until the system's temp cleanup removes it or you delete it
+  ([PRIVACY.md](PRIVACY.md) says where).
+
 ### Local development
 
 To test changes from a checkout instead of GitHub, register the folder path as

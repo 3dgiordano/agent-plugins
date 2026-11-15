@@ -19,7 +19,7 @@ on no signal; this one watches it stop too early, on a signal it does not have.
 **Non-blocking by default.** Findings become a one-line retrospective on the
 next prompt; `TERMMON_STRICT=1` turns the Stop into a gate that fires once.
 
-## Why it works: a persona artifact, not a state
+## Design rationale: a persona artifact, not a state
 
 A language model inherits from its training data the reasons a *person* gives
 for stopping — fatigue, the clock, a mood, a budget they are watching — and
@@ -168,6 +168,8 @@ And one where it stays quiet: renaming a variable in one function - nothing stop
 - **Something else.** Open an issue at https://github.com/3dgiordano/agent-plugins/issues with the host, the plugin version and the log lines; leave out conversation text.
 
 ## What it does on your machine
+
+**Turning it off.** With `TERMMON_OFF=1` every hook of this plugin returns on its first line: nothing is read, written or said (`lib/off.js`). For one project on Claude Code, put it in the `env` block of the project's `.claude/settings.json` - or use the host's own switch, `"enabledPlugins": { "termination-self-monitoring@3dgiordano-agent-plugins": false }` in the same file; elsewhere, set it in the environment the host is started from. `TERMMON_NOTICE=0` is not the same thing: it hides only the line you see, and the agent still gets its reminders.
 
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 

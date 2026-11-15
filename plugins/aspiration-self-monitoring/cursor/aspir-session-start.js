@@ -9,6 +9,8 @@
  * Emits synchronously (no stdin wait) so it can never hang session start.
  */
 'use strict';
+// ASPMON_OFF=1: this plugin is off (lib/off.js).
+if (require('../lib/off.js').off()) return;
 
 const path = require('path');
 const { logEvent } = require('../lib/log.js');

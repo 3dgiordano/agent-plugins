@@ -8,7 +8,7 @@ It answers *"did I review the result after my last change, in the medium it will
 
 **Non-blocking by default.** Findings become a one-line retrospective on the next prompt; `ASPMON_STRICT=1` turns the Stop into a gate that fires once.
 
-## Why it works: the review is counted, not felt
+## Design rationale: the review is counted, not felt
 
 A job title does not raise the bar. "Act as a designer" gives the agent a costume and no observation that could reject the result. The bar has to be the objective the owner asked for, stated as a property that a passage, an output, a screenshot, a sound or the owner's last words could prove wrong - and it has to be held against the result, not against the agent's memory of it. Reviewing is not perceiving: the review compares what the result has with what the source has. A criterion written from memory and a result made from the same memory agree by construction, so `meets` is a claim about a comparison with a source outside the agent, never an impression; a difference the agent names is a defect unless something outside it tolerates the difference.
 
@@ -103,6 +103,8 @@ And one where it stays quiet: "What does Herbert Simon mean by an aspiration lev
 - **A claim that was not a close.** The scanner reads the start of a sentence; a claim-shaped description still fires. It is one line, not a block of the turn.
 
 ## What it does on your machine
+
+**Turning it off.** With `ASPMON_OFF=1` every hook of this plugin returns on its first line: nothing is read, written or said (`lib/off.js`). For one project on Claude Code, put it in the `env` block of the project's `.claude/settings.json` - or use the host's own switch, `"enabledPlugins": { "aspiration-self-monitoring@3dgiordano-agent-plugins": false }` in the same file; elsewhere, set it in the environment the host is started from. `ASPMON_NOTICE=0` is not the same thing: it hides only the line you see, and the agent still gets its reminders.
 
 The hooks are Node scripts in `hooks/`, `cursor/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 

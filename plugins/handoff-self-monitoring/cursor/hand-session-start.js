@@ -11,6 +11,8 @@
  * CURSOR_PROJECT_DIR (falling back to cwd for a hand-installed project hook).
  */
 'use strict';
+// HANDMON_OFF=1: this plugin is off (lib/off.js).
+if (require('../lib/off.js').off()) return;
 
 const { logEvent } = require('../lib/log.js');
 const msg = require('../lib/messages.js');

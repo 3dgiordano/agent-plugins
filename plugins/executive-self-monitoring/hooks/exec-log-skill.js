@@ -14,6 +14,8 @@
  * Fails silent: a logging error must never block a tool call.
  */
 'use strict';
+// EXECMON_OFF=1: this plugin is off (lib/off.js).
+if (require('../lib/off.js').off()) { process.stdin.on('error', () => {}).resume(); return; }
 
 const { logEvent, enabled } = require('../lib/execlog.js');
 const { cwdOf } = require('../lib/host.js');

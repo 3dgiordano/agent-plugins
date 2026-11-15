@@ -10,7 +10,7 @@ score-chasing, or "while I'm here" work.
 It is a **self-check, not a blocker** — the plan defines the work; this just
 prompts the agent to re-read it.
 
-## Why it works: executive function, not "reflect harder"
+## Design rationale: executive function, not "reflect harder"
 
 The protocol is a fairly literal implementation of the executive functions a
 human engineer runs in the background while deep in a task:
@@ -136,6 +136,8 @@ And one where it stays quiet: "What is the UTC offset of `America/Montevideo`?" 
 - **Something else.** Open an issue at https://github.com/3dgiordano/agent-plugins/issues with the host, the plugin version and the log lines; leave out conversation text.
 
 ## What it does on your machine
+
+**Turning it off.** With `EXECMON_OFF=1` every hook of this plugin returns on its first line: nothing is read, written or said (`lib/off.js`). For one project on Claude Code, put it in the `env` block of the project's `.claude/settings.json` - or use the host's own switch, `"enabledPlugins": { "executive-self-monitoring@3dgiordano-agent-plugins": false }` in the same file; elsewhere, set it in the environment the host is started from.
 
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 

@@ -1,0 +1,50 @@
+name: Host verification
+description: You ran a plugin on a host or version the project has not verified, and report what fired.
+labels: [host]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Claude Code is the one fully supported host; Cursor is measured, Codex is probe-only, Factory Droid has not been
+        run ([ROADMAP.md](https://github.com/3dgiordano/agent-plugins/blob/main/ROADMAP.md#hosts)). A report of what actually fires on a host moves it up. With the plugin's
+        `*_LOG=1` set, its log in the project's `.claude/logs/` (or the host's equivalent) shows each hook that ran.
+  - type: dropdown
+    id: host
+    attributes:
+      label: Host
+      options:
+        - Claude Code (a version not yet verified)
+        - Cursor
+        - Codex
+        - Factory Droid
+        - Other Agent Skills / Agent Plugins client (say which below)
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Host version, plugin versions, OS, Node version.
+      placeholder: "Codex 0.x · progress-self-monitoring 0.10.2 · Ubuntu 24.04 · Node 22"
+    validations:
+      required: true
+  - type: textarea
+    id: fired
+    attributes:
+      label: What fired
+      description: Which events reached the hooks (session start, prompt, tool use, stop), and whether the agent and you saw the lines. Log lines are welcome; they carry no conversation text.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: missing
+    attributes:
+      label: What did not
+      description: An event the README lists for this host that never arrived, or arrived in another shape.
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Terms
+      options:
+        - label: I can submit this under the repository's licence (Apache-2.0, `LICENSE` section 5), and I removed names, secrets and private paths from anything pasted (CONTRIBUTING.md, "Licence and credit").
+          required: true

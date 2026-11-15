@@ -1,0 +1,56 @@
+name: Corpus line
+description: A real sentence, command or edit for a detector's corpus - one it should fire on, or one it should stay quiet on.
+labels: [detector, corpus]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Each detector is checked against a corpus of lines it should fire on (`hit`) and stay quiet on (`miss`), and the
+        corpora are written by the plugins' author. Lines from other people's sessions make them honest. Paraphrase:
+        keep the shape, replace the names. Format and floors: CONTRIBUTING.md, "Improving a detector from real closes".
+  - type: dropdown
+    id: plugin
+    attributes:
+      label: Plugin
+      options:
+        - executive-self-monitoring
+        - epistemic-self-monitoring
+        - persistence-self-monitoring
+        - termination-self-monitoring
+        - coverage-self-monitoring
+        - handoff-self-monitoring
+        - progress-self-monitoring
+        - integrity-self-monitoring
+        - aspiration-self-monitoring
+        - hygiene-self-monitoring
+    validations:
+      required: true
+  - type: dropdown
+    id: label
+    attributes:
+      label: Label
+      options:
+        - hit - the detector should fire on it
+        - miss - the detector should stay quiet on it
+    validations:
+      required: true
+  - type: textarea
+    id: lines
+    attributes:
+      label: The line or lines, paraphrased
+      description: One per line. A sentence of a final message, a shell command, or a code edit.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why that label
+      description: What the line does in its context - deferred work or a decision, a real failure or a green run.
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Terms
+      options:
+        - label: I can submit this under the repository's licence (Apache-2.0, `LICENSE` section 5), and the lines are paraphrased or scrubbed (CONTRIBUTING.md, "Licence and credit").
+          required: true

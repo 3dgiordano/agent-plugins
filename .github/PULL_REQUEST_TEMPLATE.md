@@ -4,6 +4,7 @@
 
 ## Checklist
 
+- [ ] I can submit this under the repository's licence (Apache-2.0, `LICENSE` section 5), and anything pasted from a session is paraphrased or scrubbed (CONTRIBUTING.md, "Licence and credit")
 - [ ] `node scripts/test.js` passes locally
 - [ ] `node scripts/version.js --check` passes; plugin version bumped if behaviour changed
 - [ ] `CHANGELOG.md` has a line under *Unreleased* (skip for docs-only)

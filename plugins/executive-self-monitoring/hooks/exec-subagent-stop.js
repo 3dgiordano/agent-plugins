@@ -18,6 +18,8 @@
  * Emits nothing, never blocks, fails silent.
  */
 'use strict';
+// EXECMON_OFF=1: this plugin is off (lib/off.js).
+if (require('../lib/off.js').off()) { process.stdin.on('error', () => {}).resume(); return; }
 
 const fs = require('fs');
 const { logEvent, enabled } = require('../lib/execlog.js');

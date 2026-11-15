@@ -24,7 +24,7 @@ prompt; `HANDMON_STRICT=1` turns the Stop into a gate that holds a close once.
 One hold is on in either mode: a `blocked` close in a turn whose search found
 nothing is held once, and the agent is told why and keeps working.
 
-## Why it works: a handoff protocol, not "explain better"
+## Design rationale: a handoff protocol, not "explain better"
 
 The failure has three names in the literature. The **curse of knowledge**
 (Camerer, Loewenstein & Weber 1989) and the **expert blind spot**: whoever
@@ -54,6 +54,10 @@ for an agent's turn:
 | Assessment | Situation awareness / contingency | `Options` as a list, `Default` on its own line, or `Waiting-on`, or `Blocked-by` |
 | Recommendation | Action list | `Next` — the one action asked of the reader, or `nothing` |
 | — | Synthesis by receiver | the reader's reply; a hook cannot do it for them |
+
+SBAR and I-PASS are clinical handoff protocols developed by others (see
+*References*). The block is modelled on them; the mapping above is this
+project's own, and neither protocol's authors have reviewed or endorsed it.
 
 The other half of the design is *when*. A reminder at the start of the turn is
 thirty tool calls away by the time the close is written; scaffolding (Wood,
@@ -270,6 +274,8 @@ And one where it stays quiet: "What does `-p` do in `curl`?" - a question answer
 - **Something else.** Open an issue at https://github.com/3dgiordano/agent-plugins/issues with the host, the plugin version and the log lines; leave out conversation text.
 
 ## What it does on your machine
+
+**Turning it off.** With `HANDMON_OFF=1` every hook of this plugin returns on its first line: nothing is read, written or said (`lib/off.js`). For one project on Claude Code, put it in the `env` block of the project's `.claude/settings.json` - or use the host's own switch, `"enabledPlugins": { "handoff-self-monitoring@3dgiordano-agent-plugins": false }` in the same file; elsewhere, set it in the environment the host is started from. `HANDMON_NOTICE=0` is not the same thing: it hides only the line you see, and the agent still gets its reminders.
 
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 

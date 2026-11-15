@@ -14,6 +14,8 @@
  * Emits the text or nothing, never blocks, fails silent.
  */
 'use strict';
+// HYGMON_OFF=1: this plugin is off (lib/off.js).
+if (require('../lib/off.js').off()) { process.stdin.on('error', () => {}).resume(); return; }
 
 const path = require('path');
 const state = require('../lib/state.js');

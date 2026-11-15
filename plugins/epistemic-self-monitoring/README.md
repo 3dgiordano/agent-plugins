@@ -13,7 +13,7 @@ doing what the plan asks?"*.
 
 **Being wrong is fine. Recording an unverified conjecture as a fact is not.**
 
-## Why it works: source monitoring, not "be more careful"
+## Design rationale: source monitoring, not "be more careful"
 
 Humans have a running sense of *where a belief came from* — "I saw it", "I
 worked it out", "someone told me" — and a felt difference between the three.
@@ -151,6 +151,8 @@ And one where it stays quiet: reformatting a changelog entry without changing it
 - **Something else.** Open an issue at https://github.com/3dgiordano/agent-plugins/issues with the host, the plugin version and the log lines; leave out conversation text.
 
 ## What it does on your machine
+
+**Turning it off.** With `EPIMON_OFF=1` every hook of this plugin returns on its first line: nothing is read, written or said (`lib/off.js`). For one project on Claude Code, put it in the `env` block of the project's `.claude/settings.json` - or use the host's own switch, `"enabledPlugins": { "epistemic-self-monitoring@3dgiordano-agent-plugins": false }` in the same file; elsewhere, set it in the environment the host is started from. `EPIMON_NOTICE=0` is not the same thing: it hides only the line you see, and the agent still gets its reminders.
 
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 

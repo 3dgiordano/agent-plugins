@@ -18,7 +18,7 @@ the work is *outside* the plan. This one asks whether it is *below* it.
 **It never blocks.** A wrong "you deferred X" costs one line on the next
 prompt; as a blocked stop it would cost a turn.
 
-## Why it works: a ledger, not more effort
+## Design rationale: a ledger, not more effort
 
 Agents do not avoid hard parts; there is nothing in them to be averse with.
 What happens is plainer: the continuation of least cost is sampled with the
@@ -209,6 +209,8 @@ Prompts with several parts, one of them clearly the hard one:
 And one where it stays quiet: "What is the difference between `flat()` and `flatMap()`?" - one part, so no ledger is asked for.
 
 ## What it does on your machine
+
+**Turning it off.** With `COVMON_OFF=1` every hook of this plugin returns on its first line: nothing is read, written or said (`lib/off.js`). For one project on Claude Code, put it in the `env` block of the project's `.claude/settings.json` - or use the host's own switch, `"enabledPlugins": { "coverage-self-monitoring@3dgiordano-agent-plugins": false }` in the same file; elsewhere, set it in the environment the host is started from. `COVMON_NOTICE=0` is not the same thing: it hides only the line you see, and the agent still gets its reminders.
 
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 

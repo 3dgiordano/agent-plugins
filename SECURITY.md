@@ -47,7 +47,10 @@ Every hook in this repository, on every host:
   inject as context, and on a finding one line for the host to show the user
   (`systemMessage`), or nothing;
 - makes **no network calls**, spawns **no processes**, loads **no
-  dependencies** (only Node built-ins: `fs`, `os`, `path`).
+  dependencies** (only Node built-ins: `fs`, `os`, `path`);
+- with its plugin's off variable set (`ASPMON_OFF=1`, `COVMON_OFF=1`, ... -
+  README, *Turn a plugin off*), returns on its first line, before it reads,
+  writes or says anything.
 
 **What a hook reads never becomes what it says.** Text a hook hands the host
 is read by the model as the hook's own message, with the weight of an

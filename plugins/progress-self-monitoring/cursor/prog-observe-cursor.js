@@ -10,6 +10,8 @@
  * Emits nothing. Fails silent.
  */
 'use strict';
+// PROGRESSMON_OFF=1: this plugin is off (lib/off.js).
+if (require('../lib/off.js').off()) { process.stdin.on('error', () => {}).resume(); return; }
 
 const state = require('../lib/state.js');
 const signals = require('../lib/signals.js');

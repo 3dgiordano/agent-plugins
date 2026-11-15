@@ -761,6 +761,42 @@ test('persistence signals: thresholds fire once per crossing, error signatures n
   assert.equal(S.summary(t).maxEditsSameFile, 5);
 });
 
+test('off switch: <PREFIX>_OFF=1 and every hook of the plugin says nothing and writes nothing (lib/off.js)', () => {
+  const names = fs.readdirSync(PLUGINS).filter((d) => d.endsWith('-self-monitoring'));
+  const bare = (d) => fs.readFileSync(path.join(PLUGINS, d, 'lib', 'off.js'), 'utf8').replace(/const VAR = '[A-Z_]+';/, '').replace(/[A-Z]{3,}MON_OFF/g, 'X_OFF');
+  for (const d of names) assert.equal(bare(d), bare(names[0]), `${d}: lib/off.js differs in more than its variable`);
+  const stamp = uid('off');
+  try {
+    for (const d of names) {
+      const { off, VAR } = require(path.join(PLUGINS, d, 'lib', 'off.js'));
+      const log = fs.readFileSync(path.join(PLUGINS, d, 'lib', fs.existsSync(path.join(PLUGINS, d, 'lib', 'log.js')) ? 'log.js' : 'execlog.js'), 'utf8');
+      const prefix = (log.match(/([A-Z]{3,}MON)_LOG\b/) || [])[1];
+      assert.equal(VAR, `${prefix}_OFF`, `${d}: the off variable shares the plugin's prefix`);
+      for (const v of ['1', 'true', 'YES', ' on ']) assert.equal(off({ [VAR]: v }), true, `${d}: ${JSON.stringify(v)} turns it off`);
+      for (const v of ['', '0', 'false', 'no', undefined]) assert.equal(off({ [VAR]: v }), false, `${d}: ${JSON.stringify(v)} leaves it on`);
+      for (const sub of ['hooks', 'cursor']) {
+        const dir = path.join(PLUGINS, d, sub);
+        if (!fs.existsSync(dir)) continue;
+        for (const f of fs.readdirSync(dir).filter((n) => n.endsWith('.js'))) {
+          const file = path.join(dir, f);
+          const src = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+          const after = src.slice(src.indexOf("'use strict';\n") + "'use strict';\n".length);
+          assert.match(after, /^\/\/ [A-Z_]+_OFF=1: this plugin is off \(lib\/off\.js\)\.\nif \(require\('\.\.\/lib\/off\.js'\)\.off\(\)\)/, `${d}/${sub}/${f}: the off switch is its first statement`);
+          for (const event of ['SessionStart', 'UserPromptSubmit', 'PostToolUse', 'Stop']) {
+            const input = JSON.stringify({ session_id: `${stamp}-${f}`, hook_event_name: event, source: 'startup', prompt: '1. a\n2. b\n3. c', tool_name: 'Edit', tool_input: { file_path: 'x.js', old_string: 'a', new_string: '// TODO' }, last_assistant_message: 'Done.' });
+            const r = spawnSync(process.execPath, [file], { input, encoding: 'utf8', timeout: 20000, env: Object.assign({}, process.env, { [VAR]: '1' }) });
+            assert.equal(r.status, 0, `${d}/${sub}/${f} (${event}): exit 0`);
+            assert.equal(r.stdout, '', `${d}/${sub}/${f} (${event}): says nothing`);
+          }
+        }
+      }
+    }
+    let left = [];
+    try { left = fs.readdirSync(STATE_DIR).filter((n) => n.includes(stamp)); } catch (_) {}
+    assert.deepEqual(left, [], 'no state written while off');
+  } finally { cleanupTemp(stamp); }
+});
+
 test('hygiene: a file of bodies never closed is read in bounded time (lib/reach.js)', () => {
   const reach = require(path.join(plugin('hygiene-self-monitoring'), 'lib/reach.js'));
   for (const unit of [(i) => `export function f${i}() {\n`, (i) => `export const c${i} = {\n`]) {
@@ -2677,7 +2713,7 @@ test('every plugin README documents the env vars its logger actually reads, and 
       .map((f) => path.join(plugin(name), f)).find((f) => fs.existsSync(f));
     assert.ok(logFile, `${name}: no logger lib`);
     const src = fs.readFileSync(logFile, 'utf8') +
-      ['lib/misread.js', 'lib/writeback.js'].map((f) => path.join(plugin(name), f)).filter((f) => fs.existsSync(f)).map((f) => fs.readFileSync(f, 'utf8')).join('\n') +
+      ['lib/misread.js', 'lib/writeback.js', 'lib/off.js'].map((f) => path.join(plugin(name), f)).filter((f) => fs.existsSync(f)).map((f) => fs.readFileSync(f, 'utf8')).join('\n') +
       fs.readdirSync(path.join(plugin(name), 'hooks')).map((f) => fs.readFileSync(path.join(plugin(name), 'hooks', f), 'utf8')).join('\n');
     const inCode = new Set((src.match(/[A-Z]{3,}MON_[A-Z_]+/g) || []));
     const doc = fs.readFileSync(path.join(plugin(name), 'README.md'), 'utf8');

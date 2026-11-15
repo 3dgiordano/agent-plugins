@@ -33,6 +33,7 @@ A deviation (a dead host, a CLI that updated itself, a grader defect) goes in `D
 - **Written by someone other than the plugin's author** where possible. When it is the author, the report says so.
 - **Every confirmatory case is reported.** A case that turns out not to separate the arms stays in the denominator; that is a result.
 - **The case states what correct is** in terms of what the user asked for, before any run: the test, the file, the property of the reply. The README's rules still hold (bench/README.md, "How a case is written").
+- **Custody of a held-out case.** Its author delivers it to the maintainer privately, as an archive, never as an issue or a pull request. Only the archive's SHA-256 and the plugin fingerprints the study runs (`node scripts/pluginsource.js` prints them) go into the pre-registration. The archive is opened, run and committed to the repository only after those fingerprints are frozen, so no plugin is revised with the case in view; until then the plugins' author does not read it. The report gives the hash, so a reader can check that the committed case is the one registered.
 
 ## 4. Graders
 

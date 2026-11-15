@@ -15,6 +15,8 @@
  * exec-subagent-stop.js's.
  */
 'use strict';
+// EXECMON_OFF=1: this plugin is off (lib/off.js).
+if (require('../lib/off.js').off()) { process.stdin.on('error', () => {}).resume(); return; }
 
 const reads = require('../lib/reads.js');
 const writeback = require('../lib/writeback.js');
