@@ -158,7 +158,7 @@ The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. 
 
 - **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed.
 - **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins[-<uid>]/`, named `epimon_…`, kept for a resumed session and swept with this plugin's files there older than seven days; only with `EPIMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
-- **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them.
+- **Not installed: the eval cases.** They live in the repository's `evals/suites/epistemic-self-monitoring/`, and `node scripts/plugin-eval.js epistemic-self-monitoring` runs them with `claude plugin eval`: prompts, graders and small fixture projects. The plugin never runs them.
 
 The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
 

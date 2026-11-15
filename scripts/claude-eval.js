@@ -31,7 +31,7 @@
  *
  * `claude plugin eval` is Anthropic's own runner and does this properly, with
  * LLM graders and an ablation arm. It is in early access and exits without
- * running on this account, so the suites under plugins/*\/evals/ cannot be
+ * running on this account, so the suites under evals/suites/ cannot be
  * executed with it yet. This drives the same prompts through plain `claude -p`
  * instead, with a deterministic grader. When `plugin eval` opens up, prefer it;
  * this exists so the question does not stay unanswered until then.

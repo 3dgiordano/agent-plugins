@@ -386,7 +386,7 @@ here is exactly what they are:
   start. Off per plugin with `*_NOTICE=0`.
 - **Tested as the host runs them.** CI drives every adapter with the JSON its
   host sends (for Droid, the JSON its hooks reference documents), on Ubuntu,
-  Windows and macOS, Node 18/20/22.
+  Windows and macOS, Node 18/20/22/24/26.
 
 ## Research, not only software
 
@@ -420,9 +420,12 @@ GitHub's "Cite this repository" ([CITATION.cff](CITATION.cff)).
 
 ## Requirements
 
-- **`node` on the host's PATH, Node 18 or later.** Every hook is launched as
-  `node <script>`, by Claude Code, Codex, Cursor or Droid. The hooks use Node's
-  built-ins only (`fs`, `os`, `path`), with no packages and no network.
+- **`node` on the host's PATH, Node 22 or later recommended.** Every hook is
+  launched as `node <script>`, by Claude Code, Codex, Cursor or Droid. The
+  hooks use Node's built-ins only (`fs`, `os`, `path`), with no packages and no
+  network. CI tests Node 18, 20, 22, 24 and 26; 18 and 20 still work, but they
+  are past their end of life upstream and no longer get security fixes, so
+  they are discouraged.
 - **A host that runs plugin hooks**: Claude Code, Codex (after trusting the
   hooks once with `/hooks`), or Cursor. On Cursor headless (`agent -p`),
   hooks run only when the process was not started from Git Bash. Factory
@@ -617,7 +620,7 @@ plugins/<name>/
   lib/                            # code shared by the adapters
 docs/                             # how it works, evidence, research, FAQ
 bench/                            # the outcome bench: cases, graders, guards, reports
-evals/                            # detector corpora and the behavioural-eval protocol
+evals/                            # eval suites per plugin (suites/), detector corpora, the behavioural-eval protocol
 scripts/                          # tests, runners, audit, report
 CITATION.cff                      # how to cite the project
 ```
@@ -652,7 +655,7 @@ apologies, 6 closing lines) are reasoned, not measured. To tune them: set the
 per-turn measurement and the share of turns that would have been nudged at
 each candidate threshold — the number is the signal only if it stays rare.
 
-CI runs the suite on Ubuntu, Windows and macOS across Node 18/20/22 for every push
+CI runs the suite on Ubuntu, Windows and macOS across Node 18/20/22/24/26 for every push
 and pull request. The tests drive each hook script with the JSON its host
 sends and inspect stdout, stderr and exit codes, so a change that breaks a
 Claude Code, Codex or Cursor contract, or Droid's documented one, fails

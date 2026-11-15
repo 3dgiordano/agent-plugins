@@ -8,11 +8,6 @@
     },
     {
       "rule": "env-credential",
-      "where": "^plugins/progress-self-monitoring/evals/(reopens-the-ledger|keeps-a-returned-decision)/files/scripts/publish\\.js:",
-      "reason": "Eval fixture, not plugin code: a sample project's release script that reads NPM_TOKEN for `npm publish`. No hook runs it and no eval asks the agent to run it; the plugin README (Evals) says so. `claude plugin eval` only reads evals/ inside the plugin folder."
-    },
-    {
-      "rule": "env-credential",
       "where": "^plugins/integrity-self-monitoring/(README\\.md|lib/code\\.js):",
       "reason": "Not a read: the text `process.env.API_KEY || 'dev-key'` names a code shape the integrity hook detects in the user's edits (a credential with a literal default). Nothing reads API_KEY."
     }

@@ -240,9 +240,9 @@ function loadRefs(dir = REFS) {
  */
 function judgeableCriteria() {
   const out = [];
-  const plugins = path.join(ROOT, 'plugins');
-  for (const p of fs.readdirSync(plugins).sort()) {
-    const ev = path.join(plugins, p, 'evals');
+  const suites = path.join(ROOT, 'evals', 'suites');
+  for (const p of (fs.existsSync(suites) ? fs.readdirSync(suites) : []).sort()) {
+    const ev = path.join(suites, p);
     if (!fs.existsSync(ev)) continue;
     for (const c of fs.readdirSync(ev).sort()) {
       const g = path.join(ev, c, 'graders');

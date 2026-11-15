@@ -12,6 +12,24 @@ already happened four times — a truncated prompt, a shared workspace leaking
 one arm into the other, a permission mode that made the case unmeasurable, a
 scanner that did not recognise its own block.
 
+## Where the cases live
+
+Each plugin's cases are in `evals/suites/<plugin>/<case>/` (a `prompt.md`,
+`graders/*.md`, a `case.json`, and a `files/` seed when the run starts from a
+project), not in the plugin folder: the host installs that folder whole, and
+none of this is anything a user runs. The runners here read them where they
+are. Claude Code's own runner, `claude plugin eval`
+([docs](https://code.claude.com/docs/en/plugin-evals)), reads a suite only from
+inside the plugin it tests, so `node scripts/plugin-eval.js <plugin> [options]`
+builds a temporary copy of the plugin with the suite put back at `evals/`, runs
+the runner there and copies its results to `evals/results/`
+(`--prepare-only` builds the copy and stops). Its format differs from these
+cases in places, checked against its documentation on 2026-11-15 and never by a
+run: a grader here says `with_only: true` where it says `arm: with-only`; a case
+here has a `case.json` where it reads an optional `case.yaml`; and the seed
+project sits in `files/`, which only this repository's runners copy, where it
+expects fixtures beside the case or `context.add_dirs` / `scaffold_script`.
+
 ## What this eval can and cannot say
 
 Most block cases are graded on the plugin's own block: the marker, read by the plugin's own scanner (`scripts/evallib.js`, `SCANNER`). That makes the instrument part of the treatment, and it fixes what the two arms mean:

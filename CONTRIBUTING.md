@@ -194,7 +194,7 @@ or to a message.
 | docs vs code | `node scripts/samples.js --check` | does the README still quote the message the code actually emits? |
 | detector quality | `node scripts/corpus.js --check` | does each detector still catch what it exists to catch, without firing on what it must leave alone? |
 | host parity | `node scripts/hosts.js --check` | does every declared adapter survive its host's payload, and is every Claude-Code/Cursor asymmetry a decision someone wrote down? |
-| behaviour (Claude Code) | `claude plugin eval plugins/<name> --ablation with-without` | does the plugin actually change what the model does — measured against a no-plugin baseline arm? |
+| behaviour (Claude Code) | `node scripts/plugin-eval.js <name> --ablation with-without` | does the plugin actually change what the model does — measured against a no-plugin baseline arm? |
 | behaviour (Cursor) | `node scripts/cursor-eval.js --probe`, then `… --isolate --model <id>` | the same question through the Cursor Agent CLI — skill, `sessionStart` and `postToolUse`; not the response scan or the stop gate, see below |
 | behaviour (Codex) | `node scripts/codex-eval.js --probe`, then `… <plugin>` | the same question through `codex exec` — hooks AND skill, like the Claude Code arm, see below |
 
@@ -202,8 +202,8 @@ or to a message.
 
 | Layer | Command | Needs |
 |-------|---------|-------|
-| Suite: structure, hook adapters, corpus, samples, host parity | `node scripts/test.js` | Node 18 or later. No agent, no network. The node-fence test is skipped on 18. |
-| Versions, fixtures | `node scripts/version.js --check` (manifests and `CITATION.cff`), `node scripts/pluginsource.js` (one version step since the last release), `node scripts/bench-check.js` (every bench grader against its fixtures) - all three in CI | Node 18 or later; the version step needs the git history and tags |
+| Suite: structure, hook adapters, corpus, samples, host parity | `node scripts/test.js` | Node 22 or later recommended; 18 and 20 still run it. No agent, no network. The node-fence test is skipped on 18. |
+| Versions, fixtures | `node scripts/version.js --check` (manifests and `CITATION.cff`), `node scripts/pluginsource.js` (one version step since the last release), `node scripts/bench-check.js` (every bench grader against its fixtures) - all three in CI | Node 22 or later recommended (18 and 20 still work); the version step needs the git history and tags |
 | Behavioural evals | `node scripts/cursor-eval.js`, `claude-eval.js`, `codex-eval.js` | The host's CLI, logged in. With `--isolate`, Cursor needs `CURSOR_API_KEY`. These spend model calls. |
 | Outcome bench | `node scripts/bench.js --host <cursor\|claude>` (`cursor-bench.js`, `claude-bench.js`) | The host's CLI, logged in. Cursor on Windows: run from PowerShell or cmd, not Git Bash, or no hook runs. **Node 20 or later on the runner** for the node fence (`--permission` from 22.13, `--experimental-permission` on 20). On 18 the agent's `node` runs unfenced, and `run.json` records `nodeGuard: false`. These spend model calls. |
 
@@ -250,7 +250,7 @@ that quietly stopped being wired.
 
 **`claude plugin eval`** is the only layer that measures the thing the
 collection is actually for: whether the model behaves differently. Each plugin
-ships one case under `plugins/<name>/evals/<case>/` — a `prompt.md` written to
+has its cases under `evals/suites/<name>/<case>/`, outside the folder users install (`scripts/plugin-eval.js` puts them back in a temporary copy for the runner) — a `prompt.md` written to
 induce the failure the plugin exists to catch, plus graders in `graders/*.md`.
 `--ablation with-without` runs a no-plugin baseline arm and reports the delta;
 a case both arms pass is a case that proves nothing, so rewrite the prompt.
@@ -397,7 +397,7 @@ missed reminder*, *Host verification*.
 
 - One plugin or one concern per PR.
 - `node scripts/test.js` and `node scripts/version.js --check` pass locally;
-  CI runs them on Ubuntu, Windows and macOS, Node 18/20/22 ("What each layer needs",
+  CI runs them on Ubuntu, Windows and macOS, Node 18/20/22/24/26 ("What each layer needs",
   above). `scripts/test.js` also
   runs the samples, corpus and host-parity checks, so passing it locally
   covers all four cheap layers.

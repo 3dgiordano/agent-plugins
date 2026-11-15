@@ -116,6 +116,5 @@ hygiene-self-monitoring/
 ├── skills/hygiene-self-monitoring/SKILL.md
 ├── hooks/        hooks.json, hyg-inject.js, hyg-prompt.js, hyg-observe.js, hyg-stop.js, hyg-session-end.js
 ├── cursor/       hooks.json, hyg-session-start.js, hyg-observe-cursor.js, hyg-response-cursor.js, hyg-stop-cursor.js
-├── lib/          reach.js (the public surface), signals.js (the record), block.js (the close), messages.js, host.js, state.js, log.js, workspace.js
-└── evals/        behavioural eval cases
+└── lib/          reach.js (the public surface), signals.js (the record), block.js (the close), messages.js, host.js, state.js, log.js, workspace.js
 ```

@@ -83,16 +83,22 @@ function answerKeyFiles(root = ROOT) {
       }
     }
   }
-  for (const plugin of safeDirs(path.join(root, 'plugins'))) {
-    const ev = path.join(root, 'plugins', plugin, 'evals');
+  // A plugin's eval suite (evals/suites/<plugin>/<case>/): its case.json and
+  // graders are answer material; its prompt and its files/ are what the agent
+  // reads, so never stamped.
+  for (const plugin of safeDirs(path.join(root, 'evals', 'suites'))) {
+    const ev = path.join(root, 'evals', 'suites', plugin);
     for (const id of safeDirs(ev)) {
       add(path.join(ev, id, 'case.json'));
       walk(path.join(ev, id, 'graders'), add);
     }
   }
   // evals/variants/ holds skill texts a WITH arm loads as the plugin's own: text
-  // the agent reads, so never stamped.
-  walk(path.join(root, 'evals'), (f) => { if (f.endsWith('.md') && !path.relative(path.join(root, 'evals'), f).startsWith('variants')) add(f); });
+  // the agent reads, so never stamped; evals/suites/ is handled above.
+  walk(path.join(root, 'evals'), (f) => {
+    const rel = path.relative(path.join(root, 'evals'), f);
+    if (f.endsWith('.md') && !rel.startsWith('variants') && !rel.startsWith('suites')) add(f);
+  });
   // A corpus built from stored runs holds what the runs left in their
   // workspaces - passing solutions of a case among them - so it is answer
   // material like a fixture. (JSONL: the canary is a `//` line, which
@@ -604,12 +610,13 @@ function auditStored(dirs) {
       const r = auditRun(stream, { roots, repoRoot: ROOT, workspace: cwd });
       if (fromRepo) {
         r.contaminated = r.contaminated.filter((x) => x.kind !== 'harness text in a tool result' || !/cursor-eval/.test(x.what));
-        // Its own plugin, but never that plugin's evals/.
-        const evalsDir = norm(path.join(ROOT, 'plugins', plugin, 'evals'));
+        // Its own plugin, but never that plugin's eval suite (evals/suites/<plugin>/),
+        // nor an evals/ left in the plugin folder by an older checkout.
+        const evalsDirs = [norm(path.join(ROOT, 'evals', 'suites', plugin)), norm(path.join(ROOT, 'plugins', plugin, 'evals'))];
         for (const line of stream.split('\n')) {
           if (!line.includes('"subtype":"started"')) continue;
           for (const s of stringsOf(JSON.parse(line).tool_call)) {
-            if (norm(s).startsWith(evalsDir)) r.contaminated.push({ kind: 'repository', what: s });
+            if (evalsDirs.some((d) => norm(s).startsWith(d))) r.contaminated.push({ kind: 'repository', what: s });
           }
         }
       }

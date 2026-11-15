@@ -17,6 +17,9 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const PLUGINS = path.join(ROOT, 'plugins');
+// A plugin's eval suite lives outside the folder users install: evals/suites/<plugin>/<case>/.
+const SUITES = path.join(ROOT, 'evals', 'suites');
+const suiteDir = (name) => path.join(SUITES, name);
 
 /*
  * The block each plugin's discipline puts in the response. Presence alone is a
@@ -214,8 +217,8 @@ function cases(filter) {
     // A term may name a case rather than a plugin, so a plugin can only be
     // skipped here when no term matches its name AND none of its case ids.
     if (filter && !matches(filter, name) &&
-        !fs.existsSync(path.join(PLUGINS, name, 'evals'))) continue;
-    const evalDir = path.join(PLUGINS, name, 'evals');
+        !fs.existsSync(suiteDir(name))) continue;
+    const evalDir = suiteDir(name);
     if (!fs.existsSync(evalDir)) continue;
     for (const c of fs.readdirSync(evalDir)) {
       const dir = path.join(evalDir, c);
@@ -1036,4 +1039,4 @@ function dropWorkspace(ws) {
 
 const quote = (s) => (/[\s"]/.test(s) ? `"${s.replace(/"/g, '\\"')}"` : s);
 
-module.exports = { ROOT, PLUGINS, MARKER, SCANNER, ARTIFACT, CLAIM, cursorUserMcp, declared, assuranceTally, tallyAssurance, assuranceLine, assuranceFields, wilson, markerGraded, seed, harvest, readArtifact, graderFor, cases, gradingOf, usable, reached, verdict, reportLine, summaryLines, scratchWorkspace, sweepWorkspaces, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, neutralDir, quote, stallOf, nodeGuard, fenceFirstEnv, permissionFlags };
+module.exports = { ROOT, PLUGINS, SUITES, suiteDir, MARKER, SCANNER, ARTIFACT, CLAIM, cursorUserMcp, declared, assuranceTally, tallyAssurance, assuranceLine, assuranceFields, wilson, markerGraded, seed, harvest, readArtifact, graderFor, cases, gradingOf, usable, reached, verdict, reportLine, summaryLines, scratchWorkspace, sweepWorkspaces, isolatedHome, dropHome, misreadTrace, finalMessage, dropWorkspace, hookWitness, auditStream, neutralDir, quote, stallOf, nodeGuard, fenceFirstEnv, permissionFlags };

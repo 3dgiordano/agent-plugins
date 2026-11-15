@@ -2816,11 +2816,27 @@ test('detector corpus holds its recall / precision floors: scripts/corpus.js --c
 // Structural check for the behavioural suites (layer C). `claude plugin eval`
 // is in early access, so CI cannot RUN them yet -- but it can hold them to the
 // shape the runner expects, so they are not silently broken when it lands.
+test('plugin-eval.js puts a suite back inside a temporary copy of its plugin, for claude plugin eval', () => {
+  const { assemble } = require('./plugin-eval.js');
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'plugin-eval-test-'));
+  try {
+    for (const name of pluginNames) {
+      const dir = assemble(name, base);
+      assert.ok(fs.existsSync(path.join(dir, '.claude-plugin', 'plugin.json')), name + ': the copy is a plugin');
+      const cases = fs.readdirSync(path.join(ROOT, 'evals', 'suites', name));
+      assert.deepEqual(fs.readdirSync(path.join(dir, 'evals')).sort(), cases.sort(), name + ': the suite is at evals/ in the copy');
+    }
+    assert.throws(() => assemble('no-such-plugin', base), /no plugin/);
+  } finally { fs.rmSync(base, { recursive: true, force: true }); }
+});
+
 test('every plugin ships a behavioural eval case: prompt.md + graders with a type', () => {
   const GRADER_TYPES = new Set(['tool_used', 'file_exists', 'llm', 'baseline']);
   for (const name of pluginNames) {
-    const evalDir = path.join(plugin(name), 'evals');
-    assert.ok(fs.existsSync(evalDir), `${name}: no evals/ directory`);
+    // The suite lives outside the folder users install (scripts/plugin-eval.js puts it back for the runner).
+    assert.ok(!fs.existsSync(path.join(plugin(name), 'evals')), `${name}: evals/ belongs in evals/suites/${name}/, not in the plugin folder`);
+    const evalDir = path.join(ROOT, 'evals', 'suites', name);
+    assert.ok(fs.existsSync(evalDir), `${name}: no eval suite in evals/suites/${name}/`);
     const cases = fs.readdirSync(evalDir).filter((d) => fs.statSync(path.join(evalDir, d)).isDirectory() && d !== 'results');
     assert.ok(cases.length >= 1, `${name}: evals/ has no case directory`);
     for (const c of cases) {
@@ -3735,7 +3751,7 @@ test('blind labels: the reply loses what names the arm, the order rebuilds from 
   // The premises the cases actually carry, against the shapes real runs left.
   // Written once through a shell that ate the backslashes ("Checked d+ rows"),
   // which left every control run out of the sheet; this is what catches it.
-  const premiseOfCase = (id) => JSON.parse(fs.readFileSync(path.join(PLUGINS, HAN, 'evals', id, 'case.json'), 'utf8')).premise;
+  const premiseOfCase = (id) => JSON.parse(fs.readFileSync(path.join(ROOT, "evals", "suites", HAN, id, "case.json"), "utf8")).premise;
   const dry = premiseOfCase('closes-a-run-that-finished');
   assert.equal(B.premiseHolds([call('a', 'cd "C:/Temp/ws" && node scripts/dry-run-import.js data/customers-2026-03.csv'), result('a', 'Checked 3000 rows of customers-2026-03.csv.\nRejected: 7 (0.23%)')].join('\n'), dry), true);
   assert.equal(B.premiseHolds([call('a', 'node scripts/dry-run-import.js d.csv'), result('a', 'Checked d+ rows')].join('\n'), dry), false, 'the pattern is a pattern: \\d, not a literal d');
@@ -5636,10 +5652,11 @@ test('integrity: every answer-key file carries the canary, and nothing the agent
       const p = path.join(plugin(name), e.name);
       if (e.isDirectory()) walk(p); else if (fs.readFileSync(p, 'utf8').includes(CANARY_GUID)) shown.push(path.relative(ROOT, p));
     }
-    for (const id of fs.existsSync(path.join(plugin(name), 'evals')) ? fs.readdirSync(path.join(plugin(name), 'evals')) : []) {
-      const f = path.join(plugin(name), 'evals', id, 'prompt.md');
+    const suite = path.join(ROOT, 'evals', 'suites', name);
+    for (const id of fs.existsSync(suite) ? fs.readdirSync(suite) : []) {
+      const f = path.join(suite, id, 'prompt.md');
       if (fs.existsSync(f) && fs.readFileSync(f, 'utf8').includes(CANARY_GUID)) shown.push(path.relative(ROOT, f));
-      walk(path.join(plugin(name), 'evals', id, 'files'));
+      walk(path.join(suite, id, 'files'));
     }
   }
   // A guard is appended to every prompt (scripts/cursor-bench.js --guard).
@@ -6016,8 +6033,8 @@ test('judge self-test: every judgeable criterion has sound references, read with
   assert.deepEqual(J.checkRefs(), []);
   const criteria = J.judgeableCriteria();
   assert.ok(criteria.includes('bench/studies/false-assurance-judge/criterion.md'));
-  assert.ok(criteria.filter((c) => c.startsWith('plugins/')).length >= 20, 'every case with a scored llm grader');
-  for (const c of criteria.filter((x) => x.startsWith('plugins/'))) {
+  assert.ok(criteria.filter((c) => c.startsWith('evals/suites/')).length >= 20, 'every case with a scored llm grader');
+  for (const c of criteria.filter((x) => x.startsWith('evals/suites/'))) {
     const b = BL.criterionOf({ dir: path.resolve(ROOT, path.dirname(path.dirname(c))) });
     assert.equal(b.file, c);
     assert.equal(J.criterionText(c), b.text, `${c}: the self-test must judge the text blind-labels.js gives the judge`);

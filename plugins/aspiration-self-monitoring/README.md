@@ -111,7 +111,7 @@ The hooks are Node scripts in `hooks/`, `cursor/` and `lib/`, run by the host wi
 - **Reads:** the JSON event the host sends on stdin - the session id, a tool's name, the path its input names, a shell command's text (to see which edited files it names), the assistant's final message - measured and never executed. It also reads the plugin's own `skills/aspiration-self-monitoring/SKILL.md`, whose text it puts in context when a session starts. It never reads the user's prompt into a message, a tool's output, or any project file; no path or command reaches a message.
 - **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins[-<uid>]/`, named `aspmon_…`, kept for a resume and swept after seven days; only with `ASPMON_LOG` set, the debug log below.
 - **Says:** fixed text, with counts and, from the agent's own final message, the claim phrase (≤80 characters) and a malformed `Remainder` value (≤40).
-- **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and a small fixture project. The plugin never runs them.
+- **Not installed: the eval cases.** They live in the repository's `evals/suites/aspiration-self-monitoring/`, and `node scripts/plugin-eval.js aspiration-self-monitoring` runs them with `claude plugin eval`: prompts, graders and a small fixture project. The plugin never runs them.
 
 The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
 

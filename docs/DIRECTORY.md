@@ -54,7 +54,6 @@ A hold is not a rejection: a reviewer reads the version before it goes live.
 | Hold | Where | Why it is there |
 | --- | --- | --- |
 | Scripts the validator couldn't follow | every `hooks/hooks.json` entry | The hooks are Node.js files that `require` `../lib/*.js`, in a plugin that is a subfolder of the repository. The validator follows only plain shell scripts there. Goes away only with each plugin at the root of its own repository (*Decisions*, 1). |
-| Uses a credential from the user's machine | `progress-self-monitoring/evals/*/files/scripts/publish.js` | Eval fixture: a sample project's release script reads `NPM_TOKEN`. No hook runs it, no eval asks the agent to. `claude plugin eval` only reads `evals/` inside the plugin folder, so it ships. |
 | (possible) Uses a credential from the user's machine | `integrity-self-monitoring` README and `lib/code.js` | The text `process.env.API_KEY \|\| 'dev-key'` names a shape the hook detects; nothing reads `API_KEY`. |
 | (possible) Name may be confused with an existing listing | all ten names | Names built only from generic words (`executive`, `self`, `monitoring`) are held; the portal decides (*Decisions*, 2). |
 
@@ -85,8 +84,7 @@ wording that let prompt hooks stay, where ours of 2026-11-08 covers every type.
 
 The holds in the next section were read as "a reviewer reads it"; for an
 organization that isn't Verified they are refusals. What stays allowed: the
-manifests, the README, `SKILL.md`, the eval `prompt.md` / `case.json` /
-grader files, and `assets/icon.png` (*Decisions*, 9).
+manifests, the README, `SKILL.md` and `assets/icon.png` (*Decisions*, 9).
 
 ## Software Directory Policy
 
