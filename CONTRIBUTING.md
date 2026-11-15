@@ -198,6 +198,18 @@ or to a message.
 | behaviour (Cursor) | `node scripts/cursor-eval.js --probe`, then `… --isolate --model <id>` | the same question through the Cursor Agent CLI — skill, `sessionStart` and `postToolUse`; not the response scan or the stop gate, see below |
 | behaviour (Codex) | `node scripts/codex-eval.js --probe`, then `… <plugin>` | the same question through `codex exec` — hooks AND skill, like the Claude Code arm, see below |
 
+The suite lives in `tests/`, one file per area: `structure`, `docs` and
+`logging` for the collection, one file per plugin, `droid`, `session-end`
+and `actors` for the hosts and subagents, and `harness` (the CI guard, the
+eval runners and judges), `bench-session`, `bench-runs` and `placebo` for the
+bench and eval tooling. `node scripts/test.js` runs every file, each in
+its own process and several at once; `node scripts/test.js progress hygiene`
+runs only those two while you work. A test goes in the file of the area it
+checks; what more than one area uses (the hook driver, the session id, the
+plugin names, shared fixtures) lives in `tests/helpers.js`. Every session id
+comes from `uid()`, which carries the process's id, so files that run at once
+never share hook state.
+
 ### What each layer needs
 
 | Layer | Command | Needs |

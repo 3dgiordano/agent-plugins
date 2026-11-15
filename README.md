@@ -729,7 +729,8 @@ plugins/<name>/
 docs/                             # how it works, evidence, research, FAQ
 bench/                            # the outcome bench: cases, graders, guards, reports
 evals/                            # eval suites per plugin (suites/), detector corpora, the behavioural-eval protocol
-scripts/                          # tests, runners, audit, report
+scripts/                          # the test runner, the bench and eval runners, audit, report
+tests/                            # the test suite, one file per area (node scripts/test.js runs them)
 CITATION.cff                      # how to cite the project
 ```
 

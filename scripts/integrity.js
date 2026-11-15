@@ -104,7 +104,7 @@ function answerKeyFiles(root = ROOT) {
   // material like a fixture. (JSONL: the canary is a `//` line, which
   // scripts/corpus.js skips.)
   for (const f of CORPUS_FROM_RUNS) { const p = path.join(root, 'evals', 'corpus', f); if (fs.existsSync(p)) out.push(p); }
-  for (const f of safeFiles(path.join(root, 'scripts'))) if (f.endsWith('.js')) add(path.join(root, 'scripts', f));
+  for (const dir of ['scripts', 'tests']) for (const f of safeFiles(path.join(root, dir))) if (f.endsWith('.js')) add(path.join(root, dir, f));
   return out;
 }
 

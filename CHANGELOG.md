@@ -15,6 +15,7 @@ release.
 ### Changed
 
 - **The README says who the plugins are for and recommends all ten.** They are scaffolding for long work: a task that runs for hours, gives parts to subagents, goes through a context compaction or carries over to the next session. The recommended setup is the whole set; the README says that all ten together have not been measured yet (the bench runs one plugin at a time, and the all-ten measurement is the next one planned), what all ten cost in hooks per event, and that any one can be turned off for a project or uninstalled. The Quick start installs all ten; "Which one first?" is now "Which one catches what", the map from a problem to its plugin. The FAQ says the same.
+- **The test suite is split by area and runs in parallel.** The single 6,960-line `scripts/test.js` is now twenty files under `tests/`: structure, docs, logging, one per plugin, Droid, session end, actors, and the harness, bench and placebo tooling, with what they share in `tests/helpers.js`. `node scripts/test.js` stays the command and runs them all, each file in its own process and several at once; `node scripts/test.js progress hygiene` runs only those. The same 294 tests pass; on a 12-core machine the suite went from 287 to 90 seconds. Every session id already carried the process id, so files that run at once never share hook state. The test files carry the canary like the scripts (`scripts/integrity.js`).
 
 ## [0.22.0] — 2026-11-15
 
