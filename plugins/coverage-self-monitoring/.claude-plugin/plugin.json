@@ -1,7 +1,7 @@
 {
   "name": "coverage-self-monitoring",
   "displayName": "Coverage Self-Monitoring",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Parts-ledger discipline: the agent lists the parts of a request, takes the hardest first, and closes each one as done, blocked with a reason, or returned to you - none silently dropped. Part of the 3dgiordano agent-plugins collection.",
   "author": {
     "name": "David Giordano (3dgiordano)",

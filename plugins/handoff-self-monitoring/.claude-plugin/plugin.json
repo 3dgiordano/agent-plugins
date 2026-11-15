@@ -1,7 +1,7 @@
 {
   "name": "handoff-self-monitoring",
   "displayName": "Handoff Self-Monitoring",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Structured handoff: the agent's final message opens with a status, states the situation in your terms, writes any choice as options with a default, and ends with one next action. Part of the 3dgiordano agent-plugins collection.",
   "author": {
     "name": "David Giordano (3dgiordano)",

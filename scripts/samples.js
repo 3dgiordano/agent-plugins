@@ -47,7 +47,7 @@ const SAMPLES = {
       encoding: 'utf8',
     });
     // The hook counts turns in the temp dir; drop the counter it just created.
-    try { fs.unlinkSync(path.join(require('os').tmpdir(), '3dgiordano-agent-plugins', `execmon_claude_${sid}.txt`)); } catch (_) {}
+    try { fs.unlinkSync(path.join(require('../plugins/coverage-self-monitoring/lib/statedir.js').DIR, `execmon_claude_${sid}.txt`)); } catch (_) {}
     const out = (r.stdout || '').trim();
     if (!out) throw new Error('executive: the hook emitted nothing on its first turn');
     // The hook writes the hookSpecificOutput envelope; the README quotes the text inside it.

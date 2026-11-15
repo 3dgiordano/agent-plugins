@@ -107,7 +107,7 @@ And one where it stays quiet: "What does Herbert Simon mean by an aspiration lev
 The hooks are Node scripts in `hooks/`, `cursor/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 
 - **Reads:** the JSON event the host sends on stdin - the session id, a tool's name, the path its input names, a shell command's text (to see which edited files it names), the assistant's final message - measured and never executed. It also reads the plugin's own `skills/aspiration-self-monitoring/SKILL.md`, whose text it puts in context when a session starts. It never reads the user's prompt into a message, a tool's output, or any project file; no path or command reaches a message.
-- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins/`, named `aspmon_…`, kept for a resume and swept after seven days; only with `ASPMON_LOG` set, the debug log below.
+- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins[-<uid>]/`, named `aspmon_…`, kept for a resume and swept after seven days; only with `ASPMON_LOG` set, the debug log below.
 - **Says:** fixed text, with counts and, from the agent's own final message, the claim phrase (≤80 characters) and a malformed `Remainder` value (≤40).
 - **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and a small fixture project. The plugin never runs them.
 
@@ -201,7 +201,7 @@ cursor/aspir-stop-cursor.js
 lib/signals.js                     # one tool call -> edit, read, run, render or nothing; files not reviewed since their change
 lib/lexicon.js                     # the claim, the block and its rules
 lib/messages.js                    # texts shared by both adapters
-lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); remove()/sweep()
+lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins[-<uid>]/); lockfile-guarded update(); remove()/sweep()
 lib/host.js                        # cwdOf(), the notice and output envelopes (identical in every plugin)
 lib/log.js                         # opt-in logger (per-plugin copy; plugins are self-contained)
 ```

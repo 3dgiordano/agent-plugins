@@ -3,6 +3,7 @@
 
 const SKILL = 'coverage-self-monitoring';
 const host = require('./host.js');
+const { shown } = require('./shown.js');
 
 /*
  * A pointer, not a paraphrase.
@@ -55,7 +56,7 @@ function nudge(signals) {
   const lines = signals.map((s) => {
     switch (s.kind) {
       case 'stubs': {
-        const files = s.files.length ? ` (${s.files.slice(0, 4).join(', ')}${s.files.length > 4 ? ', ...' : ''})` : '';
+        const files = s.files.length ? ` (${s.files.slice(0, 4).map(shown).join(', ')}${s.files.length > 4 ? ', ...' : ''})` : '';
         // delegated: the count includes what subagents wrote and handed back (lib/signals.js relay)
         return `${s.delegated ? 'you and your subagents have' : 'you have'} written ${s.count} stub / placeholder / TODO markers this turn${files}. Each one is a ` +
           'part of the request that is not done: implement it now, or close it in the [COVERAGE CHECK] as ' +

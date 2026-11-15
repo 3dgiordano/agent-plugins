@@ -27,6 +27,9 @@
 const CODE_EXT = /\.(?:[cm]?[jt]sx?)$/i;
 const MAX_BYTES = 256 * 1024;
 const MAX_DEFS = 400;
+const MAX_DEF_CHARS = 64 * 1024;
+const MIN_DEF_CHARS = 1024;
+const SCAN_FACTOR = 4;
 const IDENT = '[A-Za-z_$][\\w$]*';
 const KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'function', 'return', 'with', 'do', 'else', 'typeof', 'new', 'await', 'yield', 'constructor']);
 
@@ -111,12 +114,30 @@ function skipString(src, i) {
  * body, or the end of its statement - a `;`, or a line break with every
  * bracket closed after something was written. Strings are skipped.
  */
+/*
+ * A body never closed runs to the end of the file, and a file of them (every
+ * line `function fN() {`) took tens of seconds. So no definition is read past
+ * MAX_DEF_CHARS (64 KB, above the largest function in this repository), and a
+ * file's definitions together are read for at most SCAN_FACTOR times its
+ * length - more than a well-formed file needs, nested class members included.
+ * Past that budget a definition is read for MIN_DEF_CHARS at most: its hash
+ * covers less, and the file still answers in milliseconds.
+ */
+let scanLeft = Infinity;
 function endOf(src, from) {
+  const allow = Math.min(MAX_DEF_CHARS, Math.max(MIN_DEF_CHARS, scanLeft));
+  const end = scanEnd(src, from, Math.min(src.length, from + allow));
+  scanLeft -= Math.max(0, end - from);
+  return end;
+}
+
+const CONTINUES_RE = /\s*[.?:+\-*/&|,=(]/y;
+function scanEnd(src, from, stop) {
   let depth = 0;
   let braced = false;
   let seen = false;
   let i = from;
-  while (i < src.length) {
+  while (i < stop) {
     const c = src[i];
     const lit = literalEnd(src, i);
     if (lit !== -1) { i = lit; seen = true; continue; }
@@ -138,19 +159,33 @@ function endOf(src, from) {
     } else if (depth === 0 && c === ';') {
       return i + 1;
     } else if (depth === 0 && c === '\n' && seen && !braced) {
-      const rest = src.slice(i).match(/^\s*([.?:+\-*/&|,=(])/);
-      if (!rest) return i;
+      // The next line goes on with the statement? Matched in place: a slice of
+      // the rest of the file at every line break was quadratic too.
+      CONTINUES_RE.lastIndex = i;
+      if (!CONTINUES_RE.test(src)) return i;
     }
     if (!/\s/.test(c)) seen = true;
     i += 1;
   }
-  return src.length;
+  return stop;
 }
 
+// The line of an offset: the line starts of the last source, found once, and a binary search.
+let starts = { src: null, at: [] };
 function lineAt(src, idx) {
-  let n = 1;
-  for (let i = 0; i < idx && i < src.length; i++) if (src.charCodeAt(i) === 10) n += 1;
-  return n;
+  if (starts.src !== src) {
+    const at = [0];
+    for (let i = 0; i < src.length; i++) if (src.charCodeAt(i) === 10) at.push(i + 1);
+    starts = { src, at };
+  }
+  const at = starts.at;
+  let lo = 0;
+  let hi = at.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (at[mid] <= idx) lo = mid; else hi = mid - 1;
+  }
+  return lo + 1;
 }
 
 function hash(s) {
@@ -164,9 +199,10 @@ function hash(s) {
 
 const norm = (s) => s.replace(/\s+/g, ' ').trim();
 
+// end: a number, or a function that finds it - called only for a definition that is kept.
 function addDef(defs, key, src, start, end) {
   if (defs.size >= MAX_DEFS || defs.has(key)) return;
-  const text = norm(src.slice(start, end));
+  const text = norm(src.slice(start, typeof end === 'function' ? end() : end));
   defs.set(key, { key, line: lineAt(src, start), text, hash: hash(text) });
 }
 
@@ -177,7 +213,7 @@ function classMembers(defs, cls, src, start, end) {
   const re = new RegExp(`^[ \\t]+(?:(?:static|async|get|set|public|private|protected|readonly|override)\\s+|\\*\\s*)*(#?${IDENT})\\s*(?:<[^>\\n]*>)?\\s*\\(`, 'gm');
   re.lastIndex = open + 1;
   let m;
-  while ((m = re.exec(src)) && m.index < end) {
+  while ((m = re.exec(src)) && m.index < end && defs.size < MAX_DEFS) {
     const name = m[1].replace(/^#/, '');
     // The constructor is no public method, and a call in its body
     // (`init(opts);`) is no member either: step over the whole body.
@@ -197,29 +233,29 @@ function classMembers(defs, cls, src, start, end) {
 function surface(source) {
   if (typeof source !== 'string' || source.length > MAX_BYTES) return null;
   const src = stripComments(source);
+  scanLeft = SCAN_FACTOR * src.length;
   const defs = new Map();
   const exported = new Map();
   let m;
 
   const fnRe = new RegExp(`^(?:export\\s+(?:default\\s+)?)?(?:async\\s+)?function\\s*\\*?\\s*(${IDENT})\\s*[(<]`, 'gm');
   while ((m = fnRe.exec(src))) {
-    addDef(defs, m[1], src, m.index, endOf(src, m.index + m[0].length - 1));
+    addDef(defs, m[1], src, m.index, () => endOf(src, m.index + m[0].length - 1));
     if (/^export/.test(m[0])) exported.set(/default/.test(m[0]) ? 'default' : m[1], m[1]);
   }
   const varRe = new RegExp(`^(?:export\\s+)?(?:const|let|var)\\s+(${IDENT})\\s*(?::[^=\\n]+)?=`, 'gm');
   while ((m = varRe.exec(src))) {
-    addDef(defs, m[1], src, m.index, endOf(src, m.index + m[0].length));
+    addDef(defs, m[1], src, m.index, () => endOf(src, m.index + m[0].length));
     if (/^export/.test(m[0])) exported.set(m[1], m[1]);
   }
   const classRe = new RegExp(`^(?:export\\s+(?:default\\s+)?)?(?:abstract\\s+)?class\\s+(${IDENT})`, 'gm');
   while ((m = classRe.exec(src))) {
-    const e = endOf(src, m.index + m[0].length);
-    classMembers(defs, m[1], src, m.index, e);
+    if (defs.size < MAX_DEFS) classMembers(defs, m[1], src, m.index, endOf(src, m.index + m[0].length));
     if (/^export/.test(m[0])) exported.set(/default/.test(m[0]) ? 'default' : m[1], m[1]);
     if (!defs.has(m[1])) defs.set(m[1], { key: m[1], line: lineAt(src, m.index), text: '', hash: '' });
   }
   const protoRe = new RegExp(`^(${IDENT})\\.prototype\\.(${IDENT})\\s*=`, 'gm');
-  while ((m = protoRe.exec(src))) addDef(defs, `${m[1]}#${m[2]}`, src, m.index, endOf(src, m.index + m[0].length));
+  while ((m = protoRe.exec(src))) addDef(defs, `${m[1]}#${m[2]}`, src, m.index, () => endOf(src, m.index + m[0].length));
 
   // exports.a = exports.b = target;  module.exports.a = function () {...};
   const expRe = new RegExp(`^((?:(?:module\\.)?exports\\.${IDENT}\\s*=\\s*)+)([^\\n]*)`, 'gm');
@@ -228,7 +264,7 @@ function surface(source) {
     const target = m[2].trim().replace(/;$/, '').trim();
     let key;
     if (new RegExp(`^${IDENT}$`).test(target)) key = target;
-    else { key = names[0]; addDef(defs, key, src, m.index, endOf(src, m.index + m[1].length)); }
+    else { key = names[0]; addDef(defs, key, src, m.index, () => endOf(src, m.index + m[1].length)); }
     for (const n of names) exported.set(n, key);
   }
   // module.exports = { a, b: c, d: function () {} };  module.exports = X;

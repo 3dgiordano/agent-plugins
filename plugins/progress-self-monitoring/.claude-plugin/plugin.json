@@ -1,7 +1,7 @@
 {
   "name": "progress-self-monitoring",
   "displayName": "Progress Self-Monitoring",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "description": "Cross-session ledger: what a session leaves blocked or returned, with the reason, and the next action, kept in .agent/progress.md and re-read before the next session works. Part of the 3dgiordano agent-plugins collection.",
   "author": {
     "name": "David Giordano (3dgiordano)",

@@ -1,7 +1,7 @@
 {
   "name": "persistence-self-monitoring",
   "displayName": "Persistence Self-Monitoring",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Persist-or-quit signal: counts repeated attempts on the same file, command or error, and asks the agent to switch approach or report to you when a threshold is crossed. Part of the 3dgiordano agent-plugins collection.",
   "author": {
     "name": "David Giordano (3dgiordano)",

@@ -41,15 +41,15 @@ const LOCK_STALE_MS = 1000; // a lock older than this belongs to a dead process
  * what put it there, list it, and delete it whole. Before this the files sat
  * loose among every other process's temp files.
  *
- * mkdir is attempted on each write rather than once at load: a hook is a fresh
- * short-lived process, and the directory may have been swept between runs.
+ * One per user, checked before use (lib/statedir.js): on a shared /tmp another
+ * user can neither read it nor plant anything in it.
  */
-const DIR = path.join(os.tmpdir(), '3dgiordano-agent-plugins');
+const { DIR, ready } = require('./statedir.js');
 const PREFIX = 'epimon_';
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // a week: longer than any session, shorter than a habit
 
 function ensureDir() {
-  try { fs.mkdirSync(DIR, { recursive: true }); return true; } catch (_) { return false; }
+  return ready();
 }
 
 /*
@@ -74,6 +74,7 @@ function fileFor(host, id, actor) {
 }
 
 function load(host, id, actor) {
+  if (!ready()) return {};
   try { return JSON.parse(fs.readFileSync(fileFor(host, id, actor), 'utf8')) || {}; } catch (_) { return {}; }
 }
 
@@ -82,6 +83,7 @@ function load(host, id, actor) {
 // target open; then write in place rather than lose the state - under the
 // lock that is still consistent, only no longer torn-proof for that one write.
 function save(host, id, state, actor) {
+  if (!ready()) return;
   const file = fileFor(host, id, actor);
   const tmp = `${file}.${process.pid}.tmp`;
   const json = JSON.stringify(state);
@@ -102,6 +104,7 @@ const BUSY = new Set(['EEXIST', 'EPERM', 'EACCES', 'EBUSY']);
 const DENIED_TRIES = 25;
 
 function acquire(lock) {
+  if (!ready()) return false;
   const deadline = Date.now() + LOCK_WAIT_MS;
   let denied = 0;
   for (;;) {
@@ -145,6 +148,7 @@ function update(host, id, fn, actor) {
  * one per plugin per session, for as long as the temp dir survives.
  */
 function remove(host, id, actor) {
+  if (!ready()) return;
   const files = actor ? [fileFor(host, id, actor)] : [fileFor(host, id)].concat(actors(host, id).map((a) => fileFor(host, id, a)));
   for (const f of files) for (const p of [f, f + '.lock']) { try { fs.unlinkSync(p); } catch (_) {} }
 }
@@ -155,6 +159,7 @@ function remove(host, id, actor) {
  * main agent's file and all of these - the session is over for every actor.
  */
 function actors(host, id) {
+  if (!ready()) return [];
   const head = `${PREFIX}${host}_${safeId(id, 'nosession')}--`;
   try {
     return fs.readdirSync(DIR).filter((n) => n.indexOf(head) === 0 && /\.json$/.test(n)).map((n) => n.slice(head.length, -'.json'.length));
@@ -168,6 +173,7 @@ function actors(host, id) {
  * eventually; this just keeps the directory honest in between.
  */
 function sweep(now) {
+  if (!ready()) return 0;
   const cutoff = (typeof now === 'number' ? now : Date.now()) - MAX_AGE_MS;
   let dropped = 0;
   try {

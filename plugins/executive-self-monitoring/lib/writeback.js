@@ -68,13 +68,35 @@ function mtimeOf(p) {
 const norm = (p) => String(p).split(path.sep).join('/').replace(/\\/g, '/').toLowerCase();
 
 /*
+ * A path the ledger names is the repository's word, not the agent's: a clone
+ * can carry any `Plan:` line. Looking at a network path (\\server\share,
+ * //server/share) makes Windows open a session to that server, so one from the
+ * ledger is looked at only when the project itself lives on that share, or
+ * when EXECMON_ALLOW_UNC=1 says the owner's setup needs it. A path the agent's
+ * own block names is used as it is: the agent can open it anyway. A mapped
+ * drive letter is local here - the owner mapped it. A long local path
+ * (\\?\C:\...) is not a network one.
+ */
+const UNC_RE = /^(?:\\\\|\/\/)(?:[?.][\\/]UNC[\\/]|(?![?.][\\/]))([^\\/]+)[\\/]+([^\\/]+)/i;
+function shareOf(p) {
+  const m = UNC_RE.exec(String(p || ''));
+  return m ? `${m[1]}/${m[2]}`.toLowerCase() : null;
+}
+function reachable(p, cwd) {
+  const share = shareOf(p);
+  return !share || process.env.EXECMON_ALLOW_UNC === '1' || shareOf(cwd) === share;
+}
+
+/*
  * The files a `Plan` field names: backticked paths, link targets, bare paths
  * with an extension. The quoted objective after the name is not a path, and
  * neither is a URL. Each is resolved against the project, then against the
  * documents the agent read (a path written relative to another folder), and
- * kept only if it is a file on disk.
+ * kept only if it is a file on disk. fromLedger: the field is the ledger's
+ * `Plan:` line, so a network path off the project's share is skipped
+ * (reachable above).
  */
-function planPaths(field, cwd, known) {
+function planPaths(field, cwd, known, fromLedger) {
   if (typeof field !== 'string' || !field) return [];
   const head = field.replace(/\s[-–—]\s*["“].*$/, '');
   const tokens = [];
@@ -86,6 +108,7 @@ function planPaths(field, cwd, known) {
   const out = [];
   for (const t of tokens) {
     let p = path.isAbsolute(t) ? t : (cwd ? path.join(cwd, t) : null);
+    if (p && fromLedger && !reachable(p, cwd)) p = null;
     if (!p || mtimeOf(p) === null) {
       const tail = '/' + norm(t).replace(/^\.?\//, '');
       p = (known || []).find((k) => norm(k).endsWith(tail)) || null;
@@ -145,7 +168,7 @@ function ledgerPlans(cwd, known) {
   let text = '';
   try { text = fs.readFileSync(path.join(cwd, '.agent', 'progress.md'), 'utf8'); } catch (_) { return []; }
   const m = text.match(/^[ \t]*(?:[-*][ \t]+)?\**Plan\**[ \t]*:\**[ \t]*(.+)$/im);
-  return m ? planPaths(m[1], cwd, known) : [];
+  return m ? planPaths(m[1], cwd, known, true) : [];
 }
 
 function state(st) {
@@ -224,4 +247,4 @@ function onPrompt(st, prompt, cwd) {
   return out.join('\n');
 }
 
-module.exports = { onPrompt, onClose, turnText, planPaths, isDecision, DECISION_RE, DECISIONS_BEFORE_NOTICE };
+module.exports = { onPrompt, onClose, turnText, planPaths, ledgerPlans, shareOf, isDecision, DECISION_RE, DECISIONS_BEFORE_NOTICE };

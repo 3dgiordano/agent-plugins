@@ -1,7 +1,7 @@
 {
   "name": "termination-self-monitoring",
   "displayName": "Termination Self-Monitoring",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Checkable reasons to stop: a stop on a feeling or a limit the agent does not manage - context, a long session, low confidence - is replaced by a checkable reason, or the work continues. Part of the 3dgiordano agent-plugins collection.",
   "author": {
     "name": "David Giordano (3dgiordano)",

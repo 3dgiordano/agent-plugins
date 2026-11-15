@@ -1,7 +1,7 @@
 {
   "name": "aspiration-self-monitoring",
   "displayName": "Aspiration Self-Monitoring",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Review before you close: the agent checks an edited result in the medium it will be used in - reads the document, runs the code, views the image - and compares it point by point with a source it did not write. Part of the 3dgiordano agent-plugins collection.",
   "author": {
     "name": "David Giordano (3dgiordano)",

@@ -21,7 +21,7 @@
  * a ticket. Code changes under the agent all the time, by its own hand.
  *
  * One JSON file per session beside the cadence counter,
- * <temp>/3dgiordano-agent-plugins/execmon_<host>_<session>.reads.json, swept
+ * <the state dir, lib/statedir.js>/execmon_<host>_<session>.reads.json, swept
  * with it after a week (exec-session-end.js).
  *
  * Parallel tool calls run their PostToolUse hooks at the same time, so every
@@ -33,6 +33,8 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { DIR, ready } = require('./statedir.js');
+const { shown: asShown } = require('./shown.js');
 
 const DOC_RE = /\.(?:md|markdown|txt|rst|adoc)$/i;
 const MAX_FILES = 50;
@@ -53,10 +55,11 @@ const LOCK_STALE_MS = 1000;
  */
 function file(host, sid, actor) {
   const safe = String(sid || 'nosession').replace(/[^0-9A-Za-z_-]/g, '_');
-  return path.join(os.tmpdir(), '3dgiordano-agent-plugins', `execmon_${host}_${safe}${actor && actor !== 'main' ? `--${String(actor).replace(/[^0-9A-Za-z_-]/g, '_')}` : ''}.reads.json`);
+  return path.join(DIR, `execmon_${host}_${safe}${actor && actor !== 'main' ? `--${String(actor).replace(/[^0-9A-Za-z_-]/g, '_')}` : ''}.reads.json`);
 }
 
 function load(host, sid, actor) {
+  if (!ready()) return { files: {} };
   try { const j = JSON.parse(fs.readFileSync(file(host, sid, actor), 'utf8')); return j && typeof j.files === 'object' ? j : { files: {} }; } catch (_) { return { files: {} }; }
 }
 
@@ -106,7 +109,7 @@ function acquire(lock) {
 // Read, let `fn` change the record (true: save it), under the lock when it can be had.
 function update(host, sid, fn, actor) {
   const f = file(host, sid, actor);
-  try { fs.mkdirSync(path.dirname(f), { recursive: true }); } catch (_) {}
+  if (!ready()) return fn({ files: {} });
   const lock = f + '.lock';
   const locked = acquire(lock);
   try {
@@ -216,7 +219,7 @@ function touched(host, sid, toolInput, cwd, actor) {
 // The line that says it, the same on every host: the paths, never the text.
 function changedLine(paths) {
   if (!paths.length) return '';
-  return `[executive self-monitoring] ${paths.slice(0, 3).map((p) => '`' + p + '`').join(', ')}${paths.length > 3 ? ` and ${paths.length - 3} more` : ''} changed on disk since your last Read, Write or Edit of ${paths.length === 1 ? 'it' : 'them'}. ` +
+  return `[executive self-monitoring] ${paths.slice(0, 3).map((p) => '`' + asShown(p) + '`').join(', ')}${paths.length > 3 ? ` and ${paths.length - 3} more` : ''} changed on disk since your last Read, Write or Edit of ${paths.length === 1 ? 'it' : 'them'}. ` +
     'Re-open before you go on: what you remember of it is not what it says now. If the change moves ' +
     'the work to another part, or drops one, quote the objective again and check that the gate still ' +
     'needs the part the objective names.';

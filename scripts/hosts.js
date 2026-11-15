@@ -204,7 +204,7 @@ function drive(name, host, event, script, sid) {
 // The plugins keep their state under one directory in the temp dir (see any
 // plugin's lib/state.js). Looking in the temp root instead matched nothing,
 // and every --check left a file per stateful adapter behind.
-const STATE_DIR = path.join(os.tmpdir(), '3dgiordano-agent-plugins');
+const STATE_DIR = require('../plugins/coverage-self-monitoring/lib/statedir.js').DIR;
 
 function cleanup(sid) {
   for (const dir of [STATE_DIR, os.tmpdir()]) {

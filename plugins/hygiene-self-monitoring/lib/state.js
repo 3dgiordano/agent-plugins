@@ -25,12 +25,12 @@ const LOCK_WAIT_MS = 1500;
 const LOCK_STEP_MS = 2;
 const LOCK_STALE_MS = 1000;
 
-const DIR = path.join(os.tmpdir(), '3dgiordano-agent-plugins');
+const { DIR, ready } = require('./statedir.js');
 const PREFIX = 'hygmon_';
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function ensureDir() {
-  try { fs.mkdirSync(DIR, { recursive: true }); return true; } catch (_) { return false; }
+  return ready();
 }
 
 ensureDir();
@@ -50,10 +50,12 @@ function fileFor(host, id, actor) {
 }
 
 function load(host, id, actor) {
+  if (!ready()) return {};
   try { return JSON.parse(fs.readFileSync(fileFor(host, id, actor), 'utf8')) || {}; } catch (_) { return {}; }
 }
 
 function save(host, id, state, actor) {
+  if (!ready()) return;
   const file = fileFor(host, id, actor);
   const tmp = `${file}.${process.pid}.tmp`;
   const json = JSON.stringify(state);
@@ -74,6 +76,7 @@ const BUSY = new Set(['EEXIST', 'EPERM', 'EACCES', 'EBUSY']);
 const DENIED_TRIES = 25;
 
 function acquire(lock) {
+  if (!ready()) return false;
   const deadline = Date.now() + LOCK_WAIT_MS;
   let denied = 0;
   for (;;) {
@@ -109,6 +112,7 @@ function update(host, id, fn, actor) {
 }
 
 function remove(host, id, actor) {
+  if (!ready()) return;
   const files = actor ? [fileFor(host, id, actor)] : [fileFor(host, id)].concat(actors(host, id).map((a) => fileFor(host, id, a)));
   for (const f of files) for (const p of [f, f + '.lock']) { try { fs.unlinkSync(p); } catch (_) {} }
 }
@@ -119,6 +123,7 @@ function remove(host, id, actor) {
  * main agent's file and all of these - the session is over for every actor.
  */
 function actors(host, id) {
+  if (!ready()) return [];
   const head = `${PREFIX}${host}_${safeId(id, 'nosession')}--`;
   try {
     return fs.readdirSync(DIR).filter((n) => n.indexOf(head) === 0 && /\.json$/.test(n)).map((n) => n.slice(head.length, -'.json'.length));
@@ -126,6 +131,7 @@ function actors(host, id) {
 }
 
 function sweep(now) {
+  if (!ready()) return 0;
   const cutoff = (typeof now === 'number' ? now : Date.now()) - MAX_AGE_MS;
   let dropped = 0;
   try {

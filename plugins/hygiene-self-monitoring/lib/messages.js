@@ -3,6 +3,7 @@
 
 const SKILL = 'hygiene-self-monitoring';
 const host = require('./host.js');
+const { shown } = require('./shown.js');
 
 const FIELDS = 'Request names, Change reaches, Outside, Decision (keep | revert-extra | ask-owner)';
 const PROTOCOL = `If you do not know what these markers ask for, load the ${SKILL} skill ("Core Protocol").`;
@@ -42,7 +43,7 @@ function where(groups) {
     if (!byFile.has(g.file)) byFile.set(g.file, []);
     if (g.line) byFile.get(g.file).push(g.line);
   }
-  return [...byFile].map(([f, ls]) => (ls.length ? `${f} line${ls.length > 1 ? 's' : ''} ${ls.join(', ')}` : f)).join('; ');
+  return [...byFile].map(([f, ls]) => (ls.length ? `${shown(f)} line${ls.length > 1 ? 's' : ''} ${ls.join(', ')}` : shown(f))).join('; ');
 }
 
 module.exports = { LOAD, nudge, retrospective, blockReason, notice, where, FIELDS };

@@ -92,7 +92,7 @@ A little, and it is measured. On Claude Code, in benchmark 1.2.0, one plugin mad
 
 ### Do they send my code anywhere?
 
-**No.** No network, no telemetry, no dependencies. Per-session counters live in the OS temp directory. Debug logs are off unless you turn them on, and then stay inside your project. Three plugins read a file in your project, and none repeats its contents ([SECURITY.md](../SECURITY.md)).
+**No.** No network, no telemetry, no dependencies. Per-session counters live in the OS temp directory, in a folder only your user can open. Debug logs are off unless you turn them on, and then stay inside your project. Three plugins read a file in your project, and none repeats its contents ([SECURITY.md](../SECURITY.md)).
 
 ### Can they block my agent?
 

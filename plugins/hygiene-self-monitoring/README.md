@@ -64,7 +64,7 @@ And one where it stays quiet: "What is the difference between `module.exports` a
 
 - **Reads:** the hook event's JSON; the code files near the project root at session start (at most 200, five levels deep, skipping `node_modules`, `.git`, `dist`, `build` and the like, each under 256 KB); a code file the agent reads or edits. JavaScript and TypeScript only.
 - **Keeps:** a baseline for at most 200 code files and 256 KB of stored surfaces. A file the agent reads or edits always gets a slot: when the record is full, the least recently used file whose edits reached nothing gives up its own, a start-of-session file the agent never touched first. A file whose edits reached a public function is never given up; only when every slot holds one is a further file left out, and counted (`dropped` in the debug log).
-- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins/`, named `hygmon_…`, holding each file's public names, line numbers and a hash of each definition - never the code; kept for a resume and swept after seven days. Only with `HYGMON_LOG` set, the debug log below.
+- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins[-<uid>]/`, named `hygmon_…`, holding each file's public names, line numbers and a hash of each definition - never the code; kept for a resume and swept after seven days. Only with `HYGMON_LOG` set, the debug log below.
 - **Sends:** nothing. No network.
 
 ## Debug log (opt-in, off by default)

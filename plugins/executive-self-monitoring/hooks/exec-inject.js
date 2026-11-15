@@ -16,6 +16,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const statedir = require('../lib/statedir.js');
 const { context, skillText } = require('../lib/host.js');
 
 const PLUGIN = 'executive';
@@ -24,8 +25,8 @@ const HOST = 'claude';
 // Whether this session was given the text: a marker file beside the cadence
 // counter (hooks/exec-session-start.js), with no state of its own.
 function marker(sid) {
-  const dir = path.join(os.tmpdir(), '3dgiordano-agent-plugins');
-  try { fs.mkdirSync(dir, { recursive: true }); } catch (_) {}
+  if (!statedir.ready()) return null;
+  const dir = statedir.DIR;
   return path.join(dir, `execmon_${HOST}_${String(sid).replace(/[^0-9A-Za-z_-]/g, '_')}.injected`);
 }
 

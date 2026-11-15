@@ -140,7 +140,7 @@ And one where it stays quiet: the first `npm ci` error, with nothing tried yet -
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 
 - **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed.
-- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins/`, named `persistmon_…`, kept for a resumed session and swept with this plugin's files there older than seven days; only with `PERSISTMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
+- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins[-<uid>]/`, named `persistmon_…`, kept for a resumed session and swept with this plugin's files there older than seven days; only with `PERSISTMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
 - **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them.
 
 The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
@@ -148,7 +148,7 @@ The same rules for every plugin in the collection, and how to report a hook that
 ## Debug log (opt-in, off by default)
 
 Off unless `PERSISTMON_LOG` is set (`1`/`true`/`yes`/`on`); with it unset the
-hooks still count (in `<temp>/3dgiordano-agent-plugins/`) but write no log files.
+hooks still count (in `<temp>/3dgiordano-agent-plugins[-<uid>]/`) but write no log files.
 
 ```
 # PowerShell:  $env:PERSISTMON_LOG = "1"
@@ -206,7 +206,7 @@ cursor/persist-response-cursor.js
 lib/signals.js                      # the counters + thresholds (host-neutral)
 lib/messages.js                     # reminder texts shared by both adapters
 lib/fail.js                         # did a shell output look like a failure? line rules, no bare "error"/"failed" (per-plugin copy)
-lib/state.js                        # per-session turn state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); sweep() drops its files older than seven days
+lib/state.js                        # per-session turn state (<temp>/3dgiordano-agent-plugins[-<uid>]/); lockfile-guarded update(); sweep() drops its files older than seven days
 lib/host.js                         # cwdOf(): the project dir from the event, else the host env var, else null
 lib/log.js                          # opt-in logger (per-plugin copy; plugins are self-contained)
 ```

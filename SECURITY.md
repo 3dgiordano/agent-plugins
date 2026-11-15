@@ -11,12 +11,18 @@ Every hook in this repository, on every host:
 - reads one JSON document from stdin (what the host sends: session id, tool
   name, tool input/output, the assistant's final message) and treats it as
   **data** — it is never evaluated, executed, or passed to a shell;
-- writes at most two places: a small per-session state file under
-  `<os-temp-dir>/3dgiordano-agent-plugins/` (on Claude Code and Codex, one
+- writes at most two places: a small per-session state file in the state
+  directory (on Claude Code and Codex, one
   more per subagent of the session, its name ending `--<agent id>`), and — only when the corresponding
   `*_LOG` env var is set — a JSONL log under `<project>/.claude/logs/` or
   `<project>/.cursor/logs/`, rotated at ~256 KB. One directory, named after the
   marketplace, so you can see what put it there, list it, and remove it whole.
+  It is the user's own: `<os-temp-dir>/3dgiordano-agent-plugins-<uid>/` on
+  Linux and macOS, created `0700`, and used only while it is a real directory
+  (not a link) owned by that user with no access for group or others - one
+  another user made first, or opened up, is not read or written, and the hooks
+  run without state; `%TEMP%\3dgiordano-agent-plugins\` on Windows, where the
+  temp dir is already the user's (`lib/statedir.js`, the same in every plugin).
   One opt-in exception: with `COVMON_MISREAD_LOG` set, `coverage-self-monitoring`
   also keeps its misread log, one JSON file of at most 50 entries with sentences
   clipped to 200 characters, at
@@ -28,7 +34,7 @@ Every hook in this repository, on every host:
   conversation's first tool call) each plugin keeps the state file of that
   session - a Claude Code session is resumed, and its state carries the
   retrospective the last close parked for the next prompt - then lists
-  `<os-temp-dir>/3dgiordano-agent-plugins/` — never the bare temp dir — and
+  the state directory — never the bare temp dir — and
   removes entries whose name begins with its own prefix (`aspmon_`, `covmon_`,
   `epimon_`, `execmon_`, `handmon_`, `hygmon_`, `intmon_`, `persistmon_`,
   `progmon_`, `termmon_`) whose mtime is more than
@@ -51,7 +57,11 @@ and measured, but only counts and metadata about it are ever emitted: how
 many, which kind, which path, which line. What the agent itself wrote - a
 command it ran, a phrase of its own final message - may be quoted back to it,
 short. A finding in a file or an output is pointed at (the path and line, the
-command whose output it was), for the agent to read itself. The full list of values that do reach a message is under *Scope notes*.
+command whose output it was), for the agent to read itself. A path, a
+command or a tool label a message shows is put on one line - control, line
+separator and bidirectional-override characters become a space - with no
+backtick, and cut to 160 characters (`lib/shown.js`): a file name is chosen by
+whoever wrote the repository. The full list of values that do reach a message is under *Scope notes*.
 Beyond its own state, three hooks read
 a project file, stated here so they can be checked:
 
@@ -100,7 +110,11 @@ a project file, stated here so they can be checked:
   since the owner's prompt), for the `[PLAN CHECK]` blocks' `Plan` path and
   decision; when no block named a file, the `Plan:` line of
   `.agent/progress.md` (that line only); and the modification time of the
-  file either names. It keeps
+  file either names. A network path on that ledger line (`\\server\share\…`,
+  `//server/share/…`) is not looked at - on Windows looking would open a
+  session to that server - unless the project itself is on that share or
+  `EXECMON_ALLOW_UNC=1` is set; a mapped drive letter is local. A path the
+  agent's own block names is looked at as it is. It keeps
   that path, a count and a time, never text, and its line names no file: it
   says only that the plan the agent works from has not changed in three of
   the owner's decisions, or since a `revise-plan`. It never writes a file and

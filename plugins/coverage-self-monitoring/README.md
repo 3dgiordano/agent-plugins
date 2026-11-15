@@ -213,7 +213,7 @@ And one where it stays quiet: "What is the difference between `flat()` and `flat
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 
 - **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed.
-- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins/`, named `covmon_…`, kept for a resumed session and swept with this plugin's files there older than seven days; only with `COVMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`; and, only with `COVMON_MISREAD_LOG` set, the misread log described above, in `~/.3dgiordano-agent-plugins/misreads/`.
+- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins[-<uid>]/`, named `covmon_…`, kept for a resumed session and swept with this plugin's files there older than seven days; only with `COVMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`; and, only with `COVMON_MISREAD_LOG` set, the misread log described above, in `~/.3dgiordano-agent-plugins/misreads/`.
 - **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them.
 
 The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
@@ -276,7 +276,7 @@ cursor/cov-observe-cursor.js
 cursor/cov-response-cursor.js
 lib/signals.js                     # stub counter, prompt parts, close scan + [COVERAGE CHECK] rules
 lib/messages.js                    # reminder texts shared by both adapters
-lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); sweep() drops its files older than seven days
+lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins[-<uid>]/); lockfile-guarded update(); sweep() drops its files older than seven days
 lib/host.js                        # cwdOf(): the project dir from the event, else the host env var, else null
 lib/log.js                         # opt-in logger (per-plugin copy; plugins are self-contained)
 ```

@@ -21,6 +21,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const statedir = require('../lib/statedir.js');
 const { logEvent } = require('../lib/execlog.js');
 const { cwdOf, context, notification } = require('../lib/host.js');
 const reads = require('../lib/reads.js');
@@ -38,12 +39,12 @@ function main(raw) {
   if (typeof data.session_id === 'string' && data.session_id) sid = data.session_id;
 
   const safe = sid.replace(/[^0-9A-Za-z_-]/g, '_');
-  // <tmpdir>/3dgiordano-agent-plugins/execmon_<host>_<session>.txt, the same
+  // <the state dir, lib/statedir.js>/execmon_<host>_<session>.txt, the same
   // directory and the same name shape as the other plugins' state files.
   // The host goes in the middle, not in front: the counter is host-neutral and
   // this is the Claude adapter's copy of it.
-  const dir = path.join(os.tmpdir(), '3dgiordano-agent-plugins');
-  try { fs.mkdirSync(dir, { recursive: true }); } catch (_) {}
+  if (!statedir.ready()) return;
+  const dir = statedir.DIR;
   const counterFile = path.join(dir, `execmon_claude_${safe}.txt`);
 
   let count = 0;

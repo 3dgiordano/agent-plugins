@@ -1,7 +1,7 @@
 {
   "name": "hygiene-self-monitoring",
   "displayName": "Hygiene Self-Monitoring",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Change-scope self-check: the agent lists the public functions its change reaches, and puts back - or brings to you - any the request did not name. Part of the 3dgiordano agent-plugins collection.",
   "author": {
     "name": "David Giordano (3dgiordano)",

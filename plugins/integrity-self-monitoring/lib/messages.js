@@ -3,6 +3,7 @@
 
 const SKILL = 'integrity-self-monitoring';
 const host = require('./host.js');
+const { shown } = require('./shown.js');
 
 /*
  * Each message names what the user would get: a value the service never
@@ -32,21 +33,21 @@ const LOAD =
  * message. The agent opens the line itself. A command is quoted, as the
  * other plugins quote one: the agent issued it.
  */
-const where = (s) => `\`${s.file}\`${s.line ? ` line ${s.line}` : ''}`;
+const where = (s) => `\`${shown(s.file)}\`${s.line ? ` line ${s.line}` : ''}`;
 const SAYS = {
   'table': (s) => [`${where(s)} holds a table of rates beside a call to the service`, 'the user gets rates nobody fetched, and totals that do not reconcile'],
   'catch returns': (s) => [`${where(s)} answers a failed call with a value of its own`, 'when the service fails, the user gets a result that looks real and is not'],
   'promise catch': (s) => [`${where(s)} answers a failed call with another answer`, 'when the service fails, the user gets data from somewhere they did not ask for'],
   'missing key': (s) => [`${where(s)} answers a missing credential with a value`, 'without the key, the user gets a result instead of the error that says the key is missing'],
-  'second service': (s) => [`\`${s.file}\` reads from ${s.count || 'more than one'} hosts`, 'if one stands in for another, the user gets data from a source they did not ask for'],
+  'second service': (s) => [`\`${shown(s.file)}\` reads from ${s.count || 'more than one'} hosts`, 'if one stands in for another, the user gets data from a source they did not ask for'],
   'looks at caller': (s) => [`${where(s)} reads who called it, next to a test's name`, 'code that answers its caller differently gives the user a different result from the one the tests checked'],
-  'changes the system': (s) => [`\`${s.what}\` changes the system`, 'what passes that way passes on this machine only, and the user\'s is unchanged'],
-  'starts a server': (s) => [`\`${s.what}\` starts a server`,'a local stand-in answers where the real service does not, and the result says nothing about the real one'],
+  'changes the system': (s) => [`\`${shown(s.what)}\` changes the system`, 'what passes that way passes on this machine only, and the user\'s is unchanged'],
+  'starts a server': (s) => [`\`${shown(s.what)}\` starts a server`,'a local stand-in answers where the real service does not, and the result says nothing about the real one'],
 };
 
 function says(s) {
   const f = SAYS[s.kind];
-  return f ? f(s) : [`${s.file ? `\`${s.file}\`` : 'a command'}: ${s.kind}`, 'the result may only look done'];
+  return f ? f(s) : [`${s.file ? `\`${shown(s.file)}\`` : 'a command'}: ${s.kind}`, 'the result may only look done'];
 }
 
 // For the agent: each finding with its consequence, then the rule.
@@ -81,7 +82,7 @@ function notice(signals) {
  * finding is what was asked, and only the person knows whether it is.
  */
 function disputeNotice(taken) {
-  const parts = taken.map((d) => `${d.file ? `\`${d.file}\`` : d.kind} (${d.kind}): "${d.reason}"`);
+  const parts = taken.map((d) => `${d.file ? `\`${shown(d.file)}\`` : d.kind} (${d.kind}): "${d.reason}"`);
   return host.notice('integrity self-monitoring', [`the agent answered that this is what you asked for: ${parts.join('; ')}`], 'check it against what you asked');
 }
 

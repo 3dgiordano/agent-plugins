@@ -5,6 +5,7 @@ const { LEDGER, MAX_OPEN_ITEMS, MAX_LINES, MAX_BYTES, MAX_AGE_DAYS, MAX_LINE_CHA
 
 const SKILL = 'progress-self-monitoring';
 const host = require('./host.js');
+const { shown } = require('./shown.js');
 const claims = require('./claims.js');
 const PROTOCOL = `If you do not know this ledger's format, load the ${SKILL} skill ("Core Protocol").`;
 
@@ -43,14 +44,14 @@ function load(ins) {
  * `.agent/` is not where it is.
  */
 function name(ins) {
-  return ins && (ins.shared || ins.above) && ins.file ? ins.file : LEDGER;
+  return ins && (ins.shared || ins.above) && ins.file ? shown(ins.file) : LEDGER;
 }
 // A session started in a subdirectory: the ledger is the project's, up the tree (ledger.js ledgerPlace).
 function aboveClause(ins) {
-  return `The ledger is the project's, \`${ins.file}\`, above this directory - read and write that file.`;
+  return `The ledger is the project's, \`${shown(ins.file)}\`, above this directory - read and write that file.`;
 }
 function sharedClause(ins) {
-  return `This is a worktree: the ledger is the main checkout's, \`${ins.file}\` - read and write that file, and keep detail files next to it.`;
+  return `This is a worktree: the ledger is the main checkout's, \`${shown(ins.file)}\` - read and write that file, and keep detail files next to it.`;
 }
 
 /*

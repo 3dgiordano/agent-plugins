@@ -1,7 +1,7 @@
 {
   "name": "integrity-self-monitoring",
   "displayName": "Integrity Self-Monitoring",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Real-result discipline: when a service, a key or consistent tests are missing, the agent says so instead of shipping a fallback or made-up data that only looks done. Part of the 3dgiordano agent-plugins collection.",
   "author": {
     "name": "David Giordano (3dgiordano)",

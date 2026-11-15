@@ -1,7 +1,7 @@
 {
   "name": "epistemic-self-monitoring",
   "displayName": "Epistemic Self-Monitoring",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Observation vs. conjecture: the agent keeps what it saw apart from what it concluded, and only a verified claim becomes a fact, a root cause or a closure. Part of the 3dgiordano agent-plugins collection.",
   "author": {
     "name": "David Giordano (3dgiordano)",

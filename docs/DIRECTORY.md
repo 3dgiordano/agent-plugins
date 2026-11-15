@@ -202,7 +202,7 @@ finding; the *Data handling* answers below match the code.
 
 - Reads or stores personal data: no. Per-session state (counts, file paths,
   short phrases of the agent's own messages) in
-  `<os-temp-dir>/3dgiordano-agent-plugins/`, deleted after 7 days; opt-in
+  `<os-temp-dir>/3dgiordano-agent-plugins-<uid>/` (Windows: without `-<uid>`), deleted after 7 days; opt-in
   debug logs under the project's `.claude/logs/`.
 - Sends data to services other than declared connectors: no; no network
   access at all.

@@ -3,6 +3,7 @@
 
 const SKILL = 'handoff-self-monitoring';
 const host = require('./host.js');
+const { shown } = require('./shown.js');
 
 // A pointer, not a paraphrase - see the note in coverage's messages.js.
 /*
@@ -73,7 +74,7 @@ const LOAD =
  * three below fire at it.
  */
 function preclose(signal) {
-  const seen = signal.what === 'commit' ? `\`${signal.label}\` ran` : `\`${signal.label}\` passed`;
+  const seen = signal.what === 'commit' ? `\`${shown(signal.label)}\` ran` : `\`${shown(signal.label)}\` passed`;
   return `[handoff self-monitoring] ${seen} - this turn looks close to its end. Close with a [HANDOFF] ` +
     'markdown list, not a fenced code block: Status (done | waiting | needs-decision | blocked), Situation in ' +
     'the reader\'s terms, Options with ' +
@@ -81,7 +82,7 @@ function preclose(signal) {
 }
 
 function nothingFound(signal) {
-  return `[handoff self-monitoring] \`${signal.label}\` found nothing. What you looked for and did not find is a ` +
+  return `[handoff self-monitoring] \`${shown(signal.label)}\` found nothing. What you looked for and did not find is a ` +
     'gap in what you have, not a limit: if the work can still be made from the request, make it and name the gap - ' +
     'a reader handed nothing is worse off than one handed the work with its gaps named. Blocked is for what stops ' +
     `the output itself: a refused write, no credential, a file the request names not there. ${POINTER}`;

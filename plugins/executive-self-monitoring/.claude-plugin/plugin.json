@@ -1,7 +1,7 @@
 {
   "name": "executive-self-monitoring",
   "displayName": "Executive Self-Monitoring",
-  "version": "1.11.1",
+  "version": "1.11.2",
   "description": "Plan-anchored self-check: the agent re-reads the plan or ticket that defines the work, quotes its goal and its gate, names what pulls away from it, and keeps the plan current as decisions change it. Part of the 3dgiordano agent-plugins collection.",
   "author": {
     "name": "David Giordano (3dgiordano)",

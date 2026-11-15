@@ -37,9 +37,20 @@ No hook ever repeats your prompt's text or a file's contents to the model.
 
 | What | Where | How long | How to remove it |
 | --- | --- | --- | --- |
-| Per-session state (counters, flags, paths) | `<os-temp-dir>/3dgiordano-agent-plugins/` | Deleted automatically about seven days after the session's last use | Delete the directory |
+| Per-session state: counters, flags and paths, and short clipped pieces of what passed through the session (listed below) | `<os-temp-dir>/3dgiordano-agent-plugins-<your user id>/` on Linux and macOS, which only your user can open; `%TEMP%\3dgiordano-agent-plugins\` on Windows | Deleted automatically about seven days after the session's last use | Delete the directory |
 | Debug log, **off by default** (`*_LOG=1`) | `<project>/.claude/logs/` or `<project>/.cursor/logs/` | Until you delete it; capped at about 512 KB per plugin (one rotation) | Delete the `.jsonl` files, or unset the variable |
 | Coverage misread log, **off by default** (`COVMON_MISREAD_LOG`) | `~/.3dgiordano-agent-plugins/misreads/` | Until you delete it; at most 50 entries | Delete the file |
+
+Besides counters and paths, the state can hold, clipped: command lines the
+agent ran (persistence, integrity; at most 200 characters); the start
+of the text an edit replaced (persistence; at most 200 characters, 16 per
+file); a line of a failed command's output, numbers and paths masked
+(persistence); the code a finding points at, or the hosts it names
+(integrity; at most 80 characters); public function names, line numbers and
+hashes, never the code (hygiene); the sentences in which the agent said it
+would do something later (progress; at most 140 characters); and phrases a
+close scan read, with the agent's answer when it disputed one (coverage; at
+most 200 characters). None of it is sent anywhere, and it goes with the file.
 
 The opt-in logs can hold short phrases of the agent's own messages and of code
 it edited (clipped, at most 200 characters) and paths. They never leave your

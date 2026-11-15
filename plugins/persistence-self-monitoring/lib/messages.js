@@ -3,6 +3,7 @@
 
 const SKILL = 'persistence-self-monitoring';
 const host = require('./host.js');
+const { shown } = require('./shown.js');
 
 // A pointer, not a paraphrase - see the note in coverage's messages.js.
 /*
@@ -65,10 +66,10 @@ function said(signals, toUser) {
   return signals.map((s) => {
     const also = s.delegated ? (toUser ? ", its subagents' included" : ", your subagents' included") : '';
     switch (s.kind) {
-      case 'edits': return `${toUser ? 'the agent has' : 'you have'} edited \`${s.key}\` ${s.count} times this turn, retrying after a failed run or on the same lines${also}`;
-      case 'cmds': return `\`${s.key}\` has failed ${s.count} times this turn${also}`;
+      case 'edits': return `${toUser ? 'the agent has' : 'you have'} edited \`${shown(s.key)}\` ${s.count} times this turn, retrying after a failed run or on the same lines${also}`;
+      case 'cmds': return `\`${shown(s.key)}\` has failed ${s.count} times this turn${also}`;
       // Never the error line itself: it is output text (lib/signals.js).
-      case 'errs': return `the same error has come back ${s.count} times this turn${also}${s.cmd ? `, last in the output of \`${s.cmd}\`` : ''}`;
+      case 'errs': return `the same error has come back ${s.count} times this turn${also}${s.cmd ? `, last in the output of \`${shown(s.cmd)}\`` : ''}`;
       case 'effort': return `${s.count} tool calls since ${toUser ? 'your' : "the user's"} last message${also} - is this effort proportional to what was asked?`;
       default: return '';
     }

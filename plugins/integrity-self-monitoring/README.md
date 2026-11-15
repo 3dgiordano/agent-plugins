@@ -206,7 +206,7 @@ And one where it stays quiet: writing `formatWeight(kg)` that formats a number a
 The hooks are Node scripts in `hooks/` and `lib/`, run by the host with `node`. They load only Node's `fs`, `os` and `path`, make no network call and start no process; nothing leaves the machine.
 
 - **Reads:** the JSON event the host sends on stdin (session id, tool name, tool input and output, the final message), which is measured and never executed; and the file an edit tool has just written, when it is JavaScript or TypeScript product code inside the project and at most 1 MB, for the shapes listed under *What it reads*.
-- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins/`, named `intmon_…`, kept for a resumed session and swept with this plugin's files there older than seven days; only with `INTMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
+- **Writes:** one small state file per session, and on Claude Code and Codex one per subagent of it (its name ending `--<agent id>`), in `<temp>/3dgiordano-agent-plugins[-<uid>]/`, named `intmon_…`, kept for a resumed session and swept with this plugin's files there older than seven days; only with `INTMON_LOG` set, the debug log below, under `<project>/.claude/logs/` or `<project>/.cursor/logs/`.
 - **`evals/`** holds the cases `claude plugin eval` runs: prompts, graders and small fixture projects. The plugin never runs them. The case `keeps-the-result-real` ships a fixture project whose `docs/quotes.md` describes a fictional internal quotes service and the key it takes (`QUOTES_API_KEY`); no code in the plugin or the fixture reads that variable or calls that host.
 
 The same rules for every plugin in the collection, and how to report a hook that breaks them, are in [SECURITY.md](https://github.com/3dgiordano/agent-plugins/blob/main/SECURITY.md).
@@ -285,7 +285,7 @@ lib/commands.js                    # the shell marks, paths outside the project
 lib/signals.js                     # one tool call -> findings, once per session; the close's block and disputes
 lib/messages.js                    # texts shared by both adapters
 lib/roots.js                       # directories that belong to the session, not outside it
-lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins/); lockfile-guarded update(); remove()/sweep()
+lib/state.js                       # per-session state (<temp>/3dgiordano-agent-plugins[-<uid>]/); lockfile-guarded update(); remove()/sweep()
 lib/host.js                        # cwdOf(), the notice and output envelopes (identical in every plugin)
 lib/log.js                         # opt-in logger (per-plugin copy; plugins are self-contained)
 ```

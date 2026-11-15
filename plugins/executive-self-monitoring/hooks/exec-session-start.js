@@ -14,6 +14,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const statedir = require('../lib/statedir.js');
 
 function main(raw) {
   let data = {};
@@ -21,8 +22,8 @@ function main(raw) {
   // A resume brings the transcript back whole, the earlier load in it: only a compaction loses it.
   if (data.source !== 'compact') return;
   const sid = typeof data.session_id === 'string' && data.session_id ? data.session_id : 'nosession';
-  const dir = path.join(os.tmpdir(), '3dgiordano-agent-plugins');
-  try { fs.mkdirSync(dir, { recursive: true }); } catch (_) {}
+  if (!statedir.ready()) return;
+  const dir = statedir.DIR;
   try { fs.writeFileSync(path.join(dir, `execmon_claude_${sid.replace(/[^0-9A-Za-z_-]/g, '_')}.txt`), '0'); } catch (_) {}
 }
 
