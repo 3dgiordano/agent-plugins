@@ -78,7 +78,7 @@ does not watch.
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 prompt, a tool call, or a stop.
 
-## The closure gate — non-blocking by default, strict on request
+## The closure gate — a note by default, a hold on request
 
 The **Close** layer checks three rules on any `[EPISTEMIC CLOSE]` block the agent
 wrote:
@@ -92,19 +92,19 @@ never guesses from prose; it only reads the artifact the skill asks for. That
 keeps false positives near zero and leaves the agent nothing to game except the
 block's own content — which stays visible to you.
 
-**Default mode (non-blocking):** findings are written to the opt-in log and
+**Default mode (no hold):** findings are written to the opt-in log and
 carried into the next prompt as a one-line retrospective (Claude Code). The
 turn ends normally.
 
-**Strict mode** (`EPIMON_STRICT=1`): the gate blocks once. Claude Code: the
+**Strict mode** (`EPIMON_STRICT=1`): the gate holds the close once. Claude Code: the
 `Stop` hook exits 2 with the reason, so the agent fixes the block before
-finishing (`stop_hook_active` prevents a second block). Cursor: the `stop`
+finishing (`stop_hook_active` prevents a second hold). Cursor: the `stop`
 hook returns a `followup_message`, submitted once (`loop_limit: 1`).
 
 **Run non-strict first.** The skill's own closure check applies to the plugin:
 *a mechanism that fires is not one that helps*. Log for a while, look at how
 often closures come out with a missing falsifier or an empty "Verified by",
-and only then decide whether blocking is worth a forced extra turn per
+and only then decide whether a hold is worth a forced extra turn per
 closure — and whether it raised the rate of *verification* or only the rate of
 *tags*.
 

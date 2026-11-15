@@ -7,6 +7,12 @@ release.
 
 ## [Unreleased]
 
+### Changed
+
+- **The README figure says it is a development set.** A paragraph under the figure says that handoff, hygiene and executive were revised during the session against the cases that measure them, gives the Claude models' first-attempt range with the plugins (85% to 100%, not 100%), says where the Claude gain comes from, and links the per-case table in `docs/EVIDENCE.md`. Benchmark 1.2.0 is called the development set from now on.
+- **The Plugins table drops its Status column**, which had gone stale ("new (0.1)" for two plugins now at 0.4.1). Each row now says in the README's own words whether the plugin holds a close: never, only under its strict setting, or one kind by default (handoff, hygiene).
+- **The gate sections of five plugin READMEs say "hold".** Aspiration, epistemic, handoff, hygiene and termination titled them "non-blocking by default, strict on request" and said the strict gate "blocks once". They now say a note by default or one hold by default, and that the strict setting holds the close once, the words the root README uses.
+
 ## [0.21.0] — 2026-11-14
 
 The plugins misfire less in real use, the docs say what was measured, and CI checks what the project says it checks. Epistemic sees a failed command on Claude Code and a PowerShell cmdlet error that exits 0; hygiene's record works at any project size, judges only a turn that edited code, and holds a close only when its edit record bears the block out; coverage, termination, aspiration, epistemic and integrity drop a set of readings that were wrong in practice; handoff's empty-search hold is narrower. The docs report benchmark 1.2.0 as the development set it is, the release states its direction in ROADMAP.md, and the bench session is closed as the record of release 0.20.0. Every plugin moves one step; no new plugin, block or field.

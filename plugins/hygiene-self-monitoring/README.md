@@ -36,11 +36,11 @@ Block rules:
 
 A finding carries the path, the lines and the count - never a function's name, never the code.
 
-## The gate - non-blocking by default, strict on request
+## The gate - one hold by default, any finding on request
 
 **Default:** findings go to the opt-in log and into the next prompt as one line (Claude Code, Codex). The turn ends normally - except for an Outside named with the Decision `keep` while the edit record shows a public function changed that Request names does not name, which holds the close once as the strict gate does: the block's words and the record agree on a kept change outside the request, so it has few false alarms, and parked for the next prompt it never reached a one-turn task. The hold reads the record, not the wording, so a loose gloss of "none" over a clean record is not held. A `revert-extra` or `ask-owner` while the record still shows the function changed is a note, not a hold: the record spans the session, so a change an earlier request made, or one put back from the shell, is still in it. Two things keep the session's record to the turn's request (Claude Code, Codex): a turn that edited no code is not judged at all, and a public function an earlier close named in Request names is settled - not asked about again until its file is edited again. The finding offers the way out of a wrong label too: what the request needs is not outside, and moves to Request names with the words of the request that need it. The agent may keep its close on the next stop. The user sees one notice line (`systemMessage`); `HYGMON_NOTICE=0` turns that off.
 
-**Strict** (`HYGMON_STRICT=1`): the gate blocks once. Claude Code exits 2. Cursor returns a `followup_message` once (`loop_limit: 1`).
+**Strict** (`HYGMON_STRICT=1`): the gate holds the close once. Claude Code exits 2. Cursor returns a `followup_message` once (`loop_limit: 1`).
 
 ## Example prompts
 

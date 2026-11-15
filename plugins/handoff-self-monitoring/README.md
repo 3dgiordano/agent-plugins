@@ -160,21 +160,21 @@ epistemic `[verified]` line is true.
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 prompt, a tool call or a stop.
 
-## The handoff gate — non-blocking by default, strict on request
+## The handoff gate — one hold by default, any finding on request
 
-**Default mode (non-blocking):** findings are written to the opt-in log and
+**Default mode:** findings are written to the opt-in log and
 carried into the next prompt as a one-line retrospective (Claude Code). The
 turn ends normally - except for one finding, a close that stops on a search
 that found nothing, with nothing written in the turn (`blocked` or `needs-decision`),
-which blocks as the strict gate does. Held for the next prompt, it never
+which holds the close as the strict gate does. Held for the next prompt, it never
 reached a one-turn task, and there the close was the work not delivered.
 On Claude Code a held `blocked` whose continuation hands the work back as a
 question is held once more, and that is the last: two holds in a turn, only
 when the kind changes. Cursor submits one follow-up (`loop_limit: 1`).
 
-**Strict mode** (`HANDMON_STRICT=1`): the gate blocks once. Claude Code: the
+**Strict mode** (`HANDMON_STRICT=1`): the gate holds the close once. Claude Code: the
 `Stop` hook exits 2 with the reason, so the agent writes the block before
-finishing (`stop_hook_active` prevents a second block). Cursor: the `stop`
+finishing (`stop_hook_active` prevents a second hold). Cursor: the `stop`
 hook returns a `followup_message`, submitted once (`loop_limit: 1`).
 
 The gate is the only layer that can change *this* close: the Stop is the sole
@@ -208,7 +208,7 @@ plugin's scanner looking for `returned` lines in the `[COVERAGE CHECK]`.
 Coverage's deferral scan reads the whole prose, a `[HANDOFF]` included — so a
 `Next:` line that says a part is *out of scope* still wants the coverage
 ledger; that is the intended division, not a conflict. In strict mode the
-three gates can each block the same Stop once; the host runs them all, the
+three gates can each hold the same Stop once; the host runs them all, the
 agent sees every reason, and `stop_hook_active` / `loop_limit` keep any of
 them from firing twice.
 

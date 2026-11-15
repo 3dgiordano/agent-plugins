@@ -96,19 +96,19 @@ reason, not a mood: a `blocked:` line names the limit that was observed.
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a
 prompt or a stop.
 
-## The termination gate — non-blocking by default, strict on request
+## The termination gate — a note by default, a hold on request
 
-**Default mode (non-blocking):** findings are written to the opt-in log and
+**Default mode (no hold):** findings are written to the opt-in log and
 carried into the next prompt as a one-line retrospective (Claude Code). The
 turn ends normally.
 
-**Strict mode** (`TERMMON_STRICT=1`): the gate blocks once. Claude Code: the
+**Strict mode** (`TERMMON_STRICT=1`): the gate holds the close once. Claude Code: the
 `Stop` hook exits 2 with the reason, so the agent names the checkable reason
 — or continues — before finishing (`stop_hook_active` prevents a second
-block). Cursor: the `stop` hook returns a `followup_message`, submitted once
+hold). Cursor: the `stop` hook returns a `followup_message`, submitted once
 (`loop_limit: 1`).
 
-Blocking is more defensible here than in the epistemic gate, because the Stop
+A hold is more defensible here than in the epistemic gate, because the Stop
 *is* the action being questioned. Even so, **run non-strict first** and look at
 the log: how often do turns end on a trigger phrase, and how often does the
 agent then continue on its own when the retrospective arrives? Only if the

@@ -46,8 +46,16 @@ send nothing anywhere.
 | Simple triggers, tested against real sessions | A way to make the model smarter: same model, more explicit decisions |
 
 <p align="center">
-  <img src="assets/bench-results.svg" width="100%" alt="Pass rate per model without and with the plugins on benchmark 1.2.0: every model passes more of the canonical cases with them, the Grok models on Cursor by the widest margin">
+  <img src="assets/bench-results.svg" width="100%" alt="Pass rate per model without and with the plugins on benchmark 1.2.0, a development set: every model passes more of the canonical cases with them, the Grok models on Cursor by the widest margin">
 </p>
+
+**A development set, not an effect size.** Handoff, hygiene and executive
+were revised during the bench session against the same cases that measure them.
+Counted on each cell's first graded attempt instead of the run kept, the
+Claude models pass 85% to 100% of the cases with the plugins, not 100%; and
+18 of the 21 passes gained on Claude Code come from two cases, handoff's and
+hygiene's. Per case, first attempts and intervals:
+[Evidence](docs/EVIDENCE.md#benchmark-120-claude-code-and-cursor-2026-10-23-to-2026-10-26-release-0200).
 
 <details>
 <summary><b>About these numbers</b> — how they are measured, and what they do not show yet</summary>
@@ -68,8 +76,10 @@ model has, not only the ones that separate.
 
 These are exploratory results, not yet a confirmatory one: the cases and
 graders are the plugins' author's, kept when the unaided model failed them,
-not pre-registered and not checked against blind labels
-([docs/STUDY-PROTOCOL.md](docs/STUDY-PROTOCOL.md) is the plan). Dates,
+not pre-registered and not checked against blind labels. Benchmark 1.2.0 is
+the development set from now on: a confirmatory study needs cases the
+plugins were not revised on ([docs/STUDY-PROTOCOL.md](docs/STUDY-PROTOCOL.md)
+is the plan). Dates,
 versions, costs and limits: [docs/EVIDENCE.md](docs/EVIDENCE.md).
 
 </details>
@@ -314,18 +324,18 @@ the full lists and the per-host notes.
 
 ## Plugins
 
-| Plugin | Status | What it does |
-|--------|--------|--------------|
-| [executive-self-monitoring](plugins/executive-self-monitoring/) | available | Plan-anchored drift self-check: periodically nudges the agent to re-read the active plan/gate instead of drifting, says when a document it read has changed on disk since, and when three decisions have gone by with the plan unchanged. Not a blocker. |
-| [epistemic-self-monitoring](plugins/epistemic-self-monitoring/) | available | Observation vs. conjecture discipline: claims carry their evidence and a named falsifier; only verified claims become facts or closures. Non-blocking by default, opt-in strict gate. |
-| [persistence-self-monitoring](plugins/persistence-self-monitoring/) | available | Persist-or-quit signal: counts repeated attempts on the same file, command or error and effort since the user last spoke; nudges only when a threshold is crossed. Never blocks. |
-| [termination-self-monitoring](plugins/termination-self-monitoring/) | available | Checkable-reason discipline: a state-shaped reason to stop, defer or narrow ("running out of context", "long session", "not confident enough", "given the complexity", a run of apologies) is replaced by a checkable one or dropped, and the work continues. Non-blocking by default, opt-in strict gate. |
-| [aspiration-self-monitoring](plugins/aspiration-self-monitoring/) | new (0.1) | Review-before-you-close discipline: a close with an edited file nobody reviewed in its medium - read, viewed, run, rendered or played - is named, and the result is compared, point by point, with a source the agent did not write - the original, the specification, the real input, the owner's words. Meets only when that comparison shows it; a difference still there is a defect, a source out of reach is unverified. Non-blocking by default, opt-in strict gate. |
-| [coverage-self-monitoring](plugins/coverage-self-monitoring/) | available | Parts-ledger discipline: the parts of a request, hardest first, each closed as done, blocked with an observed reason, or returned to the owner. Counts stubs and TODOs written per turn; flags deferred work with no closing ledger. Never blocks. |
-| [handoff-self-monitoring](plugins/handoff-self-monitoring/) | available | Structured-handoff discipline: the final message closes with a `[HANDOFF]` block modelled on SBAR / I-PASS — status, situation in the reader's terms, options with a default, one next action. Injects the format on the first green gate or commit of the turn; flags a decision named but not handed off. Non-blocking by default except a blocked close after a search that found nothing, which blocks once; opt-in strict gate. |
-| [integrity-self-monitoring](plugins/integrity-self-monitoring/) | available | Real-result discipline: when a service, a key or consistent tests are missing, the result is an error that says so, not a fallback that looks done. Reads each edit to product code for made-up data where a service was asked for, or code that reads its caller, and each shell command for a change to the machine or a server started; each finding is said once, with what it means for you. Nothing on the prompt. Never blocks. |
-| [progress-self-monitoring](plugins/progress-self-monitoring/) | available | Cross-session ledger discipline: what a session leaves `blocked` or `returned`, with the reason, and the next action, kept in `.agent/progress.md` and re-opened before the next session works. Announces the ledger's open items when a session opens or continues after a compaction; notices a turn that edited files and left it untouched. Never blocks. |
-| [hygiene-self-monitoring](plugins/hygiene-self-monitoring/) | new (0.1) | Change-scope discipline: the public functions a change reaches - an exported function, a helper other callers use, a sibling fixed for consistency - are recorded file by file, and the close names what the request does not and puts it back or offers it to the owner. Size is not the measure. Non-blocking by default except a block that contradicts itself, which blocks once; opt-in strict gate. |
+| Plugin | What it does |
+|--------|--------------|
+| [executive-self-monitoring](plugins/executive-self-monitoring/) | Plan-anchored drift self-check: periodically nudges the agent to re-read the active plan/gate instead of drifting, says when a document it read has changed on disk since, and when three decisions have gone by with the plan unchanged. Never holds a close. |
+| [epistemic-self-monitoring](plugins/epistemic-self-monitoring/) | Observation vs. conjecture discipline: claims carry their evidence and a named falsifier; only verified claims become facts or closures. Never holds a close unless its strict setting is on. |
+| [persistence-self-monitoring](plugins/persistence-self-monitoring/) | Persist-or-quit signal: counts repeated attempts on the same file, command or error and effort since the user last spoke; nudges only when a threshold is crossed. Never holds a close. |
+| [termination-self-monitoring](plugins/termination-self-monitoring/) | Checkable-reason discipline: a state-shaped reason to stop, defer or narrow ("running out of context", "long session", "not confident enough", "given the complexity", a run of apologies) is replaced by a checkable one or dropped, and the work continues. Never holds a close unless its strict setting is on. |
+| [aspiration-self-monitoring](plugins/aspiration-self-monitoring/) | Review-before-you-close discipline: a close with an edited file nobody reviewed in its medium - read, viewed, run, rendered or played - is named, and the result is compared, point by point, with a source the agent did not write - the original, the specification, the real input, the owner's words. Meets only when that comparison shows it; a difference still there is a defect, a source out of reach is unverified. Never holds a close unless its strict setting is on. |
+| [coverage-self-monitoring](plugins/coverage-self-monitoring/) | Parts-ledger discipline: the parts of a request, hardest first, each closed as done, blocked with an observed reason, or returned to the owner. Counts stubs and TODOs written per turn; flags deferred work with no closing ledger. Never holds a close. |
+| [handoff-self-monitoring](plugins/handoff-self-monitoring/) | Structured-handoff discipline: the final message closes with a `[HANDOFF]` block modelled on SBAR / I-PASS — status, situation in the reader's terms, options with a default, one next action. Injects the format on the first green gate or commit of the turn; flags a decision named but not handed off. By default it holds one kind of close: `blocked` or `needs-decision` after a search that found nothing, with nothing written in the turn; its strict setting holds any finding. |
+| [integrity-self-monitoring](plugins/integrity-self-monitoring/) | Real-result discipline: when a service, a key or consistent tests are missing, the result is an error that says so, not a fallback that looks done. Reads each edit to product code for made-up data where a service was asked for, or code that reads its caller, and each shell command for a change to the machine or a server started; each finding is said once, with what it means for you. Nothing on the prompt. Never holds a close. |
+| [progress-self-monitoring](plugins/progress-self-monitoring/) | Cross-session ledger discipline: what a session leaves `blocked` or `returned`, with the reason, and the next action, kept in `.agent/progress.md` and re-opened before the next session works. Announces the ledger's open items when a session opens or continues after a compaction; notices a turn that edited files and left it untouched. Never holds a close. |
+| [hygiene-self-monitoring](plugins/hygiene-self-monitoring/) | Change-scope discipline: the public functions a change reaches - an exported function, a helper other callers use, a sibling fixed for consistency - are recorded file by file, and the close names what the request does not and puts it back or offers it to the owner. Size is not the measure. By default it holds one kind of close: a block that keeps what its own Outside names while the edit record shows a public function changed that the request does not name; its strict setting holds any finding. |
 
 Each plugin folder has its own README with design notes, host differences,
 debugging tips and the research it draws on. What each host runs is in

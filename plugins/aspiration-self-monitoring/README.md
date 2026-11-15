@@ -53,11 +53,11 @@ The hook never decides whether the page, the report, the image or the patch is g
 
 Plain Node, no dependencies, **fail silent**: a hook error never blocks a prompt or a stop.
 
-## The gate - non-blocking by default, strict on request
+## The gate - a note by default, a hold on request
 
 **Default:** findings go to the opt-in log and into the next prompt as one line (Claude Code, Codex). The turn ends normally. The user sees one notice line (`systemMessage`); `ASPMON_NOTICE=0` turns that off.
 
-**Strict** (`ASPMON_STRICT=1`): the gate blocks once. Claude Code exits 2. Cursor returns a `followup_message` once (`loop_limit: 1`).
+**Strict** (`ASPMON_STRICT=1`): the gate holds the close once. Claude Code exits 2. Cursor returns a `followup_message` once (`loop_limit: 1`).
 
 Run non-strict first. A forced extra turn is worth its cost only if the retrospective is not enough.
 
