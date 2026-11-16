@@ -1,6 +1,6 @@
 cff-version: 1.2.0
-message: "If you use agent-plugins or its bench in your work, please cite it as below."
-title: "agent-plugins: cognitive scaffolding for coding agents"
+message: "If you use 3dgiordano-agent-plugins or its bench in your work, please cite it as below."
+title: "3dgiordano-agent-plugins: cognitive scaffolding for coding agents"
 abstract: >-
   Ten self-monitoring plugins for coding agents (Claude Code, Codex, Cursor,
   Factory Droid and Agent Plugins hosts). Each is a skill plus, where the host allows it,

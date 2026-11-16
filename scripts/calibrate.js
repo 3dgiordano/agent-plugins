@@ -265,7 +265,7 @@ function crossPlugin(dirs) {
 
 function main() {
   const dirs = process.argv.slice(2).length ? process.argv.slice(2) : [process.cwd()];
-  console.log(`agent-plugins threshold calibration - logs from: ${dirs.join(', ')}`);
+  console.log(`3dgiordano-agent-plugins threshold calibration - logs from: ${dirs.join(', ')}`);
   let any = false;
 
   for (const [plugin, spec] of Object.entries(PLUGINS)) {

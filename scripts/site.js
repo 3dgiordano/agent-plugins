@@ -25,6 +25,8 @@ const ROOT = path.join(__dirname, '..');
 const REPO = 'https://github.com/3dgiordano/agent-plugins';
 // The name the site goes by: the author's handle with the repository's, as the marketplace names it.
 const NAME = '3dgiordano-agent-plugins';
+// Where Pages serves the site (.github/workflows/pages.yml): absolute URLs for the canonical link and link unfurls.
+const SITE = 'https://3dgiordano.github.io/agent-plugins/';
 const BLOB = `${REPO}/blob/main`;
 
 // The question each plugin's self-check answers (README, "In one minute"). A plugin missing here shows without one.
@@ -58,7 +60,7 @@ function plugins() {
       name,
       title: m.displayName || name,
       version: m.version,
-      description: String(m.description || '').replace(/\s*Part of the 3dgiordano agent-plugins collection\.\s*$/, ''),
+      description: String(m.description || '').replace(/\s*Part of the 3dgiordano[ -]agent-plugins collection\.\s*$/, ''),
       question: QUESTION[name] || '',
       logo: fs.existsSync(path.join(dir, name, 'assets', 'logo.svg')) ? path.join(dir, name, 'assets', 'logo.svg') : null,
     });
@@ -148,7 +150,23 @@ footer a { color: var(--muted); }
 }
 `;
 
-function page({ title, description, body, depth = 0 }) {
+// What a search engine reads to tie the site to its author and its repository.
+function linkedData(description) {
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareSourceCode',
+    name: NAME,
+    alternateName: 'agent-plugins',
+    description,
+    url: SITE,
+    codeRepository: REPO,
+    license: 'https://www.apache.org/licenses/LICENSE-2.0',
+    programmingLanguage: 'JavaScript',
+    author: { '@type': 'Person', name: '3dgiordano', url: 'https://github.com/3dgiordano' },
+  }).replace(/</g, '\\u003c');
+}
+
+function page({ title, description, body, depth = 0, path: rel = '' }) {
   const up = depth ? '../'.repeat(depth) : '';
   return `<!doctype html>
 <html lang="en">
@@ -157,11 +175,16 @@ function page({ title, description, body, depth = 0 }) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
+<link rel="canonical" href="${SITE}${rel}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="${SITE}${rel}">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
-<meta property="og:image" content="${up}social-preview.png">
+<meta property="og:image" content="${SITE}social-preview.png">
 <meta property="og:site_name" content="${NAME}">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="author" content="3dgiordano">
+<script type="application/ld+json">${linkedData(description)}</script>
 <link rel="icon" href="${up}logo.svg" type="image/svg+xml">
 <style>${CSS}</style>
 </head>
@@ -255,7 +278,7 @@ ${esc(installs)}</pre>
 </main>`;
   return page({
     title: `${NAME} - cognitive scaffolding for coding agents`,
-    description: 'Ten self-monitoring plugins for Claude Code, Codex and Cursor, and the results of their outcome benchmark.',
+    description: `${NAME}: ten self-monitoring plugins for Claude Code, Codex and Cursor by 3dgiordano, and the results of their outcome benchmark.`,
     body,
   });
 }

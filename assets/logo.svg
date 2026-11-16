@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" fill="none" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="agent-plugins: a thinking bot whose face is ringed by three colored checkpoints">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" fill="none" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="3dgiordano-agent-plugins: a thinking bot whose face is ringed by three colored checkpoints">
   <!-- face plate -->
   <circle cx="64" cy="68" r="34" fill="#F4F6F9"/>
   <!-- the ring: three arcs, three gaps - one per self-monitoring question -->

@@ -1,7 +1,7 @@
 {
   "name": "3dgiordano-agent-plugins",
   "interface": {
-    "displayName": "3dgiordano agent-plugins"
+    "displayName": "3dgiordano-agent-plugins"
   },
   "plugins": [
     {

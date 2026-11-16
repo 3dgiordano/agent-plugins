@@ -426,7 +426,7 @@ release number that only says "which changelog is this". Cutting one:
    version and date in `CITATION.cff` (`version.js --check` fails until it
    matches). Each plugin is at most one step above the last release, and a
    step above it if its code changed (`node scripts/pluginsource.js`, in CI).
-3. Commit, tag with an annotated tag (`git tag -a vX.Y.Z -m "agent-plugins X.Y.Z"`,
+3. Commit, tag with an annotated tag (`git tag -a vX.Y.Z -m "3dgiordano-agent-plugins X.Y.Z"`,
    or `-s` to sign it), push with tags.
 4. Once CI is green on the tag, move `stable` to it:
    `git push origin "vX.Y.Z^{commit}:refs/heads/stable"`. Users who added the

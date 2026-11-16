@@ -1,6 +1,6 @@
 # Roadmap
 
-**Decision for Q4 2026 (owner, 2026-11-14): agent-plugins is a research-backed tool.** The work that comes first is being able to say, with evidence, what each plugin changes in an agent's work. Claude Code is the one fully supported host. New hosts and the directory listing wait for a trigger.
+**Decision for Q4 2026 (owner, 2026-11-14): 3dgiordano-agent-plugins is a research-backed tool.** The work that comes first is being able to say, with evidence, what each plugin changes in an agent's work. Claude Code is the one fully supported host. New hosts and the directory listing wait for a trigger.
 
 This page states what that decision means for the next quarter. What has been measured, with its numbers, is in [docs/EVIDENCE.md](docs/EVIDENCE.md); the protocol a confirmatory study follows is in [docs/STUDY-PROTOCOL.md](docs/STUDY-PROTOCOL.md).
 
