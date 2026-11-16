@@ -3,10 +3,12 @@
 'use strict';
 /*
  * A bench session as data a reader can audit, without the runner's machine in
- * it (docs/STUDY-PROTOCOL.md, section 8).
+ * it (docs/STUDY-PROTOCOL.md, section 8). The archive is kept by the
+ * maintainer in bench/archive/ (ignored by git) and shared on request for
+ * study or research; it is not published.
  *
- *   node scripts/publish-runs.js --session <id> --out <dir> [--forbid a,b]
- *   node scripts/publish-runs.js --check <dir> [--forbid a,b]
+ *   node scripts/archive-runs.js --session <id> --out bench/archive/<name> [--forbid a,b] [--archive]
+ *   node scripts/archive-runs.js --check <dir> [--forbid a,b]
  *
  * Nothing stored is copied as it is. A stored run holds what its host put in
  * the model's context and in its records: the account's email and
@@ -18,7 +20,7 @@
  *     <workspace>, <run-root-N>, <repo>, <temp>, <home>, in every spelling a
  *     path takes (backslashes, doubled backslashes, slashes, Git Bash /c/...);
  *   - forbidden tokens become <redacted>: the list given with --forbid, the
- *     PUBLISH_FORBIDDEN_TOKENS variable (comma-separated, so the names are
+ *     ARCHIVE_FORBIDDEN_TOKENS variable (comma-separated, so the names are
  *     supplied when publishing and never checked in), the OS user and the
  *     machine name. A token shorter than 3 characters is refused, not dropped:
  *     it would match everywhere, and ignoring it would leave the publisher
@@ -33,8 +35,10 @@
  * the text it matched.
  *
  * A run that read outside its workspace, or that the audit marked contaminated
- * or suspect, keeps its calls, grade and audit, and its tool results are
- * withheld: what it read outside is not the bench's to publish.
+ * or suspect, keeps its calls, grade and audit; its tool results are withheld
+ * and paths outside its folders are masked. One that read a file on disk
+ * outside its workspace loses its text and thinking too: what it read outside
+ * is not the bench's to publish.
  *
  * Writes nothing under bench/results/. Not part of CI.
  */
@@ -111,9 +115,9 @@ function pathPattern(p) {
 }
 
 function forbiddenTokens(explicit, env = process.env, osUser = safeUser(), host = os.hostname()) {
-  const fromEnv = String(env.PUBLISH_FORBIDDEN_TOKENS || '').split(',');
+  const fromEnv = String(env.ARCHIVE_FORBIDDEN_TOKENS || '').split(',');
   const given = [...explicit, ...fromEnv].map((t) => t.trim()).filter(Boolean);
-  if (!given.length) throw new Error('no forbidden tokens: pass --forbid a,b or set PUBLISH_FORBIDDEN_TOKENS (the names, handles and organisation that must not appear)');
+  if (!given.length) throw new Error('no forbidden tokens: pass --forbid a,b or set ARCHIVE_FORBIDDEN_TOKENS (the names, handles and organisation that must not appear)');
   const all = [...given, osUser, host].filter(Boolean);
   for (const t of all) {
     if (t.length < 3 || !/^[\w.@+-]+$/.test(t)) throw new Error(`forbidden token refused: "${t.length < 3 ? t : t.slice(0, 2) + '…'}" is shorter than 3 characters or not made of word characters, ".", "@", "+" and "-"`);
@@ -349,7 +353,38 @@ function buildRun(dir, base, c, scrubFor) {
     events,
     workspace: withhold ? null : workspaceChanges(path.join(dir, base), seedDirs),
   };
-  return scrubDeep(run, scrub);
+  const clean = scrubDeep(run, scrub);
+  if (!withhold) return clean;
+  /*
+   * A withheld run keeps its calls, with every path outside its own folders
+   * masked: the names of files on the runner's machine are the runner's. A run
+   * that read files on disk outside its workspace (not the web, not the
+   * repository) also loses its text and thinking, which can retell what it read.
+   */
+  const marks = [...(cost.outside || []), ...(cost.contaminated || [])].map((x) => scrub(typeof x === 'string' ? x : JSON.stringify(x)));
+  const readDisk = marks.some((x) => DISK_MARK.test(x));
+  clean.events = clean.events
+    .filter((e) => !(readDisk && (e.kind === 'thinking' || e.kind === 'text')))
+    .map((e) => {
+      if (e.kind !== 'call') return e;
+      const args = scrubDeep(e.args, maskOutside);
+      // The description of a call is the model's own words, like its text.
+      if (readDisk) delete args.description;
+      return { ...e, args };
+    });
+  clean.hookMessages = clean.hookMessages.map((h) => ({ ...h, text: maskOutside(h.text) }));
+  if (readDisk) clean.resultsWithheld = 'the run read files on disk outside its workspace; its tool results, text, thinking, final message and files are not published, and paths outside its folders read <outside>';
+  else clean.resultsWithheld = 'the run read outside its workspace or carries an audit mark; its tool results, final message and files are not published, and paths outside its folders read <outside>';
+  return clean;
+}
+
+// A path outside the run's own folders, once scrubbed: under the temp root, the home, the repository, or any drive.
+const OUTSIDE_PATH = /(?:<(?:temp|home|home-slug|repo|appdata)>|(?<![\w<])[A-Za-z]:(?:\\\\|\\|\/)|(?<![\w.<>/-])\/[a-z]\/)[^\s"'`,;|)]*/g;
+// An audit mark that names a file on disk, not a URL or the repository.
+const DISK_MARK = /<temp>|<home>|<home-slug>|(?<![\w<])[A-Za-z]:(?:\\\\|\\|\/)|(?<![\w.<>/:-])\/[a-z]\//;
+
+function maskOutside(s) {
+  return typeof s === 'string' ? s.replace(OUTSIDE_PATH, '<outside>') : s;
 }
 
 function buildSlot(sessionDir, key, slot, cases, scrubFor) {
@@ -374,7 +409,7 @@ function readme(session) {
 
 ${CANARY}
 
-The runs of one outcome-bench session of agent-plugins, built by \`scripts/publish-runs.js\` from the stored runs. Benchmark ${session.benchmark}, ${session.runs} runs per case and arm.
+The runs of one outcome-bench session of agent-plugins, built by \`scripts/archive-runs.js\` from the stored runs. Benchmark ${session.benchmark}, ${session.runs} runs per case and arm. Shared by the maintainer on request, for study or research; not published.
 
 - \`session.json\`: the session's benchmark, plugin versions and fingerprints, host versions, models.
 - \`runs/<host>__<model>.json\`: one model. \`run\` is its run record; \`attempts\` the earlier graded attempts a rerun replaced; \`runs\` every stored run.
@@ -386,7 +421,7 @@ What was changed on the way out:
 - Only the fields the builder names are here; the host's records of the account, the quota and the machine are not.
 - Paths are \`<workspace>\`, \`<run-root-N>\`, \`<repo>\`, \`<temp>\`, \`<home>\`; a folder name a host made from a path is \`<home-slug>\`, and the profile folder inside a placed path is \`<appdata>\`. Names, emails and anything shaped like a key read \`<redacted>\`, \`<email>\`, \`<secret>\`.
 - A tool result is cut at ${RESULT_CAP} characters. A changed file over ${FILE_CAP} bytes, a binary one, or one past ${WORKSPACE_CAP} bytes in a run is listed under \`omitted\` with its size.
-- A run that read outside its workspace, or that the audit marked contaminated or suspect, has its tool results, final message and workspace withheld (\`resultsWithheld\`); its calls, its text and thinking, its grade and its audit stay.
+- A run that read outside its workspace, or that the audit marked contaminated or suspect, has its tool results, final message and workspace withheld (\`resultsWithheld\`), and every path outside its own folders reads \`<outside>\`; its calls, grade and audit stay. When what it read outside was a file on disk (not the web, not the repository), its text, its thinking and its calls' descriptions are withheld too: they can retell what it read.
 - Hook messages: on Claude Code, every one the session transcript recorded; on Cursor, the ones attached to tool calls (Cursor's stream does not carry the session-start one).
 
 The cases, graders and plugin code are in the repository at the commit each run names (\`run.pluginSource.commit\`); the words are defined in docs/LEXICON.md.
@@ -449,10 +484,58 @@ function build(sessionId, out, tokens, { sessions = SESSIONS, repo = ROOT, temp 
   }
 }
 
+/*
+ * One file to keep and to share: a ustar archive of the built folder,
+ * gzipped. Written here, not by the system's tar, so it is the same on every
+ * runner: entries in path order, owner 0, mode 0644, one fixed time. The same
+ * folder gives the same bytes on one machine, so a rebuild can be checked
+ * against the published SHA-256.
+ */
+function tarGz(dir, name, mtime = 0) {
+  const zlib = require('zlib');
+  const field = (buf, off, len, s) => buf.write(String(s), off, len, 'ascii');
+  const octal = (n, len) => n.toString(8).padStart(len - 1, '0') + '\0';
+  const blocks = [];
+  for (const rel of listFiles(dir)) {
+    const full = `${name}/${rel}`;
+    if (Buffer.byteLength(full) > 100) throw new Error(`archive path over 100 bytes: ${full}`);
+    const body = fs.readFileSync(path.join(dir, rel));
+    const h = Buffer.alloc(512, 0);
+    field(h, 0, 100, full);
+    field(h, 100, 8, octal(0o644, 8));
+    field(h, 108, 8, octal(0, 8));
+    field(h, 116, 8, octal(0, 8));
+    field(h, 124, 12, octal(body.length, 12));
+    field(h, 136, 12, octal(Math.floor(mtime), 12));
+    field(h, 148, 8, '        ');
+    field(h, 156, 1, '0');
+    field(h, 257, 6, 'ustar\0');
+    field(h, 263, 2, '00');
+    let sum = 0;
+    for (const b of h) sum += b;
+    field(h, 148, 8, sum.toString(8).padStart(6, '0') + '\0 ');
+    blocks.push(h, body, Buffer.alloc((512 - (body.length % 512)) % 512, 0));
+  }
+  blocks.push(Buffer.alloc(1024, 0));
+  return zlib.gzipSync(Buffer.concat(blocks), { level: 9 });
+}
+
+// The archive and its checksum line beside the folder: <out>.tar.gz, <out>.tar.gz.sha256.
+function writeArchive(out, sessionId) {
+  const name = path.basename(out);
+  const t = Date.parse(String(sessionId).replace(/T(\d\d)-(\d\d)-(\d\d)-(\d{3})Z$/, 'T$1:$2:$3.$4Z'));
+  const gz = tarGz(out, name, Number.isFinite(t) ? t / 1000 : 0);
+  const file = `${out}.tar.gz`;
+  fs.writeFileSync(file, gz);
+  const sum = crypto.createHash('sha256').update(gz).digest('hex');
+  fs.writeFileSync(`${file}.sha256`, `${sum}  ${path.basename(file)}\n`);
+  return { file, sha256: sum, bytes: gz.length };
+}
+
 function main() {
   const argv = process.argv.slice(2);
   const val = (f) => { const i = argv.indexOf(f); return i !== -1 ? argv[i + 1] : null; };
-  const usage = 'usage: node scripts/publish-runs.js --session <id> --out <dir> [--forbid a,b]\n       node scripts/publish-runs.js --check <dir> [--forbid a,b]';
+  const usage = 'usage: node scripts/archive-runs.js --session <id> --out <dir> [--forbid a,b] [--archive]\n       node scripts/archive-runs.js --check <dir> [--forbid a,b]';
   let tokens;
   try { tokens = forbiddenTokens((val('--forbid') || '').split(',')); } catch (e) { console.error(e.message); process.exit(2); }
   if (val('--check')) {
@@ -473,8 +556,12 @@ function main() {
     process.exit(1);
   }
   console.log(`${r.runs} runs, ${r.files} files in ${out}; scan clean`);
+  if (argv.includes('--archive')) {
+    const a = writeArchive(dest, id);
+    console.log(`${a.file} (${a.bytes} bytes)\nsha256 ${a.sha256}`);
+  }
 }
 
-module.exports = { ALLOWED, forbiddenTokens, makeScrub, scrubDeep, scanText, scanDir, pathPattern, eventsOf, transcriptHooks, workspaceChanges, build };
+module.exports = { ALLOWED, forbiddenTokens, makeScrub, scrubDeep, scanText, scanDir, pathPattern, eventsOf, transcriptHooks, workspaceChanges, build, tarGz, writeArchive };
 
 if (require.main === module) main();

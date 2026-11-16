@@ -439,6 +439,15 @@ release number that only says "which changelog is this". Cutting one:
    (run on the tagged commit). The release is the only tag: plugins are not
    tagged individually - the release lists which plugin versions it ships, and
    the fingerprints let a user check an installed copy against it.
+6. Publishing the release deploys the site (`.github/workflows/pages.yml`):
+   the plugins from their manifests and every benchmark in `bench/published/`,
+   built by `node scripts/site.js` at https://3dgiordano.github.io/agent-plugins/.
+   When a bench session closed since the last release, export its results
+   before step 3 and commit the file:
+   `node scripts/bench-report.js --session <id> --export bench/published/benchmark-<version>.json --out <dir>`
+   (bench/README.md, "Report"). The runs themselves stay in `bench/archive/`,
+   never on the site. Preview with `node scripts/site.js --out <dir>`. One-time
+   setup: Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
 
 Repo versioning: *minor* when a plugin gains capability or a new one lands,
 *patch* for fixes; 1.0 when the default thresholds and gates have been tuned

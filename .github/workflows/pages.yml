@@ -1,0 +1,63 @@
+# Publish the project site to GitHub Pages when a release is published.
+#
+# The site is built from the release's commit by scripts/site.js: the plugins
+# from their manifests, and each benchmark's report from its published results
+# (bench/published/, written by `bench-report.js --export`). Nothing generated
+# is committed, and no run data is published: the runs stay with the
+# maintainer. It can also be run by hand from the Actions tab (Run workflow),
+# e.g. to republish after a results file is added.
+#
+# One-time setup: Settings -> Pages -> Build and deployment -> Source:
+# "GitHub Actions".
+
+name: Deploy the site to GitHub Pages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a newer release waits for the one in flight.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # The site's own checks: it builds from what is committed, every page and
+      # link it writes resolves, and the published results hold no path or account.
+      - name: Site checks
+        run: node --test tests/site.test.js
+
+      - name: Build the site
+        run: node scripts/site.js --out _site --release "${{ github.event.release.tag_name }}"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

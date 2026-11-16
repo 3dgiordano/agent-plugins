@@ -12,6 +12,8 @@ plugins/*/evals/results/
 # outcome bench runs and rendered reports (bench/README.md): local, not versioned
 bench/results/
 bench/report-*/
+# scrubbed session archives (scripts/archive-runs.js, bench/README.md "Archive"): kept by the maintainer, shared on request, never published
+bench/archive/
 
 # The progress ledger (progress-self-monitoring): per-checkout residue, not shared history
 .agent/progress.md

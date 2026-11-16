@@ -753,7 +753,8 @@ node scripts/test.js            # structure checks + every hook adapter driven a
 node scripts/version.js --check # each plugin's four manifests agree on the version
 node scripts/calibrate.js <dir> # what-if nudge rates from the opt-in logs of real sessions
 node scripts/behaviour.js <dir> # partial metric and behaviour measures of stored bench runs
-node scripts/publish-runs.js --session <id> --out <dir> --forbid <names> # a bench session as scrubbed, auditable data
+node scripts/archive-runs.js --session <id> --out bench/archive/<name> --forbid <names> --archive # a bench session as a scrubbed archive, kept internal
+node scripts/site.js --out <dir>  # the project site: the plugins and every published benchmark (deployed on each release)
 node scripts/pluginsource.js    # each plugin's version, code fingerprint and uncommitted state; --release for the notes' table, <folder> for one copy
 node scripts/installs.js        # this machine's installed copies against the repo; --sync to update them
 ```
