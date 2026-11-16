@@ -77,6 +77,7 @@ Claude models pass 85% to 100% of the cases with the plugins, not 100%; and
 18 of the 21 passes gained on Claude Code come from two cases, handoff's and
 hygiene's. Per case, first attempts and intervals:
 [Evidence](docs/EVIDENCE.md#benchmark-120-claude-code-and-cursor-2026-10-23-to-2026-10-26-release-0200).
+The full report, per model and case: [the project site](https://3dgiordano.github.io/agent-plugins/bench/1.2.0/).
 
 <details>
 <summary><b>About these numbers</b> — how they are measured, and what they do not show yet</summary>
@@ -89,6 +90,8 @@ Cursor. It is drawn from the session's runs and stamped with the benchmark
 version and the date of the latest one; a model short of a case says so on
 its line. To draw it again:
 `node scripts/bench-report.js --session 2026-10-23T16-42-34-216Z --out <dir> --figure assets/bench-results.svg`.
+Without the runs, from the published results in the repository - the same figure, byte for byte:
+`node scripts/bench-report.js --data bench/published/benchmark-1.2.0.json --out <dir> --figure <file>`.
 
 With the plugins every model passes more of the cases; the gap is widest
 where the model alone does least, the Grok models on Cursor. A case every
@@ -105,7 +108,7 @@ versions, costs and limits: [docs/EVIDENCE.md](docs/EVIDENCE.md).
 
 </details>
 
-More: [How it works](docs/HOW-IT-WORKS.md) · [Evidence](docs/EVIDENCE.md) ·
+More: [Website](https://3dgiordano.github.io/agent-plugins/) · [How it works](docs/HOW-IT-WORKS.md) · [Evidence](docs/EVIDENCE.md) ·
 [Research](docs/RESEARCH.md) · [Roadmap](ROADMAP.md) · [FAQ](docs/FAQ.md) · [Security](SECURITY.md)
 
 ## What your agent sees — and what you see
