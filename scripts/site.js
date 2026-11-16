@@ -23,6 +23,8 @@ const report = require('./bench-report.js');
 
 const ROOT = path.join(__dirname, '..');
 const REPO = 'https://github.com/3dgiordano/agent-plugins';
+// The name the site goes by: the author's handle with the repository's, as the marketplace names it.
+const NAME = '3dgiordano-agent-plugins';
 const BLOB = `${REPO}/blob/main`;
 
 // The question each plugin's self-check answers (README, "In one minute"). A plugin missing here shows without one.
@@ -158,13 +160,15 @@ function page({ title, description, body, depth = 0 }) {
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:image" content="${up}social-preview.png">
+<meta property="og:site_name" content="${NAME}">
+<meta name="author" content="3dgiordano">
 <link rel="icon" href="${up}logo.svg" type="image/svg+xml">
 <style>${CSS}</style>
 </head>
 <body>
 <header class="top"><div class="wrap">
 <img src="${up}logo.svg" alt="">
-<a class="name" href="${up || './'}">agent-plugins</a>
+<a class="name" href="${up || './'}">${NAME}</a>
 <nav><a href="${up}#plugins">Plugins</a><a href="${up}#results">Results</a><a href="${up}#install">Install</a><a href="${REPO}">GitHub</a></nav>
 </div></header>
 ${body}
@@ -250,7 +254,7 @@ ${esc(installs)}</pre>
 </div></section>
 </main>`;
   return page({
-    title: 'agent-plugins - cognitive scaffolding for coding agents',
+    title: `${NAME} - cognitive scaffolding for coding agents`,
     description: 'Ten self-monitoring plugins for Claude Code, Codex and Cursor, and the results of their outcome benchmark.',
     body,
   });
@@ -258,7 +262,7 @@ ${esc(installs)}</pre>
 
 // The report page as bench-report.js draws it, with a link home: nothing else changes.
 function withHomeLink(html) {
-  const link = '<p style="margin:0 0 12px;font-size:14px"><a href="../../" style="color:#1F8A65">&larr; agent-plugins</a></p>';
+  const link = '<p style="margin:0 0 12px;font-size:14px"><a href="../../" style="color:#1F8A65">&larr; 3dgiordano-agent-plugins</a></p>';
   return html.includes('<main>') ? html.replace('<main>', `<main>${link}`) : html;
 }
 
