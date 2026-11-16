@@ -75,7 +75,7 @@ A refusal or a safety stop reached the model: it is a failure, not an exclusion.
 
 ## 8. Data
 
-Every run of a study is archived: the stream, the transcript, the final workspace (or its diff from the seed), the grader's output, `run.json`, and the audit. The archive carries a manifest with the SHA-256 of every file, and is published where a reader can fetch it (a release asset or a data repository), because `bench/results/` and `evals/results/` are not versioned. EVIDENCE.md cites the archive beside each number, and the analysis is a script that reproduces every reported figure from it.
+Every run of a study is archived: the stream, the transcript, the final workspace (or its diff from the seed), the grader's output, `run.json`, and the audit. The archive carries a manifest with the SHA-256 of every file, and is published where a reader can fetch it (a release asset or a data repository), because `bench/results/` and `evals/results/` are not versioned. The stored stream and transcript are not published as they are: they hold what the host put in the model's context and in its records - the account's email and organisation, the runner's home, the quota. `node scripts/publish-runs.js` builds the published record from an allowlist of their fields, scrubs it and scans it again before keeping it ([bench/README.md](../bench/README.md), "Publish"); the raw files stay with the maintainer. EVIDENCE.md cites the archive beside each number, and the analysis is a script that reproduces every reported figure from it.
 
 ## 9. The report
 

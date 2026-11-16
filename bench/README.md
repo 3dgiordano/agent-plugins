@@ -138,6 +138,21 @@ The report is one English HTML page. With no run directories it renders the curr
 
 `--dated` is for a page that shows families measured on different days and versions. Within a family the versions must agree; across families they may differ, and each family is stamped with the date of its runs (`started` and `finished` in `run.json`), its benchmark, agent and plugin versions, and any `--note` for it. Runs from before `run.json` carried a date take it from `--date`, and the page says it was given, not recorded. The page adds an audit table per arm (eval talk, runs that left the workspace, suspect runs), read from each run's `cost.json`, and a case table per family. The page of the Cursor session of 2026-09-23 beside the Claude Code session of 2026-09-27 was drawn this way (`bench/report-*/` is not versioned; the Claude runs live outside the repository).
 
+## Publish
+
+```
+node scripts/publish-runs.js --session <id> --out <dir> --forbid <names,handles,organisation>
+node scripts/publish-runs.js --check <dir> --forbid <...>
+```
+
+Builds a session's runs as data a reader can audit: one JSON file per model with every run's grade, cost, audit counts, behaviour measures, final message, the hook messages the agent received, its events (prompts, text, thinking, tool calls and results) and the workspace files that differ from the seed; the earlier attempts a rerun replaced; the session's versions and fingerprints; a README; and a SHA-256 manifest. The repository holds the cases, graders and plugin code each run names by commit.
+
+A stored run is not copied as it is. On Claude Code the transcript holds what the host put in the model's context, the account's email and organisation among it, and both hosts' streams name the runner's home, its quota and its sockets. So each record is built from an allowlist of fields (`ALLOWED` in the script); every string is scrubbed - the run's folders, the repository, the temp root and the home become `<workspace>`, `<run-root-N>`, `<repo>`, `<temp>`, `<home>` in every spelling a path takes, a folder name a host made from a path becomes `<home-slug>`, the forbidden tokens `<redacted>`, emails `<email>` and key-shaped strings `<secret>` - and the output is scanned again for each of those kinds before it is renamed into place. A hit leaves nothing at the destination and prints the file, the kind and the count, never the text. The forbidden tokens come from `--forbid` and `PUBLISH_FORBIDDEN_TOKENS`, plus the OS user and the machine name; with neither given the build refuses, and a token under 3 characters is refused rather than dropped.
+
+A run that read outside its workspace, or that the audit marked contaminated or suspect, keeps its calls, text, thinking, grade and audit; its tool results, final message and files are withheld, because what it read outside is not the bench's to publish. On Cursor the stream carries only the hook messages attached to tool calls; the prompt of a Claude Code run is the case's own, not in its stream.
+
+Session 2026-10-23T16-42-34-216Z (benchmark 1.2.0) builds to 355 runs in about 10 MB, 79 of them with results withheld. The script publishes nothing itself: where the archive goes (a release asset, a data repository) is the maintainer's step.
+
 ## What each case counts
 
 **Canonical cases** are the ten in `bench/benchmark.json`, one per plugin: the ones the report draws and a published number is measured on. A case may be another plugin's task (`"same": "<plugin>/<id>"` in `case.json`): `integrity-self-monitoring/the-blocked-part-stays-blocked` runs coverage's task, files and grader with integrity installed. Measured on Cursor, Grok 4.7 High, 2026-09-25: 3/3 with, 0/3 without (`bench/results/int-n3-grok-4.7-high`); on Claude Code, 2026-09-27, see docs/EVIDENCE.md. Their target: Grok 4.7 High fails the case without the plugin, Composer 2.5 passes it with the plugin.
